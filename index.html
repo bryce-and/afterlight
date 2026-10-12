@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Afterlight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="crosshair"><span class="ch t"></span><span class="ch b"></span><span class="ch l"></span><span class="ch r"></span><span class="dot"></span></div>
+  <div id="hitmarker"><span></span><span></span><span></span><span></span></div>
+  <div id="scope" class="hidden"><div class="lens"></div></div>
+  <div id="vignette"></div>
+  <div id="dmg-dirs"></div>
+  <div id="dmg-layer"></div>
+  <div id="waypoint" class="hidden"><div class="wp-icon"></div><div class="wp-dist"></div></div>
+
+  <div id="objective"><div class="obj-loc"></div><div class="obj-name"></div><div class="obj-text"></div></div>
+  <div id="vitals">
+    <div class="vbar"><div class="shield-fill"></div></div>
+    <div class="vbar health"><div class="health-fill"></div></div>
+    <div id="revives"></div>
+  </div>
+  <div id="bossbar" class="hidden"><div class="boss-name"></div><div class="boss-track"><div class="boss-hp"></div><div class="boss-shield"></div></div></div>
+
+  <div id="abilities">
+    <div id="super"><div class="super-top"><span class="super-name"></span><span class="super-label"></span><kbd>X</kbd></div><div class="super-track"><div class="super-fill"></div></div></div>
+    <div class="ab-row">
+      <div class="ab" data-ab="grenade"><div class="ab-fill"></div><div class="ab-icon">◆</div><span class="ab-name"></span><kbd>Q</kbd></div>
+      <div class="ab" data-ab="melee"><div class="ab-fill"></div><div class="ab-icon">✶</div><span class="ab-name"></span><kbd>F</kbd></div>
+      <div class="ab" data-ab="class"><div class="ab-fill"></div><div class="ab-icon">▲</div><span class="ab-name"></span><kbd>C</kbd></div>
+    </div>
+  </div>
+  <div id="weapons"></div>
+  <div id="reload-hint">RELOAD [R]</div>
+  <div id="feed"></div>
+  <div id="center-msg"><div class="cm-title"></div><div class="cm-sub"></div></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="death" class="hidden"><div class="d-title">You Have Fallen</div><div class="d-sub"></div><div class="d-timer"></div></div>
+  <div id="lock-hint" class="hidden">Click to capture the mouse</div>
+</div>
+
+<div id="title" class="screen">
+  <div class="title-wrap">
+    <div class="logo">AFTERLIGHT</div>
+    <div class="tagline">A low-poly looter shooter</div>
+    <div class="t-hint">Click to begin</div>
+    <div class="t-foot">Best with a mouse and keyboard. Headphones recommended.</div>
+  </div>
+</div>
+<div id="classes" class="screen hidden"></div>
+<div id="orbit" class="screen hidden"></div>
+<div id="pause" class="screen overlay hidden"></div>
+<div id="complete" class="screen overlay hidden"></div>
+<div id="failed" class="screen overlay hidden"></div>
+
+<noscript>Afterlight needs JavaScript to run.</noscript>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
