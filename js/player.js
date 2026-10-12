@@ -114,7 +114,10 @@ export class Player {
     this.superModel = buildSuperModel(ab.super.id);
     this.superModel.visible = false;
     this.viewmodel.add(this.superModel);
-    this.cur = 0; this.switchT = 0; this.switchMax = 0.4;
+    this.cur = 0; this.switchT = 0; this.switchMax = this.exo.has('ophidian') ? 0.2 : 0.4;
+    this.lungeMul = this.exo.has('ophidian') ? 1.5 : 1;
+    // exotic armor state: Nezarec's Sin, Contraverse Hold, Actium, Armamentarium, Transversive Steps, Dunemarchers
+    this.nezT = 0; this.contraT = 0; this.actT = 0; this.gBank = 0; this.gBankT = 0; this.trvT = 0; this.dune = 0;
     this.showModel();
   }
 
@@ -253,7 +256,7 @@ export class Player {
     this.moveDir = { x: wx, z: wz, len };
     this.sprinting = !!k.ShiftLeft && iz < 0 && this.adsT < 0.3 && G.time - this.lastFire > 0.35 && !this.weapon.reloading;
     this.sprintT = damp(this.sprintT, this.sprinting ? 1 : 0, 10, dt);
-    let speed = this.speed * (this.sprinting ? 1.5 : 1) * lerp(1, 0.55, this.adsT);
+    let speed = this.speed * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
     if (this.superActive?.type === 'hammers') speed *= 1.1;
     if (this.superActive?.type === 'fists') speed *= 1.3;
     const accel = this.onGround ? 14 : 2.5;
@@ -414,6 +417,7 @@ export class Player {
     let t = w.s.reload;
     if (this.buffs.outlaw > 0) t *= 0.55;
     if (w.has('hotswap')) t *= 0.85;
+    if (this.exo.has('ophidian')) t *= 0.65;
     w.reloadT = w.reloadMax = t;
     if (w.killclipWindow > 0) w.killclipArm = true;
     w.burstLeft = 0;
@@ -606,6 +610,10 @@ export class Player {
     const gain = (o.source === 'ability' ? 5 : 3) + (o.crit ? 1 : 0) + typeBonus;
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + gain);
     for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - 0.6);
+    if (o.source === 'ability' || o.source === 'melee') {
+      if (this.exo.has('nezarec')) { if (this.nezT <= 0) ui.feed("Nezarec's Sin: abilities surge", ELEMENTS.void.color); this.nezT = 5; }
+      if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.heal(1000); ui.feed('Skullfort: melee recharged', '#ffb36b'); }
+    }
     const w = o.weapon;
     if (!w) return;
     if (w.has('rampage')) { this.buffs.rampage = Math.min(3, this.buffs.rampage + 1); this.buffs.rampageT = 5; }
@@ -637,6 +645,7 @@ export class Player {
     if (this.superActive) amount *= this.superActive.guard ? 0.15 : SUPER_ARMOR[this.superActive.type] ?? 1;
     if (this.over > 0) { const a = Math.min(this.over, amount); this.over -= a; amount -= a; if (amount <= 0) { sfx.hurt(); return; } }
     if (this.dash > 0) amount *= 0.5;
+    if (this.contraT > 0) amount *= 0.8; // Contraverse Hold
     this.regenT = this.regenDelay;
     const hadShield = this.shield > 0;
     if (this.shield > 0) {
@@ -708,11 +717,13 @@ export class Player {
   // -------------------------------------------------------------------------
   updateAbilities(dt) {
     const song = this.keepsGuns ? 8 : 1;
+    const nez = this.nezT > 0 ? 2 : 1; // Nezarec's Sin
     for (const k of ['grenade', 'melee', 'class']) {
       this.heart[k] = Math.max(0, this.heart[k] - dt);
-      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.heart[k] > 0 ? 1.6 : 1));
+      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.heart[k] > 0 ? 1.6 : 1) * nez);
     }
     this.meleeT = Math.max(0, this.meleeT - dt);
+    this.updateExoticArmor(dt);
     this.lethalT = Math.max(0, this.lethalT - dt);
     this.meleeLock = Math.max(0, this.meleeLock - dt);
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * 0.75);
@@ -727,6 +738,36 @@ export class Player {
     if (p.KeyX) this.useSuper();
   }
 
+  /** Per-frame exotic armor effects. */
+  updateExoticArmor(dt) {
+    this.nezT = Math.max(0, this.nezT - dt);
+    this.contraT = Math.max(0, this.contraT - dt);
+    const x = this.exo;
+    if (x.has('armamentarium') && this.gBank < 1) {
+      // the stored second charge recharges once the first one is full
+      if (this.cd.grenade <= 0) { this.gBankT += dt; if (this.gBankT >= this.cdMax.grenade) { this.gBank = 1; this.gBankT = 0; } }
+    }
+    const w = this.weapon;
+    if (x.has('actium') && !this.superActive && G.time - this.lastFire < 0.2 && w.ammo < w.mag && w.reserve > 0) {
+      this.actT -= dt;
+      if (this.actT <= 0) { this.actT = 0.4; w.ammo++; if (w.reserve !== Infinity) w.reserve--; }
+    }
+    if (this.sprinting) {
+      if (x.has('transversive')) { this.trvT += dt; if (this.trvT > 0.6 && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); this.trvT = 0; } }
+      if (x.has('dunemarchers') && this.dune < 1) { this.dune = Math.min(1, this.dune + dt / 1.5); if (this.dune >= 1) ui.feed('Dunemarchers: static charged', ELEMENTS.arc.color); }
+    } else this.trvT = 0;
+    if (this.dune >= 1 && Math.random() < 0.3) sparks(this.pos.clone().setY(this.pos.y + 0.3), ELEMENTS.arc.hex, 1, 2, 0.04, 0.2);
+  }
+
+  /** Dunemarchers: a charged melee chains lightning. */
+  discharge() {
+    if (this.dune < 1) return;
+    this.dune = 0;
+    const p = this.pos.clone().addScaledVector(this.getForward(new THREE.Vector3()).setY(0).normalize(), 2).setY(1);
+    this.jolt(p, 3, 250);
+    sfx.zap();
+  }
+
   /** Heart of Inmost Light: using one ability empowers the other two. */
   empowerOthers(used) {
     if (!this.exo.has('heart')) return;
@@ -734,8 +775,11 @@ export class Player {
   }
 
   useGrenade() {
-    if (this.cd.grenade > 0) { sfx.denied(); return; }
-    this.cd.grenade = this.cdMax.grenade;
+    if (this.cd.grenade > 0) {
+      if (this.gBank <= 0) { sfx.denied(); return; }
+      this.gBank--; // Armamentarium: spend the stored second charge
+    } else this.cd.grenade = this.cdMax.grenade;
+    if (this.exo.has('contraverse')) this.contraT = 3;
     this.empowerOthers('grenade');
     const id = this.cls.abilities.grenade.id;
     const el = this.cls.element;
@@ -753,6 +797,7 @@ export class Player {
 
   detonateGrenade(id, pt, hitEnemy = null) {
     pt.y = Math.max(pt.y, 0.3);
+    if (this.exo.has('contraverse') && enemiesNear(pt, 6).length) this.cd.grenade *= 0.7; // refund 30%
     const el = this.cls.element;
     if (id === 'flux') {
       // Flux: sticks to the enemy it hits, then detonates and jolts two more
@@ -830,13 +875,14 @@ export class Player {
     this.meleeLock = 0.6;
     this.throwFist(0.3, true);
     sfx.melee();
-    const t = this.findMeleeTarget(4.5, 0.55);
+    this.discharge();
+    const t = this.findMeleeTarget(4.5 * this.lungeMul, 0.55);
     if (!t) return;
     const c = t.center(new THREE.Vector3());
     const dir = c.clone().sub(this.pos).setY(0);
     const dist = dir.length();
     dir.normalize();
-    if (dist > 1.6) this.pos.addScaledVector(dir, Math.min(3, dist - t.radius - 1.0));
+    if (dist > 1.6) this.pos.addScaledVector(dir, Math.min(3 * this.lungeMul, dist - t.radius - 1.0));
     dealDamage(t, 70, { element: 'kinetic', source: 'melee', pos: c, knock: dir.clone().multiplyScalar(7) });
     sparks(c, 0xffffff, 8, 5, 0.06, 0.3);
     flare(c, 0xffffff, 0.5, 0.12);
@@ -856,6 +902,7 @@ export class Player {
     this.cd.melee = this.cdMax.melee;
     this.meleeT = 1.2;
     this.empowerOthers('melee');
+    this.discharge();
     sfx.melee();
     if (id === 'knife' || id === 'snare') {
       this.throwFist(0.3);
@@ -892,7 +939,7 @@ export class Player {
     if (id === 'combo') {
       // Combination Blow: lunge strike; kills heal fully and refund half the melee. Lethal Current doubles it after a dodge.
       this.throwFist(0.32, true);
-      const t = this.findMeleeTarget(6, 0.65);
+      const t = this.findMeleeTarget(6 * this.lungeMul, 0.65);
       const lethal = this.lethalT > 0;
       this.lethalT = 0;
       if (!t) { castFx('slam', { p: this.pos.clone().addScaledVector(fwd.clone().setY(0).normalize(), 2).setY(0.6), el: 'arc', r: 3 }); return; }
@@ -931,7 +978,7 @@ export class Player {
     if (id === 'fist') {
       // Hammer Strike: lunge and slam. No target in range = slam the ground ahead.
       this.throwFist(0.35, true);
-      const t = this.findMeleeTarget(7, 0.7);
+      const t = this.findMeleeTarget(7 * this.lungeMul, 0.7);
       let at;
       if (t) {
         t.center(c);

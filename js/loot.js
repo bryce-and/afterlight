@@ -110,7 +110,7 @@ export function makeArmor(slot, power, rIdx) {
   let mob = Math.round((a / s) * total), res = Math.round((b / s) * total);
   let rec = Math.max(0, total - mob - res);
   let name;
-  if (rar.id === 'exotic') name = EXOTIC_ARMOR[slot];
+  if (rar.id === 'exotic') name = pick(EXOTIC_ARMOR[slot]);
   else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(ARMOR_NOUN[slot])}`;
   else name = `${pick(ADJ)} ${pick(ARMOR_NOUN[slot])}`;
   return { id: newId(), kind: 'armor', slot, rarity: rar.id, name, power: clampPower(power), stats: { mob, res, rec }, isNew: true };
@@ -149,7 +149,7 @@ export function heavyVersion(item) {
 
 /** Renames gear from older saves to the Destiny names (keeps stats and perks). */
 export function modernizeItem(it) {
-  if (it.kind === 'armor') { if (it.rarity === 'exotic') it.name = EXOTIC_ARMOR[it.slot]; return; }
+  if (it.kind === 'armor') { if (it.rarity === 'exotic' && !EXOTIC_ARMOR[it.slot].includes(it.name)) it.name = EXOTIC_ARMOR[it.slot][0]; return; }
   if (it.rarity === 'exotic') {
     const tpl = EXOTIC_WEAPONS.find((e) => e.arch === it.arch);
     if (tpl) Object.assign(it, { name: tpl.name, element: tpl.element, exotic: tpl.perks[0], flavor: tpl.flavor });

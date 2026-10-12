@@ -501,3 +501,6 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 
 /* Heart of Inmost Light: empowered abilities glow gold */
 .ab.empowered { box-shadow: 0 0 0 2px #f4c542, 0 0 14px rgba(244, 197, 66, 0.7); }
+
+/* Armamentarium: a stored second grenade charge */
+.ab.charge2::after { content: '+1'; position: absolute; right: 4px; top: 3px; font-size: 11px; font-weight: 700; color: #f4c542; }

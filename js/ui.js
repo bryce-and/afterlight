@@ -684,6 +684,7 @@ export function updateHUD(dt) {
     setStyle(a.fill, 'ab' + k, 'height', `${Math.round(pct * 100)}%`);
     setClass(a.el, 'ab' + k, 'ready', pct >= 1);
     setClass(a.el, 'hx' + k, 'empowered', P.heart[k] > 0); // Heart of Inmost Light
+    if (k === 'grenade') setClass(a.el, 'gb', 'charge2', P.gBank > 0); // Armamentarium
   }
   const S = P.superActive;
   const sp = S ? S.t / S.max : P.superCharge / 100;
