@@ -162,9 +162,11 @@ export class Player {
     if (b.parent !== G.scene) G.scene.add(b);
     b.visible = k > 0.3;
     this.viewmodel.visible = !this.dead && k < 0.3;
+    const prop = this.thirdPerson ? this.superActive.type : null;
+    if (this.bodyProp !== prop) { this.bodyProp = prop; this.body.setProp(prop); }
     b.position.copy(this.pos);
     b.rotation.y = this.yaw + Math.PI;
-    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: this.punchT > 0 });
+    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: this.punchT > 0, armsLow: prop === 'fists' && this.punchT <= 0 });
   }
 
   get keepsGuns() { return this.superActive?.type === 'songflame'; }

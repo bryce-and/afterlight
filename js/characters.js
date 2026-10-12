@@ -186,6 +186,7 @@ export function buildCharacter(classId, elementId) {
   const gh = ghost();
   group.add(gh);
   let t = Math.random() * 10, phase = 0, gun = null;
+  const props = [];
   const knee = (leg) => leg.children[2];
   const elbow = (arm) => arm.children[1];
   const towards = (cur, target, k) => cur + (target - cur) * k;
@@ -202,6 +203,40 @@ export function buildCharacter(classId, elementId) {
       gun.rotation.order = 'YXZ';
       gun.position.set(-0.2, 0.42, 0.3); // right hand, chest height (the figure faces +z, its right is -x)
       b.torso.add(gun);
+    },
+    /** Super props held in third person: 'hammers' | 'fists' | 'staff' | 'sentinel' | 'stormtrance' | null. */
+    setProp(type) {
+      for (const p of props) p.parent?.remove(p);
+      props.length = 0;
+      const R = elbow(b.arms[0]), L = elbow(b.arms[1]); // right and left forearms; the hand is ~0.45 down the forearm
+      const glow = (c, k = 2.4) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, flatShading: true });
+      const put = (parent, mesh, x, y, z) => { mesh.position.set(x, y, z); parent.add(mesh); props.push(mesh); return mesh; };
+      if (type === 'hammers') {
+        // raised over the shoulder: the forearm's +z points up while aiming
+        put(R, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.75, 6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x5a3a22, flatShading: true })), 0, -0.45, 0.35);
+        put(R, new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.28, 0.28), glow(0xff8b2b, 2.8)), 0, -0.45, 0.78);
+      } else if (type === 'fists') {
+        for (const arm of [R, L]) {
+          put(arm, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.42, 0.3), glow(0x5fd3ff, 2.2)), 0, -0.4, 0);
+          put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 1), new THREE.MeshBasicMaterial({ color: 0x5fd3ff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })), 0, -0.55, 0);
+        }
+      } else if (type === 'staff') {
+        const st = put(R, new THREE.Group(), 0, -0.47, 0);
+        st.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.7, 6).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x39404c, flatShading: true })));
+        for (const sx of [-1, 1]) { const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), glow(0x5fd3ff, 2.8)); tip.position.x = sx * 0.88; tip.scale.x = 2; st.add(tip); }
+      } else if (type === 'sentinel') {
+        const sh = put(L, new THREE.Group(), 0, -0.4, 0.06);
+        sh.add(new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.06, 18), new THREE.MeshStandardMaterial({ color: 0x3a3048, flatShading: true })));
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.05, 4, 22).rotateX(Math.PI / 2), glow(0xb07cff, 2.8));
+        const boss = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), glow(0xe6d0ff, 3));
+        boss.position.y = -0.05;
+        sh.add(rim, boss);
+      } else if (type === 'stormtrance') {
+        for (const arm of [R, L]) {
+          put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), new THREE.MeshBasicMaterial({ color: 0xbfefff })), 0, -0.52, 0);
+          put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), new THREE.MeshBasicMaterial({ color: 0x5fd3ff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })), 0, -0.52, 0);
+        }
+      }
     },
     /** pose: null = idle on the Character screen; otherwise { speed, sprint, air, pitch, firing, dead }. */
     update(dt, pose = null) {
@@ -234,12 +269,13 @@ export function buildCharacter(classId, elementId) {
       b.head.rotation.x = towards(b.head.rotation.x, -pitch * 0.6 - (pose.sprint ? 0.2 : 0), k);
       b.head.rotation.y = 0;
       // arms: shouldered weapon aimed with the look pitch, lowered while sprinting
-      const aim = pose.sprint ? -0.55 : -1.35 - pitch * 0.85;
+      // armsLow: fists carried at the sides (Fists of Havoc)
+      const aim = pose.armsLow ? -0.35 : pose.sprint ? -0.55 : -1.35 - pitch * 0.85;
       const kick = pose.firing ? Math.random() * 0.08 : 0;
       b.arms[0].rotation.x = towards(b.arms[0].rotation.x, aim + kick, k);
-      b.arms[0].rotation.z = towards(b.arms[0].rotation.z, pose.sprint ? -0.15 : 0.1, k);
-      b.arms[1].rotation.x = towards(b.arms[1].rotation.x, (pose.sprint ? -0.4 : -1.2 - pitch * 0.85) + kick, k);
-      b.arms[1].rotation.z = towards(b.arms[1].rotation.z, pose.sprint ? 0.2 : -0.55, k);
+      b.arms[0].rotation.z = towards(b.arms[0].rotation.z, pose.armsLow ? -0.35 : pose.sprint ? -0.15 : 0.1, k);
+      b.arms[1].rotation.x = towards(b.arms[1].rotation.x, (pose.armsLow ? -0.35 : pose.sprint ? -0.4 : -1.2 - pitch * 0.85) + kick, k);
+      b.arms[1].rotation.z = towards(b.arms[1].rotation.z, pose.armsLow ? 0.35 : pose.sprint ? 0.2 : -0.55, k);
       elbow(b.arms[0]).rotation.x = towards(elbow(b.arms[0]).rotation.x, pose.sprint ? -0.9 : -0.15, k);
       elbow(b.arms[1]).rotation.x = towards(elbow(b.arms[1]).rotation.x, pose.sprint ? -0.9 : -0.35, k);
       if (gun) {
