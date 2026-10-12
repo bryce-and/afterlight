@@ -789,7 +789,7 @@ export class Player {
     if (this.cd.grenade > 0) {
       if (this.gBank <= 0) { sfx.denied(); return; }
       this.gBank--; // Armamentarium: spend the stored second charge
-    } else this.cd.grenade = this.cdMax.grenade;
+    } else this.cd.grenade = this.keepsGuns ? Math.min(3.2, this.cdMax.grenade) : this.cdMax.grenade; // Song of Flame: a 0.4s throw delay (cooldowns run 8x during the super)
     if (this.exo.has('contraverse')) this.contraT = 3;
     this.empowerOthers('grenade');
     const id = this.cls.abilities.grenade.id;
