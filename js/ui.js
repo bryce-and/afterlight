@@ -601,13 +601,14 @@ function setClass(el, key, cls, on) { const k = key + cls; if (cache.get(k) !== 
 
 export function enterMission() {
   showOnly('hud');
+  applyHudScale();
   cache.clear();
   const P = G.player;
   hud.shield = $('#vitals .shield-fill'); hud.over = $('#vitals .over-fill'); hud.health = $('#vitals .health-fill'); hud.revives = $('#revives');
   hud.objLoc = $('#objective .obj-loc'); hud.objName = $('#objective .obj-name'); hud.objText = $('#objective .obj-text');
   hud.boss = $('#bossbar'); hud.bossName = $('#bossbar .boss-name'); hud.bossHp = $('#bossbar .boss-hp'); hud.bossSh = $('#bossbar .boss-shield');
   hud.wp = $('#waypoint'); hud.wpDist = $('#waypoint .wp-dist');
-  hud.cross = $('#crosshair'); hud.vig = $('#vignette'); hud.reload = $('#reload-hint');
+  hud.cross = $('#crosshair'); hud.vig = $('#vignette'); hud.crit = $('#crit-vignette'); hud.reload = $('#reload-hint');
   hud.superFill = $('#super .super-fill'); hud.superLbl = $('#super .super-label'); hud.superBox = $('#super');
   hud.ab = {};
   const ab = P.cls.abilities;
@@ -666,8 +667,11 @@ export function updateHUD(dt) {
   setText(hud.objText, 'obj', M.objective);
   // vignette
   flashV = Math.max(0, flashV - dt * 2.5);
-  const lowHp = P.dead ? 0.6 : (1 - P.health / P.maxHealth) * 0.6;
-  setStyle(hud.vig, 'vig', 'opacity', Math.min(1, lowHp + flashV).toFixed(2));
+  setStyle(hud.vig, 'vig', 'opacity', Math.min(1, flashV).toFixed(2));
+  // critical health: red closes in below 40% health and is strongest near zero
+  const frac = P.health / P.maxHealth;
+  const crit = P.dead ? 1 : frac < 0.4 ? (0.4 - frac) / 0.4 : 0;
+  setStyle(hud.crit, 'crit', '--k', crit.toFixed(2));
   // abilities
   for (const k of ['grenade', 'melee', 'class']) {
     const a = hud.ab[k];
@@ -884,6 +888,7 @@ export function showPause() {
       <div class="settings">
         <label>Mouse sensitivity <span id="v-sens">${s.sens.toFixed(2)}</span><input type="range" id="s-sens" min="0.2" max="3" step="0.05" value="${s.sens}"></label>
         <label>Field of view <span id="v-fov">${s.fov}</span><input type="range" id="s-fov" min="65" max="105" step="1" value="${s.fov}"></label>
+        <label>HUD scale <span id="v-hud">${Math.round((s.hudScale ?? 1) * 100)}%</span><input type="range" id="s-hud" min="0.7" max="1.4" step="0.05" value="${s.hudScale ?? 1}"></label>
         <label>Volume <span id="v-vol">${Math.round(s.volume * 100)}%</span><input type="range" id="s-vol" min="0" max="1" step="0.05" value="${s.volume}"></label>
       </div>
       <div class="row-btns">
@@ -895,6 +900,7 @@ export function showPause() {
   const P = G.player;
   $('#s-sens').addEventListener('input', (e) => { s.sens = +e.target.value; $('#v-sens').textContent = s.sens.toFixed(2); P.sens = 0.0022 * s.sens; writeSave(G.save); });
   $('#s-fov').addEventListener('input', (e) => { s.fov = +e.target.value; $('#v-fov').textContent = s.fov; P.baseFov = s.fov; writeSave(G.save); });
+  $('#s-hud').addEventListener('input', (e) => { s.hudScale = +e.target.value; $('#v-hud').textContent = `${Math.round(s.hudScale * 100)}%`; applyHudScale(); writeSave(G.save); });
   $('#s-vol').addEventListener('input', (e) => { s.volume = +e.target.value; $('#v-vol').textContent = `${Math.round(s.volume * 100)}%`; setVolume(s.volume); writeSave(G.save); });
   $('#p-resume').addEventListener('click', resumeGame);
   $('#p-abandon').addEventListener('click', () => { el.classList.add('hidden'); G.mpMenu = false; abandonMission(); });
@@ -941,6 +947,11 @@ function renderInventory() {
     renderInventory();
   }));
   $('#inv-close', el).addEventListener('click', resumeGame);
+}
+
+/** HUD scale setting (70%-140%), applied to every HUD panel through a CSS variable. */
+export function applyHudScale() {
+  document.documentElement.style.setProperty('--hud-scale', String(G.save?.settings.hudScale ?? 1));
 }
 
 export function resumeGame() {

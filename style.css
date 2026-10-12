@@ -221,6 +221,13 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 @keyframes superpulse { 50% { opacity: 0.6; } }
 #screen-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--fc, #fff) 70%, white) 0%, var(--fc, #fff) 100%); mix-blend-mode: screen; }
 #vignette { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(200,20,20,0.75) 100%); }
+/* critical health: closes in and deepens as --k goes 0 -> 1 (40% health -> 0), with a heartbeat pulse */
+#crit-vignette { --k: 0; position: absolute; inset: 0; pointer-events: none; opacity: calc(var(--k) * 1.6);
+  background: radial-gradient(ellipse at center, transparent calc(52% - 30% * var(--k)), rgba(220, 0, 0, calc(0.4 + 0.4 * var(--k))) calc(78% - 8% * var(--k)), rgba(40, 0, 0, calc(0.8 + 0.18 * var(--k))) 100%);
+  animation: crit-pulse 0.9s ease-in-out infinite; }
+@keyframes crit-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.35); } }
+/* HUD scale (pause menu setting) */
+#objective, #vitals, #bossbar, #abilities, #weapons, #feed, #roster, #prompt, #reload-hint { zoom: var(--hud-scale, 1); }
 #dmg-dirs { position: absolute; left: 50%; top: 50%; }
 .dmg-dir { position: absolute; left: 0; top: 0; width: 120px; height: 14px; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,60,50,0.95), transparent 70%); border-radius: 50%; }
 #dmg-layer { position: absolute; inset: 0; overflow: hidden; }
