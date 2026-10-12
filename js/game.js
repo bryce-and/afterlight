@@ -347,6 +347,7 @@ export function dealDamage(e, amount, o = {}) {
   let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
   // grenades and melees hit 40% harder than their listed numbers and keep pace with enemy health
   if (!o.raw && (o.source === 'ability' || o.source === 'melee')) dmg *= ABILITY_POWER * M.hpMult;
+  if (!o.raw) dmg *= exoticArmorMult(o);
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
@@ -875,4 +876,22 @@ function openActChest() {
   M.rewardGlimmer += glimmer;
   writeSave(G.save);
   if (c.final) { M.phase = 'done'; M.doneT = 3.8; }
+}
+
+// ---------------------------------------------------------------------------
+// Exotic armor damage effects (see EXOTIC_ARMOR_PERKS)
+// ---------------------------------------------------------------------------
+const MELEE_SUPERS = new Set(['fists', 'staff', 'sentinel']);
+function exoticArmorMult(o) {
+  const P = G.player;
+  if (!P?.exo?.size) return 1;
+  let m = 1;
+  const S = P.superActive;
+  if (o.source === 'super' && S?.nighthawk) { m *= S.nighthawk; S.nighthawk = 0; } // Celestial Nighthawk: the first super hit
+  if (P.exo.has('synthoceps')) {
+    const melee = o.source === 'melee' || (o.source === 'ability' && P.meleeT > 0) || (o.source === 'super' && MELEE_SUPERS.has(S?.type));
+    if (melee && enemiesNear(P.pos, 12).length >= 3) m *= 2; // Synthoceps: surrounded
+  }
+  if (P.exo.has('heart') && o.source === 'ability' && (P.heart.grenade > 0 || P.heart.melee > 0)) m *= 1.3; // Heart of Inmost Light
+  return m;
 }

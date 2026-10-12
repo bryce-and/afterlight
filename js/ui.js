@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES } from './data.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
@@ -476,6 +476,8 @@ function tipHTML(it) {
       body += `<div class="tt-stat"><span>${n}</span><i><em style="width:${clamp((st[k] / 12) * 100, 3, 100)}%"></em></i><b>${st[k]}${c ? delta(st[k], c[k]) : ''}</b></div>`;
     }
     body += `<div class="tt-stat total"><span>Total</span><i></i><b>${st.mob + st.res + st.rec}</b></div></div>`;
+    const xp = it.rarity === 'exotic' && EXOTIC_ARMOR_PERKS[it.name];
+    if (xp) body += `<div class="tt-perks"><div class="tt-perk exo"><i></i><div><b>${xp.name}</b><span>${xp.desc}</span></div></div></div>`;
   }
   const inf = infuseInfo(s, it);
   const foot = equipped
@@ -678,6 +680,7 @@ export function updateHUD(dt) {
     const pct = 1 - P.cd[k] / P.cdMax[k];
     setStyle(a.fill, 'ab' + k, 'height', `${Math.round(pct * 100)}%`);
     setClass(a.el, 'ab' + k, 'ready', pct >= 1);
+    setClass(a.el, 'hx' + k, 'empowered', P.heart[k] > 0); // Heart of Inmost Light
   }
   const S = P.superActive;
   const sp = S ? S.t / S.max : P.superCharge / 100;

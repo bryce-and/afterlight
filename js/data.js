@@ -113,6 +113,13 @@ export const EXOTIC_WEAPONS = [
 ];
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
 export const HEAVY_VERSION = { dmg: 1.4, reserve: 10, brick: 3 };
+// What each exotic armor piece does (works on any class)
+export const EXOTIC_ARMOR_PERKS = {
+  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'The first hit of your super deals 4x damage. Golden Gun becomes a single shot that deals 6x damage.' },
+  Synthoceps: { id: 'synthoceps', name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
+  'Heart of Inmost Light': { id: 'heart', name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
+  'St0mp-EE5': { id: 'stomp', name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your class ability recharges 30% faster.' },
+};
 export const EXOTIC_ARMOR = {
   helmet: 'Celestial Nighthawk', arms: 'Synthoceps', chest: 'Heart of Inmost Light', legs: 'St0mp-EE5',
 };

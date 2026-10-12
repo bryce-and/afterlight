@@ -498,3 +498,6 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .settings .toggle-row { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 12px; }
 .settings .toggle-row .hint { grid-column: 1; grid-row: 2; font-size: 11px; opacity: 0.6; text-transform: none; letter-spacing: 0; }
 .settings .toggle-row input { grid-column: 2; grid-row: 1 / span 2; width: 18px; height: 18px; accent-color: #f4c542; }
+
+/* Heart of Inmost Light: empowered abilities glow gold */
+.ab.empowered { box-shadow: 0 0 0 2px #f4c542, 0 0 14px rgba(244, 197, 66, 0.7); }

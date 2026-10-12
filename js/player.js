@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G } from './state.js';
-import { CLASSES, ARCHETYPES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS } from './data.js';
+import { CLASSES, ARCHETYPES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS } from './data.js';
 import { clamp, lerp, damp } from './util.js';
 import { moveBody, hasLOS } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
@@ -77,6 +77,12 @@ export class Player {
     const ab = this.cls.abilities;
     this.cd = { grenade: 0, melee: 0, class: 0 };
     this.cdMax = { grenade: ab.grenade.cd, melee: ab.melee.cd, class: ab.class.cd };
+    // exotic armor effects (any class can wear any exotic)
+    this.exo = new Set(ARMOR_SLOTS.map((sl) => getEquipped(save, sl)).filter((it) => it?.rarity === 'exotic').map((it) => EXOTIC_ARMOR_PERKS[it.name]?.id).filter(Boolean));
+    if (this.exo.has('synthoceps')) this.cdMax.melee *= 0.75;
+    if (this.exo.has('stomp')) { this.cdMax.class *= 0.7; this.jumpV *= 1.3; this.speed *= 1.08; }
+    this.heart = { grenade: 0, melee: 0, class: 0 }; // Heart of Inmost Light: timers on the empowered abilities
+    this.meleeT = 0; // recent melee use (Synthoceps)
     this.meleeLock = 0;
     this.superCharge = 0; this.superActive = null; this.superWasReady = false;
     this.air = { fuel: 1, usedDouble: false };
@@ -702,7 +708,11 @@ export class Player {
   // -------------------------------------------------------------------------
   updateAbilities(dt) {
     const song = this.keepsGuns ? 8 : 1;
-    for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song));
+    for (const k of ['grenade', 'melee', 'class']) {
+      this.heart[k] = Math.max(0, this.heart[k] - dt);
+      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.heart[k] > 0 ? 1.6 : 1));
+    }
+    this.meleeT = Math.max(0, this.meleeT - dt);
     this.lethalT = Math.max(0, this.lethalT - dt);
     this.meleeLock = Math.max(0, this.meleeLock - dt);
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * 0.75);
@@ -717,9 +727,16 @@ export class Player {
     if (p.KeyX) this.useSuper();
   }
 
+  /** Heart of Inmost Light: using one ability empowers the other two. */
+  empowerOthers(used) {
+    if (!this.exo.has('heart')) return;
+    for (const k of ['grenade', 'melee', 'class']) if (k !== used) this.heart[k] = 8;
+  }
+
   useGrenade() {
     if (this.cd.grenade > 0) { sfx.denied(); return; }
     this.cd.grenade = this.cdMax.grenade;
+    this.empowerOthers('grenade');
     const id = this.cls.abilities.grenade.id;
     const el = this.cls.element;
     const fwd = this.getForward(new THREE.Vector3());
@@ -809,6 +826,7 @@ export class Player {
   /** V: plain melee. Lunges a short way toward a close target. */
   basicMelee() {
     if (this.meleeLock > 0 || this.superActive?.type === 'nova') return;
+    this.meleeT = 0.6;
     this.meleeLock = 0.6;
     this.throwFist(0.3, true);
     sfx.melee();
@@ -836,6 +854,8 @@ export class Player {
     const c = new THREE.Vector3();
     this.meleeLock = 0.6;
     this.cd.melee = this.cdMax.melee;
+    this.meleeT = 1.2;
+    this.empowerOthers('melee');
     sfx.melee();
     if (id === 'knife' || id === 'snare') {
       this.throwFist(0.3);
@@ -1099,6 +1119,7 @@ export class Player {
     if (this.cd.class > 0) { sfx.denied(); return; }
     const id = this.cls.abilities.class.id;
     this.cd.class = this.cdMax.class;
+    this.empowerOthers('class');
     sfx.ability();
     if (id === 'barricade') {
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
@@ -1172,6 +1193,11 @@ export class Player {
     const T = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: 12 }[ab.id];
     this.superActive = { type: ab.id, t: T, max: T, cd: 0, shots: ab.id === 'revolver' ? 6 : ab.id === 'tether' ? 3 : 0, launched: false, combo: 0, comboT: 0, bashCd: 0, dodgeCd: 0, auraT: 0 };
     if (ab.id === 'songflame') { this.cd.grenade = 0; this.cd.melee = 0; }
+    if (this.exo.has('nighthawk')) {
+      // Celestial Nighthawk: one devastating Golden Gun shot; other supers open with a 4x hit
+      this.superActive.nighthawk = ab.id === 'revolver' ? 6 : 4;
+      if (ab.id === 'revolver') this.superActive.shots = 1;
+    }
     if (ab.id === 'sentinel') this.addOvershield(OVERSHIELD_MAX, 15);
     this.showModel();
   }
