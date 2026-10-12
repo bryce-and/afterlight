@@ -1,6 +1,14 @@
 import * as THREE from 'three';
 import { mulberry32, hashStr } from './util.js';
 import { buildCharacter } from './characters.js';
+import EARTH from './level-earth.js';
+import MOON from './level-moon.js';
+import MARS from './level-mars.js';
+import TITAN from './level-titan.js';
+import TANGLED from './level-tangled.js';
+
+// Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
+const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED };
 
 const matCache = new Map();
 export function mat(color, o = {}) {
@@ -67,16 +75,12 @@ export function buildLevel(loc, def) {
   }
 
   // ---- zones ----
-  const names = [...loc.zoneNames].sort(() => rng() - 0.5);
-  const zones = [];
-  for (let i = 0; i < def.zones; i++) {
-    const isBoss = i === def.zones - 1;
-    const z = -(i + 1) * 58 - (isBoss ? 12 : 0);
-    const x = isBoss ? 0 : R(-26, 26);
-    zones.push({ center: new THREE.Vector3(x, 0, z), isBoss, name: names[i] });
-  }
-  const spawn = new THREE.Vector3(0, 0, 14);
-  const bounds = { minX: -66, maxX: 66, minZ: zones[zones.length - 1].center.z - 40, maxZ: 28 };
+  const set = LEVEL_SETS[def.id];
+  if (!set) throw new Error(`No level map for mission ${def.id}; add one to js/level-${loc.id}.js`);
+  const zones = set.zones.map((z) => ({ center: new THREE.Vector3(z.x, 0, z.z), isBoss: !!z.boss, name: z.name }));
+  const spawn = new THREE.Vector3(set.spawn[0], 0, set.spawn[1]);
+  const [minX, maxX, minZ, maxZ] = set.bounds;
+  const bounds = { minX, maxX, minZ, maxZ };
 
   // ---- ground ----
   const s1 = rng() * 100;
@@ -136,7 +140,6 @@ export function buildLevel(loc, def) {
     crate: (x, z) => { const s = R(1.1, 1.6); addBox(x, z, s, s, s, RP([C.metal, C.accent, C.crate])); if (rng() < 0.4) addBox(x + R(-0.2, 0.2), z + R(-0.2, 0.2), s * 0.7, s * 0.7, s * 0.7, C.metal, s); },
     wall: (x, z) => { const len = R(4, 8), h = R(1.3, 2.8); if (rng() < 0.5) addBox(x, z, len, h, 0.8, C.wall); else addBox(x, z, 0.8, h, len, C.wall); },
     pillar: (x, z) => { const h = R(3, 7); addBox(x, z, 1.4, h, 1.4, C.wall); if (rng() < 0.5) addBox(x, z, 1.9, 0.4, 1.9, C.metal, h); },
-    platform: (x, z) => { const w = R(5, 8), d = R(5, 8); addBox(x, z, w, 1.1, d, C.wall); addBox(x + w / 2 + 0.7, z, 1.4, 0.55, 1.6, C.metal); },
     rock: (x, z) => addRock(x, z, R(1.2, 3)),
   };
 
@@ -213,6 +216,27 @@ export function buildLevel(loc, def) {
       addBox(x, z, 3.6, 0.4, 3.6, C.metal, y + h, false);
       return addMesh(new THREE.CylinderGeometry(1.3, 1.3, 2.2, 10), C.wall, x, y + h + 1.5, z);
     },
+    tangled: (x, z, y = 0, col = true) => {
+      const t = rng();
+      if (t < 0.4) { // scrap shanty with a lantern
+        const w = R(3, 4.5), d = R(3, 4.5), h = R(2.6, 3.4);
+        const m = addBox(x, z, w, h, d, RP([C.wall, C.metal, C.crate]), y, col);
+        const roof = addBox(x, z, w + 0.8, 0.2, d + 0.8, C.rock2, y + h, false);
+        roof.rotation.z = R(-0.12, 0.12);
+        addBox(x + w / 2 + 0.1, z, 0.25, 0.35, 0.25, C.accent, y + h * 0.7, false, { emissive: C.accent, emissiveIntensity: 1.4 });
+        return m;
+      } else if (t < 0.7) { // lashed asteroid boulder with a cable spike
+        const s = R(1.6, 3);
+        addRock(x, z, s, y, col);
+        addMesh(new THREE.CylinderGeometry(0.08, 0.08, s * 2.6, 4), 0x2a2a2e, x, y + s * 1.2, z).rotation.z = R(-0.5, 0.5);
+        return null;
+      }
+      // Fallen banner pole
+      const h = R(4, 6);
+      addBox(x, z, 0.25, h, 0.25, C.metal, y, col);
+      addBox(x + 0.45, z, 0.7, 1.6, 0.05, RP([C.enemy, 0x8a3a5a]), y + h - 1.9, false);
+      return addBox(x, z, 0.2, 0.2, 0.2, C.accent, y + h, false, { emissive: C.accent, emissiveIntensity: 1.5 });
+    },
   }[loc.theme || loc.id];
 
   const placeRandom = (fn, cx, cz, rMin, rMax, size = 3) => {
@@ -230,108 +254,108 @@ export function buildLevel(loc, def) {
     return table[0][0];
   };
 
-  // ---- layout style (each mission has its own) ----
-  const layout = def.layout || 'open';
-  // a broken-walled room: wall segments of uneven height, with door gaps on the given sides
-  const room = (cx, cz, w, d, h, doors) => {
-    const t = 0.8, gap = 3.2;
-    const side = (horiz, fixed, from, to, door) => {
-      const len = to - from, mid = (from + to) / 2;
-      const segs = door ? [[from, mid - gap / 2], [mid + gap / 2, to]] : [[from, to]];
-      for (const [a, b] of segs) {
-        const L = b - a;
-        if (L < 0.6) continue;
-        const hh = h * R(0.55, 1);
-        if (horiz) addBox((a + b) / 2, fixed, L, hh, t, C.wall); else addBox(fixed, (a + b) / 2, t, hh, L, C.wall);
-      }
-    };
-    side(true, cz - d / 2, cx - w / 2, cx + w / 2, doors.includes('n'));
-    side(true, cz + d / 2, cx - w / 2, cx + w / 2, doors.includes('s'));
-    side(false, cx - w / 2, cz - d / 2, cz + d / 2, doors.includes('w'));
-    side(false, cx + w / 2, cz - d / 2, cz + d / 2, doors.includes('e'));
-  };
-  const twoDoors = () => { const all = ['n', 's', 'e', 'w'].sort(() => rng() - 0.5); return all.slice(0, 2); };
-  // walled compound around a zone, gates on the near (+z) and far (-z) sides, towers at the corners
-  const fortress = (cx, cz, half) => {
-    const h = 3.6, t = 1.2, gate = 6.5;
-    for (const s of [-1, 1]) {
-      const zz = cz + s * half;
-      for (const [a, b] of [[cx - half, cx - gate / 2], [cx + gate / 2, cx + half]]) if (inBounds((a + b) / 2, zz, 1)) addBox((a + b) / 2, zz, b - a, h, t, C.wall);
-      const xx = cx + s * half;
-      if (inBounds(xx, cz, 1)) addBox(xx, cz, t, h, half * 2, C.wall);
-      for (const s2 of [-1, 1]) {
-        const tx = cx + s * half, tz = cz + s2 * half;
-        if (!inBounds(tx, tz, 2)) continue;
-        addBox(tx, tz, 3, 9, 3, C.wall);
-        addBox(tx, tz, 4, 0.5, 4, C.metal, 9, false);
-      }
-    }
-    for (let i = -half + 2; i < half - 1; i += 3) for (const s of [-1, 1]) addBox(cx + i, cz + s * half, 1, 0.6, t + 0.1, C.metal, h, false);
-  };
-  const coverMix = weighted.bind(null, [[P.crate, 3], [P.wall, 4], [P.rock, 2], [P.pillar, 2], [P.platform, 1], [themed, 2]]);
+  set.build(makeKit());
 
-  for (const z of zones) {
-    const cx = z.center.x, cz = z.center.z;
-    if (layout === 'fortress') {
-      fortress(cx, cz, z.isBoss ? 25 : 17);
-      for (let k = 0; k < (z.isBoss ? 10 : 8); k++) placeRandom(coverMix(), cx, cz, 6, z.isBoss ? 20 : 13, 2);
-      continue;
-    }
-    if (layout === 'ruins') {
-      for (let k = 0; k < (z.isBoss ? 5 : 4); k++) {
-        const w = R(7, 10), d = R(7, 10);
-        placeRandom((x, zz) => room(x, zz, w, d, R(2.6, 3.8), twoDoors()), cx, cz, 10, z.isBoss ? 22 : 17, Math.max(w, d) / 2 + 0.5);
-      }
-      for (let k = 0; k < 5; k++) placeRandom(coverMix(), cx, cz, 5, 18, 2);
-      continue;
-    }
-    if (z.isBoss) {
-      for (let k = 0; k < 8; k++) {
-        const a = (k / 8) * Math.PI * 2 + 0.2;
-        const x = cx + Math.sin(a) * 24, zz = cz + Math.cos(a) * 24;
-        if (inBounds(x, zz, 1)) addBox(x, zz, 1.8, R(6, 10), 1.8, C.wall);
-      }
-      for (let k = 0; k < 11; k++) placeRandom(weighted([[P.crate, 2], [P.wall, 4], [P.rock, 2], [P.pillar, 1]]), cx, cz, 9, 19, 2);
-    } else {
-      const n = (layout === 'canyon' ? 9 : 12) + Math.floor(rng() * 4);
-      for (let k = 0; k < n; k++) placeRandom(coverMix(), cx, cz, 5, 20, 2.2);
-    }
-  }
-  if (layout === 'canyon') {
-    // tall cliff columns line the route between zones, opening up around each arena
-    const pts = [spawn, ...zones.map((zz) => zz.center)];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1];
-      const len = Math.hypot(b.x - a.x, b.z - a.z), dx = (b.x - a.x) / len, dz = (b.z - a.z) / len;
-      for (let tt = 0; tt <= len; tt += 6.5) {
-        const px = a.x + dx * tt, pz = a.z + dz * tt;
-        const nearZone = zones.some((zz) => Math.hypot(px - zz.center.x, pz - zz.center.z) < 22);
-        for (const s of [-1, 1]) {
-          const off = (nearZone ? 25 : 14) + R(0, 4);
-          const x = px - dz * s * off, zz = pz + dx * s * off;
-          const r = R(3.2, 4.8), h = R(8, 15);
-          if (!inBounds(x, zz, r * 0.8)) continue;
-          const m = addMesh(new THREE.CylinderGeometry(r * 0.75, r, h, 7), RP([C.rock, C.rock2]), x, h / 2, zz);
-          addCollider(x - r * 0.75, 0, zz - r * 0.75, x + r * 0.75, h, zz + r * 0.75, m);
+  // ---- kit handed to hand-built mission maps (js/level-*.js) ----
+  function makeKit() {
+    let lights = 0;
+    const glow = (color, k) => (k ? { emissive: color, emissiveIntensity: k } : undefined);
+    const K = {
+      C, loc, def, rng, R, RP, chance: (p) => rng() < p, bounds, spawn, zones, scene,
+      mat: (color, k) => mat(color, glow(color, k)),
+      collider: addCollider,
+      box: (x, z, w, h, d, color = C.wall, o = {}) => addBox(x, z, w, h, d, color, o.y ?? 0, o.collide ?? true, glow(color, o.glow)),
+      mesh(geo, color, x, y, z, o = {}) {
+        const m = addMesh(geo, color, x, y, z, glow(color, o.glow));
+        m.rotation.set(o.rx ?? 0, o.ry ?? 0, o.rz ?? 0);
+        if (o.scale) m.scale.set(...[].concat(o.scale, o.scale, o.scale).slice(0, 3));
+        if (o.collide) {
+          m.updateMatrixWorld(true);
+          const bb = new THREE.Box3().setFromObject(m);
+          const k = o.collide === true ? 1 : o.collide; // shrink factor for round shapes
+          const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+          addCollider(cx - (cx - bb.min.x) * k, bb.min.y, cz - (cz - bb.min.z) * k, cx + (bb.max.x - cx) * k, bb.max.y, cz + (bb.max.z - cz) * k, m);
         }
-      }
-    }
+        return m;
+      },
+      cyl: (x, z, r, h, color = C.metal, o = {}) => K.mesh(new THREE.CylinderGeometry(o.r2 ?? r, r, h, o.sides ?? 8), color, x, (o.y ?? 0) + h / 2, z, { ...o, collide: o.collide === false ? false : 0.8 }),
+      cone: (x, z, r, h, color = C.rock, o = {}) => K.mesh(new THREE.ConeGeometry(r, h, o.sides ?? 6), color, x, (o.y ?? 0) + h / 2, z, { ...o, collide: o.collide === false ? false : 0.55 }),
+      rock: (x, z, s, o = {}) => addRock(x, z, s, o.y ?? 0, o.collide ?? true),
+      // axis-aligned wall from (x1,z1) to (x2,z2); gaps are [from, to] distances along it
+      wall(x1, z1, x2, z2, h, o = {}) {
+        const t = o.t ?? 0.8, color = o.color ?? C.wall, y = o.y ?? 0;
+        const horiz = Math.abs(z2 - z1) < Math.abs(x2 - x1);
+        const len = horiz ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
+        const start = horiz ? Math.min(x1, x2) : Math.min(z1, z2), fixed = horiz ? z1 : x1;
+        const gaps = (o.gaps || []).slice().sort((a, b) => a[0] - b[0]);
+        let from = 0;
+        for (const [a, b] of [...gaps, [len, len]]) {
+          if (a - from > 0.3) {
+            const mid = start + (from + a) / 2, L = a - from;
+            if (horiz) addBox(mid, fixed, L, h, t, color, y); else addBox(fixed, mid, t, h, L, color, y);
+          }
+          from = Math.max(from, b);
+        }
+      },
+      // four walls with door gaps ({ n: width, s: width, e: width, w: width }) and an optional roof
+      room(cx, cz, w, d, h, o = {}) {
+        const t = o.t ?? 0.8, doors = o.doors || {}, color = o.color ?? C.wall;
+        const gap = (side, len) => (doors[side] ? [[len / 2 - doors[side] / 2 + (o.doorOffset?.[side] ?? 0), len / 2 + doors[side] / 2 + (o.doorOffset?.[side] ?? 0)]] : []);
+        K.wall(cx - w / 2, cz - d / 2, cx + w / 2, cz - d / 2, h, { t, color, gaps: gap('n', w) });
+        K.wall(cx - w / 2, cz + d / 2, cx + w / 2, cz + d / 2, h, { t, color, gaps: gap('s', w) });
+        K.wall(cx - w / 2, cz - d / 2, cx - w / 2, cz + d / 2, h, { t, color, gaps: gap('w', d) });
+        K.wall(cx + w / 2, cz - d / 2, cx + w / 2, cz + d / 2, h, { t, color, gaps: gap('e', d) });
+        if (o.roof) addBox(cx, cz, w + t, 0.6, d + t, o.roofColor ?? color, h, true);
+      },
+      // stairs climbing toward dir ('n' = -z, 's' = +z, 'e' = +x, 'w' = -x), starting at (x, z); returns the top edge point
+      stairs(x, z, dir, w, rise, o = {}) {
+        const step = 0.4, run = 0.6, n = Math.max(1, Math.ceil(rise / step)), y0 = o.y ?? 0, color = o.color ?? C.metal;
+        const [dx, dz] = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[dir];
+        for (let i = 0; i < n; i++) {
+          const hh = Math.min(rise, (i + 1) * step), cxs = x + dx * (i + 0.5) * run, czs = z + dz * (i + 0.5) * run;
+          addBox(cxs, czs, dx ? run : w, hh, dz ? run : w, color, y0);
+        }
+        return [x + dx * n * run, z + dz * n * run];
+      },
+      // raised deck with stairs on the given sides
+      platform(x, z, w, d, h, o = {}) {
+        const m = addBox(x, z, w, h, d, o.color ?? C.wall, o.y ?? 0);
+        const n = Math.ceil(h / 0.4) * 0.6;
+        const out = { n: [x, z - d / 2 - n, 's'], s: [x, z + d / 2 + n, 'n'], e: [x + w / 2 + n, z, 'w'], w: [x - w / 2 - n, z, 'e'] };
+        for (const side of o.stairs || []) { const [sx, sz, dir] = out[side]; K.stairs(sx, sz, dir, o.stairW ?? 2.4, h, { color: o.stairColor ?? C.metal, y: o.y }); }
+        return m;
+      },
+      light(x, y, z, color = C.accent, intensity = 8, dist = 22) {
+        if (lights >= 6) return null; // point lights are expensive; a few accents only
+        lights++;
+        const l = new THREE.PointLight(color, intensity, dist, 1.6);
+        l.position.set(x, y, z);
+        scene.add(l);
+        return l;
+      },
+      clear: isClear, inBounds,
+      scatter: (fn, cx, cz, rMin, rMax, n, size = 2) => { for (let i = 0; i < n; i++) placeRandom(fn, cx, cz, rMin, rMax, size); },
+      cover: (x, z) => weighted([[P.crate, 3], [P.wall, 4], [P.rock, 2], [P.pillar, 2]])(x, z),
+      crate: P.crate, pillar: P.pillar,
+      prop: (x, z, y = 0, collide = true) => themed(x, z, y, collide),
+      // scenery on the slopes outside the play area; fn(x, z, y) should not add colliders
+      edge(fn, n = 40, near = 6, far = 45) {
+        for (let k = 0; k < n; k++) {
+          const side = Math.floor(rng() * 4), off = R(near, far);
+          let x, z;
+          if (side === 0) { x = bounds.minX - off; z = R(bounds.minZ - 40, bounds.maxZ + 40); }
+          else if (side === 1) { x = bounds.maxX + off; z = R(bounds.minZ - 40, bounds.maxZ + 40); }
+          else if (side === 2) { z = bounds.minZ - off; x = R(bounds.minX - 40, bounds.maxX + 40); }
+          else { z = bounds.maxZ + off; x = R(bounds.minX - 40, bounds.maxX + 40); }
+          fn(x, z, loc.sea ? -0.7 : heightAt(x, z) - 0.6);
+        }
+      },
+    };
+    return K;
   }
-  if (layout === 'ruins') {
-    for (let k = 0; k < 16; k++) {
-      const w = R(7, 11), d = R(7, 11);
-      const x = R(bounds.minX + 8, bounds.maxX - 8), zz = R(bounds.minZ + 8, bounds.maxZ - 8);
-      if (isClear(x, zz, Math.max(w, d) / 2 + 1)) room(x, zz, w, d, R(2.4, 4.2), twoDoors());
-    }
-  }
-  const filler = { open: 95, ruins: 45, canyon: 40, fortress: 55 }[layout] ?? 95;
-  for (let k = 0; k < filler; k++) {
-    const fn = weighted([[P.rock, 3], [themed, 4], [P.crate, 2], [P.wall, 2]]);
-    const x = R(bounds.minX + 4, bounds.maxX - 4), z = R(bounds.minZ + 4, bounds.maxZ - 4);
-    if (isClear(x, z, 3)) fn(x, z);
-  }
+
   // edge scenery on the slopes (no collision)
-  for (let k = 0; k < 70; k++) {
+  if (!set.noEdge) for (let k = 0; k < 70; k++) {
     const side = Math.floor(rng() * 4);
     const off = R(6, 45);
     let x, z;

@@ -439,19 +439,21 @@ function exoticParts(g, look) {
     switch (part) {
       case 'stripes': for (const x of [-1, 1]) B(0.006, 0.014, 0.32, x * 0.042, 0.0, 0.05, glow); break;
       case 'drum': add(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 12).rotateZ(Math.PI / 2), acc, 0, -0.12, 0.12); add(new THREE.TorusGeometry(0.06, 0.01, 4, 14).rotateY(Math.PI / 2), mat(0xc9a046, { emissive: 0x8a6a1e, emissiveIntensity: 0.6 }), 0, -0.12, 0.12); break;
-      case 'fins': for (const x of [-1, 1]) B(0.006, 0.05, 0.22, x * 0.046, 0.03, mf - 0.22, glow, 0.15).rotation.z = x * 0.35; break;
-      case 'sun':
-        add(new THREE.TorusGeometry(0.055, 0.01, 4, 18), glow, 0, 0.01, mf - 0.08);
-        for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(new THREE.ConeGeometry(0.008, 0.04, 3), glow, Math.cos(a) * 0.075, 0.01 + Math.sin(a) * 0.075, mf - 0.08).rotation.z = a - Math.PI / 2; }
+      case 'fins': for (const x of [-1, 1]) B(0.006, 0.05, 0.22, x * 0.046, -0.01, mf - 0.22, glow, 0.15).rotation.z = x * 0.35; break;
+      case 'sun': // sun emblems on both sides of the frame, clear of the sights
+        for (const x of [-1, 1]) {
+          add(new THREE.TorusGeometry(0.03, 0.006, 4, 16).rotateY(Math.PI / 2), glow, x * 0.042, -0.005, mf * 0.45);
+          for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(new THREE.BoxGeometry(0.004, 0.006, 0.016), glow, x * 0.042, -0.005 + Math.sin(a) * 0.044, -mf * 0.45 + Math.cos(a) * 0.044).rotation.x = -a; }
+        }
         break;
       case 'spikes':
         for (let i = 0; i < 7; i++) for (const x of [-1, 1]) add(new THREE.ConeGeometry(0.01, 0.06, 4), acc, x * 0.04, 0.02 - (i % 2) * 0.02, 0.0 + i * 0.045).rotation.z = -x * Math.PI / 2;
-        for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(0.009, 0.05, 4), glow, 0, 0.05, 0.05 + i * 0.06);
+        for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(0.009, 0.05, 4).rotateX(Math.PI), glow, 0, -0.05, mf * 0.3 + i * 0.05);
         break;
       case 'spade': for (const x of [-1, 1]) B(0.004, 0.04, 0.04, x * 0.034, 0.0, 0.04, glow, Math.PI / 4); break;
       case 'orb':
-        add(new THREE.IcosahedronGeometry(0.04, 1), new THREE.MeshBasicMaterial({ color: look.accent }), 0, S * 0.5, -0.1);
-        add(new THREE.IcosahedronGeometry(0.06, 1), new THREE.MeshBasicMaterial({ color: look.accent, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }), 0, S * 0.5, -0.1);
+        add(new THREE.IcosahedronGeometry(0.03, 1), new THREE.MeshBasicMaterial({ color: look.accent }), 0.05, 0, -0.06);
+        add(new THREE.IcosahedronGeometry(0.045, 1), new THREE.MeshBasicMaterial({ color: look.accent, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }), 0.05, 0, -0.06);
         break;
       case 'siva': for (let i = 0; i < 5; i++) B(0.006, 0.02, 0.03, (i % 2 ? 1 : -1) * 0.043, -0.02 + (i % 3) * 0.02, -0.05 + i * 0.06, glow); break;
       case 'star': for (const x of [-1, 1]) { B(0.004, 0.07, 0.014, x * 0.04, 0.0, 0.06, glow); B(0.004, 0.07, 0.014, x * 0.04, 0.0, 0.06, glow, Math.PI / 2); B(0.004, 0.045, 0.012, x * 0.041, 0.0, 0.06, glow, Math.PI / 4); } break;
@@ -459,9 +461,9 @@ function exoticParts(g, look) {
       case 'bull': for (const x of [-1, 1]) add(new THREE.ConeGeometry(0.012, 0.08, 4).rotateX(-Math.PI / 2 - 0.5), mat(0xe8dcc0), x * 0.04, 0.05, mf - 0.14).rotation.z = -x * 0.4; break;
       case 'jaw': for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.009, 0.04, 3).rotateX(Math.PI), mat(0xe8e0d0), -0.03 + i * 0.015, -0.04, mf - 0.04); B(0.07, 0.012, 0.08, 0, -0.03, mf - 0.06, glow); break;
       case 'blade': B(0.008, 0.028, 0.44, 0, -0.05, mf - 0.26, mat(0xdfe6ee)); B(0.03, 0.02, 0.02, 0, -0.05, mf - 0.49, mat(0x1b1d22)); B(0.012, 0.07, 0.012, 0, -0.09, 0.02, glow); break;
-      case 'crystal': for (let i = 0; i < 5; i++) { const o = add(new THREE.OctahedronGeometry(0.025 + (i % 2) * 0.01, 0), glow, (i - 2) * 0.02, 0.03 + (i % 2) * 0.03, mf - 0.08 - (i % 3) * 0.04); o.scale.y = 1.8; o.rotation.z = (i - 2) * 0.3; } break;
-      case 'coils': for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(0.06, 0.012, 4, 16), glow, 0, 0.0, mf - 0.2 + i * 0.06); break;
-      case 'ornate': { const gold = mat(0xf4d27a, { emissive: 0x8a6a1e, emissiveIntensity: 0.5 }); for (const x of [-1, 1]) B(0.006, 0.01, 0.42, x * 0.04, 0.03, 0.15, gold); add(new THREE.ConeGeometry(0.03, 0.12, 4), gold, 0, 0.09, -0.08); B(0.05, 0.05, 0.03, 0, 0.0, mf - 0.05, glow); break; }
+      case 'crystal': for (let i = 0; i < 5; i++) { const o = add(new THREE.OctahedronGeometry(0.022 + (i % 2) * 0.008, 0), glow, (i - 2) * 0.02, -0.06 - (i % 2) * 0.025, mf - 0.08 - (i % 3) * 0.04); o.scale.y = 1.8; o.rotation.z = (i - 2) * 0.3; } break;
+      case 'coils': for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(0.042, 0.01, 4, 16), glow, 0, -0.01, mf - 0.2 + i * 0.06); break;
+      case 'ornate': { const gold = mat(0xf4d27a, { emissive: 0x8a6a1e, emissiveIntensity: 0.5 }); for (const x of [-1, 1]) B(0.006, 0.01, 0.42, x * 0.04, 0.012, 0.15, gold); add(new THREE.ConeGeometry(0.025, 0.1, 4).rotateX(Math.PI), gold, 0, -0.09, -0.12); B(0.05, 0.05, 0.03, 0, 0.0, mf - 0.05, glow); break; }
       case 'wings':
         for (const x of [-1, 1]) {
           const w = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape([[0.04, 0.02], [0.32, 0.07], [0.26, 0.13], [0.1, 0.1]].map(([a, b]) => new THREE.Vector2(a, b))), { depth: 0.006, bevelEnabled: false }).rotateY(Math.PI / 2), mat(look.body));
@@ -473,8 +475,8 @@ function exoticParts(g, look) {
       case 'mouth': for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; fwdCone(0.01, 0.05, Math.cos(a) * 0.04, 0.01 + Math.sin(a) * 0.04, mf + 0.01, mat(0xe8e0d0)); } add(new THREE.CircleGeometry(0.035, 10), glow, 0, 0.01, mf + 0.005); break;
       case 'wolf': {
         const gold = mat(0xf4d27a, { emissive: 0x8a6a1e, emissiveIntensity: 0.5 });
-        fwdCone(0.095, 0.2, 0, 0.02, mf + 0.06, gold);
-        for (const x of [-1, 1]) { add(new THREE.ConeGeometry(0.025, 0.08, 4), gold, x * 0.05, 0.11, mf - 0.06); B(0.02, 0.012, 0.01, x * 0.035, 0.05, mf - 0.02, glow); }
+        fwdCone(0.075, 0.18, 0, -0.01, mf + 0.06, gold);
+        for (const x of [-1, 1]) { add(new THREE.ConeGeometry(0.022, 0.07, 4), gold, x * 0.075, 0.04, mf - 0.06).rotation.z = -x * 0.6; B(0.02, 0.012, 0.01, x * 0.03, 0.02, mf - 0.02, glow); }
         break;
       }
       case 'skull': {
