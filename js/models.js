@@ -2,7 +2,137 @@ import * as THREE from 'three';
 import { ELEMENTS } from './data.js';
 import { mat } from './world.js';
 
+// Viewmodel guns are authored in "f" coordinates: f = metres forward of the
+// pistol grip (model z = -f), y = up from the bore line, x = right.
+// Every gun's sight line sits at height S; when aiming, the viewmodel moves to
+// (0, -S, -adsDist) so the sight's reticle lands exactly on screen centre,
+// which is where hitscan shots go.
+
 const BODY = { common: 0x8b929b, uncommon: 0x5e8a66, rare: 0x56739e, legendary: 0x6e5a8f, exotic: 0xc9a046 };
+const DS = (color) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.8, side: THREE.DoubleSide });
+const darkDS = DS(0x23272d);
+const lensMat = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide });
+const retCache = new Map();
+function retMat(color, opacity = 1) {
+  const k = `${color}|${opacity}`;
+  if (!retCache.has(k)) retCache.set(k, new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: opacity >= 1, side: THREE.DoubleSide, toneMapped: false }));
+  return retCache.get(k);
+}
+const RED = 0xff3b30;
+
+function kit(g) {
+  const add = (geo, m, x, y, f, rx = 0) => {
+    const o = new THREE.Mesh(geo, m);
+    o.position.set(x, y, -f);
+    o.rotation.x = rx;
+    g.add(o);
+    return o;
+  };
+  return {
+    add,
+    B: (w, h, l, x, y, f, m, rx = 0) => add(new THREE.BoxGeometry(w, h, l), m, x, y, f, rx),
+    // cylinder along the barrel axis; r2 is the radius at the forward end
+    T: (r, l, x, y, f, m, sides = 10, r2 = r, open = false) => {
+      const geo = new THREE.CylinderGeometry(r2, r, l, sides, 1, open);
+      geo.rotateX(-Math.PI / 2);
+      return add(geo, m, x, y, f);
+    },
+    // side-profile polygon [[f, y], ...] extruded to width w (centred on x)
+    P: (pts, w, m, x = 0, holes = [], bevel = 0.003) => {
+      const shape = new THREE.Shape(pts.map(([a, b]) => new THREE.Vector2(a, b)));
+      for (const h of holes) shape.holes.push(new THREE.Path(h.map(([a, b]) => new THREE.Vector2(a, b))));
+      const depth = Math.max(0.001, w - bevel * 2);
+      const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 4 });
+      geo.translate(0, 0, -depth / 2);
+      geo.rotateY(Math.PI / 2);
+      return add(geo, m, x, 0, 0);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Sights
+// ---------------------------------------------------------------------------
+function ironSights(k, m, S, rearF, rearBase, frontF, frontBase, dot = 0x7dff9a) {
+  // rear notch: two ears whose tops sit on the sight line, with a 1.2cm gap
+  k.B(0.012, 0.014, 0.012, -0.012, S - 0.007, rearF, m);
+  k.B(0.012, 0.014, 0.012, 0.012, S - 0.007, rearF, m);
+  const rh = S - 0.014 - rearBase;
+  if (rh > 0) k.B(0.038, rh, 0.014, 0, rearBase + rh / 2, rearF, m);
+  // front post: its tip (level with the ear tops) is the point of aim
+  const fh = S - frontBase;
+  k.B(0.007, fh, 0.007, 0, frontBase + fh / 2, frontF, m);
+  k.add(new THREE.SphereGeometry(0.0034, 8, 6), retMat(dot), 0, S - 0.0024, frontF + 0.004);
+}
+
+function redDot(k, m, S, f, y0, r = 0.02, len = 0.045, color = RED) {
+  k.T(r, len, 0, S, f, darkDS, 18, r, true);
+  for (const e of [-1, 1]) k.add(new THREE.TorusGeometry(r, 0.0035, 4, 18), m, 0, S, f + (e * len) / 2);
+  const mh = S - r - y0;
+  if (mh > 0) k.B(0.022, mh, 0.03, 0, y0 + mh / 2, f, m);
+  k.add(new THREE.CircleGeometry(r * 0.96, 20), lensMat, 0, S, f + len / 2);
+  k.add(new THREE.CircleGeometry(0.0017, 12), retMat(color), 0, S, f + len / 2 - 0.002);
+  k.add(new THREE.CircleGeometry(0.0045, 12), retMat(color, 0.25), 0, S, f + len / 2 - 0.0025);
+}
+
+function holo(k, m, S, f, y0, color = RED) {
+  const w = 0.066, h = 0.046, d = 0.026;
+  k.B(0.006, h + 0.006, d, -w / 2, S, f, m);
+  k.B(0.006, h + 0.006, d, w / 2, S, f, m);
+  k.B(w + 0.006, 0.006, d, 0, S + h / 2, f, m);
+  k.B(w + 0.012, 0.016, 0.07, 0, S - h / 2 - 0.006, f - 0.015, m);
+  const mh = S - h / 2 - 0.014 - y0;
+  if (mh > 0) k.B(0.03, mh, 0.05, 0, y0 + mh / 2, f - 0.015, m);
+  k.add(new THREE.PlaneGeometry(w, h), lensMat, 0, S, f + 0.004);
+  k.add(new THREE.RingGeometry(0.0072, 0.0086, 28), retMat(color), 0, S, f + 0.003);
+  k.add(new THREE.CircleGeometry(0.0013, 10), retMat(color), 0, S, f + 0.003);
+  for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+    k.add(new THREE.PlaneGeometry(dx ? 0.003 : 0.0009, dy ? 0.003 : 0.0009), retMat(color), dx * 0.0115, S + dy * 0.0115, f + 0.003);
+  }
+}
+
+function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED) {
+  const len = fFront - fRear, c = (fRear + fFront) / 2;
+  k.T(r, len * 0.6, 0, S, c, darkDS, 18, r, true);
+  k.T(r, len * 0.25, 0, S, fFront - len * 0.125, darkDS, 18, r * 1.35, true);
+  k.T(r * 1.15, len * 0.2, 0, S, fRear + len * 0.1, darkDS, 18, r * 1.15, true);
+  for (const f of [fRear, fFront]) k.add(new THREE.TorusGeometry(f === fFront ? r * 1.35 : r * 1.15, 0.004, 4, 20), m, 0, S, f);
+  k.B(0.014, 0.016, 0.016, 0, S + r + 0.007, c, m);
+  k.B(0.016, 0.014, 0.016, r + 0.007, S, c, m);
+  for (const f of [fRear + len * 0.28, fFront - len * 0.38]) {
+    k.add(new THREE.TorusGeometry(r + 0.004, 0.005, 4, 16), m, 0, S, f);
+    const mh = S - r - y0;
+    if (mh > 0) k.B(0.02, mh, 0.018, 0, y0 + mh / 2, f, m);
+  }
+  const rf = fFront - 0.004;
+  k.add(new THREE.CircleGeometry(r * 1.3, 24), lensMat, 0, S, fFront);
+  const ink = retMat(0x0b0c0e), t = 0.0011, R = r * 1.3;
+  // duplex crosshair: thick outer posts, thin centre lines, red centre dot
+  for (const s of [-1, 1]) {
+    k.add(new THREE.PlaneGeometry(R * 0.7, t * 2), ink, s * (R * 0.3 + R * 0.35), S, rf);
+    k.add(new THREE.PlaneGeometry(t * 2, R * 0.7), ink, 0, S + s * (R * 0.3 + R * 0.35), rf);
+  }
+  k.add(new THREE.PlaneGeometry(R * 0.6, t * 0.5), ink, 0, S, rf);
+  k.add(new THREE.PlaneGeometry(t * 0.5, R * 0.6), ink, 0, S, rf);
+  k.add(new THREE.CircleGeometry(0.0012, 10), retMat(color), 0, S, rf + 0.0005);
+}
+
+// ---------------------------------------------------------------------------
+// Shared parts
+// ---------------------------------------------------------------------------
+function grip(k, m, f = 0, w = 0.036) {
+  k.P([[f - 0.03, -0.04], [f + 0.025, -0.04], [f + 0.002, -0.145], [f - 0.055, -0.135]], w, m);
+}
+function triggerGuard(k, m, steel, f = 0.025, top = -0.04) {
+  k.P([[f, top], [f + 0.055, top], [f + 0.05, top - 0.035], [f - 0.005, top - 0.035]], 0.012, m, 0,
+    [[[f + 0.006, top - 0.005], [f + 0.047, top - 0.005], [f + 0.043, top - 0.029], [f + 0.002, top - 0.029]]], 0.001);
+  k.B(0.004, 0.02, 0.006, 0, top - 0.014, f + 0.02, steel, 0.3);
+}
+function rail(k, m, teeth, y, fFrom, fTo, w = 0.034) {
+  k.B(w, 0.01, fTo - fFrom, 0, y, (fFrom + fTo) / 2, m);
+  const n = Math.floor((fTo - fFrom) / 0.028);
+  for (let i = 0; i <= n; i++) k.B(w + 0.004, 0.005, 0.01, 0, y + 0.007, fFrom + i * 0.028, teeth);
+}
 
 function flashMesh(color) {
   const g = new THREE.Group();
@@ -15,109 +145,218 @@ function flashMesh(color) {
   return g;
 }
 
-function kit(g) {
-  const B = (w, h, d, x, y, z, m, rx = 0) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-    b.position.set(x, y, z); b.rotation.x = rx; g.add(b); return b;
-  };
-  const T = (r, len, x, y, z, m, sides = 8, r2 = r) => {
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r2, len, sides), m);
-    c.rotation.x = Math.PI / 2; c.position.set(x, y, z); g.add(c); return c;
-  };
-  return { B, T };
-}
-
-function finish(g, muzzleZ, muzzleY, sightY, hip, adsZ = -0.3, flashColor = 0xffd27a) {
-  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.42), mat(0x3a3f47));
-  sleeve.position.set(0.05, -0.2, 0.27); sleeve.rotation.x = 0.4; g.add(sleeve);
-  const glove = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.085, 0.1), mat(0x24272c));
-  glove.position.set(0.0, -0.1, 0.05); g.add(glove);
+function finish(g, { muzzleF, muzzleY = 0, S, hip, ads, flash = 0xffd27a, gripF = 0 }) {
+  const { B } = kit(g);
+  const sleeve = B(0.1, 0.1, 0.42, 0.05, -0.22, gripF - 0.26, mat(0x3a3f47));
+  sleeve.rotation.x = 0.4;
+  B(0.075, 0.085, 0.1, 0.0, -0.1, gripF - 0.02, mat(0x24272c));
   const muzzle = new THREE.Object3D();
-  muzzle.position.set(0, muzzleY, muzzleZ);
+  muzzle.position.set(0, muzzleY, -muzzleF);
   g.add(muzzle);
-  const flash = flashMesh(flashColor);
-  muzzle.add(flash);
+  const fl = flashMesh(flash);
+  muzzle.add(fl);
   g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-  g.userData = { muzzle, flash, hip: new THREE.Vector3(hip[0] + 0.03, hip[1] - 0.03, hip[2] - 0.2), ads: new THREE.Vector3(0, -sightY, adsZ - 0.14) };
+  g.userData = { muzzle, flash: fl, hip: new THREE.Vector3(...hip), ads: new THREE.Vector3(0, -S, -ads), sightY: S };
   return g;
 }
 
+// ---------------------------------------------------------------------------
+// Guns
+// ---------------------------------------------------------------------------
 export function buildGunModel(item) {
   const g = new THREE.Group();
-  const { B, T } = kit(g);
+  const k = kit(g);
+  const { B, T, P } = k;
   const body = mat(BODY[item.rarity] ?? BODY.common);
-  const dark = mat(0x23272d), mid = mat(0x3b4048);
+  const dark = mat(0x262a30), mid = mat(0x454b54), steel = mat(0x6a7078), gripM = mat(0x1d2024), wood = mat(0x5a3d2b);
   const el = ELEMENTS[item.element];
   const glow = mat(el.hex, { emissive: el.hex, emissiveIntensity: 1.4 });
   const fc = item.element === 'kinetic' ? 0xffd27a : el.hex;
+  let S;
   switch (item.arch) {
-    case 'auto':
-      B(0.07, 0.1, 0.44, 0, 0, -0.12, body); B(0.06, 0.06, 0.26, 0, 0.01, -0.45, mid); T(0.016, 0.14, 0, 0.015, -0.63, dark);
-      B(0.05, 0.16, 0.08, 0, -0.11, -0.17, dark, 0.25); B(0.055, 0.09, 0.2, 0, -0.02, 0.18, dark);
-      B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3); B(0.03, 0.035, 0.12, 0, 0.068, -0.08, dark); B(0.074, 0.016, 0.22, 0, 0.035, -0.18, glow);
-      return finish(g, -0.71, 0.015, 0.088, [0.2, -0.19, -0.36], -0.3, fc);
-    case 'hand':
-      B(0.06, 0.09, 0.24, 0, 0.01, -0.1, body); T(0.022, 0.2, 0, 0.02, -0.31, dark); T(0.048, 0.08, 0, -0.005, -0.1, mid, 6);
-      B(0.05, 0.14, 0.06, 0, -0.1, 0.03, dark, -0.35); B(0.062, 0.014, 0.14, 0, 0.055, -0.12, glow); B(0.014, 0.03, 0.02, 0, 0.06, -0.38, dark);
-      return finish(g, -0.42, 0.02, 0.075, [0.18, -0.17, -0.36], -0.32, fc);
-    case 'pulse':
-      B(0.08, 0.12, 0.46, 0, 0, -0.12, body); B(0.07, 0.07, 0.24, 0, 0.0, -0.46, dark); T(0.018, 0.1, 0, 0.0, -0.62, dark);
-      B(0.05, 0.13, 0.07, 0, -0.11, -0.12, dark, 0.15); B(0.06, 0.1, 0.18, 0, -0.01, 0.18, mid);
-      B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3); B(0.05, 0.04, 0.3, 0, 0.08, -0.15, dark); B(0.082, 0.02, 0.16, 0, 0.0, -0.3, glow);
-      return finish(g, -0.68, 0.0, 0.1, [0.2, -0.19, -0.36], -0.3, fc);
-    case 'scout':
-      B(0.065, 0.1, 0.5, 0, 0, -0.12, body); T(0.016, 0.3, 0, 0.015, -0.5, dark); B(0.05, 0.12, 0.07, 0, -0.1, -0.1, dark, 0.2);
-      B(0.05, 0.08, 0.22, 0, -0.01, 0.2, dark); B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3);
-      T(0.026, 0.22, 0, 0.09, -0.08, dark); B(0.02, 0.04, 0.02, 0, 0.06, -0.08, dark); B(0.067, 0.015, 0.3, 0, 0.04, -0.15, glow);
-      return finish(g, -0.66, 0.015, 0.09, [0.2, -0.19, -0.36], -0.28, fc);
-    case 'smg':
-      B(0.07, 0.1, 0.3, 0, 0, -0.08, body); T(0.016, 0.12, 0, 0.01, -0.28, dark); B(0.04, 0.2, 0.05, 0, -0.13, -0.12, dark);
-      B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3); B(0.03, 0.03, 0.08, 0, 0.065, -0.05, dark); B(0.072, 0.015, 0.14, 0, 0.03, -0.1, glow);
-      B(0.03, 0.06, 0.16, 0, -0.02, 0.12, dark);
-      return finish(g, -0.35, 0.01, 0.08, [0.19, -0.19, -0.35], -0.32, fc);
-    case 'shotgun':
-      B(0.09, 0.12, 0.36, 0, 0, -0.06, body); T(0.022, 0.4, -0.022, 0.025, -0.42, dark); T(0.022, 0.4, 0.022, 0.025, -0.42, dark);
-      B(0.08, 0.07, 0.16, 0, -0.04, -0.34, mid); B(0.06, 0.1, 0.22, 0, -0.03, 0.2, dark); B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3);
-      B(0.092, 0.02, 0.18, 0, 0.055, -0.05, glow);
-      return finish(g, -0.63, 0.025, 0.075, [0.21, -0.2, -0.36], -0.3, fc);
-    case 'sniper':
-      B(0.07, 0.1, 0.5, 0, 0, -0.1, body); T(0.018, 0.5, 0, 0.015, -0.6, dark); B(0.05, 0.1, 0.07, 0, -0.1, -0.08, dark, 0.2);
-      B(0.06, 0.12, 0.26, 0, -0.02, 0.22, dark); B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3);
-      T(0.038, 0.32, 0, 0.11, -0.08, dark, 8); T(0.045, 0.04, 0, 0.11, -0.25, mid, 8); B(0.072, 0.016, 0.3, 0, 0.04, -0.15, glow);
-      return finish(g, -0.86, 0.015, 0.11, [0.21, -0.2, -0.36], -0.3, fc);
-    case 'fusion':
-      B(0.1, 0.13, 0.44, 0, 0, -0.12, body); B(0.06, 0.12, 0.2, 0, -0.02, 0.2, dark); B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3);
-      for (let i = 0; i < 3; i++) T(0.06, 0.03, 0, 0, -0.36 - i * 0.07, glow, 8);
-      B(0.03, 0.035, 0.12, 0, 0.08, -0.08, dark); T(0.03, 0.08, 0, 0, -0.56, dark, 6);
-      return finish(g, -0.62, 0.0, 0.1, [0.2, -0.19, -0.36], -0.3, el.hex);
-    case 'linear':
-      B(0.09, 0.12, 0.5, 0, 0, -0.1, body); B(0.05, 0.05, 0.42, 0, 0.0, -0.55, dark); B(0.06, 0.12, 0.24, 0, -0.02, 0.24, dark);
-      B(0.04, 0.12, 0.05, 0, -0.1, 0.03, dark, -0.3); T(0.032, 0.26, 0, 0.11, -0.08, dark, 8);
-      for (let i = 0; i < 4; i++) B(0.1, 0.02, 0.03, 0, 0.0, -0.32 - i * 0.07, glow);
-      B(0.092, 0.016, 0.3, 0, 0.06, -0.12, glow);
-      return finish(g, -0.8, 0.0, 0.11, [0.21, -0.2, -0.36], -0.3, el.hex);
-    case 'rocket':
-      T(0.075, 0.95, 0, 0.02, -0.18, body, 8); T(0.09, 0.08, 0, 0.02, -0.66, dark, 8); T(0.09, 0.1, 0, 0.02, 0.3, dark, 8);
-      B(0.04, 0.12, 0.05, 0, -0.1, 0.0, dark, -0.3); B(0.04, 0.12, 0.05, 0, -0.1, -0.3, dark, -0.3);
-      B(0.03, 0.06, 0.12, -0.09, 0.08, -0.15, dark); B(0.155, 0.02, 0.2, 0, 0.02, -0.2, glow);
-      return finish(g, -0.72, 0.02, 0.1, [0.24, -0.14, -0.34], -0.26, 0xffb060);
-    case 'mg':
-      B(0.11, 0.14, 0.5, 0, 0, -0.1, body); T(0.022, 0.4, 0, 0.02, -0.55, dark); T(0.04, 0.16, 0, 0.02, -0.42, mid, 6);
-      B(0.1, 0.14, 0.14, 0.03, -0.12, -0.06, dark); B(0.06, 0.11, 0.2, 0, -0.01, 0.25, dark); B(0.04, 0.12, 0.05, 0, -0.1, 0.06, dark, -0.3);
-      B(0.03, 0.04, 0.12, 0, 0.09, -0.08, dark); B(0.112, 0.02, 0.24, 0, 0.04, -0.15, glow);
-      return finish(g, -0.76, 0.02, 0.11, [0.22, -0.2, -0.36], -0.3, fc);
+    case 'auto': {
+      S = 0.104;
+      P([[-0.13, 0.045], [0.2, 0.045], [0.24, 0.025], [0.24, -0.035], [0.06, -0.045], [-0.13, -0.04]], 0.058, body);
+      rail(k, dark, mid, 0.05, -0.1, 0.22);
+      P([[0.24, 0.038], [0.5, 0.032], [0.53, 0.012], [0.53, -0.02], [0.5, -0.035], [0.24, -0.04]], 0.052, mid);
+      for (let i = 0; i < 4; i++) B(0.058, 0.008, 0.028, 0, 0.0, 0.3 + i * 0.055, dark);
+      T(0.011, 0.14, 0, 0.006, 0.58, steel); T(0.017, 0.045, 0, 0.006, 0.66, dark, 6);
+      P([[0.07, -0.04], [0.13, -0.04], [0.17, -0.17], [0.11, -0.185]], 0.034, dark);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      P([[-0.13, 0.035], [-0.37, 0.03], [-0.39, -0.09], [-0.33, -0.1], [-0.13, -0.035]], 0.04, dark, 0, [[[-0.18, 0.012], [-0.31, 0.01], [-0.32, -0.06], [-0.21, -0.03]]]);
+      B(0.022, 0.012, 0.04, 0.035, 0.028, -0.04, mid);
+      B(0.066, 0.01, 0.2, 0, 0.02, 0.07, glow);
+      holo(k, dark, S, 0.06, 0.055);
+      return finish(g, { muzzleF: 0.69, muzzleY: 0.006, S, hip: [0.21, -0.22, -0.5], ads: 0.33, flash: fc });
+    }
+    case 'hand': {
+      S = 0.058;
+      P([[-0.06, 0.03], [0.12, 0.03], [0.13, 0.005], [0.12, -0.03], [-0.02, -0.035], [-0.065, -0.005]], 0.04, body);
+      T(0.033, 0.062, 0, 0.0, 0.055, steel, 8);
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; B(0.007, 0.007, 0.064, Math.cos(a) * 0.031, Math.sin(a) * 0.031, 0.055, dark); }
+      T(0.007, 0.075, 0, 0, 0.055, dark, 6);
+      P([[0.12, 0.034], [0.31, 0.03], [0.315, 0.0], [0.31, -0.022], [0.12, -0.024]], 0.032, body);
+      B(0.012, 0.007, 0.19, 0, 0.035, 0.215, dark);
+      B(0.026, 0.016, 0.16, 0, -0.03, 0.21, dark);
+      T(0.0095, 0.004, 0, 0.004, 0.318, mat(0x0a0a0a));
+      P([[-0.05, 0.02], [-0.038, 0.02], [-0.062, 0.042], [-0.074, 0.037]], 0.012, steel);
+      P([[-0.035, -0.03], [0.02, -0.03], [-0.005, -0.135], [-0.075, -0.13], [-0.068, -0.04]], 0.038, wood);
+      triggerGuard(k, dark, steel, 0.0, -0.03);
+      B(0.044, 0.006, 0.13, 0, 0.016, 0.05, glow);
+      ironSights(k, dark, S, -0.045, 0.03, 0.3, 0.038);
+      return finish(g, { muzzleF: 0.32, muzzleY: 0.004, S, hip: [0.19, -0.2, -0.48], ads: 0.36, flash: fc });
+    }
+    case 'pulse': {
+      S = 0.096;
+      P([[-0.22, 0.05], [0.18, 0.05], [0.22, 0.03], [0.22, -0.045], [0.09, -0.055], [-0.22, -0.065]], 0.066, body);
+      rail(k, dark, mid, 0.055, -0.15, 0.16);
+      T(0.03, 0.17, 0, 0.0, 0.31, dark, 8);
+      for (let i = 0; i < 3; i++) T(0.033, 0.01, 0, 0, 0.25 + i * 0.05, glow, 8);
+      T(0.012, 0.07, 0, 0, 0.43, steel); T(0.017, 0.03, 0, 0, 0.455, mid, 6);
+      P([[-0.1, -0.06], [-0.05, -0.055], [-0.04, -0.16], [-0.09, -0.165]], 0.034, dark);
+      grip(k, gripM, 0.03); triggerGuard(k, dark, steel, 0.055, -0.05);
+      B(0.06, 0.12, 0.03, 0, -0.012, -0.235, gripM);
+      B(0.07, 0.012, 0.16, 0, 0.0, -0.05, glow);
+      redDot(k, dark, S, 0.05, 0.062, 0.021);
+      return finish(g, { muzzleF: 0.47, S, hip: [0.21, -0.21, -0.5], ads: 0.31, flash: fc, gripF: 0.03 });
+    }
+    case 'scout': {
+      S = 0.1;
+      P([[-0.12, 0.042], [0.3, 0.042], [0.33, 0.02], [0.33, -0.03], [0.12, -0.04], [-0.12, -0.036]], 0.054, body);
+      P([[0.33, 0.03], [0.5, 0.026], [0.52, 0.0], [0.5, -0.03], [0.33, -0.036]], 0.05, mid);
+      T(0.0105, 0.2, 0, 0.008, 0.6, steel); T(0.016, 0.05, 0, 0.008, 0.72, dark, 6);
+      B(0.03, 0.085, 0.055, 0, -0.08, 0.15, dark);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      P([[-0.12, 0.03], [-0.38, 0.025], [-0.4, -0.09], [-0.3, -0.1], [-0.12, -0.034]], 0.042, body, 0, [[[-0.16, 0.0], [-0.24, 0.0], [-0.24, -0.05], [-0.17, -0.04]]]);
+      B(0.058, 0.008, 0.26, 0, 0.018, 0.12, glow);
+      scope(k, dark, S, -0.02, 0.17, 0.045, 0.03);
+      return finish(g, { muzzleF: 0.75, muzzleY: 0.008, S, hip: [0.21, -0.22, -0.5], ads: 0.09, flash: fc });
+    }
+    case 'smg': {
+      S = 0.09;
+      P([[-0.08, 0.042], [0.17, 0.042], [0.19, 0.02], [0.19, -0.035], [0.06, -0.042], [-0.08, -0.04]], 0.055, body);
+      rail(k, dark, mid, 0.047, -0.05, 0.15, 0.03);
+      T(0.022, 0.1, 0, 0.004, 0.24, dark, 8);
+      for (let i = 0; i < 3; i++) B(0.046, 0.01, 0.012, 0, 0.004, 0.21 + i * 0.03, mat(0x0b0c0e));
+      T(0.01, 0.04, 0, 0.004, 0.3, steel);
+      P([[0.07, -0.04], [0.11, -0.04], [0.12, -0.2], [0.085, -0.2]], 0.03, dark);
+      B(0.028, 0.06, 0.03, 0, -0.07, 0.17, gripM);
+      grip(k, gripM); triggerGuard(k, dark, steel, 0.02);
+      for (const s of [-1, 1]) B(0.008, 0.008, 0.22, s * 0.02, 0.01, -0.19, steel);
+      B(0.05, 0.07, 0.012, 0, -0.02, -0.3, dark);
+      B(0.059, 0.008, 0.14, 0, 0.016, 0.05, glow);
+      redDot(k, dark, S, 0.04, 0.052, 0.018);
+      return finish(g, { muzzleF: 0.32, muzzleY: 0.004, S, hip: [0.2, -0.21, -0.47], ads: 0.28, flash: fc });
+    }
+    case 'shotgun': {
+      S = 0.062;
+      P([[-0.1, 0.04], [0.17, 0.04], [0.17, -0.04], [0.05, -0.045], [-0.1, -0.04]], 0.06, body);
+      T(0.018, 0.42, 0, 0.022, 0.38, steel, 10);
+      T(0.015, 0.36, 0, -0.016, 0.35, dark, 10);
+      B(0.01, 0.008, 0.4, 0, 0.044, 0.38, dark);
+      B(0.046, 0.042, 0.14, 0, -0.018, 0.33, wood);
+      for (let i = 0; i < 4; i++) B(0.048, 0.004, 0.01, 0, -0.018, 0.28 + i * 0.03, dark);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      P([[-0.1, 0.03], [-0.38, 0.0], [-0.39, -0.1], [-0.33, -0.11], [-0.1, -0.035]], 0.045, wood);
+      B(0.064, 0.01, 0.16, 0, 0.012, 0.04, glow);
+      B(0.03, 0.02, 0.05, 0.035, 0.0, 0.08, mat(0x0b0c0e));
+      ironSights(k, dark, S, 0.0, 0.04, 0.57, 0.048, 0xff9a3c);
+      return finish(g, { muzzleF: 0.6, muzzleY: 0.022, S, hip: [0.21, -0.21, -0.5], ads: 0.32, flash: fc });
+    }
+    case 'sniper': {
+      S = 0.106;
+      P([[-0.12, 0.04], [0.28, 0.04], [0.3, 0.02], [0.3, -0.03], [0.1, -0.04], [-0.12, -0.035]], 0.056, body);
+      T(0.014, 0.45, 0, 0.008, 0.53, steel); B(0.035, 0.03, 0.06, 0, 0.008, 0.78, dark);
+      for (let i = 0; i < 3; i++) B(0.037, 0.006, 0.01, 0, 0.008, 0.765 + i * 0.015, mat(0x0b0c0e));
+      B(0.045, 0.008, 0.008, 0.03, 0.02, 0.04, steel);
+      k.add(new THREE.SphereGeometry(0.01, 8, 6), steel, 0.055, 0.02, 0.04);
+      B(0.034, 0.07, 0.06, 0, -0.07, 0.14, dark);
+      for (const s of [-1, 1]) B(0.008, 0.008, 0.18, s * 0.012, -0.022, 0.4, dark);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      P([[-0.12, 0.03], [-0.42, 0.035], [-0.44, -0.1], [-0.36, -0.11], [-0.24, -0.06], [-0.12, -0.035]], 0.046, body);
+      B(0.04, 0.02, 0.12, 0, 0.045, -0.25, dark);
+      B(0.06, 0.008, 0.24, 0, 0.016, 0.1, glow);
+      scope(k, dark, S, -0.03, 0.22, 0.043, 0.032);
+      return finish(g, { muzzleF: 0.81, muzzleY: 0.008, S, hip: [0.21, -0.22, -0.5], ads: 0.1, flash: fc });
+    }
+    case 'fusion': {
+      S = 0.106;
+      P([[-0.12, 0.055], [0.22, 0.055], [0.26, 0.03], [0.26, -0.05], [0.06, -0.055], [-0.12, -0.05]], 0.075, body);
+      T(0.03, 0.2, 0, 0, 0.37, dark, 8);
+      for (let i = 0; i < 4; i++) T(0.045, 0.018, 0, 0, 0.3 + i * 0.045, glow, 8);
+      for (const s of [-1, 1]) B(0.012, 0.012, 0.09, 0, s * 0.03, 0.5, steel);
+      B(0.05, 0.07, 0.08, 0, -0.08, 0.13, dark); B(0.052, 0.012, 0.06, 0, -0.07, 0.13, glow);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      B(0.05, 0.08, 0.18, 0, -0.01, -0.2, dark);
+      rail(k, dark, mid, 0.06, -0.06, 0.18);
+      holo(k, dark, S, 0.04, 0.065, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
+      return finish(g, { muzzleF: 0.54, S, hip: [0.22, -0.22, -0.5], ads: 0.31, flash: el.hex });
+    }
+    case 'linear': {
+      S = 0.112;
+      P([[-0.12, 0.05], [0.36, 0.05], [0.4, 0.03], [0.4, -0.045], [0.12, -0.05], [-0.12, -0.045]], 0.07, body);
+      for (let i = 0; i < 5; i++) B(0.076, 0.012, 0.02, 0, 0.0, 0.18 + i * 0.045, glow);
+      for (const s of [-1, 1]) B(0.012, 0.012, 0.32, 0, s * 0.021, 0.56, steel);
+      for (let i = 0; i < 3; i++) B(0.022, 0.06, 0.012, 0, 0, 0.45 + i * 0.09, dark);
+      B(0.04, 0.08, 0.07, 0, -0.085, 0.18, dark);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      P([[-0.12, 0.04], [-0.38, 0.03], [-0.4, -0.1], [-0.3, -0.1], [-0.12, -0.04]], 0.05, dark, 0, [[[-0.16, 0.01], [-0.27, 0.005], [-0.28, -0.06], [-0.18, -0.03]]]);
+      rail(k, dark, mid, 0.055, -0.08, 0.2);
+      scope(k, dark, S, -0.02, 0.18, 0.06, 0.032, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
+      return finish(g, { muzzleF: 0.73, S, hip: [0.22, -0.22, -0.52], ads: 0.09, flash: el.hex });
+    }
+    case 'rocket': {
+      S = 0.135;
+      T(0.075, 0.9, 0, 0, 0.12, body, 12);
+      T(0.08, 0.08, 0, 0, 0.6, dark, 12, 0.092);
+      T(0.088, 0.08, 0, 0, -0.35, dark, 12, 0.08);
+      for (const f of [-0.15, 0.25, 0.45]) T(0.078, 0.025, 0, 0, f, mid, 12);
+      B(0.03, 0.09, 0.035, 0, -0.115, 0.2, gripM);
+      grip(k, gripM, 0, 0.034); triggerGuard(k, dark, steel, 0.02, -0.06);
+      B(0.1, 0.03, 0.2, 0, -0.085, -0.17, dark);
+      B(0.03, 0.06, 0.12, -0.09, 0.0, 0.1, dark); B(0.032, 0.01, 0.1, -0.09, 0.015, 0.1, glow);
+      B(0.16, 0.012, 0.03, 0, 0.0, 0.38, glow);
+      holo(k, dark, S, 0.05, 0.072);
+      return finish(g, { muzzleF: 0.65, S, hip: [0.25, -0.16, -0.48], ads: 0.3, flash: 0xffb060 });
+    }
+    case 'mg': {
+      S = 0.118;
+      P([[-0.14, 0.06], [0.24, 0.06], [0.28, 0.035], [0.28, -0.05], [0.08, -0.06], [-0.14, -0.055]], 0.08, body);
+      B(0.07, 0.015, 0.22, 0, 0.066, 0.07, mid);
+      T(0.026, 0.28, 0, 0.01, 0.42, dark, 8);
+      for (let i = 0; i < 6; i++) B(0.056, 0.008, 0.014, 0, 0.01, 0.31 + i * 0.04, mat(0x0b0c0e));
+      T(0.012, 0.12, 0, 0.01, 0.62, steel); T(0.018, 0.04, 0, 0.01, 0.67, dark, 6);
+      B(0.07, 0.09, 0.11, 0.03, -0.1, 0.08, dark); B(0.03, 0.02, 0.04, 0.045, -0.045, 0.1, steel);
+      B(0.012, 0.04, 0.12, 0.05, 0.05, 0.3, dark);
+      for (const s of [-1, 1]) B(0.008, 0.008, 0.2, s * 0.014, -0.02, 0.45, dark);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      P([[-0.14, 0.045], [-0.4, 0.04], [-0.41, -0.09], [-0.14, -0.05]], 0.05, dark);
+      B(0.084, 0.012, 0.2, 0, 0.03, 0.06, glow);
+      holo(k, dark, S, 0.05, 0.074);
+      return finish(g, { muzzleF: 0.7, muzzleY: 0.01, S, hip: [0.22, -0.22, -0.5], ads: 0.31, flash: fc });
+    }
     case 'glauncher': {
-      B(0.08, 0.1, 0.36, 0, 0, -0.08, body); T(0.045, 0.3, 0, 0.03, -0.38, dark, 8);
-      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.14, 6), mid); drum.rotation.x = Math.PI / 2; drum.position.set(0, -0.03, -0.12); g.add(drum);
-      B(0.06, 0.1, 0.18, 0, -0.02, 0.18, dark); B(0.04, 0.12, 0.05, 0, -0.1, 0.05, dark, -0.3); B(0.03, 0.04, 0.08, 0, 0.075, -0.06, dark);
-      T(0.092, 0.03, 0, -0.03, -0.12, glow, 6);
-      return finish(g, -0.55, 0.03, 0.095, [0.21, -0.19, -0.36], -0.3, fc);
+      S = 0.088;
+      P([[-0.1, 0.045], [0.14, 0.045], [0.14, -0.04], [-0.1, -0.04]], 0.06, body);
+      T(0.085, 0.12, 0, -0.03, 0.2, mid, 6);
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + Math.PI / 6; T(0.022, 0.124, Math.cos(a) * 0.05, -0.03 + Math.sin(a) * 0.05, 0.2, dark, 8); }
+      T(0.034, 0.22, 0, 0.02, 0.38, dark, 10); T(0.04, 0.02, 0, 0.02, 0.48, glow, 10);
+      B(0.03, 0.07, 0.04, 0, -0.04, 0.38, gripM);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      for (const s of [-1, 1]) B(0.008, 0.008, 0.22, s * 0.022, 0.0, -0.2, steel);
+      B(0.055, 0.08, 0.014, 0, -0.02, -0.31, dark);
+      B(0.064, 0.01, 0.12, 0, 0.02, 0.02, glow);
+      ironSights(k, dark, S, -0.02, 0.045, 0.47, 0.054, 0xff9a3c);
+      return finish(g, { muzzleF: 0.5, muzzleY: 0.02, S, hip: [0.22, -0.2, -0.5], ads: 0.34, flash: fc });
     }
     default:
       throw new Error(`buildGunModel: unknown archetype ${item.arch}`);
   }
 }
 
+// ---------------------------------------------------------------------------
+// Super viewmodels
+// ---------------------------------------------------------------------------
 export function buildSuperModel(type) {
   const g = new THREE.Group();
   const { B, T } = kit(g);
@@ -125,19 +364,18 @@ export function buildSuperModel(type) {
     const glow = mat(0xff8b2b, { emissive: 0xff8b2b, emissiveIntensity: 2.2 });
     const h = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.4, 6), mat(0x5a3a22));
     h.position.set(0, 0, -0.1); h.rotation.x = -0.4; g.add(h);
-    B(0.2, 0.12, 0.12, 0, 0.18, -0.18, glow);
-    return finish(g, -0.2, 0.15, 0.2, [0.24, -0.2, -0.4], -0.4, 0xff8b2b);
+    B(0.2, 0.12, 0.12, 0, 0.18, 0.18, glow);
+    return finish(g, { muzzleF: 0.2, muzzleY: 0.15, S: 0.2, hip: [0.24, -0.2, -0.4], ads: 0.4, flash: 0xff8b2b });
   }
   if (type === 'revolver') {
-    const gold = mat(0xd9b04a, { metalness: 0.6, roughness: 0.35 });
-    const glow = mat(0x5fd3ff, { emissive: 0x5fd3ff, emissiveIntensity: 2 });
-    B(0.065, 0.1, 0.26, 0, 0.01, -0.1, gold); T(0.024, 0.24, 0, 0.02, -0.33, gold); T(0.05, 0.08, 0, -0.005, -0.1, glow, 6);
-    B(0.05, 0.14, 0.06, 0, -0.1, 0.03, mat(0x2a1f10), -0.35); B(0.068, 0.016, 0.16, 0, 0.06, -0.12, glow);
-    return finish(g, -0.46, 0.02, 0.075, [0.18, -0.17, -0.36], -0.32, 0x5fd3ff);
+    const gold = mat(0xd9b04a, { emissive: 0x7a4a10, emissiveIntensity: 0.6 });
+    const glow = mat(0xffb547, { emissive: 0xff8b2b, emissiveIntensity: 2 });
+    B(0.065, 0.1, 0.26, 0, 0.01, 0.1, gold); T(0.024, 0.24, 0, 0.02, 0.33, gold); T(0.05, 0.08, 0, -0.005, 0.1, glow, 6);
+    B(0.05, 0.14, 0.06, 0, -0.1, -0.03, mat(0x2a1f10), -0.35); B(0.068, 0.016, 0.16, 0, 0.06, 0.12, glow);
+    return finish(g, { muzzleF: 0.46, muzzleY: 0.02, S: 0.075, hip: [0.18, -0.17, -0.36], ads: 0.32, flash: 0xff8b2b });
   }
-  // nova: a ball of void in the palm
   const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 1), new THREE.MeshBasicMaterial({ color: 0xe6d0ff }));
   const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: 0xb07cff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
   core.position.set(0, 0.06, -0.2); shell.position.copy(core.position); g.add(core, shell);
-  return finish(g, -0.2, 0.06, 0.06, [0.16, -0.18, -0.38], -0.4, 0xb07cff);
+  return finish(g, { muzzleF: 0.2, muzzleY: 0.06, S: 0.06, hip: [0.16, -0.18, -0.38], ads: 0.4, flash: 0xb07cff });
 }

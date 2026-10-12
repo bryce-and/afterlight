@@ -6,7 +6,22 @@ export const MAX_POWER = 100;
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
 const NOUN = ['Oath', 'Promise', 'Requiem', 'Verdict', 'Covenant', 'Lament', 'Sentinel', 'Herald', 'Reckoning', 'Psalm', 'Edict', 'Tide', 'Mercy', 'Vow', 'Witness', 'Ruin', 'Hymn', 'Answer', 'Warden', 'Dirge'];
 const PLACE = ['the Deep', 'Dawn', 'the Ninth Sun', 'the Pale Moon', 'the Ash Wastes', 'Quiet Stars', 'the Long Night'];
-const COMMON = ['Kestrel', 'Harrow', 'Tolland', 'Vesper', 'Breakline', 'Halcyon', 'Marrow', 'Sigil'];
+const FOUNDRY = ['Häkke', 'Omolon', 'SUROS', 'VEIST', 'Daito', 'Tex Mechanica', 'Field Forged'];
+const CODE = { auto: 'AR', hand: 'HC', pulse: 'PR', scout: 'SR', smg: 'SMG', shotgun: 'SG', sniper: 'SN', fusion: 'FR', linear: 'LFR', rocket: 'RL', mg: 'MG', glauncher: 'GL' };
+const LEGENDARY = {
+  auto: ['Shadow Price', 'Doctrine of Passing', "Uriel's Gift", 'Gnawing Hunger', 'Age-Old Bond', 'Chattering Bone'],
+  hand: ['Fatebringer', 'Palindrome', 'Midnight Coup', 'Igneous Hammer', 'Not Forgotten', "Luna's Howl"],
+  pulse: ['Bygones', 'Blast Furnace', 'Messenger', 'Vouchsafe', 'Inaugural Address', 'Outlast'],
+  scout: ['Nameless Midnight', "Shepherd's Watch", 'Vision of Confluence', 'Night Watch', 'Hung Jury SR4', 'Randy\'s Throwing Knife'],
+  smg: ['Recluse', 'Multimach CCX', 'Funnelweb', "Shayura's Wrath", 'IKELOS_SMG_v1.0.3', 'The Title'],
+  shotgun: ["Felwinter's Lie", 'The Comedian', "Mindbender's Ambition", 'Matador 64', 'Astral Horizon', 'Heritage'],
+  sniper: ['Beloved', '1000 Yard Stare', 'Supremacy', 'Revoker', 'Eye of Sol', "Praedyth's Revenge"],
+  fusion: ['Main Ingredient', 'Plug One.1', 'Glacioclasm', 'Exalted Truth', 'Pre Astyanax IV', 'Loaded Question'],
+  linear: ['Taipan-4fr', 'Stormchaser', "Briar's Contempt", 'Cataclysmic', "Reed's Regret", 'Fire and Forget'],
+  rocket: ['Hezen Vengeance', "Tomorrow's Answer", 'Hothead', 'Bad Omens', 'Apex Predator', 'Crowning Duologue'],
+  mg: ['Hammerhead', 'Fixed Odds', "Qullim's Terminus", "Archon's Thunder", 'Corrective Measure', 'Commemoration'],
+  glauncher: ['Wendigo GL3', 'Ignition Code', 'Tarnation', 'Edge Transit', 'Hullabaloo', 'Regnant'],
+};
 const MAKERS = ['Field', 'Scout', 'Patrol', 'Trooper', 'Ranger'];
 const ARMOR_NOUN = {
   helmet: ['Helm', 'Mask', 'Visor', 'Hood', 'Cowl'],
@@ -25,9 +40,10 @@ export function rollRarityIdx(bonus = 0) {
   return weightedIndex(w);
 }
 
-function weaponName(rIdx) {
-  if (rIdx === 0) return `${pick(COMMON)}-${randInt(2, 9)}`;
-  if (rIdx === 3 && Math.random() < 0.5) return `${pick(NOUN)} of ${pick(PLACE)}`;
+function weaponName(rIdx, arch) {
+  if (rIdx === 0) return `${pick(FOUNDRY)} ${CODE[arch]}-${randInt(2, 9)}`;
+  if (rIdx === 3) return pick(LEGENDARY[arch]);
+  if (rIdx === 2 && Math.random() < 0.3) return `${pick(NOUN)} of ${pick(PLACE)}`;
   return `${pick(ADJ)} ${pick(NOUN)}`;
 }
 
@@ -43,7 +59,7 @@ export function makeWeapon(slot, power, rIdx, archOverride) {
   } else {
     arch = archOverride || pick(Object.values(ARCHETYPES).filter((a) => a.slot === slot)).id;
     element = slot === 'primary' ? (Math.random() < 0.6 ? 'kinetic' : pick(ENERGY)) : pick(ENERGY);
-    name = weaponName(rIdx);
+    name = weaponName(rIdx, arch);
   }
   const A = ARCHETYPES[arch];
   const roll = (lo, hi) => rand(lo, hi);
@@ -83,20 +99,30 @@ export function rollItem(power, rIdx, slot = pick(SLOTS)) {
 }
 
 export function starterGear() {
-  const p = makeWeapon('primary', 10, 0, 'auto'); p.name = 'Kestrel-7'; p.element = 'kinetic';
-  const s = makeWeapon('special', 8, 0, 'shotgun'); s.name = 'Breakline-3';
-  const h = makeWeapon('heavy', 8, 0, 'rocket'); h.name = 'Tolland-2';
+  const p = makeWeapon('primary', 10, 0, 'auto'); p.name = 'Khvostov 7G-02'; p.element = 'kinetic';
+  const s = makeWeapon('special', 8, 0, 'shotgun'); s.name = 'Häkke SG-3';
+  const h = makeWeapon('heavy', 8, 0, 'rocket'); h.name = 'Omolon RL-2';
   const armor = ['helmet', 'arms', 'chest', 'legs'].map((sl) => makeArmor(sl, 10, 0));
   return [p, s, h, ...armor].map((it) => ({ ...it, isNew: false }));
 }
 
-const ARMORY_NAMES = { auto: 'Kestrel-7', hand: 'Harrow Mk.2', pulse: 'Vesper-3', scout: 'Halcyon Long', smg: 'Marrow-9', shotgun: 'Breakline-3', sniper: 'Sigil Far', fusion: 'Tolland Arc', linear: 'Lancet-5', rocket: 'Tolland-2', mg: 'Breaker-6', glauncher: 'Harrow Drum' };
+const ARMORY_NAMES = { auto: 'Khvostov 7G-02', hand: 'Häkke HC-4', pulse: 'SUROS PR-3', scout: 'Omolon SR-5', smg: 'VEIST SMG-2', shotgun: 'Häkke SG-3', sniper: 'Daito SN-6', fusion: 'Omolon FR-4', linear: 'Daito LFR-5', rocket: 'Omolon RL-2', mg: 'Häkke MG-6', glauncher: 'Tex Mechanica GL-4' };
 
 /** One common weapon of every archetype the player doesn't already own. */
 export function armoryGear(owned, power) {
   return Object.values(ARCHETYPES)
     .filter((A) => !owned.has(A.id))
     .map((A) => ({ ...makeWeapon(A.slot, power, 0, A.id), name: ARMORY_NAMES[A.id] ?? A.name }));
+}
+
+/** Renames gear from older saves to the Destiny names (keeps stats and perks). */
+export function modernizeItem(it) {
+  if (it.kind === 'armor') { if (it.rarity === 'exotic') it.name = EXOTIC_ARMOR[it.slot]; return; }
+  if (it.rarity === 'exotic') {
+    const tpl = EXOTIC_WEAPONS.find((e) => e.arch === it.arch);
+    if (tpl) Object.assign(it, { name: tpl.name, element: tpl.element, exotic: tpl.perk, flavor: tpl.flavor });
+  } else if (it.rarity === 'legendary') it.name = pick(LEGENDARY[it.arch]);
+  else if (it.rarity === 'common') it.name = `${pick(FOUNDRY)} ${CODE[it.arch]}-${randInt(2, 9)}`;
 }
 
 export function dismantleValue(it) {

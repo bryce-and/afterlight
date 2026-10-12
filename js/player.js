@@ -409,7 +409,7 @@ export class Player {
     }
     if (crit && w.has('sunburst')) {
       w.precHits++;
-      if (w.precHits % 4 === 0) explode(point, 3.5, dmg * 2.2, 'solar', { source: 'perk' });
+      if (w.precHits % 5 === 0) explode(point, 3.5, dmg * 2.6, w.item.element === 'kinetic' ? 'solar' : w.item.element, { source: 'perk' });
     }
     return res;
   }
@@ -444,7 +444,7 @@ export class Player {
     if (w.has('leech')) this.heal(20);
     const c = e.center(new THREE.Vector3());
     if (w.has('firefly') && o.crit) explode(c, 3, 90, 'solar', { source: 'perk' });
-    if (w.has('voidheart')) explode(c, 4, 180, 'void', { source: 'perk' });
+    if (w.has('voidheart')) explode(c, 4, 180, w.item.element === 'kinetic' ? 'void' : w.item.element, { source: 'perk' });
     if (w.has('scavenger') && w.reserve !== Infinity && Math.random() < 0.4) {
       w.reserve = Math.min(w.maxReserve, w.reserve + (w.A.slot === 'heavy' ? Math.ceil(w.A.brick / 2) : 1));
     }
@@ -562,12 +562,12 @@ export class Player {
         dispose() { G.scene.remove(zone); },
       });
     } else if (id === 'arcbolt') {
-      explode(pt, 3.5, 90, 'arc', { source: 'ability' });
+      explode(pt, 3.5, 90, 'solar', { source: 'ability' });
       let prev = pt.clone();
       for (const e of enemiesNear(pt, 14, 4)) {
         const c = e.center(new THREE.Vector3());
-        lightning(prev, c, ELEMENTS.arc.hex);
-        dealDamage(e, 110, { element: 'arc', source: 'ability', pos: c });
+        lightning(prev, c, ELEMENTS.solar.hex);
+        dealDamage(e, 110, { element: 'solar', source: 'ability', pos: c });
         prev = c;
       }
       sfx.zap();
@@ -623,8 +623,8 @@ export class Player {
     if (charged && id === 'knife') {
       this.cd.melee = this.cdMax.melee;
       const dir = this.getForward(new THREE.Vector3());
-      const pseudo = { s: { range: 40 }, A: { prec: 2 }, item: { element: 'arc' }, has: () => false };
-      this.hitscan(this.eye, dir, pseudo, 160, this.muzzlePos(new THREE.Vector3()), { isSuper: true, element: 'arc', precMult: 2, range: 45, tracerColor: ELEMENTS.arc.hex, tracerWidth: 0.05 });
+      const pseudo = { s: { range: 40 }, A: { prec: 2 }, item: { element: 'solar' }, has: () => false };
+      this.hitscan(this.eye, dir, pseudo, 160, this.muzzlePos(new THREE.Vector3()), { isSuper: true, element: 'solar', precMult: 2, range: 45, tracerColor: ELEMENTS.solar.hex, tracerWidth: 0.05 });
       return;
     }
     if (charged && id === 'fist') {
@@ -690,7 +690,7 @@ export class Player {
       else this.dashDir.copy(this.getForward(new THREE.Vector3()).setY(0).normalize().negate());
       this.dash = 0.22;
       this.instantReload(this.weapon);
-      ringFx(this.pos, 1.5, ELEMENTS.arc.hex, 0.3);
+      ringFx(this.pos, 1.5, ELEMENTS.solar.hex, 0.3);
     } else if (id === 'rift') {
       const pt = this.pos.clone();
       const zone = makeZoneMesh(pt, 4.5, 0xb07cff);
@@ -743,17 +743,17 @@ export class Player {
     }
     if (S.type === 'revolver' && inp.mouse.leftPressed && S.cd <= 0 && S.shots > 0) {
       S.cd = 0.35; S.shots--;
-      const pseudo = { s: { range: 200 }, A: { prec: 1.5 }, item: { element: 'arc' }, has: () => false };
-      const end = this.hitscan(this.eye, fwd, pseudo, 1100, this.muzzlePos(new THREE.Vector3()), { isSuper: true, element: 'arc', precMult: 1.5, range: 220, tracerColor: ELEMENTS.arc.hex, tracerWidth: 0.08 });
+      const pseudo = { s: { range: 200 }, A: { prec: 1.5 }, item: { element: 'solar' }, has: () => false };
+      const end = this.hitscan(this.eye, fwd, pseudo, 1100, this.muzzlePos(new THREE.Vector3()), { isSuper: true, element: 'solar', precMult: 1.5, range: 220, tracerColor: ELEMENTS.solar.hex, tracerWidth: 0.08 });
       let prev = end;
       for (const e of enemiesNear(end, 10, 2)) {
         const c = e.center(new THREE.Vector3());
-        lightning(prev, c, ELEMENTS.arc.hex, 0.06);
-        dealDamage(e, 350, { element: 'arc', source: 'super', pos: c });
+        lightning(prev, c, ELEMENTS.solar.hex, 0.06);
+        dealDamage(e, 350, { element: 'solar', source: 'super', pos: c });
         prev = c;
       }
       this.kick = 1; this.pitch += 0.05; flash.visible = true;
-      flashLight(this.eye, ELEMENTS.arc.hex, 30, 10, 0.1);
+      flashLight(this.eye, ELEMENTS.solar.hex, 30, 10, 0.1);
       sfx.shot('revolver');
       if (S.shots <= 0) S.t = Math.min(S.t, 0.5);
     }
@@ -791,7 +791,7 @@ export class Player {
     const hsp = Math.hypot(this.vel.x, this.vel.z);
     const moveK = this.onGround ? Math.min(1, hsp / this.speed) : 0;
     this.bobT += dt * moveK * (this.sprinting ? 12 : 8.5);
-    const bobAmp = (this.sprinting ? 0.022 : 0.012) * (1 - a * 0.85);
+    const bobAmp = (this.sprinting ? 0.022 : 0.012) * (1 - a * 0.97);
     vm.position.lerpVectors(ud.hip, ud.ads, a);
     vm.position.x += Math.sin(this.bobT) * bobAmp + this.sway.x * (1 - a);
     vm.position.y += -Math.abs(Math.cos(this.bobT)) * bobAmp + this.sway.y * (1 - a) - this.landDip * 0.5;

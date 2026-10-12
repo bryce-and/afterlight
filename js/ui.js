@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, rarityIndex } from './data.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex } from './data.js';
 import { playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
 import { dismantleValue } from './loot.js';
 import { startMission, retryMission, abandonMission } from './game.js';
@@ -48,7 +48,7 @@ export function showClassSelect(fromOrbit = false) {
       <div class="cls-grid">
         ${Object.values(CLASSES).map((c) => `
           <button class="cls-card" data-cls="${c.id}" style="--cc:${c.color}">
-            <div class="cls-el">${ELEMENTS[c.element].name}</div>
+            <div class="cls-el">${ELEMENTS[c.element].name}  ·  ${c.subclass}</div>
             <div class="cls-name">${c.name}</div>
             <div class="cls-tag">${c.tagline}</div>
             <ul class="cls-abs">
@@ -177,7 +177,7 @@ function itemCard(it, { equipped = false, selected = false, compact = false } = 
   return `<div class="item r-${it.rarity} ${selected ? 'sel' : ''} ${compact ? 'compact' : ''}" data-id="${it.id}" style="--rc:${rar.color}">
     <div class="it-top">${el ? `<span class="el" style="background:${el.color}" title="${el.name}"></span>` : ''}<span class="it-name">${esc(it.name)}</span></div>
     <div class="it-sub">${rar.name} ${typeLine(it)}</div>
-    <div class="it-power">◆ ${it.power}</div>
+    <div class="it-power">◆ ${it.power}${it.kind === 'weapon' ? `<span class="ammo-ico" style="--ac:${AMMO[it.slot].color}" title="${AMMO[it.slot].name} ammo"></span>` : ''}</div>
     ${it.isNew ? '<span class="new-dot">New</span>' : ''}${equipped ? '<span class="eq">Equipped</span>' : ''}
   </div>`;
 }
@@ -197,7 +197,8 @@ function itemDetail(it) {
     const A = ARCHETYPES[it.arch];
     const st = it.stats;
     const el = ELEMENTS[it.element];
-    body += `<div class="d-el" style="color:${el.color}">${el.name}  ·  ${SLOT_NAMES[it.slot]}</div>`;
+    const am = AMMO[it.slot];
+    body += `<div class="d-el"><span style="color:${el.color}">${el.name}</span>  ·  <span class="ammo-chip" style="--ac:${am.color}"><span class="ammo-ico"></span>${am.name} Ammo</span></div>`;
     body += '<div class="stats">';
     body += statBar('Impact', st.dmg * (A.pellets || 1), A.dmg * (A.pellets || 1) * 1.6, Math.round(st.dmg) + (A.pellets ? ` x${A.pellets}` : ''));
     body += statBar('Rate of Fire', st.rpm, A.rpm * 1.6, `${st.rpm} rpm`);
@@ -287,7 +288,7 @@ function renderCharacter(main) {
   main.innerHTML = `
     <div class="character">
       <section class="char-main" style="--cc:${cls.color}">
-        <div class="eyebrow">${ELEMENTS[cls.element].name} class</div>
+        <div class="eyebrow">${ELEMENTS[cls.element].name}  ·  ${cls.subclass}</div>
         <h1 class="screen-title">${cls.name}</h1>
         <p class="desc">${cls.tagline}</p>
         <div class="stats big">
@@ -358,10 +359,11 @@ export function enterMission() {
   $('#super .super-name').textContent = ab.super.name;
   $('#weapons').innerHTML = P.weapons.map((w, i) => {
     const rar = RARITIES[rarityIndex(w.item.rarity)];
-    return `<div class="wrow" data-i="${i}" style="--rc:${rar.color};--ec:${ELEMENTS[w.item.element].color}">
+    const ammo = AMMO[w.A.slot];
+    return `<div class="wrow" data-i="${i}" style="--rc:${rar.color};--ec:${ELEMENTS[w.item.element].color};--ac:${ammo.color}">
       <div class="w-key">${i + 1}</div>
-      <div class="w-info"><div class="w-name">${esc(w.item.name)}</div><div class="w-type">${ARCHETYPES[w.item.arch].name}</div></div>
-      <div class="w-ammo"><span class="w-mag"></span><span class="w-res"></span></div>
+      <div class="w-info"><div class="w-name"><span class="el" title="${ELEMENTS[w.item.element].name}"></span>${esc(w.item.name)}</div><div class="w-type">${ARCHETYPES[w.item.arch].name}</div></div>
+      <div class="w-ammo"><span class="ammo-ico" title="${ammo.name} ammo"></span><span class="w-mag"></span><span class="w-res"></span></div>
     </div>`;
   }).join('');
   hud.wrows = $$('#weapons .wrow').map((el) => ({ el, mag: el.querySelector('.w-mag'), res: el.querySelector('.w-res') }));
@@ -417,7 +419,7 @@ export function updateHUD(dt) {
   const spread = S ? 0.004 : P.getSpread(w);
   const px = (spread / Math.tan((cam.fov * Math.PI) / 360)) * (innerHeight / 2);
   setStyle(hud.cross, 'chg', '--gap', `${Math.round(5 + px)}px`);
-  setClass(hud.cross, 'chads', 'ads', P.adsT > 0.6 && !S);
+  setClass(hud.cross, 'chads', 'ads', P.adsT > 0.5 && !S);
   setClass(hud.cross, 'chrl', 'dim', w.reloading || P.switchT > 0);
   // hitmarker
   hitT -= dt;

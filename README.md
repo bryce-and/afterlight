@@ -16,9 +16,9 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
-- **3 classes**: Vanguard (solar tank), Stalker (arc marksman), Arcanist (void caster). Each has a grenade, melee, class ability, super, and jump.
+- **3 classes**: Titan (Sunbreaker), Hunter (Gunslinger), Warlock (Voidwalker). Each has a grenade, melee, class ability, super, and jump.
 - **12 weapon types** (every player gets one of each) in primary / special / heavy slots, aim down sights, reloads, recoil, precision damage, elemental shields.
-- **3 destinations, 9 missions**: Earth, Moon, Mars, each with its own faction and a boss at the end.
+- **3 destinations, 9 missions**: the Cosmodrome (Fallen), the Moon (Hive), and Mars (Cabal) and a boss at the end.
 - **Loot**: engrams drop from enemies, boss caches give rare-or-better gear, five rarities up to Exotic, random perks, power level, infusion, dismantling for Glimmer.
 - Progress saves to the browser's localStorage.
 

@@ -1,5 +1,5 @@
 import { SLOTS, LOCATIONS, RARITIES } from './data.js';
-import { starterGear, dismantleValue, armoryGear } from './loot.js';
+import { starterGear, dismantleValue, armoryGear, modernizeItem } from './loot.js';
 
 const KEY = 'afterlight_save_v1';
 export const INVENTORY_CAP = 60;
@@ -13,6 +13,7 @@ export function loadSave() {
     if (s && s.version === 1 && Array.isArray(s.inventory) && s.equipped && s.classId) {
       s.settings = { sens: 1, fov: 80, volume: 0.6, ...(s.settings || {}) };
       grantArmory(s);
+      if (!s.namesV3) { s.inventory.forEach(modernizeItem); s.namesV3 = true; writeSave(s); }
       return s;
     }
     console.error('Save file has an unexpected shape; ignoring it.', s);
@@ -35,6 +36,7 @@ export function createSave(classId) {
   const s = { version: 1, classId, glimmer: 250, inventory: gear, equipped: {}, cleared: {}, settings: { sens: 1, fov: 80, volume: 0.6 } };
   for (const it of gear) s.equipped[it.slot] = it.id;
   grantArmory(s);
+  s.namesV3 = true;
   writeSave(s);
   return s;
 }
