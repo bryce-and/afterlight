@@ -18,6 +18,9 @@ export function initAudio() {
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
 }
 
+/** The shared AudioContext (null until the first user gesture starts audio). */
+export const audioCtx = () => ctx;
+
 export function setVolume(v) {
   volume = v;
   if (master) master.gain.value = v * 0.5;

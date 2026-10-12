@@ -10,6 +10,7 @@ import { pointInColliders } from './physics.js';
 import { rollItem, rollRarityIdx, MAX_POWER, dismantleValue } from './loot.js';
 import { addItem, writeSave, playerPower, ALL_MISSIONS } from './save.js';
 import { sfx } from './audio.js';
+import { playMusic, setSection } from './music.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
@@ -49,6 +50,7 @@ export function startMission(li, mi) {
   G.player = new Player(G.save);
   G.player.spawn(level.spawn);
   G.state = 'playing';
+  playMusic(loc.id);
   ui.enterMission();
   ui.centerMessage(def.name, `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
   if (delta < -4) setTimeout(() => ui.feed(`Underpowered by ${-delta}: enemies hit harder and take less damage`, '#ff7a6b'), 1500);
@@ -175,6 +177,7 @@ export function updateGame(dt) {
   updatePickups(dt);
   updateEffects(dt);
   updateMission(dt);
+  updateMusic(dt);
   netTick(dt);
   const L = G.level;
   L.sun.position.copy(P.pos).add(L.sunOffset);
@@ -720,6 +723,7 @@ function loadArena(i, first = false) {
   if (dir.lengthSq() < 1) dir.set(0, 0, 1);
   const start = arena.center.clone().addScaledVector(dir.normalize(), 13);
   Object.assign(M, { loc, arenaDef: def, arenaIdx: i, checkpoint: start.clone(), bossModel: def.boss.model, chest: null });
+  playMusic(loc.id);
   M.zones = [{ center: arena.center.clone(), name: arena.name, isBoss: false, idx: 0, state: 'active', waves: [], waveIdx: 0, enemies: [] }];
   if (first) G.player = new Player(G.save);
   const P = G.player;
@@ -894,4 +898,23 @@ function exoticArmorMult(o) {
   }
   if (P.exo.has('heart') && o.source === 'ability' && (P.heart.grenade > 0 || P.heart.melee > 0)) m *= 1.3; // Heart of Inmost Light
   return m;
+}
+
+// ---------------------------------------------------------------------------
+// Music section from what is around the player (works the same for fireteam members)
+// ---------------------------------------------------------------------------
+let musicT = 0;
+function updateMusic(dt) {
+  musicT -= dt;
+  if (musicT > 0) return;
+  musicT = 0.5;
+  const P = G.player;
+  let boss = false, combat = false;
+  for (const e of G.enemies) {
+    if (!e.alive) continue;
+    const d = Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z);
+    if (e.isBoss && d < 70) boss = true;
+    else if (d < 45) combat = true;
+  }
+  setSection(boss ? 'boss' : combat ? 'combat' : 'explore');
 }
