@@ -9,6 +9,7 @@ import { sfx } from './audio.js';
 import { damagePlayer, spawnBossAdds } from './game.js';
 import * as ui from './ui.js';
 import { pickTarget, allPlayers, damageRemote, announceShot } from './coop.js';
+import { BOSS_MODELS } from './bosses.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const shotGeo = new THREE.IcosahedronGeometry(1, 0);
@@ -39,7 +40,9 @@ function buildModel(e, C, faction) {
   const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
   const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
   const c = { g, add, B, pivot, bodyMat, dark, accent, C, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
-  ({ scrappers: fallen, hollow: hive, legion: cabal })[faction](c, e.typeId);
+  const bossBuilder = e.bossModel && BOSS_MODELS[e.bossModel];
+  if (bossBuilder) bossBuilder(c);
+  else ({ scrappers: fallen, hollow: hive, legion: cabal })[faction](c, e.typeId);
   let shield = null;
   if (e.maxShield > 0) {
     shield = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: ELEMENTS[e.shieldEl].hex, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -48,7 +51,7 @@ function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -323,6 +326,8 @@ export class Enemy {
     this.typeId = typeId;
     this.def = def;
     this.isBoss = typeId === 'boss';
+    // unique boss model (Servitor, Wizard, Kell...); falls back to the faction model
+    this.bossModel = this.isBoss ? (o.model ?? M.bossModel ?? null) : null;
     this.name = o.name || M.loc.enemyNames[typeId];
     this.pos = pos.clone(); this.pos.y = 0;
     this.radius = 0.45 * def.scale;
@@ -542,6 +547,7 @@ export class Enemy {
     }
 
     m.group.position.copy(this.pos);
+    if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
     m.group.rotation.y = this.yaw;
     return true;
   }
@@ -567,6 +573,7 @@ export class Enemy {
     m.bodyMat.emissive.setRGB(f, f, f);
     if (m.shield) m.shield.visible = this.shield > 0;
     m.group.position.copy(this.pos);
+    if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
     m.group.rotation.y = this.yaw;
   }
 

@@ -6,7 +6,7 @@ import { Enemy, fireEnemyShot } from './enemies.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit } from './data.js';
-import { startMission, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId } from './game.js';
+import { startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId } from './game.js';
 import { playerPower } from './save.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
@@ -63,6 +63,79 @@ export function launchFireteam(li, mi) {
   startMission(li, mi);
 }
 
+/** Host: launch an activity (Horde / Endless) for the whole fireteam on a shared arena seed. */
+export function launchActivity(actId) {
+  const seed = newSeed();
+  if (net.isHost) broadcast({ t: 'start', act: actId, seed });
+  startActivity(actId, seed);
+}
+
+/** The level was rebuilt (activity arena move): avatars and enemy proxies belong to the old scene. */
+export function onLevelSwap() {
+  for (const r of remotes.values()) removeAvatar(r);
+  netEnemies.clear();
+  lastHits.clear();
+}
+export function announceArena(i) { if (net.isHost) broadcast({ t: 'arena', i }); }
+export function announceActChest(pos, n, final) { if (net.isHost) broadcast({ t: 'ach', x: r2(pos.x), z: r2(pos.z), n, f: final ? 1 : 0 }); }
+
+// ---------------------------------------------------------------------------
+// Downed players and pooled lives (host keeps the count)
+// ---------------------------------------------------------------------------
+export const DOWN_TIME = 18; // seconds a teammate has to revive you before a life is spent
+const REVIVE_TIME = 1.5;
+
+/** Downed too long: ask the host to spend a pooled life on me. */
+export function requestLife() {
+  if (net.isHost) hostUseLife(net.myId);
+  else send({ t: 'life' });
+}
+function hostUseLife(id) {
+  const M = G.mission;
+  if (M.lives <= 0) return; // no lives left: only a teammate can bring them back
+  M.lives--;
+  broadcast({ t: 'lv', n: M.lives });
+  ui.feed(`A life was used  ·  ${M.lives} left`, '#ffb36b');
+  revivePlayer(id, false);
+}
+function revivePlayer(id, inPlace) {
+  if (id === net.myId) { if (G.player.dead) G.player.respawn(inPlace); }
+  else sendTo(id, { t: 'revive', ip: inPlace ? 1 : 0 });
+}
+
+/** Per frame (fireteam only): hold E next to a downed teammate to revive them; host checks for a wipe. */
+function updateRevives(dt) {
+  const P = G.player, M = G.mission;
+  if (net.isHost && G.state === 'playing' && M.phase !== 'done' && M.lives <= 0 && allPlayers().every((p) => p.dead)) {
+    broadcast({ t: 'wipe' });
+    missionFailed();
+    return;
+  }
+  let target = null, bd = 2.6;
+  if (!P.dead) for (const r of remotes.values()) {
+    if (!r.inMission || !r.dead) continue;
+    const d = Math.hypot(r.pos.x - P.pos.x, r.pos.z - P.pos.z);
+    if (d < bd) { bd = d; target = r; }
+  }
+  if (!target) {
+    if (P.reviveTarget) { P.reviveTarget = null; P.reviveT = 0; ui.prompt(null); }
+    return;
+  }
+  P.reviveTarget = target;
+  if (G.input.keys.KeyE) {
+    P.reviveT = (P.reviveT || 0) + dt;
+    ui.prompt(`Reviving ${target.name}  ${Math.min(100, Math.round((P.reviveT / REVIVE_TIME) * 100))}%`);
+    if (P.reviveT >= REVIVE_TIME) {
+      P.reviveT = 0;
+      if (net.isHost) revivePlayer(target.id, true); else send({ t: 'rev', id: target.id });
+      ui.feed(`You revived ${target.name}`, '#7fd8ff');
+    }
+  } else {
+    P.reviveT = 0;
+    ui.prompt(`[Hold E]  Revive ${target.name}`);
+  }
+}
+
 export function onAbandon() {
   if (net.isHost) broadcast({ t: 'end' });
   else if (net.isClient) send({ t: 'leave' });
@@ -73,7 +146,7 @@ export function onAbandon() {
 export function registerEnemy(e) {
   if (!net.isHost) return;
   e.netId = nextId++;
-  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield) });
+  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined });
 }
 
 export function announceKill(e, o) {
@@ -123,6 +196,8 @@ function myState() {
 
 export function netTick(dt) {
   if (!net.active || !G.mission) return;
+  updateRevives(dt);
+  if (G.state !== 'playing') return;
   sendT -= dt; snapT -= dt; rosterT -= dt;
   if (net.isClient && sendT <= 0) { sendT = 0.05; send({ t: 'p', ...myState() }); }
   if (net.isHost && snapT <= 0) {
@@ -131,7 +206,7 @@ export function netTick(dt) {
     for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0]);
     const M = G.mission;
     const z = M.zones[M.current];
-    const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)] };
+    const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0 };
     const ps = [myState()];
     for (const r of remotes.values()) if (r.inMission && r.state) ps.push(r.state);
     broadcast({ t: 's', e, ms, ps });
@@ -223,7 +298,7 @@ function updateAvatars(dt) {
 // ---------------------------------------------------------------------------
 function proxy(id, type, x, z, info = {}) {
   const M = G.mission;
-  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n });
+  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm });
   e.remote = true;
   e.netId = id;
   if (info.mh) { e.maxHp = info.mh; e.hp = info.mh; }
@@ -244,7 +319,7 @@ const inMission = () => G.mission && ['playing', 'paused'].includes(G.state);
 net.on('start', (m) => {
   if (G.mission) abandonMission(true);
   ui.hideOverlays();
-  startMission(m.li, m.mi);
+  if (m.act) startActivity(m.act, m.seed); else startMission(m.li, m.mi);
   ui.feed('Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
 });
 net.on('end', () => { if (inMission()) { abandonMission(true); ui.orbitNotice('The fireteam leader ended the mission.'); } });
@@ -302,6 +377,11 @@ net.on('s', (m) => {
     M.waypoint = ms.wp ? new THREE.Vector3(...ms.wp) : null;
     M.checkpoint.set(ms.cp[0], 0, ms.cp[1]);
   }
+  M.lives = ms.lv;
+  if (M.act && ms.w > (M.wave ?? 0)) {
+    M.wave = ms.w;
+    ui.centerMessage(ms.w % M.act.arenaEvery === 0 ? M.arenaDef.boss.name : `Wave ${ms.w}`, M.act.waves === Infinity ? '' : `of ${M.act.waves}`, 2);
+  }
   for (const st of m.ps) if (st.id !== net.myId) ensureRemote(st);
 });
 net.on('kill', (m) => {
@@ -334,3 +414,14 @@ net.on('loot', (m) => {
   ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
   sfx.missionComplete();
 });
+
+// activities
+net.on('arena', (m) => { if (inMission() && G.mission.act) moveArena(m.i); });
+net.on('ach', (m) => { if (inMission() && G.mission.act) placeActChest(new THREE.Vector3(m.x, 0, m.z), m.n, !!m.f); });
+
+// revives
+net.on('life', (m, from) => { if (inMission() && net.isHost) hostUseLife(from); });
+net.on('rev', (m, from) => { if (inMission() && net.isHost) revivePlayer(m.id, true); });
+net.on('revive', (m) => { if (inMission() && G.player.dead) G.player.respawn(!!m.ip); });
+net.on('lv', (m) => { if (inMission()) G.mission.lives = m.n; });
+net.on('wipe', () => { if (inMission()) missionFailed(); });

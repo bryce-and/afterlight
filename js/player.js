@@ -8,7 +8,7 @@ import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage } from './effects.js';
 import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh } from './game.js';
 import { getEquipped, activeKit } from './save.js';
-import { fxTracer } from './coop.js';
+import { fxTracer, requestLife, DOWN_TIME } from './coop.js';
 import { castFx } from './abilities.js';
 import * as ui from './ui.js';
 
@@ -130,11 +130,20 @@ export class Player {
   update(dt) {
     const inp = G.input;
     if (this.dead) {
-      this.respawnT -= dt;
-      ui.updateDeath(Math.max(0, this.respawnT));
-      if (this.respawnT <= 0) {
-        if (G.mission.failing) { missionFailed(); return; }
-        this.respawn();
+      const M = G.mission;
+      if (M.coop) {
+        // downed: teammates can revive us; when the timer runs out a pooled life brings us back
+        this.downT -= dt;
+        if (this.downT <= 0 && !this.lifeAsked && M.lives > 0) { this.lifeAsked = true; requestLife(); }
+        ui.updateDeath(M.lives <= 0 ? 'No lives left: a teammate must revive you'
+          : this.downT > 0 ? `Revive in ${Math.ceil(this.downT)}s using a life (${M.lives} left)` : 'Using a life…');
+      } else {
+        this.respawnT -= dt;
+        ui.updateDeath(this.respawnT > 0 ? `Reviving in ${this.respawnT.toFixed(1)}s` : '');
+        if (this.respawnT <= 0) {
+          if (M.failing) { missionFailed(); return; }
+          this.respawn();
+        }
       }
       this.updateCamera(dt);
       return;
@@ -560,28 +569,28 @@ export class Player {
     this.viewmodel.visible = false;
     M.deaths++;
     if (M.coop) {
-      // fireteam play never fails the mission: respawn on a timer instead
-      this.respawnT = 6;
-      ui.showDeath(Infinity);
+      this.downT = DOWN_TIME; this.lifeAsked = false;
+      ui.showDeath('Downed', 'Hold on: a teammate can revive you');
     } else {
       M.revives--;
       if (M.revives < 0) { M.failing = true; this.respawnT = 2.5; }
       else this.respawnT = 5;
-      ui.showDeath(M.revives);
+      ui.showDeath('You Have Fallen', M.revives < 0 ? 'No revives remaining' : `Revives remaining: ${M.revives}`);
     }
     sfx.death();
   }
 
-  respawn() {
+  /** inPlace: revived by a teammate where we fell; otherwise back at the checkpoint. */
+  respawn(inPlace = false) {
     const M = G.mission;
     this.dead = false;
     this.health = this.maxHealth; this.shield = this.maxShield;
-    this.pos.copy(M.checkpoint).add(new THREE.Vector3(0, 0, 6));
+    if (!inPlace) this.pos.copy(M.checkpoint).add(new THREE.Vector3(0, 0, 6));
     this.vel.set(0, 0, 0);
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    ui.centerMessage('Revived', M.coop ? 'Back in the fight' : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    ui.centerMessage('Revived', M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   updateRegen(dt) {

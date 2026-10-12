@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit } from './data.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES } from './data.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
-import { startMission, retryMission, abandonMission } from './game.js';
+import { startMission, startActivity, newSeed, retryMission, abandonMission } from './game.js';
 import { initAudio, setVolume, sfx } from './audio.js';
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, MAX_FIRETEAM } from './net.js';
-import { profile, launchFireteam } from './coop.js';
+import { profile, launchFireteam, launchActivity } from './coop.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -77,12 +77,12 @@ export function showClassSelect(fromOrbit = false) {
 // ---------------------------------------------------------------------------
 // Orbit (director / inventory / character)
 // ---------------------------------------------------------------------------
-let orbitTab = 'director', selLoc = null, selMission = null;
+let orbitTab = 'director', selLoc = null, selMission = null, selAct = 0;
 
 export function showOrbit(tab) {
   G.state = 'orbit';
   if (tab) orbitTab = tab;
-  if (orbitTab !== 'director') orbitTab = 'character';
+  if (orbitTab !== 'director' && orbitTab !== 'activities') orbitTab = 'character';
   showOnly('orbit');
   setVolume(G.save.settings.volume);
   if (selLoc === null) {
@@ -101,7 +101,7 @@ function renderOrbit() {
     <header class="topbar">
       <div class="brand">AFTERLIGHT</div>
       <nav class="tabs">
-        ${['director', 'character'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}</button>`).join('')}
+        ${['director', 'activities', 'character'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}</button>`).join('')}
       </nav>
       <button class="btn install-app hidden" id="install-app" title="Install Afterlight as an app">Install App</button>
       <div class="pstats">
@@ -123,6 +123,7 @@ function renderOrbit() {
   refreshInstall();
   const main = $('#orbit-main');
   if (orbitTab === 'director') renderDirector(main);
+  else if (orbitTab === 'activities') renderActivities(main);
   else renderCharScreen(main);
 }
 
@@ -186,6 +187,50 @@ function renderDirector(main) {
   wireFireteam(main);
 }
 
+function renderActivities(main) {
+  const s = G.save;
+  G.menu.setMode('planet');
+  G.menu.setLocation(LOCATIONS[selLoc]);
+  G.menu.setOffset(4.4);
+  const a = ACTIVITIES[selAct];
+  const best = s.records?.endless || 0;
+  main.innerHTML = `
+    <div class="director">
+      <aside class="loc-list">
+        <div class="eyebrow">Activities</div>
+        ${ACTIVITIES.map((x, i) => `<button class="loc ${i === selAct ? 'sel' : ''}" data-act="${i}">
+            <div class="loc-planet">${x.waves === Infinity ? 'Endless waves' : `${x.waves} waves`}</div><div class="loc-name">${x.name}</div>
+            <div class="loc-prog">${x.id === 'endless' ? (best ? `Best: wave ${best}` : 'No record yet') : 'Exotic at wave 30'}</div></button>`).join('')}
+        ${fireteamHTML()}
+      </aside>
+      <section class="loc-detail">
+        <div class="eyebrow">Activity  ·  Every destination</div>
+        <h1 class="screen-title">${a.name}</h1>
+        <p class="desc">${a.desc}</p>
+        <div class="missions">
+          <div class="mission sel"><div class="m-top"><span class="m-name">How it works</span><span class="m-power">◆ ${playerPower(s)}</span></div>
+            <div class="m-desc">Fights take place in the boss arenas of every destination, in a random order. Wave ${a.arenaEvery}, ${a.arenaEvery * 2} and ${a.arenaEvery * 3} bring that arena's boss. Each new arena sends denser waves. Enemies scale to your Power and get tougher every wave.</div>
+            <div class="m-foot"><span class="tag">Cache every ${a.chestEvery} waves</span><span class="tag">New arena every ${a.arenaEvery} waves</span>${a.waves === Infinity ? '' : '<span class="tag exo">Guaranteed exotic at the end</span>'}</div></div>
+          <div class="mission"><div class="m-top"><span class="m-name">Fireteam lives</span></div>
+            <div class="m-desc">Solo: 3 revives. Two players share 3 lives, three players share 5. Hold E next to a downed teammate to revive them for free; after ${18} seconds a life brings them back. If everyone goes down with no lives left, the run ends.</div></div>
+        </div>
+        <div class="launch-row">
+          <div class="power-cmp">Your Power <b>◆ ${playerPower(s)}</b><span class="ok">Scales to you</span></div>
+          <button id="launch" class="btn primary" ${net.isClient ? 'disabled' : ''}>${net.isClient ? 'Leader launches' : net.isHost ? 'Launch Fireteam' : 'Launch'}</button>
+        </div>
+      </section>
+    </div>`;
+  $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); selAct = +b.dataset.act; renderOrbit(); }));
+  $('#launch', main)?.addEventListener('click', () => {
+    initAudio();
+    lockPointer();
+    if (net.isHost) launchActivity(a.id);
+    else startActivity(a.id, newSeed());
+  });
+  if (net.isHost && (net.sel?.li !== -1 || net.sel?.mi !== selAct)) setSelection(-1, selAct);
+  wireFireteam(main);
+}
+
 function fireteamHTML() {
   if (!net.active) {
     return `<div class="ft">
@@ -198,7 +243,7 @@ function fireteamHTML() {
       <p class="ft-hint">Co-op for up to ${MAX_FIRETEAM}. Share your code; every player gets their own loot.</p>
     </div>`;
   }
-  const sel = net.sel ? LOCATIONS[net.sel.li]?.missions[net.sel.mi] : null;
+  const sel = !net.sel ? null : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
   return `<div class="ft on">
     <div class="eyebrow">Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}</div>
     <button class="ft-code" id="ft-copy" title="Copy the code">${net.code}<span>Copy</span></button>
@@ -574,9 +619,7 @@ export function enterMission() {
     </div>`;
   }).join('');
   hud.wrows = $$('#weapons .wrow').map((el) => ({ el, mag: el.querySelector('.w-mag'), res: el.querySelector('.w-res') }));
-  const M = G.mission;
-  hud.objLoc.textContent = `${M.loc.planetName}  ·  ${M.loc.name}`;
-  hud.objName.textContent = M.def.name;
+  setMissionHeader();
   $('#feed').innerHTML = '';
   $('#nameplates').innerHTML = '';
   $('#roster').classList.add('hidden');
@@ -588,13 +631,20 @@ export function enterMission() {
   dmgActive.length = 0;
 }
 
+/** Location + mission name in the objective panel (activities refresh it when the arena changes). */
+export function setMissionHeader() {
+  const M = G.mission;
+  hud.objLoc.textContent = `${M.loc.planetName}  ·  ${M.loc.name}`;
+  hud.objName.textContent = M.def.name;
+}
+
 let cmT = 0, hitT = 0, flashV = 0;
 export function updateHUD(dt) {
   const P = G.player, M = G.mission, cam = G.camera;
   setStyle(hud.shield, 'sh', 'width', `${(P.shield / P.maxShield) * 100}%`);
   setStyle(hud.health, 'hp', 'width', `${(P.health / P.maxHealth) * 100}%`);
   setClass(hud.health.parentElement, 'hpbar', 'low', P.health < 40);
-  setText(hud.revives, 'rev', M.coop ? `Fireteam of ${M.fireteam}` : `Revives ${Math.max(0, M.revives)}`);
+  setText(hud.revives, 'rev', M.coop ? `Lives ${Math.max(0, M.lives)}` : `Revives ${Math.max(0, M.revives)}`);
   setText(hud.objText, 'obj', M.objective);
   // vignette
   flashV = Math.max(0, flashV - dt * 2.5);
@@ -786,12 +836,13 @@ function updateDamageNumbers(dt) {
 }
 
 // death
-export function showDeath(revives) {
+export function showDeath(title, sub) {
   const el = $('#death');
   el.classList.remove('hidden');
-  el.querySelector('.d-sub').textContent = revives === Infinity ? 'Your fireteam fights on' : revives < 0 ? 'No revives remaining' : `Revives remaining: ${revives}`;
+  el.querySelector('.d-title').textContent = title;
+  el.querySelector('.d-sub').textContent = sub;
 }
-export function updateDeath(t) { const el = $('#death .d-timer'); if (el) el.textContent = t > 0 ? `Reviving in ${t.toFixed(1)}s` : ''; }
+export function updateDeath(text) { const el = $('#death .d-timer'); if (el && el.textContent !== text) el.textContent = text; }
 export function hideDeath() { $('#death').classList.add('hidden'); }
 
 export function setLockHint(show) { $('#lock-hint').classList.toggle('hidden', !show); }
@@ -851,10 +902,11 @@ export function showComplete(M) {
   el.innerHTML = `
     <div class="modal wide">
       <div class="eyebrow">${M.loc.name}</div>
-      <h1 class="screen-title gold">Mission Complete</h1>
+      <h1 class="screen-title gold">${M.act ? `${esc(M.act.name)} Complete` : 'Mission Complete'}</h1>
       <div class="m-name-big">${esc(M.def.name)}${M.firstClear ? '<span class="tag new">First clear</span>' : ''}</div>
       <div class="summary">
         <div><b>${fmtTime(G.time * 1000)}</b><span>Time</span></div>
+        ${M.act ? `<div><b>${M.wave}</b><span>Waves</span></div>` : ''}
         <div><b>${M.kills}</b><span>Kills</span></div>
         <div><b>${M.crits}</b><span>Precision kills</span></div>
         <div><b>${M.deaths}</b><span>Deaths</span></div>
@@ -872,24 +924,26 @@ export function showComplete(M) {
   $('#c-orbit').addEventListener('click', () => abandonMission());
   $('#c-inv').addEventListener('click', () => { orbitTab = 'character'; flySlot = null; abandonMission(); });
   if (M.coop && !net.isHost) $('#c-replay').remove();
-  else $('#c-replay').addEventListener('click', () => { lockPointer(); if (net.isHost) launchFireteam(M.li, M.mi); else retryMission(); });
+  else $('#c-replay').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
 }
 
 export function showFailed(M) {
   showOnly('failed');
+  const cleared = M.act ? (M.phase === 'combat' ? M.wave - 1 : M.wave) : 0;
   const el = $('#failed');
   el.innerHTML = `
     <div class="modal">
       <div class="eyebrow">${M.loc.name}</div>
-      <h1 class="screen-title red">Mission Failed</h1>
-      <p class="desc">You ran out of revives in ${esc(M.def.name)}. Loot you picked up along the way is yours to keep.</p>
-      <div class="summary"><div><b>${M.kills}</b><span>Kills</span></div><div><b>${M.loot.length}</b><span>Items found</span></div><div><b>◆ ${playerPower(G.save)}</b><span>Power</span></div></div>
+      <h1 class="screen-title red">${M.act ? `${esc(M.act.name)} Over` : 'Mission Failed'}</h1>
+      <p class="desc">${M.act ? `You cleared ${cleared} wave${cleared === 1 ? '' : 's'}${M.act.id === 'endless' && cleared > 0 && cleared >= (G.save.records?.endless || 0) ? ', a new record' : ''}.` : `You ran out of ${M.coop ? 'lives' : 'revives'} in ${esc(M.def.name)}.`} Loot you picked up along the way is yours to keep.</p>
+      <div class="summary">${M.act ? `<div><b>${cleared}</b><span>Waves cleared</span></div>` : ''}<div><b>${M.kills}</b><span>Kills</span></div><div><b>${M.loot.length}</b><span>Items found</span></div><div><b>◆ ${playerPower(G.save)}</b><span>Power</span></div></div>
       <div class="row-btns">
         <button class="btn primary" id="f-retry">Retry</button>
         <button class="btn" id="f-orbit">Return to Orbit</button>
       </div>
     </div>`;
-  $('#f-retry').addEventListener('click', () => { lockPointer(); retryMission(); });
+  if (M.coop && !net.isHost) $('#f-retry').remove();
+  else $('#f-retry').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
   $('#f-orbit').addEventListener('click', () => abandonMission());
 }
 

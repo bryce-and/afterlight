@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G, unlockPointer } from './state.js';
-import { LOCATIONS, ELEMENTS, ENERGY, RARITIES, rarityIndex } from './data.js';
+import { LOCATIONS, ELEMENTS, ENERGY, RARITIES, rarityIndex, ACTIVITIES } from './data.js';
 import { buildLevel, mat } from './world.js';
 import { Enemy, updateEnemyShots } from './enemies.js';
 import { Player } from './player.js';
@@ -8,12 +8,12 @@ import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight,
 import { explosionFx } from './effects.js';
 import { pointInColliders } from './physics.js';
 import { rollItem, rollRarityIdx, MAX_POWER } from './loot.js';
-import { addItem, writeSave, playerPower } from './save.js';
+import { addItem, writeSave, playerPower, ALL_MISSIONS } from './save.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
-import { rand, randInt, pick, clamp } from './util.js';
+import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
-import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx } from './coop.js';
+import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest } from './coop.js';
 
 const _c = new THREE.Vector3();
 
@@ -38,7 +38,7 @@ export function startMission(li, mi) {
   const fireteam = net.count();
   G.mission = {
     fireteam, coop: net.active, remote: net.isClient,
-    loc, def, li, mi, g, phase: 'travel', current: 0, revives: 3, kills: 0, crits: 0, deaths: 0, loot: [],
+    loc, def, li, mi, g, phase: 'travel', current: 0, revives: 3, lives: livesFor(fireteam), bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
     startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
@@ -56,8 +56,13 @@ export function startMission(li, mi) {
 
 export function retryMission() {
   const M = G.mission;
-  startMission(M.li, M.mi);
+  if (M.act) startActivity(M.act.id, newSeed());
+  else startMission(M.li, M.mi);
 }
+
+/** Pooled fireteam lives: 3 for two players, 5 for three (solo uses its own revives). */
+export function livesFor(n) { return n >= 3 ? 5 : n === 2 ? 3 : 0; }
+export const newSeed = () => Math.floor(Math.random() * 1e9);
 
 /** silent: true when the network asked us to leave (don't echo messages back). */
 export function abandonMission(silent = false) {
@@ -94,7 +99,7 @@ function makeWaves(zi, isBoss, g, def, fireteam = 1) {
   const more = 1 + 0.5 * (fireteam - 1);
   const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type, element: type === 'captain' ? pick(ENERGY) : undefined }));
   if (isBoss) {
-    return [[{ type: 'boss', name: def.boss.name, element: def.boss.element }, ...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4))]];
+    return [[{ type: 'boss', name: def.boss.name, element: def.boss.element, model: def.boss.model }, ...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4))]];
   }
   const w1 = [...T('grunt', 3 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4) + (zi > 0 ? 1 : 0))];
   if (zi >= 1 || g >= 2) w1.push(...T('captain', 1));
@@ -124,7 +129,7 @@ function spawnWave(z, idx) {
   for (const sp of z.waves[idx]) {
     const pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
     const e = new Enemy(sp.type, pos, {
-      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? (1 + M.g * 0.08) * (1 + 0.6 * (M.fireteam - 1)) : 1), dmgMult: M.dmgMult, element: sp.element, name: sp.name,
+      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? (1 + M.g * 0.08) * (1 + 0.6 * (M.fireteam - 1)) : 1), dmgMult: M.dmgMult, element: sp.element, name: sp.name, model: sp.model,
     });
     G.enemies.push(e);
     z.enemies.push(e);
@@ -178,6 +183,7 @@ export function updateGame(dt) {
 
 function updateMission(dt) {
   const M = G.mission, P = G.player;
+  if (M.act) { updateActivity(dt); return; }
   // fireteam members get zones/objectives from the leader; only the cache is local
   if (M.remote && M.phase !== 'loot' && M.phase !== 'done') return;
   if (M.phase === 'travel' || M.phase === 'combat') {
@@ -635,4 +641,220 @@ function collect(k) {
   P.addAmmo(k.type);
   sfx.pickupAmmo();
   ui.feed(k.type === 'special' ? '+ Special ammo' : '+ Heavy ammo', k.type === 'special' ? '#3fd17a' : '#b48bff');
+}
+
+// ---------------------------------------------------------------------------
+// Activities (Horde / Endless): waves on the mission maps' boss arenas.
+// The host (or solo player) runs the waves; everyone gets their own caches.
+// ---------------------------------------------------------------------------
+function arenaOrder(seed) {
+  const rng = mulberry32(seed);
+  const list = ALL_MISSIONS.map((m) => ({ li: m.li, mi: m.mi }));
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  return list;
+}
+
+export function startActivity(actId, seed) {
+  const act = ACTIVITIES.find((a) => a.id === actId);
+  if (!act) throw new Error(`Unknown activity ${actId}`);
+  cleanupMission();
+  onMissionStart();
+  const pp = playerPower(G.save);
+  // difficulty starts at the hardest mission the player's Power has reached, then climbs every wave
+  const g0 = Math.max(0, ALL_MISSIONS.filter((m) => m.power <= pp).length - 1);
+  const fireteam = net.count();
+  G.mission = {
+    act, seed, arenas: arenaOrder(seed), arenaIdx: 0, wave: 0,
+    fireteam, coop: net.active, remote: net.isClient,
+    def: { id: act.id, name: act.name, power: pp }, g: g0, g0,
+    phase: 'inter', interT: 6, current: 0, revives: 3, lives: livesFor(fireteam), kills: 0, crits: 0, deaths: 0, loot: [],
+    startTime: performance.now(), hpMult: 1 + g0 * 0.1, dmgMult: 1 + g0 * 0.07, playerDmgMult: 1, incomingMult: 1,
+    objective: '', waypoint: null, chest: null, failing: false, doneT: 0, rewardGlimmer: 0,
+  };
+  G.time = 0;
+  loadArena(0, true);
+  G.state = 'playing';
+  ui.enterMission();
+  ui.centerMessage(act.name, `${G.mission.loc.name}  ·  Wave 1 incoming`, 3.5);
+  sfx.areaClear();
+}
+
+/** Builds arena i (a mission map's boss arena) and puts the player at its edge. */
+function loadArena(i, first = false) {
+  const M = G.mission;
+  const a = M.arenas[i % M.arenas.length];
+  const loc = LOCATIONS[a.li], def = loc.missions[a.mi];
+  if (!first) {
+    for (const e of G.enemies) e.remove();
+    if (G.camera) G.scene.remove(G.camera);
+    clearEffects();
+    onLevelSwap();
+  }
+  const level = buildLevel(loc, def);
+  G.level = level; G.scene = level.scene; G.colliders = level.colliders; G.staticMeshes = level.staticMeshes;
+  G.hitDirty = true;
+  G.scene.add(G.camera);
+  initEffects(G.scene);
+  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
+  const arena = level.zones[level.zones.length - 1];
+  const prev = level.zones.length > 1 ? level.zones[level.zones.length - 2].center : level.spawn;
+  const dir = prev.clone().sub(arena.center).setY(0);
+  if (dir.lengthSq() < 1) dir.set(0, 0, 1);
+  const start = arena.center.clone().addScaledVector(dir.normalize(), 13);
+  Object.assign(M, { loc, arenaDef: def, arenaIdx: i, checkpoint: start.clone(), bossModel: def.boss.model, chest: null });
+  M.zones = [{ center: arena.center.clone(), name: arena.name, isBoss: false, idx: 0, state: 'active', waves: [], waveIdx: 0, enemies: [] }];
+  if (first) G.player = new Player(G.save);
+  const P = G.player;
+  P.spawn(start);
+  P.yaw = Math.atan2(start.x - arena.center.x, start.z - arena.center.z); // face the arena
+  if (!first) ui.setMissionHeader();
+}
+
+/** Wave n's enemies in two pushes; every arenaEvery-th wave is the arena's boss. Each new arena is denser. */
+function activityWave(n) {
+  const M = G.mission;
+  const more = (1 + 0.5 * (M.fireteam - 1)) * (1 + 0.3 * M.arenaIdx);
+  const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type, element: type === 'captain' ? pick(ENERGY) : undefined }));
+  const k = Math.min(n, 20);
+  if (n % M.act.arenaEvery === 0) {
+    const b = M.arenaDef.boss;
+    return [[{ type: 'boss', name: b.name, element: b.element, model: b.model }, ...T('grunt', 3), ...T('rusher', 2)], [...T('grunt', 3), ...T('captain', 1)]];
+  }
+  const first = [...T('grunt', 3 + Math.floor(k / 3)), ...T('rusher', 1 + Math.floor(k / 4))];
+  const second = [...T('grunt', 2 + Math.floor(k / 4)), ...T('rusher', 1 + Math.floor(k / 5))];
+  if (n >= 3) first.push(...T('captain', 1 + Math.floor(k / 9)));
+  if (n >= 4) second.push(...T('captain', 1));
+  if (n >= 6) second.push(...T('heavy', 1 + Math.floor(k / 14)));
+  return [first, second];
+}
+
+function startWave() {
+  const M = G.mission, z = M.zones[0];
+  const n = ++M.wave;
+  M.g = M.g0 + Math.floor(n / 5);
+  M.hpMult = (1 + M.g0 * 0.1) * (1 + 0.045 * (n - 1));
+  M.dmgMult = (1 + M.g0 * 0.07) * (1 + 0.02 * (n - 1));
+  z.waves = activityWave(n);
+  z.waveIdx = 0;
+  z.enemies = [];
+  spawnWave(z, 0);
+  z.waveIdx = 1;
+  M.phase = 'combat';
+  if (n % M.act.arenaEvery === 0) { ui.centerMessage(M.arenaDef.boss.name, `Wave ${n}  ·  ${M.loc.faction} champion`, 3); sfx.bossIntro(); }
+  else { ui.centerMessage(`Wave ${n}`, M.act.waves === Infinity ? '' : `of ${M.act.waves}`, 2); sfx.alert(); }
+}
+
+function updateActivity(dt) {
+  const M = G.mission, P = G.player, act = M.act;
+  updateActChest(dt);
+  if (M.phase === 'done') {
+    M.doneT -= dt;
+    if (M.doneT <= 0) finishMission();
+    return;
+  }
+  if (M.remote) return; // members follow the host's waves through snapshots
+  const z = M.zones[0];
+  if (M.phase === 'inter') {
+    M.interT -= dt;
+    M.objective = `Wave ${M.wave + 1}${act.waves === Infinity ? '' : ` of ${act.waves}`} in ${Math.ceil(Math.max(0, M.interT))}s`;
+    M.waypoint = null;
+    if (M.interT <= 0) startWave();
+  } else if (M.phase === 'combat') {
+    let alive = 0, nearest = null, nd = Infinity;
+    for (const e of z.enemies) {
+      if (!e.alive) continue;
+      alive++;
+      const d = e.pos.distanceTo(P.pos);
+      if (d < nd) { nd = d; nearest = e; }
+    }
+    if (z.waveIdx < z.waves.length && alive <= 2) { spawnWave(z, z.waveIdx); z.waveIdx++; }
+    const fighters = allPlayers().filter((p) => !p.dead).length || 1;
+    M.aggro = alive / fighters;
+    M.objective = `Wave ${M.wave}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
+    M.waypoint = alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
+    if (z.waveIdx >= z.waves.length && alive === 0) activityWaveCleared();
+  } else if (M.phase === 'move') {
+    M.moveT -= dt;
+    M.objective = `New arena in ${Math.ceil(Math.max(0, M.moveT))}s`;
+    if (M.moveT <= 0) { announceArena(M.arenaIdx + 1); moveArena(M.arenaIdx + 1); }
+  } else if (M.phase === 'final') {
+    M.objective = 'Open the cache';
+    M.waypoint = M.chest?.pos ?? null;
+  }
+}
+
+function activityWaveCleared() {
+  const M = G.mission, P = G.player, act = M.act, n = M.wave;
+  const final = n >= act.waves;
+  ui.centerMessage(final ? `${act.name} Complete` : `Wave ${n} Cleared`, '', 2.5);
+  sfx.areaClear();
+  if (act.id === 'endless') {
+    G.save.records = G.save.records || {};
+    if (n > (G.save.records.endless || 0)) { G.save.records.endless = n; writeSave(G.save); }
+  }
+  const drop = P.pos.clone().add(new THREE.Vector3(0, 1, 0));
+  spawnPickup('special', drop);
+  if (Math.random() < 0.6 || n % 5 === 0) spawnPickup('heavy', drop);
+  if (n % act.chestEvery === 0 || final) {
+    const c = M.zones[0].center;
+    const dir = P.pos.clone().sub(c).setY(0);
+    const pos = c.clone().add(dir.lengthSq() > 1 ? dir.normalize().multiplyScalar(4) : new THREE.Vector3(0, 0, 4));
+    placeActChest(pos, n, final);
+    announceActChest(pos, n, final);
+  }
+  if (final) { M.phase = 'final'; return; }
+  if (n % act.arenaEvery === 0) { M.phase = 'move'; M.moveT = 12; ui.feed('Moving to a new arena in 12s. Open your cache!', '#f4c542'); }
+  else { M.phase = 'inter'; M.interT = n % act.chestEvery === 0 ? 10 : 5; }
+}
+
+/** Everyone: move to arena i (any unopened cache is opened for you first). */
+export function moveArena(i) {
+  const M = G.mission;
+  if (M.chest && !M.chest.opened) openActChest();
+  loadArena(i);
+  M.phase = 'inter';
+  M.interT = 6;
+  ui.centerMessage(M.zones[0].name, `${M.loc.name}  ·  Enemies are gathering in greater numbers`, 3);
+  sfx.areaClear();
+}
+
+/** Everyone: a cache for this wave (each player opens and rolls their own). */
+export function placeActChest(pos, wave, final) {
+  const M = G.mission;
+  if (M.chest && !M.chest.opened) openActChest();
+  if (M.chest) G.scene.remove(M.chest.group);
+  M.chest = { ...spawnChest(pos), wave, final };
+}
+
+function updateActChest(dt) {
+  const M = G.mission, c = M.chest, P = G.player;
+  if (!c) return;
+  if (c.opened) { c.lid.rotation.x = Math.max(-1.9, c.lid.rotation.x - dt * 4); return; }
+  const near = !P.dead && P.pos.distanceTo(c.pos) < 3.2;
+  ui.prompt(near ? '[E]  Open Cache' : null);
+  if (near && G.input.pressed.KeyE) openActChest();
+  if (c.final && M.remote) { M.objective = 'Open the cache'; M.waypoint = c.pos; }
+}
+
+function openActChest() {
+  const M = G.mission, c = M.chest;
+  c.opened = true;
+  c.beam.visible = false;
+  ui.prompt(null);
+  sfx.chest();
+  sparks(c.pos.clone().setY(1), 0xf4c542, 30, 8, 0.1, 0.8);
+  const pp = playerPower(G.save);
+  const n = c.final ? 3 : 2;
+  const rewards = [];
+  for (let i = 0; i < n; i++) {
+    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarityIdx(M.g + Math.floor(c.wave / 5)));
+    if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
+    rewards.push(rollItem(Math.min(MAX_POWER, pp + randInt(1, 4)), rIdx));
+  }
+  rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
+  const glimmer = 60 + c.wave * 12;
+  G.save.glimmer += glimmer;
+  M.rewardGlimmer += glimmer;
+  writeSave(G.save);
+  if (c.final) { M.phase = 'done'; M.doneT = 3.8; }
 }

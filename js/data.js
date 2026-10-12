@@ -223,9 +223,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig' },
     zoneNames: ['The Steppes', 'Skywatch', 'The Divide', 'Forgotten Shore', 'Rocketyard', 'Mothyards'],
     missions: [
-      { id: 'e1', mood: 'dawn', name: 'A Guardian Rises', power: 10, zones: 3, boss: { name: 'Riksis, Devil Archon', element: 'arc' }, desc: 'Your Ghost has brought you back. Fight through the Fallen and get to the Wall.' },
-      { id: 'e2', mood: 'day', name: 'The Last Array', power: 18, zones: 3, boss: { name: 'Sepiks Prime', element: 'solar' }, desc: 'Restore the old Rasputin array and reach out to the stars.' },
-      { id: 'e3', mood: 'dusk', name: "The Devils' Lair", power: 26, zones: 4, boss: { name: 'Draksis, Winter Kell', element: 'void' }, desc: 'Strike at the heart of the House of Devils and bring down their Kell.' },
+      { id: 'e1', mood: 'dawn', name: 'A Guardian Rises', power: 10, zones: 3, boss: { name: 'Riksis, Devil Archon', element: 'arc' , model: 'archon' }, desc: 'Your Ghost has brought you back. Fight through the Fallen and get to the Wall.' },
+      { id: 'e2', mood: 'day', name: 'The Last Array', power: 18, zones: 3, boss: { name: 'Sepiks Prime', element: 'solar' , model: 'servitor' }, desc: 'Restore the old Rasputin array and reach out to the stars.' },
+      { id: 'e3', mood: 'dusk', name: "The Devils' Lair", power: 26, zones: 4, boss: { name: 'Draksis, Winter Kell', element: 'void' , model: 'kell' }, desc: 'Strike at the heart of the House of Devils and bring down their Kell.' },
     ],
   },
   {
@@ -238,9 +238,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
     zoneNames: ["Archer's Line", 'Anchor of Light', 'Hellmouth', 'Temple of Crota', 'Gatehouse', "World's Grave"],
     missions: [
-      { id: 'm1', mood: 'night', name: 'The Dark Beyond', power: 35, zones: 3, boss: { name: 'Sardok, Eye of Oryx', element: 'void' }, desc: 'Follow the trail of a lost Guardian into the Hive tunnels.' },
-      { id: 'm2', mood: 'night', name: 'Chamber of Night', power: 44, zones: 4, boss: { name: 'Omnigul, Will of Crota', element: 'arc' }, desc: 'Silence the wizard whose screams carry Crota\'s will across the Moon.' },
-      { id: 'm3', mood: 'storm', name: "Crota's End", power: 53, zones: 4, boss: { name: 'Crota, Son of Oryx', element: 'solar' }, desc: 'Descend into the Hellmouth and end the god-prince of the Hive.' },
+      { id: 'm1', mood: 'night', name: 'The Dark Beyond', power: 35, zones: 3, boss: { name: 'Sardok, Eye of Oryx', element: 'void' , model: 'knight' }, desc: 'Follow the trail of a lost Guardian into the Hive tunnels.' },
+      { id: 'm2', mood: 'night', name: 'Chamber of Night', power: 44, zones: 4, boss: { name: 'Omnigul, Will of Crota', element: 'arc' , model: 'wizard' }, desc: 'Silence the wizard whose screams carry Crota\'s will across the Moon.' },
+      { id: 'm3', mood: 'storm', name: "Crota's End", power: 53, zones: 4, boss: { name: 'Crota, Son of Oryx', element: 'solar' , model: 'crota' }, desc: 'Descend into the Hellmouth and end the god-prince of the Hive.' },
     ],
   },
   {
@@ -253,9 +253,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Legionary', rusher: 'War Beast', captain: 'Centurion', heavy: 'Colossus' },
     zoneNames: ['The Barrens', 'Scablands', 'The Buried City', 'Dust Palace', 'Valley of Kings', 'Hollows'],
     missions: [
-      { id: 'r1', mood: 'day', name: 'The Buried City', power: 62, zones: 4, boss: { name: 'Valus Ta\'aurc', element: 'solar' }, desc: 'Push through the Cabal lines into the ruins buried under the sand.' },
-      { id: 'r2', mood: 'dusk', name: 'Dust Palace', power: 72, zones: 4, boss: { name: 'Bracus Zahn', element: 'void' }, desc: 'Storm the Cabal command post and bring down the Bracus who holds it.' },
-      { id: 'r3', mood: 'storm', name: 'The Red War', power: 82, zones: 5, boss: { name: 'Dominus Ghaul', element: 'arc' }, desc: 'The Red Legion\'s commander has come for the Light. Send him back to the dark.' },
+      { id: 'r1', mood: 'day', name: 'The Buried City', power: 62, zones: 4, boss: { name: 'Valus Ta\'aurc', element: 'solar' , model: 'valus' }, desc: 'Push through the Cabal lines into the ruins buried under the sand.' },
+      { id: 'r2', mood: 'dusk', name: 'Dust Palace', power: 72, zones: 4, boss: { name: 'Bracus Zahn', element: 'void' , model: 'bracus' }, desc: 'Storm the Cabal command post and bring down the Bracus who holds it.' },
+      { id: 'r3', mood: 'storm', name: 'The Red War', power: 82, zones: 5, boss: { name: 'Dominus Ghaul', element: 'arc' , model: 'ghaul' }, desc: 'The Red Legion\'s commander has come for the Light. Send him back to the dark.' },
     ],
   },
   {
@@ -268,9 +268,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
     zoneNames: ['The Rig', "Siren's Watch", 'The Solarium', 'Arcology Interior', 'The Methane Sea', 'Spine of Keres'],
     missions: [
-      { id: 't1', mood: 'storm', name: 'Hope', power: 88, zones: 4, boss: { name: 'Kathok, Swordbearer', element: 'arc' }, desc: 'Find the Guardians holed up in the Arcology and break the Hive siege on the rigs.' },
-      { id: 't2', mood: 'day', name: 'The Sunken Labs', power: 92, zones: 4, boss: { name: 'Ir Halak, Brood Wizard', element: 'void' }, desc: 'Push into the flooded labs where the Hive are growing something in the dark.' },
-      { id: 't3', mood: 'dusk', name: "Savathûn's Song", power: 96, zones: 5, boss: { name: "Sedrak, Song of Savathûn", element: 'solar' }, desc: 'Silence the Hive choir singing Savathûn\'s song beneath the Arcology.' },
+      { id: 't1', mood: 'storm', name: 'Hope', power: 88, zones: 4, boss: { name: 'Kathok, Swordbearer', element: 'arc' , model: 'swordbearer' }, desc: 'Find the Guardians holed up in the Arcology and break the Hive siege on the rigs.' },
+      { id: 't2', mood: 'day', name: 'The Sunken Labs', power: 92, zones: 4, boss: { name: 'Ir Halak, Brood Wizard', element: 'void' , model: 'broodwizard' }, desc: 'Push into the flooded labs where the Hive are growing something in the dark.' },
+      { id: 't3', mood: 'dusk', name: "Savathûn's Song", power: 96, zones: 5, boss: { name: "Sedrak, Song of Savathûn", element: 'solar' , model: 'shrieker' }, desc: 'Silence the Hive choir singing Savathûn\'s song beneath the Arcology.' },
     ],
   },
   {
@@ -283,15 +283,22 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Baron\'s Captain', heavy: 'Fallen Brig' },
     zoneNames: ["Thieves' Landing", 'The Rift', 'Four-Holed Cove', "Trapper's Cave", 'Jetsam of Saturn', 'Spider\'s Market'],
     missions: [
-      { id: 'ts1', mood: 'dusk', name: 'The Trickster', power: 100, zones: 3, boss: { name: 'Araskes, the Trickster', element: 'arc' }, desc: 'Chase one of Uldren\'s Barons through the scrap alleys of Thieves\' Landing. Mind the mines.' },
-      { id: 'ts2', mood: 'night', name: 'The Mindbender', power: 105, zones: 4, boss: { name: 'Reksis Vahn, the Mindbender', element: 'void' }, desc: 'Follow the Mindbender\'s Hive-tainted crew down through the Rift to his ritual cavern.' },
-      { id: 'ts3', mood: 'storm', name: 'Scorned', power: 110, zones: 4, boss: { name: 'Fikrul, the Fanatic', element: 'solar' }, desc: 'Cross the wreck fields of Jetsam of Saturn and end the Fanatic who raises the Scorn.' },
+      { id: 'ts1', mood: 'dusk', name: 'The Trickster', power: 100, zones: 3, boss: { name: 'Araskes, the Trickster', element: 'arc' , model: 'baron' }, desc: 'Chase one of Uldren\'s Barons through the scrap alleys of Thieves\' Landing. Mind the mines.' },
+      { id: 'ts2', mood: 'night', name: 'The Mindbender', power: 105, zones: 4, boss: { name: 'Reksis Vahn, the Mindbender', element: 'void' , model: 'mindbender' }, desc: 'Follow the Mindbender\'s Hive-tainted crew down through the Rift to his ritual cavern.' },
+      { id: 'ts3', mood: 'storm', name: 'Scorned', power: 110, zones: 4, boss: { name: 'Fikrul, the Fanatic', element: 'solar' , model: 'fanatic' }, desc: 'Cross the wreck fields of Jetsam of Saturn and end the Fanatic who raises the Scorn.' },
     ],
   },
+];
+
+// ---------- Activities ----------
+// Wave modes played on the mission maps' boss arenas; every 10th wave is that arena's boss.
+export const ACTIVITIES = [
+  { id: 'horde', name: 'Horde', waves: 30, chestEvery: 5, arenaEvery: 10, desc: 'Survive 30 waves. A cache every 5 waves, a new arena and its boss every 10, and a guaranteed exotic at the end.' },
+  { id: 'endless', name: 'Endless', waves: Infinity, chestEvery: 5, arenaEvery: 10, desc: 'The waves never stop and keep getting harder. A cache every 5 waves and a new arena every 10. How long can you last?' },
 ];
 
 export const CONTROLS = [
   ['WASD', 'Move'], ['Shift', 'Sprint'], ['Space', 'Jump / class jump'], ['Mouse', 'Look'],
   ['LMB', 'Fire'], ['RMB', 'Aim down sights'], ['R', 'Reload'], ['1 2 3 / Wheel', 'Switch weapon'],
-  ['Q', 'Grenade'], ['V', 'Melee'], ['F', 'Charged melee ability'], ['C', 'Class ability'], ['X', 'Super'], ['E', 'Interact'], ['Esc', 'Pause'],
+  ['Q', 'Grenade'], ['V', 'Melee'], ['Hold E', 'Revive a teammate'], ['F', 'Charged melee ability'], ['C', 'Class ability'], ['X', 'Super'], ['E', 'Interact'], ['Esc', 'Pause'],
 ];
