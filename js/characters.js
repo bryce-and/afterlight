@@ -276,7 +276,14 @@ export function buildCharacter(classId, elementId) {
       b.arms[0].rotation.z = towards(b.arms[0].rotation.z, pose.armsLow ? -0.35 : pose.sprint ? -0.15 : 0.1, k);
       b.arms[1].rotation.x = towards(b.arms[1].rotation.x, (pose.armsLow ? -0.35 : pose.sprint ? -0.4 : -1.2 - pitch * 0.85) + kick, k);
       b.arms[1].rotation.z = towards(b.arms[1].rotation.z, pose.armsLow ? 0.35 : pose.sprint ? 0.2 : -0.55, k);
-      elbow(b.arms[0]).rotation.x = towards(elbow(b.arms[0]).rotation.x, pose.sprint ? -0.9 : -0.15, k);
+      // punch / throw: the right arm swings out and back (third-person supers and melee)
+      if (pose.punch) {
+        const sw = Math.sin(pose.punch * Math.PI);
+        b.arms[0].rotation.x = -1.2 - sw * 1.1;
+        b.arms[0].rotation.z = 0.1 + sw * 0.25;
+        b.torso.rotation.y = -sw * 0.35;
+      } else b.torso.rotation.y = towards(b.torso.rotation.y, 0, k);
+      elbow(b.arms[0]).rotation.x = towards(elbow(b.arms[0]).rotation.x, pose.punch ? -0.1 : pose.sprint ? -0.9 : -0.15, k);
       elbow(b.arms[1]).rotation.x = towards(elbow(b.arms[1]).rotation.x, pose.sprint ? -0.9 : -0.35, k);
       if (gun) {
         gun.rotation.set(towards(gun.rotation.x, pose.sprint ? 0.7 : pitch, k), Math.PI, pose.sprint ? -0.6 : 0);

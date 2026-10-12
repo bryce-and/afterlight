@@ -493,3 +493,8 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .inv-p { flex: none; font-size: 12px; opacity: 0.85; text-align: right; }
 .inv-p em { display: block; font-style: normal; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rc); }
 @media (max-width: 720px) { .inv-cols { grid-template-columns: 1fr; } }
+
+/* pause menu toggle row */
+.settings .toggle-row { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 12px; }
+.settings .toggle-row .hint { grid-column: 1; grid-row: 2; font-size: 11px; opacity: 0.6; text-transform: none; letter-spacing: 0; }
+.settings .toggle-row input { grid-column: 2; grid-row: 1 / span 2; width: 18px; height: 18px; accent-color: #f4c542; }

@@ -166,7 +166,7 @@ export class Player {
     if (this.bodyProp !== prop) { this.bodyProp = prop; this.body.setProp(prop); }
     b.position.copy(this.pos);
     b.rotation.y = this.yaw + Math.PI;
-    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: this.punchT > 0, armsLow: prop === 'fists' && this.punchT <= 0 });
+    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0 });
   }
 
   get keepsGuns() { return this.superActive?.type === 'songflame'; }
@@ -378,7 +378,10 @@ export class Player {
       return;
     }
     if (A.mode === 'auto') { if (held && w.fireCd <= 0) this.fire(w); }
-    else if (A.mode === 'semi') { if (w.queued > 0 && w.fireCd <= 0) { w.queued = 0; this.fire(w); } }
+    else if (A.mode === 'semi') {
+      const auto = G.save.settings.fullAuto && held; // Full Auto setting: holding fires at the weapon's own rate
+      if ((w.queued > 0 || auto) && w.fireCd <= 0) { w.queued = 0; this.fire(w); }
+    }
     else if (A.mode === 'burst') { if (w.fireCd <= 0 && (w.burstLeft > 0 || held)) this.fire(w); }
     else if (A.mode === 'charge') {
       if (held && w.fireCd <= 0) {
@@ -1391,7 +1394,7 @@ export class Player {
       const p = Math.sin(k * Math.PI);
       vm.position.x -= p * 0.14; vm.position.y -= p * 0.14; rz += p * 0.5;
       const ext = this.punchIsPunch ? Math.sin(Math.min(1, k * 1.6) * Math.PI) : Math.sin(k * Math.PI);
-      this.fist.visible = true;
+      this.fist.visible = (this.tpsT || 0) < 0.3; // first-person only
       this.fist.position.set(0.2 - ext * 0.14, -0.24 + ext * (this.punchIsPunch ? 0.1 : 0.16), -0.3 - ext * 0.28);
       this.fist.rotation.set(this.punchIsPunch ? 0 : -ext * 0.8, 0, ext * 0.3);
     } else this.fist.visible = false;
