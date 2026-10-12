@@ -4,7 +4,7 @@ import { LOCATIONS, ELEMENTS, ENERGY, RARITIES, rarityIndex } from './data.js';
 import { buildLevel, mat } from './world.js';
 import { Enemy, updateEnemyShots } from './enemies.js';
 import { Player } from './player.js';
-import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight } from './effects.js';
+import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
 import { pointInColliders } from './physics.js';
 import { rollItem, rollRarityIdx, MAX_POWER } from './loot.js';
@@ -412,7 +412,7 @@ function updateTickers(dt) {
 // ---------------------------------------------------------------------------
 // Player projectiles
 // ---------------------------------------------------------------------------
-function projectileMesh(o) {
+export function projectileMesh(o) {
   const g = new THREE.Group();
   if (o.kind === 'rocket') {
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.5, 6).rotateX(Math.PI / 2), mat(0x3b4048));
@@ -426,6 +426,25 @@ function projectileMesh(o) {
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.18), mat(o.color, { emissive: o.color, emissiveIntensity: 2.5 }));
     head.position.y = 0.3;
     g.add(h, head);
+  } else if (o.kind === 'knife') {
+    // crude throwing knife: long axis on +z (lookAt points +z along velocity)
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.006, 0.2), mat(0xc9ced4));
+    blade.position.z = 0.1;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 4).rotateX(Math.PI / 2), mat(0xc9ced4));
+    tip.position.z = 0.23; tip.scale.y = 0.2;
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, 0.2), basicMat(o.color, true));
+    edge.position.set(0.019, 0, 0.1);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.016, 0.018), mat(0x3a2a1a));
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.024, 0.1), mat(0x24272c));
+    handle.position.z = -0.06;
+    const wrap = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.028, 0.012), mat(o.color, { emissive: o.color, emissiveIntensity: 1 }));
+    wrap.position.z = -0.05;
+    const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), basicMat(o.color, true));
+    glow.position.z = 0.08; glow.scale.set(0.6, 0.6, 2.2);
+    g.add(blade, tip, edge, guard, handle, wrap, glow);
+  } else if (o.kind === 'seeker' || o.kind === 'drain') {
+    g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size, 0), basicMat(0xffffff)));
+    g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 2.2, 0), basicMat(o.color, true)));
   } else if (o.kind === 'nova') {
     g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 0.6, 1), basicMat(0xf0e0ff)));
     g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size, 1), basicMat(o.color, true)));
@@ -447,6 +466,13 @@ function updateProjectiles(dt) {
   for (let i = G.projectiles.length - 1; i >= 0; i--) {
     const p = G.projectiles[i];
     p.age += dt;
+    if (p.target) {
+      if (p.target.alive) {
+        const speed = p.vel.length();
+        const to = p.target.center(tmp).sub(p.pos).normalize().multiplyScalar(speed);
+        p.vel.lerp(to, Math.min(1, dt * (p.turn ?? 6))).setLength(speed);
+      } else p.target = null;
+    }
     if (p.tracking) {
       const speed = p.vel.length();
       const dir = p.vel.clone().normalize();
@@ -482,10 +508,15 @@ function updateProjectiles(dt) {
     }
     p.mesh.position.copy(p.pos);
     if (p.kind === 'hammer') p.mesh.rotation.x -= dt * 18;
-    else if (p.kind === 'nova') p.mesh.rotation.y += dt * 4;
-    else p.mesh.lookAt(tmp.copy(p.pos).add(p.vel));
-    if (p.kind === 'rocket' && Math.random() < 0.7) sparks(p.pos, 0x9a9a9a, 1, 0.5, 0.14, 0.5);
-    if (p.kind === 'nova' && Math.random() < 0.8) sparks(p.pos, p.color, 2, 2, 0.12, 0.4);
+    else if (p.kind === 'nova') { p.mesh.rotation.y += dt * 4; p.mesh.scale.setScalar(1 + Math.sin(p.age * 30) * 0.08); }
+    else { p.mesh.lookAt(tmp.copy(p.pos).add(p.vel)); if (p.kind === 'knife') p.mesh.rotateX(p.age * 28); }
+    // trails
+    if (p.kind === 'rocket') { sparks(p.pos, 0x9a9a9a, 1, 0.5, 0.14, 0.5); ember(p.pos, 0xffb060, 0.1, 0.2); }
+    else if (p.kind === 'grenade' || p.kind === 'glauncher') ember(p.pos, p.color, 0.07, 0.3);
+    else if (p.kind === 'knife') { ember(p.pos, p.color, 0.06, 0.25, 0.3); if (Math.random() < 0.5) ember(p.pos, 0xffffff, 0.03, 0.15, 0.2); }
+    else if (p.kind === 'seeker' || p.kind === 'drain') { ember(p.pos, p.color, 0.08, 0.3, 0.4); }
+    else if (p.kind === 'hammer') { for (let i = 0; i < 2; i++) ember(p.pos, i ? 0xffd27a : p.color, 0.14, 0.4, 1.2); }
+    else if (p.kind === 'nova') { for (let i = 0; i < 3; i++) swirl(p.pos, 1.4, i ? p.color : 0xe6d0ff, 0.45, true, 0.12, 0.8); ember(p.pos, p.color, 0.2, 0.5, 1); }
   }
 }
 

@@ -421,6 +421,11 @@ export function updateHUD(dt) {
   setStyle(hud.cross, 'chg', '--gap', `${Math.round(5 + px)}px`);
   setClass(hud.cross, 'chads', 'ads', P.adsT > 0.5 && !S);
   setClass(hud.cross, 'chrl', 'dim', w.reloading || P.switchT > 0);
+  // super vignette + screen flash
+  const sv = $('#super-vignette');
+  setClass(sv, 'sv', 'on', !!S);
+  setStyle(sv, 'svc', '--sc', ELEMENTS[P.cls.element].color);
+  if (sfT > 0) { sfT = Math.max(0, sfT - dt); $('#screen-flash').style.opacity = (sfStrength * (sfT / sfMax)).toFixed(3); }
   // hitmarker
   hitT -= dt;
   if (hitT <= 0) setClass($('#hitmarker'), 'hm', 'show', false);
@@ -508,6 +513,13 @@ export function hitmarker(crit, kill) {
   el.classList.add('show');
   cache.set('hmshow', true);
   hitT = kill ? 0.22 : 0.1;
+}
+
+let sfT = 0, sfMax = 1, sfStrength = 0;
+export function screenFlash(color, strength = 0.4) {
+  const el = $('#screen-flash');
+  el.style.setProperty('--fc', color);
+  sfT = sfMax = 0.35; sfStrength = strength;
 }
 
 export function damageFlash() { flashV = Math.min(0.7, flashV + 0.35); }

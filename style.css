@@ -215,6 +215,10 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 #scope::before, #scope::after { content: ''; position: absolute; background: rgba(0,0,0,0.85); }
 #scope::before { left: 50%; top: 16vh; bottom: 16vh; width: 1px; }
 #scope::after { top: 50%; left: calc(50% - 34vh); right: calc(50% - 34vh); height: 1px; }
+#super-vignette { position: absolute; inset: 0; opacity: 0; transition: opacity 0.4s; background: radial-gradient(ellipse at center, transparent 55%, color-mix(in srgb, var(--sc, #fff) 45%, transparent) 100%); }
+#super-vignette.on { opacity: 1; animation: superpulse 1.2s ease-in-out infinite; }
+@keyframes superpulse { 50% { opacity: 0.6; } }
+#screen-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--fc, #fff) 70%, white) 0%, var(--fc, #fff) 100%); mix-blend-mode: screen; }
 #vignette { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(200,20,20,0.75) 100%); }
 #dmg-dirs { position: absolute; left: 50%; top: 50%; }
 .dmg-dir { position: absolute; left: 0; top: 0; width: 120px; height: 14px; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,60,50,0.95), transparent 70%); border-radius: 50%; }

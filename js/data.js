@@ -192,5 +192,5 @@ export const LOCATIONS = [
 export const CONTROLS = [
   ['WASD', 'Move'], ['Shift', 'Sprint'], ['Space', 'Jump / class jump'], ['Mouse', 'Look'],
   ['LMB', 'Fire'], ['RMB', 'Aim down sights'], ['R', 'Reload'], ['1 2 3 / Wheel', 'Switch weapon'],
-  ['Q', 'Grenade'], ['F', 'Melee'], ['C', 'Class ability'], ['X', 'Super'], ['E', 'Interact'], ['Esc', 'Pause'],
+  ['Q', 'Grenade'], ['V', 'Melee'], ['F', 'Charged melee ability'], ['C', 'Class ability'], ['X', 'Super'], ['E', 'Interact'], ['Esc', 'Pause'],
 ];

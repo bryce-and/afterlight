@@ -5,8 +5,8 @@ import { clamp, lerp, damp } from './util.js';
 import { moveBody, hasLOS } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
 import { sfx } from './audio.js';
-import { tracer, sparks, flashLight, ringFx, lightning } from './effects.js';
-import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed } from './game.js';
+import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage } from './effects.js';
+import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh } from './game.js';
 import { getEquipped } from './save.js';
 import * as ui from './ui.js';
 
@@ -67,7 +67,7 @@ export class Player {
     this.dash = 0; this.dashDir = new THREE.Vector3();
     this.buffs = { rampage: 0, rampageT: 0, outlaw: 0, inRift: 0 };
     this.dead = false; this.respawnT = 0;
-    this.adsT = 0; this.shake = 0; this.bobT = 0; this.kick = 0; this.punchT = 0; this.landDip = 0; this.sprintT = 0;
+    this.adsT = 0; this.shake = 0; this.bobT = 0; this.kick = 0; this.punchT = 0; this.punchMax = 0.3; this.punchIsPunch = false; this.landDip = 0; this.sprintT = 0; this.fovKick = 0;
     this.sway = { x: 0, y: 0 };
     this.lastFire = -10;
     this.sens = 0.0022 * save.settings.sens;
@@ -75,6 +75,16 @@ export class Player {
 
     this.viewmodel = new THREE.Group();
     G.camera.add(this.viewmodel);
+    // a gloved fist + forearm that appears for melee and throws
+    this.fist = new THREE.Group();
+    const glove = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.1), new THREE.MeshStandardMaterial({ color: 0x2a2d33, flatShading: true }));
+    const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.092, 0.03, 0.03), new THREE.MeshStandardMaterial({ color: ELEMENTS[this.cls.element].hex, emissive: ELEMENTS[this.cls.element].hex, emissiveIntensity: 0.8, flatShading: true }));
+    knuckle.position.set(0, 0.02, -0.05);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x3a3f47, flatShading: true }));
+    arm.position.z = 0.24;
+    this.fist.add(glove, knuckle, arm);
+    this.fist.visible = false;
+    G.camera.add(this.fist);
     this.weapons = WEAPON_SLOTS.map((slot) => makeWeapon(getEquipped(save, slot)));
     for (const w of this.weapons) { w.model = buildGunModel(w.item); w.model.visible = false; this.viewmodel.add(w.model); }
     this.superModel = buildSuperModel(ab.super.id);
@@ -182,13 +192,23 @@ export class Player {
         if (Math.random() < 0.5) sparks(_v.copy(this.pos), ELEMENTS.solar.hex, 1, 2, 0.06, 0.3);
       }
     } else if (j === 'glide') {
-      if (k.Space && this.air.fuel > 0 && this.vel.y < 0) {
-        if (this.air.fuel === 1) sfx.airMove();
-        this.vel.y = damp(this.vel.y, -0.7, 8, dt);
+      // Burst Glide: press Space in the air for an upward burst, keep holding to glide
+      if (jumpPressed && !this.air.usedDouble) {
+        this.air.usedDouble = true;
+        this.air.fuel = 1;
+        this.vel.y = Math.max(this.vel.y, 9.4);
+        this.vel.x += wx * 2; this.vel.z += wz * 2;
+        sfx.airMove();
+        const feet = _v.copy(this.pos);
+        shockwave(feet, 1.8, ELEMENTS.void.hex, 0.4);
+        glowBurst(feet, ELEMENTS.void.hex, 14, 5, 0.08, 0.5, -2, -0.8);
+      }
+      if (this.air.usedDouble && k.Space && this.air.fuel > 0 && this.vel.y < 1.2) {
+        this.vel.y = damp(this.vel.y, this.air.fuel > 0.6 ? 1.0 : -0.7, 6, dt);
         this.vel.x = damp(this.vel.x, wx * speed * 1.35, 3, dt);
         this.vel.z = damp(this.vel.z, wz * speed * 1.35, 3, dt);
-        this.air.fuel = Math.max(0, this.air.fuel - dt / 2.6);
-        if (Math.random() < 0.4) sparks(_v.copy(this.pos), ELEMENTS.void.hex, 1, 2, 0.06, 0.3);
+        this.air.fuel = Math.max(0, this.air.fuel - dt / 2.8);
+        if (Math.random() < 0.6) glowBurst(_v.copy(this.pos), Math.random() < 0.5 ? ELEMENTS.void.hex : 0xe6d0ff, 1, 1.5, 0.06, 0.4, -3, -1);
       }
     }
     const vyBefore = this.vel.y;
@@ -528,6 +548,7 @@ export class Player {
     this.superWasReady = ready;
     const p = G.input.pressed;
     if (p.KeyQ) this.useGrenade();
+    if (p.KeyV) this.basicMelee();
     if (p.KeyF) this.useMelee();
     if (p.KeyC) this.useClass();
     if (p.KeyX) this.useSuper();
@@ -539,46 +560,75 @@ export class Player {
     const id = this.cls.abilities.grenade.id;
     const el = this.cls.element;
     const fwd = this.getForward(new THREE.Vector3());
+    const start = this.eye.clone().addScaledVector(fwd, 0.6);
     spawnPlayerProjectile({
-      kind: 'grenade', pos: this.eye.clone().addScaledVector(fwd, 0.6), vel: fwd.clone().multiplyScalar(24).add(new THREE.Vector3(0, 4, 0)),
+      kind: 'grenade', pos: start, vel: fwd.clone().multiplyScalar(24).add(new THREE.Vector3(0, 4, 0)),
       gravity: 22, size: 0.16, color: ELEMENTS[el].hex, life: 2.0, onHit: (pt) => this.detonateGrenade(id, pt),
     });
-    this.punchT = 0.25;
+    flare(start, ELEMENTS[el].hex, 0.4, 0.15);
+    this.throwFist(0.32);
     sfx.throw();
   }
 
   detonateGrenade(id, pt) {
     pt.y = Math.max(pt.y, 0.3);
+    const ground = pt.clone().setY(0.05);
     if (id === 'pulse') {
+      // Solar Grenade: a lingering sun that pulses six times
+      const col = ELEMENTS.solar.hex;
       explode(pt, 3.5, 60, 'solar', { source: 'ability' });
+      shockwave(ground, 4.5, col, 0.6);
+      pillar(ground, 1.4, 7, col, 3.2, 0.25);
+      const zone = makeZoneMesh(pt, 4.5, col, true);
       let n = 6, t = 0.5;
-      const zone = makeZoneMesh(pt, 4.5, ELEMENTS.solar.hex);
       addTicker({
         update(dt) {
           t -= dt; zone.rotation.y += dt * 2;
-          if (t <= 0) { t = 0.5; n--; explode(pt, 4.5, 45, 'solar', { source: 'ability', small: true }); }
+          zone.children[0].scale.setScalar(1 + Math.sin(G.time * 14) * 0.12);
+          if (Math.random() < 0.6) glowBurst(pt, Math.random() < 0.5 ? col : 0xffd27a, 1, 3, 0.1, 0.6, 4, 0.6);
+          if (t <= 0) {
+            t = 0.5; n--;
+            explode(pt, 4.5, 45, 'solar', { source: 'ability', small: true });
+            shockwave(ground, 4.5, col, 0.45);
+            glowBurst(pt, col, 10, 5, 0.1, 0.5, 3, 0.6);
+          }
           return n > 0;
         },
         dispose() { G.scene.remove(zone); },
       });
     } else if (id === 'arcbolt') {
+      // Swarm Grenade: burst, then real seekers home in on up to 4 enemies
+      const col = ELEMENTS.solar.hex;
       explode(pt, 3.5, 90, 'solar', { source: 'ability' });
-      let prev = pt.clone();
-      for (const e of enemiesNear(pt, 14, 4)) {
-        const c = e.center(new THREE.Vector3());
-        lightning(prev, c, ELEMENTS.solar.hex);
-        dealDamage(e, 110, { element: 'solar', source: 'ability', pos: c });
-        prev = c;
+      shockwave(ground, 3.5, col, 0.5);
+      glowBurst(pt, 0xffd27a, 20, 8, 0.1, 0.6, 1, 0.5);
+      const targets = enemiesNear(pt, 18, 4);
+      for (let i = 0; i < 4; i++) {
+        const tgt = targets[i % Math.max(1, targets.length)] || null;
+        const a = (i / 4) * Math.PI * 2 + Math.random() * 0.5;
+        spawnPlayerProjectile({
+          kind: 'seeker', pos: pt.clone().add(new THREE.Vector3(0, 0.4, 0)), vel: new THREE.Vector3(Math.cos(a) * 8, 9, Math.sin(a) * 8),
+          gravity: tgt ? 0 : 14, size: 0.07, color: col, life: 2.5, target: tgt, turn: 4,
+          onHit: (p, e) => {
+            if (e && e.alive) dealDamage(e, 110, { element: 'solar', source: 'ability', pos: p.clone() });
+            explode(p, 2, 30, 'solar', { source: 'ability', small: true });
+            flare(p, col, 1.2, 0.2);
+          },
+        });
       }
       sfx.zap();
     } else if (id === 'vortex') {
-      const zone = makeZoneMesh(pt, 5.5, ELEMENTS.void.hex, true);
+      const col = ELEMENTS.void.hex;
+      const zone = makeZoneMesh(pt, 5.5, col, true);
+      shockwave(ground, 5.5, col, 0.7);
+      flare(pt, 0xe6d0ff, 2.5, 0.3);
       let life = 4, tick = 0;
       addTicker({
         update(dt) {
           life -= dt; tick -= dt;
           zone.rotation.y += dt * 4;
-          zone.children[0].scale.setScalar(1 + Math.sin(G.time * 10) * 0.08);
+          zone.children[0].scale.setScalar(1 + Math.sin(G.time * 10) * 0.12);
+          for (let i = 0; i < 4; i++) swirl(pt, 5.5, i % 2 ? col : 0xe6d0ff, 0.7, true, 0.09, 2.4);
           const c = new THREE.Vector3();
           for (const e of enemiesNear(pt, 6.5, 99)) {
             if (!e.isBoss) { const d = c.copy(pt).sub(e.pos).setY(0); if (d.length() > 0.5) e.knock.addScaledVector(d.normalize(), dt * 14); }
@@ -589,7 +639,7 @@ export class Player {
           }
           return life > 0;
         },
-        dispose() { G.scene.remove(zone); },
+        dispose() { G.scene.remove(zone); explode(pt, 4, 80, 'void', { source: 'ability' }); },
       });
       sfx.ability();
     }
@@ -612,54 +662,117 @@ export class Player {
     return best;
   }
 
+  /** V: plain melee. Lunges a short way toward a close target. */
+  basicMelee() {
+    if (this.meleeLock > 0 || this.superActive?.type === 'nova') return;
+    this.meleeLock = 0.6;
+    this.throwFist(0.3, true);
+    sfx.melee();
+    const t = this.findMeleeTarget(4.5, 0.55);
+    if (!t) return;
+    const c = t.center(new THREE.Vector3());
+    const dir = c.clone().sub(this.pos).setY(0);
+    const dist = dir.length();
+    dir.normalize();
+    if (dist > 1.6) this.pos.addScaledVector(dir, Math.min(3, dist - t.radius - 1.0));
+    dealDamage(t, 70, { element: 'kinetic', source: 'melee', pos: c, knock: dir.clone().multiplyScalar(7) });
+    sparks(c, 0xffffff, 8, 5, 0.06, 0.3);
+    flare(c, 0xffffff, 0.5, 0.12);
+    this.shake = Math.max(this.shake, 0.08);
+  }
+
+  /** F: powered class melee (needs the ability charged). */
   useMelee() {
     if (this.meleeLock > 0) return;
-    this.meleeLock = 0.7;
-    this.punchT = 0.3;
-    const charged = this.cd.melee <= 0;
+    if (this.cd.melee > 0) { sfx.denied(); return; }
     const id = this.cls.abilities.melee.id;
+    const fwd = this.getForward(new THREE.Vector3());
     const c = new THREE.Vector3();
+    this.meleeLock = 0.6;
+    this.cd.melee = this.cdMax.melee;
     sfx.melee();
-    if (charged && id === 'knife') {
-      this.cd.melee = this.cdMax.melee;
-      const dir = this.getForward(new THREE.Vector3());
-      const pseudo = { s: { range: 40 }, A: { prec: 2 }, item: { element: 'solar' }, has: () => false };
-      this.hitscan(this.eye, dir, pseudo, 160, this.muzzlePos(new THREE.Vector3()), { isSuper: true, element: 'solar', precMult: 2, range: 45, tracerColor: ELEMENTS.solar.hex, tracerWidth: 0.05 });
+    if (id === 'knife') {
+      // Knife Trick: a real thrown knife
+      this.throwFist(0.3);
+      const start = this.eye.clone().addScaledVector(fwd, 0.5).add(new THREE.Vector3(0, -0.08, 0));
+      spawnPlayerProjectile({
+        kind: 'knife', pos: start, vel: fwd.clone().multiplyScalar(46), gravity: 5, size: 0.1, color: ELEMENTS.solar.hex, life: 1.4,
+        onHit: (p, e) => this.knifeHit(p, e, fwd.clone()),
+      });
+      sfx.throw();
       return;
     }
-    if (charged && id === 'fist') {
+    if (id === 'fist') {
+      // Hammer Strike: lunge and slam. No target in range = slam the ground ahead.
+      this.throwFist(0.35, true);
       const t = this.findMeleeTarget(7, 0.7);
+      let at;
       if (t) {
-        this.cd.melee = this.cdMax.melee;
         t.center(c);
         const dir = c.clone().sub(this.pos).setY(0).normalize();
         const dist = c.clone().setY(0).distanceTo(_v.copy(this.pos).setY(0));
         this.pos.addScaledVector(dir, Math.max(0, dist - t.radius - 1.0));
         dealDamage(t, 320, { element: 'solar', source: 'ability', pos: c, knock: dir.clone().multiplyScalar(10) });
-        explode(c, 3.5, 120, 'solar', { source: 'ability' });
-        this.shake = 0.25;
-        return;
-      }
+        at = c.clone();
+      } else at = this.pos.clone().addScaledVector(fwd.setY(0).normalize(), 2.5).setY(0.6);
+      explode(at, 3.5, 120, 'solar', { source: 'ability' });
+      shockwave(at.clone().setY(0.05), 6, ELEMENTS.solar.hex, 0.6);
+      glowBurst(at, 0xffd27a, 24, 9, 0.12, 0.7, 2, 0.8);
+      pillar(at.clone().setY(0), 1.2, 6, ELEMENTS.solar.hex, 0.5, 0.4);
+      ui.screenFlash(ELEMENTS.solar.color, 0.25);
+      this.fovKick = Math.max(this.fovKick, 6);
+      this.shake = 0.3;
+      return;
     }
-    if (charged && id === 'siphon') {
+    if (id === 'siphon') {
+      // Energy Drain: instant strike on a target in range, otherwise a void bolt
+      this.throwFist(0.3);
+      const from = this.muzzlePos(new THREE.Vector3());
       const t = this.findMeleeTarget(12, 0.8);
-      if (t) {
-        this.cd.melee = this.cdMax.melee;
-        t.center(c);
-        lightning(this.muzzlePos(new THREE.Vector3()), c, ELEMENTS.void.hex, 0.06);
-        dealDamage(t, 180, { element: 'void', source: 'ability', pos: c });
-        this.heal(60);
-        sfx.heal();
-        return;
-      }
+      if (t) { t.center(c); this.drainHit(from, t, c); return; }
+      spawnPlayerProjectile({
+        kind: 'drain', pos: this.eye.clone().addScaledVector(fwd, 0.6), vel: fwd.clone().multiplyScalar(38), gravity: 0, size: 0.09,
+        color: ELEMENTS.void.hex, life: 0.8,
+        onHit: (p, e) => { if (e && e.alive) this.drainHit(p, e, e.center(new THREE.Vector3())); else glowBurst(p, ELEMENTS.void.hex, 10, 4, 0.08, 0.4); },
+      });
     }
-    const t = this.findMeleeTarget(2.6, 0.5);
-    if (t) {
-      t.center(c);
-      const dir = c.clone().sub(this.pos).setY(0).normalize();
-      dealDamage(t, 70, { element: 'kinetic', source: 'melee', pos: c, knock: dir.multiplyScalar(6) });
-      sparks(c, 0xffffff, 6, 4, 0.06, 0.3);
+  }
+
+  knifeHit(p, e, dir) {
+    const col = ELEMENTS.solar.hex;
+    flare(p, col, 0.9, 0.18);
+    glowBurst(p, 0xffd27a, 10, 5, 0.07, 0.4, 1, 0.3);
+    if (e && e.alive) {
+      const crit = p.y > e.pos.y + e.height * 0.8;
+      dealDamage(e, 160, { element: 'solar', source: 'ability', crit, precMult: 2, pos: p.clone(), knock: dir.setY(0).normalize().multiplyScalar(4) });
+      explode(p, 1.6, 30, 'solar', { source: 'ability', small: true });
+      return;
     }
+    // stick in the wall/ground for a few seconds
+    const stuck = projectileMesh({ kind: 'knife', color: col, size: 0.1 });
+    stuck.position.copy(p);
+    stuck.lookAt(p.clone().add(dir));
+    G.scene.add(stuck);
+    let life = 3;
+    addTicker({ update(dt) { life -= dt; return life > 0; }, dispose() { G.scene.remove(stuck); } });
+    sparks(p, 0xffe0a0, 6, 3, 0.05, 0.3);
+  }
+
+  drainHit(from, t, c) {
+    const col = ELEMENTS.void.hex;
+    beam(from, c, col, 0.07, 0.3);
+    lightning(from, c, 0xe6d0ff, 0.03);
+    dealDamage(t, 180, { element: 'void', source: 'ability', pos: c });
+    flare(c, col, 1.2, 0.25);
+    const self = this;
+    for (let i = 0; i < 14; i++) homingMote(c, () => self.eye.clone().add(new THREE.Vector3(0, -0.3, 0)), i % 2 ? col : 0xe6d0ff, 0.9, 0.08);
+    this.heal(60);
+    ui.screenFlash(ELEMENTS.void.color, 0.2);
+    sfx.heal();
+  }
+
+  throwFist(dur, punch = false) {
+    this.punchT = dur; this.punchMax = dur; this.punchIsPunch = punch;
   }
 
   useClass() {
@@ -668,42 +781,71 @@ export class Player {
     this.cd.class = this.cdMax.class;
     sfx.ability();
     if (id === 'barricade') {
+      const col = 0xff8b2b;
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
       const p = this.pos.clone().addScaledVector(fwd, 3.2);
       const alongX = Math.abs(fwd.z) > Math.abs(fwd.x);
       const w = alongX ? 5 : 0.6, d = alongX ? 0.6 : 5, h = 2.2;
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: 0xff8b2b, emissive: 0xff6a10, emissiveIntensity: 0.6, transparent: true, opacity: 0.55, flatShading: true }));
-      mesh.position.set(p.x, h / 2, p.z);
+      const geo = new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: 0xff6a10, emissiveIntensity: 0.7, transparent: true, opacity: 0.5, flatShading: true }));
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xffd27a, transparent: true, blending: THREE.AdditiveBlending }));
+      mesh.add(edges);
+      mesh.position.set(p.x, 0, p.z);
+      mesh.scale.y = 0.01;
       G.scene.add(mesh);
-      const col = { min: new THREE.Vector3(p.x - w / 2, 0, p.z - d / 2), max: new THREE.Vector3(p.x + w / 2, h, p.z + d / 2) };
-      G.colliders.push(col);
-      ringFx(p, 3, 0xff8b2b, 0.5);
+      const col2 = { min: new THREE.Vector3(p.x - w / 2, 0, p.z - d / 2), max: new THREE.Vector3(p.x + w / 2, h, p.z + d / 2) };
+      G.colliders.push(col2);
+      shockwave(p.clone().setY(0.05), 4, col, 0.5);
+      for (let i = 0; i < 16; i++) {
+        const q = p.clone().add(new THREE.Vector3(alongX ? (Math.random() - 0.5) * w : 0, 0.1, alongX ? 0 : (Math.random() - 0.5) * d));
+        glowBurst(q, i % 2 ? col : 0xffd27a, 1, 3, 0.1, 0.7, 4, 1);
+      }
       for (const ww of this.weapons) this.instantReload(ww);
-      let life = 12;
+      ui.feed('All weapons reloaded', '#ffb36b');
+      let life = 12, age = 0;
       addTicker({
-        update(dt) { life -= dt; mesh.material.opacity = 0.35 + 0.2 * Math.sin(G.time * 4); if (life < 1) mesh.scale.y = life; return life > 0; },
-        dispose() { G.scene.remove(mesh); mesh.material.dispose(); const i = G.colliders.indexOf(col); if (i >= 0) G.colliders.splice(i, 1); },
+        update(dt) {
+          life -= dt; age += dt;
+          mesh.scale.y = Math.min(1, age / 0.25) * (life < 1 ? life : 1);
+          mesh.material.opacity = 0.35 + 0.15 * Math.sin(G.time * 4);
+          if (Math.random() < 0.3) glowBurst(new THREE.Vector3(p.x + (alongX ? (Math.random() - 0.5) * w : 0), h * Math.random(), p.z + (alongX ? 0 : (Math.random() - 0.5) * d)), col, 1, 1, 0.06, 0.6, 2, 0.5);
+          return life > 0;
+        },
+        dispose() { G.scene.remove(mesh); mesh.material.dispose(); geo.dispose(); const i = G.colliders.indexOf(col2); if (i >= 0) G.colliders.splice(i, 1); },
       });
     } else if (id === 'dodge') {
+      const col = ELEMENTS.solar.hex;
       const md = this.moveDir;
       if (md && md.len > 0) this.dashDir.set(md.x, 0, md.z);
       else this.dashDir.copy(this.getForward(new THREE.Vector3()).setY(0).normalize().negate());
       this.dash = 0.22;
       this.instantReload(this.weapon);
-      ringFx(this.pos, 1.5, ELEMENTS.solar.hex, 0.3);
+      afterimage(this.pos, col, 0.6);
+      shockwave(this.pos.clone().setY(0.05), 2, col, 0.35);
+      const self = this;
+      let t = 0.22;
+      addTicker({ update(dt) { t -= dt; afterimage(self.pos, col, 0.35); glowBurst(self.pos.clone().setY(0.9), 0xffd27a, 2, 1, 0.06, 0.3, 0, 0); return t > 0; } });
+      this.fovKick = Math.max(this.fovKick, 10);
     } else if (id === 'rift') {
+      const col = 0xb07cff;
       const pt = this.pos.clone();
-      const zone = makeZoneMesh(pt, 4.5, 0xb07cff);
-      let life = 10;
+      const zone = makeZoneMesh(pt, 4.5, col);
+      shockwave(pt.clone().setY(0.05), 5, col, 0.7);
+      pillar(pt, 4.3, 0.6, col, 10, 0.12);
+      pillar(pt, 0.5, 9, 0xe6d0ff, 1.0, 0.5);
+      let life = 10, pulse = 0;
       const self = this;
       addTicker({
         update(dt) {
-          life -= dt; zone.rotation.y += dt;
+          life -= dt; pulse -= dt; zone.rotation.y += dt;
+          for (let i = 0; i < 2; i++) swirl(pt, 4.3, i ? col : 0xe6d0ff, 1.4, false, 0.07, 3.5);
+          if (pulse <= 0) { pulse = 1; ringFx(pt, 4.5, col, 0.8); }
           if (self.pos.distanceTo(pt) < 4.7 && !self.dead) { self.buffs.inRift = 0.2; self.heal(28 * dt); self.regenT = Math.min(self.regenT, 0.5); }
           return life > 0;
         },
         dispose() { G.scene.remove(zone); },
       });
+      ui.screenFlash('#b07cff', 0.2);
       sfx.heal();
     }
   }
@@ -715,8 +857,16 @@ export class Player {
     const ab = this.cls.abilities.super;
     const el = ELEMENTS[this.cls.element];
     sfx.superStart();
-    ringFx(this.pos, 6, el.hex, 0.7);
-    flashLight(this.eye, el.hex, 80, 20, 0.4);
+    // activation spectacle
+    const feet = this.pos.clone().setY(0.05);
+    shockwave(feet, 9, el.hex, 0.8);
+    shockwave(feet, 5, 0xffffff, 0.5);
+    pillar(this.pos, 1.6, 14, el.hex, 0.9, 0.45);
+    glowBurst(this.pos.clone().setY(1), el.hex, 40, 12, 0.14, 0.9, 3, 0.6);
+    flashLight(this.eye, el.hex, 120, 25, 0.6);
+    ui.screenFlash(el.color, 0.55);
+    this.fovKick = 14;
+    this.shake = 0.3;
     ui.centerMessage(ab.name, '', 1.5);
     const w = this.weapon;
     w.reloading = false; w.charge = 0;
@@ -732,40 +882,76 @@ export class Player {
     const inp = G.input;
     const fwd = this.getForward(new THREE.Vector3());
     const flash = this.superModel.userData.flash;
-    if (S.type === 'hammers' && inp.mouse.left && S.cd <= 0) {
-      S.cd = 0.45;
-      spawnPlayerProjectile({
-        kind: 'hammer', pos: this.eye.clone().addScaledVector(fwd, 0.8), vel: fwd.clone().multiplyScalar(40).add(new THREE.Vector3(0, 3, 0)),
-        gravity: 9, size: 0.2, color: ELEMENTS.solar.hex, life: 4, onHit: (p) => explode(p, 4.5, 420, 'solar', { source: 'super' }),
-      });
-      this.kick = 1; flash.visible = true;
-      sfx.shot('hammer');
+    const hand = this.muzzlePos(new THREE.Vector3());
+    if (S.type === 'hammers') {
+      if (Math.random() < 0.5) ember(hand, Math.random() < 0.5 ? 0xff8b2b : 0xffd27a, 0.03, 0.25, 0.3);
+      if (inp.mouse.left && S.cd <= 0) {
+        S.cd = 0.45;
+        spawnPlayerProjectile({
+          kind: 'hammer', pos: this.eye.clone().addScaledVector(fwd, 0.8), vel: fwd.clone().multiplyScalar(40).add(new THREE.Vector3(0, 3, 0)),
+          gravity: 9, size: 0.2, color: ELEMENTS.solar.hex, life: 4,
+          onHit: (p) => {
+            explode(p, 4.5, 420, 'solar', { source: 'super' });
+            shockwave(p.clone().setY(0.05), 6, ELEMENTS.solar.hex, 0.6);
+            glowBurst(p, 0xffd27a, 18, 9, 0.12, 0.7, 3, 0.8);
+            pillar(p.clone().setY(0), 1.0, 5, ELEMENTS.solar.hex, 0.4, 0.4);
+          },
+        });
+        this.kick = 1; flash.visible = true;
+        this.throwFist(0.25);
+        sfx.shot('hammer');
+      }
     }
     if (S.type === 'revolver' && inp.mouse.leftPressed && S.cd <= 0 && S.shots > 0) {
       S.cd = 0.35; S.shots--;
+      const col = ELEMENTS.solar.hex;
       const pseudo = { s: { range: 200 }, A: { prec: 1.5 }, item: { element: 'solar' }, has: () => false };
-      const end = this.hitscan(this.eye, fwd, pseudo, 1100, this.muzzlePos(new THREE.Vector3()), { isSuper: true, element: 'solar', precMult: 1.5, range: 220, tracerColor: ELEMENTS.solar.hex, tracerWidth: 0.08 });
+      const end = this.hitscan(this.eye, fwd, pseudo, 1100, hand, { isSuper: true, element: 'solar', precMult: 1.5, range: 220, noTracer: true });
+      beam(hand, end, col, 0.12, 0.4);
+      flare(end, 0xffd27a, 2.2, 0.3);
+      shockwave(end, 3, col, 0.4);
+      glowBurst(end, col, 16, 8, 0.1, 0.5, 1, 0.3);
       let prev = end;
       for (const e of enemiesNear(end, 10, 2)) {
         const c = e.center(new THREE.Vector3());
-        lightning(prev, c, ELEMENTS.solar.hex, 0.06);
+        beam(prev, c, col, 0.05, 0.3);
         dealDamage(e, 350, { element: 'solar', source: 'super', pos: c });
+        flare(c, col, 1.2, 0.25);
         prev = c;
       }
       this.kick = 1; this.pitch += 0.05; flash.visible = true;
-      flashLight(this.eye, ELEMENTS.solar.hex, 30, 10, 0.1);
+      flashLight(this.eye, col, 40, 12, 0.15);
+      ui.screenFlash('#ffb547', 0.15);
+      this.fovKick = Math.max(this.fovKick, 4);
       sfx.shot('revolver');
       if (S.shots <= 0) S.t = Math.min(S.t, 0.5);
     }
-    if (S.type === 'nova' && !S.launched && S.t < 0.45) {
-      S.launched = true;
-      spawnPlayerProjectile({
-        kind: 'nova', pos: this.eye.clone().addScaledVector(fwd, 1.2), vel: fwd.clone().multiplyScalar(30), gravity: 0,
-        size: 0.7, color: ELEMENTS.void.hex, life: 5,
-        onHit: (p) => { explode(p, 10, 2600, 'void', { source: 'super' }); ringFx(p, 16, ELEMENTS.void.hex, 0.8); },
-      });
-      this.kick = 1;
-      sfx.shot('rocket');
+    if (S.type === 'nova') {
+      if (!S.launched) for (let i = 0; i < 3; i++) swirl(hand, 0.8, i ? ELEMENTS.void.hex : 0xe6d0ff, 0.4, true, 0.04, 0.3);
+      if (!S.launched && S.t < 0.45) {
+        S.launched = true;
+        spawnPlayerProjectile({
+          kind: 'nova', pos: this.eye.clone().addScaledVector(fwd, 1.2), vel: fwd.clone().multiplyScalar(30), gravity: 0,
+          size: 0.7, color: ELEMENTS.void.hex, life: 5,
+          onHit: (p) => {
+            const col = ELEMENTS.void.hex;
+            explode(p, 10, 2600, 'void', { source: 'super' });
+            const g0 = p.clone().setY(0.05);
+            shockwave(g0, 16, col, 0.9);
+            let n = 2;
+            addTicker({ t: 0.18, update(dt) { this.t -= dt; if (this.t <= 0) { this.t = 0.18; shockwave(g0, 10 + n * 4, n % 2 ? 0xe6d0ff : col, 0.7); n--; } return n > 0; } });
+            pillar(g0, 4, 18, col, 0.9, 0.4);
+            flare(p, 0xe6d0ff, 9, 0.5);
+            glowBurst(p, col, 50, 16, 0.18, 1.0, 2, 0.4);
+            for (let i = 0; i < 20; i++) swirl(p, 10, i % 2 ? col : 0xe6d0ff, 0.9, true, 0.15, 3);
+            const d = G.player.pos.distanceTo(p);
+            if (d < 40) { ui.screenFlash('#b07cff', 0.5 * (1 - d / 40)); G.player.shake = Math.max(G.player.shake, 0.6 * (1 - d / 40)); }
+          },
+        });
+        this.kick = 1;
+        this.throwFist(0.35);
+        sfx.shot('rocket');
+      }
     }
     if (S.t <= 0) { this.superActive = null; this.showModel(); }
   }
@@ -778,7 +964,8 @@ export class Player {
     const sx = (Math.random() - 0.5) * this.shake * 0.25, sy = (Math.random() - 0.5) * this.shake * 0.25;
     cam.position.copy(this.eye);
     cam.rotation.set(this.pitch + sx, this.yaw + sy, this.dead ? 0.4 : 0);
-    const fov = this.baseFov / lerp(1, this.currentZoom(), this.adsT) + this.sprintT * 6;
+    this.fovKick = damp(this.fovKick, 0, 5, dt);
+    const fov = this.baseFov / lerp(1, this.currentZoom(), this.adsT) + this.sprintT * 6 + this.fovKick;
     if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
   }
 
@@ -806,7 +993,15 @@ export class Player {
       if (w.A.mode === 'charge' && w.charge > 0) { vm.position.x += (Math.random() - 0.5) * 0.006 * w.charge; vm.position.y += (Math.random() - 0.5) * 0.006 * w.charge; }
     }
     ry += this.sprintT * 0.5; rx -= this.sprintT * 0.15; vm.position.x -= this.sprintT * 0.04;
-    if (this.punchT > 0) { const p = Math.sin((this.punchT / 0.3) * Math.PI); vm.position.x -= p * 0.12; vm.position.y -= p * 0.1; rz += p * 0.5; }
+    if (this.punchT > 0) {
+      const k = 1 - this.punchT / this.punchMax;
+      const p = Math.sin(k * Math.PI);
+      vm.position.x -= p * 0.14; vm.position.y -= p * 0.14; rz += p * 0.5;
+      const ext = this.punchIsPunch ? Math.sin(Math.min(1, k * 1.6) * Math.PI) : Math.sin(k * Math.PI);
+      this.fist.visible = true;
+      this.fist.position.set(0.2 - ext * 0.14, -0.24 + ext * (this.punchIsPunch ? 0.1 : 0.16), -0.3 - ext * 0.28);
+      this.fist.rotation.set(this.punchIsPunch ? 0 : -ext * 0.8, 0, ext * 0.3);
+    } else this.fist.visible = false;
     vm.rotation.set(rx, ry, rz);
     const scoped = !this.superActive && w.A.zoom >= 3 && a > 0.85;
     model.visible = !scoped;

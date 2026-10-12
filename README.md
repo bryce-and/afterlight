@@ -24,7 +24,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## Controls
 
-WASD move, Shift sprint, Space jump (hold in air for class jump), mouse aim, LMB fire, RMB aim down sights, R reload, 1/2/3 or wheel switch weapon, Q grenade, F melee, C class ability, X super, E interact, Esc pause.
+WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse aim, LMB fire, RMB aim down sights, R reload, 1/2/3 or wheel switch weapon, Q grenade, V melee, F charged melee ability, C class ability, X super, E interact, Esc pause.
 
 ## Code map
 
