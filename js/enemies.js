@@ -13,15 +13,21 @@ const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const shotGeo = new THREE.IcosahedronGeometry(1, 0);
 const easeOutBack = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
 
+// ---------------------------------------------------------------------------
+// Enemy models: one builder per faction, shaped after Destiny's units.
+// Models face +z, stand on y = 0, and are ~2m tall before def.scale.
+// Head/eye meshes are tagged crit (precision hits).
+// ---------------------------------------------------------------------------
 function buildModel(e, C, faction) {
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: C.enemy, flatShading: true, roughness: 0.7, metalness: 0.15 });
   const dark = mat(C.enemy2);
   const accent = mat(C.eye, { emissive: C.eye, emissiveIntensity: 2.2 });
   const hit = [];
-  const part = (geo, m, x, y, z, parent = g, crit = false) => {
+  const add = (geo, m, x, y, z, parent = g, crit = false, r = null) => {
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, z);
+    if (r) mesh.rotation.set(r[0], r[1], r[2]);
     mesh.castShadow = true;
     mesh.userData.enemy = e;
     mesh.userData.crit = crit;
@@ -29,85 +35,283 @@ function buildModel(e, C, faction) {
     hit.push(mesh);
     return mesh;
   };
-  const t = e.typeId;
-  const W = faction === 'legion' ? 1.3 : faction === 'hollow' ? 0.8 : 1.0;
-  const legs = [], arms = [];
-  for (const s of [-1, 1]) {
-    const leg = new THREE.Group();
-    leg.position.set(s * 0.16 * W, 0.92, 0);
-    g.add(leg);
-    part(new THREE.BoxGeometry(0.17 * W, 0.92, 0.2), dark, 0, -0.46, 0, leg);
-    legs.push(leg);
-  }
-  const torso = new THREE.Group();
-  torso.position.y = 0.92;
-  g.add(torso);
-  part(new THREE.CylinderGeometry(0.3 * W, 0.2 * W, 0.78, 6), bodyMat, 0, 0.39, 0, torso);
-  let headGeo;
-  if (faction === 'hollow') headGeo = new THREE.ConeGeometry(0.2, 0.44, 5);
-  else if (faction === 'legion') headGeo = new THREE.BoxGeometry(0.36, 0.3, 0.36);
-  else headGeo = new THREE.IcosahedronGeometry(0.21, 0);
-  part(headGeo, faction === 'hollow' ? bodyMat : dark, 0, 0.98, 0, torso, true);
-  part(new THREE.BoxGeometry(0.26, 0.06, 0.06), accent, 0, 0.99, faction === 'legion' ? 0.18 : 0.16, torso, true);
-  for (const s of [-1, 1]) {
-    const arm = new THREE.Group();
-    arm.position.set(s * 0.38 * W, 0.68, 0);
-    torso.add(arm);
-    part(new THREE.BoxGeometry(0.12 * W, 0.62, 0.12 * W), bodyMat, 0, -0.28, 0, arm);
-    arm.rotation.x = t === 'rusher' ? -1.3 : -1.1;
-    arms.push(arm);
-  }
-  if (faction === 'scrappers') {
-    for (const s of [-1, 1]) {
-      const a2 = new THREE.Group(); a2.position.set(s * 0.3, 0.38, 0.05); a2.rotation.x = -0.6; a2.rotation.z = s * 0.4; torso.add(a2);
-      part(new THREE.BoxGeometry(0.08, 0.45, 0.08), dark, 0, -0.2, 0, a2);
-    }
-    part(new THREE.ConeGeometry(0.42, 1.0, 5, 1, true), dark, 0, 0.25, -0.1, torso);
-  } else if (faction === 'hollow') {
-    for (const s of [-1, 1]) {
-      const sp = part(new THREE.ConeGeometry(0.07, 0.4, 4), dark, s * 0.3, 0.8, 0, torso);
-      sp.rotation.z = -s * 0.5;
-    }
-  } else if (faction === 'legion') {
-    for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.3, 0.16, 0.36), bodyMat, s * 0.42, 0.78, 0, torso);
-    part(new THREE.BoxGeometry(0.46, 0.5, 0.22), dark, 0, 0.45, -0.3, torso);
-    part(new THREE.BoxGeometry(0.3, 0.05, 0.04), accent, 0, 0.55, -0.42, torso);
-  }
-  const muzzle = new THREE.Object3D();
-  if (t !== 'rusher') {
-    const gun = new THREE.Group();
-    gun.position.set(0.24 * W, 0.42, 0.32);
-    torso.add(gun);
-    const big = t === 'heavy' || t === 'boss';
-    part(new THREE.BoxGeometry(big ? 0.22 : 0.09, big ? 0.22 : 0.12, big ? 0.9 : 0.6), dark, 0, 0, 0, gun);
-    part(new THREE.BoxGeometry(0.05, 0.05, 0.2), accent, 0, big ? 0.13 : 0.08, 0.1, gun);
-    muzzle.position.set(0, 0, big ? 0.5 : 0.33);
-    gun.add(muzzle);
-  } else {
-    muzzle.position.set(0, 0.6, 0.3);
-    torso.add(muzzle);
-    torso.rotation.x = 0.35;
-  }
-  if (t === 'captain' || t === 'boss') {
-    part(new THREE.ConeGeometry(0.12, 0.42, 4), accent, 0, 1.32, 0, torso);
-    part(new THREE.BoxGeometry(0.55 * W, 0.95, 0.04), mat(C.eye), 0, 0.2, -0.24, torso);
-  }
-  if (t === 'boss') {
-    for (let k = 0; k < 5; k++) {
-      const a = (k / 5) * Math.PI * 2;
-      const c = part(new THREE.ConeGeometry(0.05, 0.3, 4), accent, Math.sin(a) * 0.2, 1.2, Math.cos(a) * 0.2, torso);
-      c.rotation.set(Math.cos(a) * 0.4, 0, -Math.sin(a) * 0.4);
-    }
-  }
+  const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
+  const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+  const c = { g, add, B, pivot, bodyMat, dark, accent, C, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
+  ({ scrappers: fallen, hollow: hive, legion: cabal })[faction](c, e.typeId);
   let shield = null;
   if (e.maxShield > 0) {
     shield = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: ELEMENTS[e.shieldEl].hex, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }));
-    shield.scale.set(0.78, 1.15, 0.78);
-    shield.position.y = 1.05;
+    shield.scale.set(0.78, c.height * 0.56, 0.78);
+    shield.position.y = c.height * 0.51;
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs, arms, torso, bodyMat, muzzle, shield };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height };
+}
+
+/** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
+function legsBiped(c, hipY, hipW, thick, m, foot, digi = false) {
+  for (const s of [-1, 1]) {
+    const hip = c.pivot(s * hipW, hipY, 0);
+    const L = hipY / 2;
+    if (digi) {
+      c.B(thick, L * 1.05, thick * 1.1, 0, -L * 0.48, 0.07, m, hip, false, [-0.32, 0, 0]);
+      c.B(thick * 0.8, L * 1.05, thick * 0.9, 0, -L * 1.45, 0.06, m, hip, false, [0.3, 0, 0]);
+    } else {
+      c.B(thick, L, thick * 1.1, 0, -L * 0.5, 0, m, hip);
+      c.B(thick * 0.95, L, thick, 0, -L * 1.5, 0, m, hip);
+    }
+    c.B(thick * 1.1, 0.09, thick * 1.8, 0, -hipY + 0.045, 0.06, foot, hip);
+    c.legs.push(hip);
+  }
+}
+
+/** Gun held at chest height; places the muzzle at its front. */
+function gun(c, parent, x, y, z, len, thick, glow = true) {
+  c.B(thick, thick * 1.2, len, x, y, z, c.dark, parent);
+  if (glow) c.B(thick * 0.5, thick * 0.4, len * 0.4, x, y + thick * 0.7, z, c.accent, parent);
+  c.muzzle.position.set(x, y, z + len / 2 + 0.03);
+  parent.add(c.muzzle);
+}
+
+function arm(c, parent, x, y, len, thick, m, lift = -1.1, rz = 0) {
+  const p = c.pivot(x, y, 0, parent);
+  c.B(thick, len, thick, 0, -len / 2, 0, m, p);
+  p.rotation.x = lift;
+  p.rotation.z = rz;
+  return p;
+}
+
+// ---------------------------------------------------------------------------
+// FALLEN: four arms, four eyes, cloaks, digitigrade legs
+// ---------------------------------------------------------------------------
+function fallen(c, t) {
+  const { B, add, pivot, bodyMat, dark, accent } = c;
+  const armor = mat(0x6f716a), cloth = mat(0x3c4a5c);
+  if (t === 'heavy') {
+    // Brig: a walking Fallen tank
+    for (const s of [-1, 1]) {
+      const hip = pivot(s * 0.32, 1.0, 0);
+      B(0.26, 0.55, 0.3, 0, -0.25, 0.05, armor, hip, false, [-0.25, 0, 0]);
+      B(0.22, 0.55, 0.26, 0, -0.72, 0.02, dark, hip, false, [0.25, 0, 0]);
+      B(0.36, 0.12, 0.5, 0, -0.96, 0.08, armor, hip);
+      c.legs.push(hip);
+    }
+    const body = pivot(0, 1.0, 0);
+    c.torso = body;
+    B(0.95, 0.55, 0.8, 0, 0.42, 0, bodyMat, body);
+    B(0.8, 0.2, 0.7, 0, 0.78, -0.05, armor, body);
+    B(0.5, 0.18, 0.06, 0, 0.5, 0.41, dark, body, true);
+    B(0.38, 0.06, 0.04, 0, 0.52, 0.44, accent, body, true);
+    for (const s of [-1, 1]) {
+      B(0.26, 0.26, 0.75, s * 0.62, 0.42, 0.1, armor, body);
+      for (const dy of [-0.06, 0.06]) add(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6).rotateX(Math.PI / 2), dark, s * 0.62, 0.42 + dy, 0.62, body);
+      B(0.03, 0.4, 0.03, s * 0.3, 1.05, -0.3, dark, body);
+    }
+    c.muzzle.position.set(0.62, 0.42, 0.8);
+    body.add(c.muzzle);
+    c.height = 2.0;
+    return;
+  }
+  const big = t === 'captain' || t === 'boss';
+  const W = big ? 1.3 : t === 'rusher' ? 0.85 : 1;
+  legsBiped(c, 0.95, 0.15 * W, 0.12 * W, dark, armor, true);
+  const torso = pivot(0, 0.95, 0);
+  torso.rotation.x = t === 'rusher' ? 0.45 : 0.22;
+  c.torso = torso;
+  B(0.26 * W, 0.24, 0.2, 0, 0.12, 0, dark, torso);
+  B(0.42 * W, 0.38, 0.28, 0, 0.45, 0, bodyMat, torso);
+  B(0.36 * W, 0.2, 0.06, 0, 0.5, 0.15, armor, torso);
+  // helmet with mandible fins and four eyes
+  B(0.22, 0.18, 0.26, 0, 0.82, 0.07, armor, torso, true);
+  for (const s of [-1, 1]) {
+    B(0.04, 0.14, 0.12, s * 0.12, 0.74, 0.17, armor, torso, true, [0.3, 0, s * 0.2]);
+    for (const dy of [0, 0.05]) B(0.035, 0.03, 0.03, s * 0.05, 0.84 - dy, 0.205, accent, torso, true);
+  }
+  // hooded cloak hanging off the back
+  add(new THREE.ConeGeometry(0.34 * W, 0.4, 5, 1, true), cloth, 0, 0.8, -0.04, torso);
+  B(0.5 * W, big ? 1.0 : 0.8, 0.03, 0, big ? 0.15 : 0.25, -0.17, cloth, torso, false, [0.15, 0, 0]);
+  // four arms: upper pair holds the weapon, lower pair braces it
+  const up = [arm(c, torso, -0.27 * W, 0.62, 0.48, 0.08, bodyMat, -1.2, 0.1), arm(c, torso, 0.27 * W, 0.62, 0.48, 0.08, bodyMat, -1.2, -0.1)];
+  arm(c, torso, -0.2 * W, 0.36, 0.38, 0.065, bodyMat, -0.9, 0.3);
+  arm(c, torso, 0.2 * W, 0.36, 0.38, 0.065, bodyMat, -0.9, -0.3);
+  c.arms.push(...up);
+  if (t === 'rusher') {
+    // Dreg: shock blades instead of a rifle
+    for (const a of up) B(0.02, 0.05, 0.36, 0, -0.5, 0.12, accent, a);
+    c.muzzle.position.set(0, 0.5, 0.3); torso.add(c.muzzle);
+  } else {
+    gun(c, torso, 0.12, 0.42, 0.45, big ? 0.75 : 0.65, 0.08);
+  }
+  if (big) {
+    for (const s of [-1, 1]) {
+      B(0.26, 0.12, 0.32, s * 0.33, 0.68, 0, armor, torso, false, [0, 0, s * -0.3]);
+      add(new THREE.ConeGeometry(0.03, 0.3, 4), armor, s * 0.08, 1.02, 0.02, torso, true, [-0.4, 0, s * -0.4]);
+    }
+    B(0.1, 0.5, 0.02, 0.1, 0.08, 0.16, mat(c.C.accent), torso);
+  }
+  if (t === 'boss') {
+    // Kell-style banners behind the shoulders
+    for (const s of [-1, 1]) {
+      B(0.03, 1.1, 0.03, s * 0.24, 1.0, -0.2, dark, torso);
+      B(0.22, 0.5, 0.015, s * 0.24 + s * 0.12, 1.3, -0.2, mat(c.C.accent), torso);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HIVE: bone and chitin, green eyes, crowns of spikes
+// ---------------------------------------------------------------------------
+function hive(c, t) {
+  const { B, add, pivot, bodyMat, dark, accent } = c;
+  const chitin = mat(0x2a2a24), bone = bodyMat, cloth = mat(0x4a4436);
+  if (t === 'heavy') {
+    // Ogre: huge, hunched, tiny head with a beam eye
+    legsBiped(c, 0.8, 0.28, 0.26, chitin, chitin);
+    const torso = pivot(0, 0.8, 0);
+    torso.rotation.x = 0.35;
+    c.torso = torso;
+    B(1.0, 0.85, 0.7, 0, 0.5, 0, bone, torso);
+    B(0.9, 0.35, 0.6, 0, 0.9, -0.08, chitin, torso);
+    for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.06, 0.3, 4), bone, -0.32 + i * 0.16, 1.1, -0.2, torso);
+    B(0.3, 0.24, 0.26, 0, 0.82, 0.38, chitin, torso, true);
+    B(0.2, 0.08, 0.04, 0, 0.84, 0.52, accent, torso, true);
+    c.muzzle.position.set(0, 0.84, 0.56); torso.add(c.muzzle);
+    for (const s of [-1, 1]) {
+      const a = arm(c, torso, s * 0.62, 0.8, 0.95, 0.24, bone, -0.4, s * -0.15);
+      B(0.3, 0.2, 0.32, 0, -1.0, 0.05, chitin, a);
+      c.arms.push(a);
+    }
+    c.height = 2.1;
+    return;
+  }
+  if (t === 'rusher') {
+    // Thrall: emaciated, eyeless, all claws
+    legsBiped(c, 0.85, 0.1, 0.08, bone, bone, true);
+    const torso = pivot(0, 0.85, 0);
+    torso.rotation.x = 0.6;
+    c.torso = torso;
+    B(0.24, 0.5, 0.18, 0, 0.3, 0, bone, torso);
+    for (let i = 0; i < 3; i++) B(0.26, 0.025, 0.2, 0, 0.2 + i * 0.1, 0.01, chitin, torso);
+    add(new THREE.ConeGeometry(0.11, 0.34, 6), bone, 0, 0.66, 0.08, torso, true, [0.9, 0, 0]);
+    for (const s of [-1, 1]) {
+      const a = arm(c, torso, s * 0.17, 0.5, 0.62, 0.05, bone, -1.3, s * -0.1);
+      for (let k = -1; k <= 1; k++) add(new THREE.ConeGeometry(0.012, 0.16, 3), chitin, k * 0.025, -0.68, 0.02, a, false, [Math.PI, 0, 0]);
+      c.arms.push(a);
+    }
+    c.muzzle.position.set(0, 0.5, 0.3); torso.add(c.muzzle);
+    c.height = 1.8;
+    return;
+  }
+  const big = t === 'captain' || t === 'boss';
+  const W = big ? 1.25 : 0.9;
+  legsBiped(c, 0.95, 0.13 * W, 0.11 * W, chitin, chitin, true);
+  const torso = pivot(0, 0.95, 0);
+  torso.rotation.x = 0.12;
+  c.torso = torso;
+  B(0.3 * W, 0.24, 0.22, 0, 0.12, 0, chitin, torso);
+  B(0.46 * W, 0.42, 0.3, 0, 0.47, 0, chitin, torso);
+  for (let i = 0; i < 3; i++) B(0.4 * W, 0.04, 0.04, 0, 0.36 + i * 0.1, 0.16, bone, torso);
+  // rounded helmet with a single glowing slit
+  add(new THREE.IcosahedronGeometry(0.15, 0), chitin, 0, 0.84, 0.03, torso, true).scale.set(1, 1.15, 1.2);
+  B(0.16, 0.035, 0.04, 0, 0.84, 0.18, accent, torso, true);
+  for (const s of [-1, 1]) {
+    B(0.2 * W, 0.12, 0.28, s * 0.3 * W, 0.66, 0, bone, torso, false, [0, 0, s * -0.25]);
+    add(new THREE.ConeGeometry(0.04, 0.28, 4), bone, s * 0.36 * W, 0.8, -0.02, torso, false, [0, 0, s * -0.6]);
+  }
+  const arms = [arm(c, torso, -0.32 * W, 0.62, 0.55, 0.09, chitin, -1.15, 0.1), arm(c, torso, 0.32 * W, 0.62, 0.55, 0.09, chitin, -1.15, -0.1)];
+  c.arms.push(...arms);
+  // Acolyte shredder / Knight boomer
+  gun(c, torso, 0.16, 0.42, 0.42, big ? 0.5 : 0.6, big ? 0.13 : 0.08);
+  if (big) {
+    // Knight: crown of spikes and a tattered loincloth
+    for (let i = -2; i <= 2; i++) add(new THREE.ConeGeometry(0.03, 0.22 + (2 - Math.abs(i)) * 0.07, 4), bone, i * 0.06, 1.02, 0, torso, true, [0, 0, -i * 0.15]);
+    B(0.22, 0.5, 0.02, 0, -0.1, 0.17, cloth, torso);
+  }
+  if (t === 'boss') {
+    B(0.2, 0.2, 0.04, 0, 0.55, 0.17, accent, torso);
+    for (const s of [-1, 1]) add(new THREE.ConeGeometry(0.06, 0.6, 4), bone, s * 0.22, 1.2, -0.05, torso, true, [0, 0, s * -0.35]);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CABAL: massive armoured soldiers, jetpacks, war beasts
+// ---------------------------------------------------------------------------
+function cabal(c, t) {
+  const { B, add, pivot, bodyMat, dark, accent } = c;
+  const armor = bodyMat, under = dark, metal = mat(0x4a4440);
+  if (t === 'rusher') {
+    // War Beast: four-legged attack hound
+    const body = pivot(0, 0.62, 0);
+    c.torso = body;
+    B(0.46, 0.38, 1.0, 0, 0.0, 0, under, body);
+    B(0.5, 0.18, 0.8, 0, 0.18, -0.05, armor, body);
+    B(0.38, 0.3, 0.38, 0, 0.06, 0.62, armor, body, true);
+    B(0.3, 0.1, 0.3, 0, -0.08, 0.68, under, body, true);
+    for (const s of [-1, 1]) {
+      add(new THREE.ConeGeometry(0.04, 0.22, 4), metal, s * 0.16, -0.08, 0.84, body, false, [Math.PI / 2 + 0.4, 0, 0]);
+      B(0.05, 0.04, 0.03, s * 0.1, 0.12, 0.81, accent, body, true);
+    }
+    B(0.06, 0.06, 0.5, 0, 0.05, -0.7, under, body, false, [0.5, 0, 0]);
+    for (const [x, z] of [[-0.2, 0.36], [0.2, 0.36], [0.2, -0.36], [-0.2, -0.36]]) {
+      const hip = pivot(x, 0.6, z);
+      B(0.12, 0.6, 0.14, 0, -0.3, 0, under, hip);
+      B(0.14, 0.06, 0.2, 0, -0.58, 0.04, metal, hip);
+      c.legs.push(hip);
+    }
+    c.muzzle.position.set(0, 0.62, 0.9); c.g.add(c.muzzle);
+    c.height = 1.15;
+    return;
+  }
+  const heavy = t === 'heavy', big = t === 'captain' || t === 'boss';
+  const W = heavy ? 1.5 : big ? 1.35 : 1.25;
+  legsBiped(c, 0.9, 0.17 * W, 0.17 * W, under, metal);
+  for (const s of [-1, 1]) B(0.2 * W, 0.24, 0.22, s * 0.17 * W, 0.62, 0.04, armor);
+  const torso = pivot(0, 0.9, 0);
+  c.torso = torso;
+  B(0.42 * W, 0.26, 0.3, 0, 0.12, 0, under, torso);
+  B(0.62 * W, 0.5, 0.42, 0, 0.5, 0, armor, torso);
+  B(0.5 * W, 0.18, 0.08, 0, 0.42, 0.22, metal, torso);
+  // big helmet with a visor strip
+  B(0.32, 0.3, 0.32, 0, 0.92, 0.04, armor, torso, true);
+  B(0.24, 0.12, 0.06, 0, 0.9, 0.2, under, torso, true);
+  B(0.2, 0.035, 0.03, 0, 0.92, 0.235, accent, torso, true);
+  for (const s of [-1, 1]) B(0.3 * W, 0.2, 0.42, s * 0.42 * W, 0.72, 0, armor, torso, false, [0, 0, s * -0.15]);
+  // jetpack (Legionary / Centurion) or ammo drums (Colossus)
+  if (heavy) {
+    for (const s of [-1, 1]) add(new THREE.CylinderGeometry(0.14, 0.14, 0.5, 8), metal, s * 0.2, 0.6, -0.34, torso);
+  } else {
+    for (const s of [-1, 1]) {
+      add(new THREE.CylinderGeometry(0.09, 0.11, 0.42, 8), metal, s * 0.16, 0.5, -0.3, torso);
+      add(new THREE.CylinderGeometry(0.07, 0.07, 0.04, 8), accent, s * 0.16, 0.27, -0.3, torso);
+    }
+  }
+  const arms = [arm(c, torso, -0.44 * W, 0.62, 0.55, 0.15, under, -1.1, 0.12), arm(c, torso, 0.44 * W, 0.62, 0.55, 0.15, under, -1.1, -0.12)];
+  for (const a of arms) B(0.2, 0.22, 0.2, 0, -0.42, 0, armor, a);
+  c.arms.push(...arms);
+  if (heavy) {
+    // Colossus slug-thrower gatling
+    const gx = 0.3, gy = 0.38, gz = 0.55;
+    B(0.22, 0.22, 0.3, gx, gy, gz - 0.2, metal, torso);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      add(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6).rotateX(Math.PI / 2), under, gx + Math.cos(a) * 0.07, gy + Math.sin(a) * 0.07, gz + 0.15, torso);
+    }
+    c.muzzle.position.set(gx, gy, gz + 0.48); torso.add(c.muzzle);
+    c.height = 2.15;
+  } else {
+    gun(c, torso, 0.2, 0.4, 0.45, 0.6, 0.12);
+  }
+  if (big) {
+    // Centurion: crest and shoulder cape
+    B(0.04, 0.16, 0.36, 0, 1.12, 0.02, mat(c.C.accent), torso);
+    B(0.32, 0.8, 0.03, -0.32 * W, 0.3, -0.12, mat(c.C.accent), torso, false, [0.1, 0, 0.1]);
+    B(0.02, 0.3, 0.02, 0.16, 1.15, -0.1, metal, torso);
+  }
+  if (t === 'boss') {
+    for (let i = -2; i <= 2; i++) B(0.04, 0.2 + (2 - Math.abs(i)) * 0.08, 0.04, i * 0.07, 1.16, -0.04, accent, torso, true);
+  }
 }
 
 export class Enemy {
@@ -142,6 +346,7 @@ export class Enemy {
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0 };
     const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion' }[M.loc.id];
     this.model = buildModel(this, M.loc.colors, faction);
+    this.height = this.model.height * def.scale;
     this.hitMeshes = this.model.hit;
     this.model.group.position.copy(this.pos);
     G.scene.add(this.model.group);
@@ -258,7 +463,7 @@ export class Enemy {
 
     this.walk += dt * speed * (ml > 0 ? 2.2 : 0);
     const sw = Math.sin(this.walk) * (ml > 0 ? 0.6 : 0);
-    m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
+    m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
 
     // ---- attacks ----
     if (!P.dead) {
