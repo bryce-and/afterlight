@@ -32,6 +32,10 @@ const inp = G.input;
 const GAME_KEYS = new Set(['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyV', 'KeyC', 'KeyX', 'KeyE', 'KeyR', 'ShiftLeft']);
 addEventListener('keydown', (e) => {
   if (G.state === 'playing' && GAME_KEYS.has(e.code)) e.preventDefault();
+  if (e.code === 'KeyI' && !e.repeat) {
+    if (G.invOpen) { ui.resumeGame(); return; }
+    if (G.state === 'playing' && !G.mpMenu) { ui.showInventory(); return; }
+  }
   if (e.code === 'Escape') {
     if (G.state === 'paused' || G.mpMenu) { ui.resumeGame(); return; }
     if (G.state === 'playing' && !document.pointerLockElement) { ui.showPause(); return; }

@@ -347,6 +347,8 @@ function renderCharScreen(main) {
       </div>
       <div class="cs-foot">
         <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
+        <span class="cs-auto" title="Weapon drops of these rarities are dismantled into glimmer automatically">Auto-dismantle
+          ${['common', 'uncommon', 'rare'].map((r) => `<button class="cs-auto-t ${s.settings.autoDismantle?.[r] ? 'on' : ''}" data-r="${r}" style="--rc:${RARITIES[rarityIndex(r)].color}">${{ common: 'White', uncommon: 'Green', rare: 'Blue' }[r]}</button>`).join('')}</span>
         <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
         <span class="hint">Click a slot to swap  ·  Hover for details  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
       </div>
@@ -376,6 +378,13 @@ function renderCharScreen(main) {
     }
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
   });
+  $$('.cs-auto-t', main).forEach((b) => b.addEventListener('click', () => {
+    const set = (s.settings.autoDismantle = s.settings.autoDismantle || {});
+    set[b.dataset.r] = !set[b.dataset.r];
+    writeSave(s);
+    sfx.ui();
+    b.classList.toggle('on', set[b.dataset.r]);
+  }));
   $('#cs-reset', main).addEventListener('click', (ev) => {
     const b = ev.currentTarget;
     if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Click again: delete gear and progress'; return; }
@@ -609,16 +618,7 @@ export function enterMission() {
   }
   hud.superBox.style.setProperty('--ec', ELEMENTS[P.cls.element].color);
   $('#super .super-name').textContent = ab.super.name;
-  $('#weapons').innerHTML = P.weapons.map((w, i) => {
-    const rar = RARITIES[rarityIndex(w.item.rarity)];
-    const ammo = AMMO[w.item.slot];
-    return `<div class="wrow" data-i="${i}" style="--rc:${rar.color};--ec:${ELEMENTS[w.item.element].color};--ac:${ammo.color}">
-      <div class="w-key">${i + 1}</div>
-      <div class="w-info"><div class="w-name"><span class="el" title="${ELEMENTS[w.item.element].name}"></span>${esc(w.item.name)}</div><div class="w-type">${ARCHETYPES[w.item.arch].name}</div></div>
-      <div class="w-ammo"><span class="ammo-ico" title="${ammo.name} ammo"></span><span class="w-mag"></span><span class="w-res"></span></div>
-    </div>`;
-  }).join('');
-  hud.wrows = $$('#weapons .wrow').map((el) => ({ el, mag: el.querySelector('.w-mag'), res: el.querySelector('.w-res') }));
+  renderWeaponRows();
   setMissionHeader();
   $('#feed').innerHTML = '';
   $('#nameplates').innerHTML = '';
@@ -629,6 +629,22 @@ export function enterMission() {
   setScope(false);
   for (const d of dmgActive) { d.el.style.display = 'none'; dmgPool.push(d.el); }
   dmgActive.length = 0;
+}
+
+/** Weapon list in the HUD (rebuilt when weapons are swapped mid-mission). */
+export function renderWeaponRows() {
+  const P = G.player;
+  cache.clear();
+  $('#weapons').innerHTML = P.weapons.map((w, i) => {
+    const rar = RARITIES[rarityIndex(w.item.rarity)];
+    const ammo = AMMO[w.item.slot];
+    return `<div class="wrow" data-i="${i}" style="--rc:${rar.color};--ec:${ELEMENTS[w.item.element].color};--ac:${ammo.color}">
+      <div class="w-key">${i + 1}</div>
+      <div class="w-info"><div class="w-name"><span class="el" title="${ELEMENTS[w.item.element].name}"></span>${esc(w.item.name)}</div><div class="w-type">${ARCHETYPES[w.item.arch].name}</div></div>
+      <div class="w-ammo"><span class="ammo-ico" title="${ammo.name} ammo"></span><span class="w-mag"></span><span class="w-res"></span></div>
+    </div>`;
+  }).join('');
+  hud.wrows = $$('#weapons .wrow').map((el) => ({ el, mag: el.querySelector('.w-mag'), res: el.querySelector('.w-res') }));
 }
 
 /** Location + mission name in the objective panel (activities refresh it when the arena changes). */
@@ -882,7 +898,51 @@ export function showPause() {
   $('#p-abandon').addEventListener('click', () => { el.classList.add('hidden'); G.mpMenu = false; abandonMission(); });
 }
 
+/** In-mission inventory: pick any weapon you own for each slot (pauses solo; co-op keeps running). */
+export function showInventory() {
+  if (G.state !== 'playing' || G.mpMenu) return;
+  const coop = !!G.mission?.coop;
+  if (coop) G.mpMenu = true; else G.state = 'paused';
+  G.invOpen = true;
+  unlockPointer();
+  renderInventory();
+}
+
+function renderInventory() {
+  const s = G.save, P = G.player, el = $('#pause');
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="modal wide inv-modal">
+      <div class="eyebrow">${esc(G.mission.def.name)}  ·  ${G.mission.coop ? 'Your fireteam keeps playing' : 'Paused'}</div>
+      <h1 class="screen-title">Inventory</h1>
+      <div class="inv-cols">${WEAPON_SLOTS.map((slot, i) => {
+        const items = s.inventory.filter((it) => it.kind === 'weapon' && it.slot === slot).sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
+        return `<div class="inv-col"><div class="eyebrow">${SLOT_NAMES[slot]}  ·  ${items.length}</div>
+          <div class="inv-list">${items.map((it) => {
+            const on = P.weapons[i].item.id === it.id, rar = RARITIES[rarityIndex(it.rarity)], el = ELEMENTS[it.element];
+            return `<button class="inv-pick ${on ? 'on' : ''}" data-slot="${i}" data-id="${it.id}" style="--rc:${rar.color}">
+              <span class="el" style="background:${el.color}" title="${el.name}"></span>
+              <span class="inv-n">${esc(it.name)}<small>${rar.name} ${ARCHETYPES[it.arch].name}</small></span>
+              <span class="inv-p">${on ? '<em>Equipped</em>' : ''}◆ ${it.power}</span></button>`;
+          }).join('')}</div></div>`;
+      }).join('')}</div>
+      <div class="row-btns"><button class="btn primary" id="inv-close">Back to the fight <kbd>I</kbd></button></div>
+    </div>`;
+  $$('.inv-pick', el).forEach((b) => b.addEventListener('click', () => {
+    const i = +b.dataset.slot, it = getItem(s, b.dataset.id);
+    if (!it || P.weapons[i].item.id === it.id) return;
+    equipItem(s, it.id);
+    writeSave(s);
+    P.swapWeapon(i, it);
+    renderWeaponRows();
+    sfx.engram(1);
+    renderInventory();
+  }));
+  $('#inv-close', el).addEventListener('click', resumeGame);
+}
+
 export function resumeGame() {
+  G.invOpen = false;
   if (G.mpMenu) { G.mpMenu = false; $('#pause').classList.add('hidden'); lockPointer(); return; }
   if (G.state !== 'paused') return;
   $('#pause').classList.add('hidden');
@@ -968,6 +1028,7 @@ export function updateRoster(rows) {
 export function hideOverlays() {
   for (const id of ['pause', 'complete', 'failed']) $('#' + id).classList.add('hidden');
   G.mpMenu = false;
+  G.invOpen = false;
 }
 
 export function orbitNotice(text) {

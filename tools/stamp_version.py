@@ -23,5 +23,9 @@ html, n = re.subn(r'<script type="importmap">.*?</script>', lambda m: block, htm
 if n != 1:
     sys.exit('index.html: expected exactly one import map')
 html = re.sub(r'<script type="module"[^>]*>.*?</script>', '<script type="module">import \'./js/main.js\';</script>', html, flags=re.S)
+# the stylesheet changes with the game too: version its URL the same way
+html, n = re.subn(r'href="style\.css(\?v=[^"]*)?"', f'href="style.css?v={tag}"', html)
+if n != 1:
+    sys.exit('index.html: expected exactly one style.css link')
 open(path, 'w').write(html)
 print(f'stamped {len(mods)} modules with v={tag}')

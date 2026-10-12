@@ -7,7 +7,7 @@ import { Player } from './player.js';
 import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
 import { pointInColliders } from './physics.js';
-import { rollItem, rollRarityIdx, MAX_POWER } from './loot.js';
+import { rollItem, rollRarityIdx, MAX_POWER, dismantleValue } from './loot.js';
 import { addItem, writeSave, playerPower, ALL_MISSIONS } from './save.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
@@ -305,6 +305,13 @@ function openChest() {
 }
 
 export function grantItem(item) {
+  if (item.kind === 'weapon' && G.save.settings.autoDismantle?.[item.rarity]) {
+    const v = dismantleValue(item);
+    G.save.glimmer += v;
+    writeSave(G.save);
+    ui.feed(`Auto-dismantled ${item.name}  ·  +${v} glimmer`, RARITIES[rarityIndex(item.rarity)].color);
+    return;
+  }
   const auto = addItem(G.save, item);
   if (G.mission && !G.mission.loot.includes(item)) G.mission.loot.push(item);
   ui.lootToast(item);

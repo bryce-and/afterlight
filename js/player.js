@@ -107,6 +107,24 @@ export class Player {
   }
 
   get weapon() { return this.weapons[this.cur]; }
+
+  /** In-mission inventory: swap the weapon in slot i for item, keeping the ammo you were carrying. */
+  swapWeapon(i, item) {
+    const old = this.weapons[i];
+    const w = makeWeapon(item);
+    if (old.reserve !== Infinity) {
+      const total = old.ammo + old.reserve;
+      w.ammo = Math.min(w.mag, total);
+      w.reserve = Math.min(w.maxReserve, total - w.ammo);
+    }
+    w.model = buildGunModel(item);
+    w.model.visible = false;
+    this.viewmodel.remove(old.model);
+    this.viewmodel.add(w.model);
+    this.weapons[i] = w;
+    if (this.cur === i) { this.switchT = this.switchMax; this.adsT = 0; }
+    this.showModel();
+  }
   activeModel() { return this.superActive ? this.superModel : this.weapon.model; }
 
   showModel() {
