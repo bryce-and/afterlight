@@ -213,7 +213,7 @@ export const CLASSES = {
         name: 'Dawnblade', element: 'solar', color: '#ffb547', tagline: 'Fire that heals. Abilities that never stop.',
         passive: 'Your abilities grant Restoration: health and shields regenerate for a few seconds.',
         abilities: {
-          grenade: { id: 'pulse', name: 'Solar Grenade', cd: 12, desc: 'A lingering ball of solar fire that burns everything near it. Short cooldown: throw them often.' },
+          grenade: { id: 'pulse', name: 'Solar Grenade', cd: 0.4, desc: 'A lingering ball of solar fire that burns everything near it. No cooldown: throw as many as you like, and they all burn at once.' },
           melee: { id: 'snap', name: 'Incinerator Snap', cd: 9, desc: 'Snap your fingers: three explosions burst down a line ahead and set enemies burning.' },
           class: { id: 'phoenix', name: 'Phoenix Dive', cd: 16, desc: 'In the air, dive to the ground in a solar burst. Always heals you and grants Restoration.' },
           super: { id: 'songflame', name: 'Song of Flame', desc: 'For 12s keep your guns: grenades and melees recharge 8x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
