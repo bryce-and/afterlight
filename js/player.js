@@ -46,7 +46,8 @@ function makeWeapon(item) {
 const SUPER_POWER = 2.2;
 const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
 // damage taken while each super is active
-const SUPER_ARMOR = { hammers: 0.45, fists: 0.35, stormtrance: 0.5, revolver: 0.6, tether: 0.6 };
+const SUPER_ARMOR = { hammers: 0.45, fists: 0.35, stormtrance: 0.5, revolver: 0.6, tether: 0.6, staff: 0.45, sentinel: 0.5, songflame: 0.6 };
+const OVERSHIELD_MAX = 60;
 
 export class Player {
   constructor(save) {
@@ -78,6 +79,7 @@ export class Player {
     this.dash = 0; this.dashDir = new THREE.Vector3();
     this.buffs = { rampage: 0, rampageT: 0, outlaw: 0, inRift: 0, empower: 0 };
     this.invisT = 0; this.dashSpeed = 20; this.charge = null;
+    this.over = 0; this.overT = 0; this.restoreT = 0; this.lethalT = 0; // overshield, Restoration, Lethal Current
     this.dead = false; this.respawnT = 0;
     this.adsT = 0; this.shake = 0; this.bobT = 0; this.kick = 0; this.punchT = 0; this.punchMax = 0.3; this.punchIsPunch = false; this.landDip = 0; this.sprintT = 0; this.fovKick = 0;
     this.sway = { x: 0, y: 0 };
@@ -125,7 +127,8 @@ export class Player {
     if (this.cur === i) { this.switchT = this.switchMax; this.adsT = 0; }
     this.showModel();
   }
-  activeModel() { return this.superActive ? this.superModel : this.weapon.model; }
+  get keepsGuns() { return this.superActive?.type === 'songflame'; }
+  activeModel() { return this.superActive && !this.keepsGuns ? this.superModel : this.weapon.model; }
 
   showModel() {
     for (const w of this.weapons) w.model.visible = false;
@@ -267,6 +270,13 @@ export class Player {
     const wasGround = this.onGround;
     const res = moveBody(this.pos, this.vel, dt, this.radius, this.height);
     this.onGround = res.onGround;
+    if (this.diving && res.onGround) {
+      // Phoenix Dive landing
+      this.diving = false;
+      castFx('phoenix', { p: this.pos.clone(), r: 5 });
+      explode(this.pos.clone().setY(0.6), 5, 170, 'solar', { source: 'ability' });
+      this.shake = 0.3;
+    }
     if (!wasGround && this.onGround && vyBefore < -7) { this.landDip = Math.min(0.15, -vyBefore * 0.012); sfx.land(); }
     this.landDip = damp(this.landDip, 0, 10, dt);
     this.eye.set(this.pos.x, this.pos.y + this.eyeH - this.landDip, this.pos.z);
@@ -295,7 +305,10 @@ export class Player {
     w.model.userData.flash.visible = false;
     this.superModel.userData.flash.visible = false;
 
-    if (this.superActive) { this.adsT = damp(this.adsT, 0, 14, dt); this.updateSuper(dt); return; }
+    if (this.superActive) {
+      this.updateSuper(dt);
+      if (!this.keepsGuns) { this.adsT = damp(this.adsT, 0, 14, dt); return; }
+    }
 
     for (let i = 0; i < 3; i++) if (inp.pressed['Digit' + (i + 1)]) this.switchTo(i);
     if (inp.mouse.wheel) this.switchTo((this.cur + (inp.mouse.wheel > 0 ? 1 : 2)) % 3);
@@ -393,6 +406,7 @@ export class Player {
     if (w.has('highcal')) m *= 1.1;
     if (crit && w.has('precise')) m *= 1.2;
     if (this.buffs.empower > 0) m *= 1.25;
+    if (this.keepsGuns) m *= 1.3; // Song of Flame
     if (w.memento > 0) m *= 1.4;
     return m;
   }
@@ -563,7 +577,8 @@ export class Player {
 
   takeDamage(amount, from) {
     if (this.dead || G.mission.phase === 'done') return;
-    if (this.superActive) amount *= SUPER_ARMOR[this.superActive.type] ?? 1;
+    if (this.superActive) amount *= this.superActive.guard ? 0.15 : SUPER_ARMOR[this.superActive.type] ?? 1;
+    if (this.over > 0) { const a = Math.min(this.over, amount); this.over -= a; amount -= a; if (amount <= 0) { sfx.hurt(); return; } }
     if (this.dash > 0) amount *= 0.5;
     this.regenT = this.regenDelay;
     const hadShield = this.shield > 0;
@@ -611,7 +626,18 @@ export class Player {
     ui.centerMessage('Revived', M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
+  /** Restoration (Dawnblade): health and shields regenerate for t seconds, even under fire. */
+  restore(t) { this.restoreT = Math.max(this.restoreT, t); }
+  /** Overshield (Sentinel): extra protection on top of your shield that fades after a while. */
+  addOvershield(n, t = 8) { this.over = Math.min(OVERSHIELD_MAX, this.over + n); this.overT = t; }
+
   updateRegen(dt) {
+    if (this.overT > 0) this.overT -= dt; else this.over = Math.max(0, this.over - dt * 15);
+    if (this.restoreT > 0) {
+      this.restoreT -= dt;
+      this.heal(16 * dt);
+      if (Math.random() < 0.2) ember(this.pos.clone().setY(this.pos.y + 0.4 + Math.random()), 0xffb547, 0.04, 1.2, 0.5);
+    }
     if (this.regenT > 0) { this.regenT -= dt; return; }
     if (this.health < this.maxHealth) this.health = Math.min(this.maxHealth, this.health + this.regenRate * dt);
     else if (this.shield < this.maxShield) {
@@ -624,7 +650,9 @@ export class Player {
   // Abilities
   // -------------------------------------------------------------------------
   updateAbilities(dt) {
-    for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - dt);
+    const song = this.keepsGuns ? 8 : 1;
+    for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song));
+    this.lethalT = Math.max(0, this.lethalT - dt);
     this.meleeLock = Math.max(0, this.meleeLock - dt);
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * 0.75);
     const ready = this.superCharge >= 100;
@@ -647,16 +675,44 @@ export class Player {
     const start = this.eye.clone().addScaledVector(fwd, 0.6);
     spawnPlayerProjectile({
       kind: 'grenade', pos: start, vel: fwd.clone().multiplyScalar(24).add(new THREE.Vector3(0, 4, 0)),
-      gravity: 22, size: 0.16, color: ELEMENTS[el].hex, life: 2.0, onHit: (pt) => this.detonateGrenade(id, pt),
+      gravity: 22, size: 0.16, color: ELEMENTS[el].hex, life: 2.0, onHit: (pt, e) => this.detonateGrenade(id, pt, e),
     });
     flare(start, ELEMENTS[el].hex, 0.4, 0.15);
     this.throwFist(0.32);
     sfx.throw();
   }
 
-  detonateGrenade(id, pt) {
+  detonateGrenade(id, pt, hitEnemy = null) {
     pt.y = Math.max(pt.y, 0.3);
     const el = this.cls.element;
+    if (id === 'flux') {
+      // Flux: sticks to the enemy it hits, then detonates and jolts two more
+      const stuck = hitEnemy && hitEnemy.alive ? hitEnemy : null;
+      let t = stuck ? 0.6 : 0;
+      const self = this;
+      addTicker({ update(dt) {
+        t -= dt;
+        if (stuck && stuck.alive) stuck.center(pt);
+        if (Math.random() < 0.5) sparks(pt, ELEMENTS.arc.hex, 2, 3, 0.05, 0.2);
+        if (t > 0) return true;
+        if (stuck && stuck.alive) dealDamage(stuck, 300, { element: 'arc', source: 'ability', pos: pt.clone() });
+        explode(pt.clone(), 3.5, 140, 'arc', { source: 'ability' });
+        self.jolt(pt.clone(), 2, 120, stuck);
+        return false;
+      } });
+      return;
+    }
+    if (id === 'healing') {
+      explode(pt.clone(), 4, 150, 'solar', { source: 'ability' });
+      castFx('healburst', { p: pt, r: 7 });
+      return;
+    }
+    if (id === 'suppressor') {
+      castFx('suppress', { p: pt, r: 6 });
+      for (const e of enemiesNear(pt, 6)) dealDamage(e, 150, { element: 'void', source: 'ability', suppress: 4, weaken: 3 });
+      this.addOvershield(25);
+      return;
+    }
     if (id === 'pulse') castFx('pulse', { p: pt, el });
     else if (id === 'vortex') castFx('vortex', { p: pt });
     else if (id === 'storm') castFx('storm', { p: pt });
@@ -720,6 +776,7 @@ export class Player {
   /** F: powered class melee (needs the ability charged). */
   useMelee() {
     if (this.meleeLock > 0) return;
+    if (this.superActive?.type === 'sentinel') { this.shieldBash(); return; }
     if (this.cd.melee > 0) { sfx.denied(); return; }
     const id = this.cls.abilities.melee.id;
     const el = this.cls.element;
@@ -742,6 +799,60 @@ export class Player {
           onHit: (p) => castFx('snare', { p: p.setY(Math.max(0.3, p.y)) }),
         });
       }
+      sfx.throw();
+      return;
+    }
+    if (id === 'hammerthrow') {
+      // Throwing Hammer: lands where it hits; walk over it to pick it up and recharge the melee
+      this.throwFist(0.32);
+      const start = this.eye.clone().addScaledVector(fwd, 0.6);
+      spawnPlayerProjectile({
+        kind: 'hammer', pos: start, vel: fwd.clone().multiplyScalar(34).add(new THREE.Vector3(0, 2.5, 0)), gravity: 16, size: 0.16, color: ELEMENTS.solar.hex, life: 2.2,
+        onHit: (p, e) => {
+          if (e && e.alive) dealDamage(e, 280, { element: 'solar', source: 'ability', pos: p.clone(), knock: fwd.clone().setY(0).normalize().multiplyScalar(6) });
+          explode(p.clone(), 2.2, 60, 'solar', { source: 'ability', small: true });
+          this.dropHammer(p);
+        },
+      });
+      sfx.throw();
+      return;
+    }
+    if (id === 'combo') {
+      // Combination Blow: lunge strike; kills heal fully and refund half the melee. Lethal Current doubles it after a dodge.
+      this.throwFist(0.32, true);
+      const t = this.findMeleeTarget(6, 0.65);
+      const lethal = this.lethalT > 0;
+      this.lethalT = 0;
+      if (!t) { castFx('slam', { p: this.pos.clone().addScaledVector(fwd.clone().setY(0).normalize(), 2).setY(0.6), el: 'arc', r: 3 }); return; }
+      t.center(c);
+      const dir = c.clone().sub(this.pos).setY(0).normalize();
+      const dist = c.clone().setY(0).distanceTo(_v.copy(this.pos).setY(0));
+      this.pos.addScaledVector(dir, Math.max(0, dist - t.radius - 1.0));
+      const res = dealDamage(t, lethal ? 520 : 260, { element: 'arc', source: 'ability', pos: c, knock: dir.clone().multiplyScalar(8) });
+      castFx('slam', { p: c.clone(), el: 'arc', r: lethal ? 5 : 3 });
+      if (lethal) this.jolt(c.clone(), 3, 140, t);
+      if (res.killed) { this.heal(1000); this.cd.melee *= 0.5; ui.feed('Combination Blow: healed', ELEMENTS.arc.color); sfx.heal(); }
+      this.shake = 0.2;
+      return;
+    }
+    if (id === 'snap') {
+      // Incinerator Snap: three bursts down a line ahead, each setting enemies alight
+      this.throwFist(0.25);
+      const flat = fwd.clone().setY(0).normalize();
+      [3, 6.5, 10].forEach((d, i) => setTimeout(() => {
+        if (!G.mission) return;
+        const p = this.eye.clone().addScaledVector(flat, d).setY(Math.max(0.6, this.eye.y - 0.6));
+        explode(p, 2.6, 110, 'solar', { source: 'ability' });
+        for (const e of enemiesNear(p, 2.6)) this.ignite(e, 30, 3);
+      }, i * 70));
+      this.restore(2.5);
+      sfx.shot('hand');
+      return;
+    }
+    if (id === 'shieldthrow') {
+      this.throwFist(0.32);
+      this.addOvershield(40);
+      this.throwShield(this.eye.clone().addScaledVector(fwd, 0.6), fwd, 3, [220, 160, 120], 'ability');
       sfx.throw();
       return;
     }
@@ -788,6 +899,98 @@ export class Player {
       t.center(c);
       if (id === 'siphon') this.drainHit(from, t, c); else this.chainHit(from, t);
     }
+  }
+
+  /** Throwing Hammer on the ground: stand next to it to pick it up (melee recharged, small heal). */
+  dropHammer(p) {
+    const at = p.clone();
+    at.y = 0.15;
+    const mesh = projectileMesh({ kind: 'hammer', color: ELEMENTS.solar.hex, size: 0.16 });
+    mesh.position.copy(at);
+    mesh.rotation.set(0, Math.random() * 6, Math.PI / 2);
+    G.scene.add(mesh);
+    const self = this;
+    let life = 14;
+    addTicker({
+      update(dt) {
+        life -= dt;
+        mesh.position.y = 0.15 + Math.abs(Math.sin(G.time * 3)) * 0.08;
+        if (Math.random() < 0.3) ember(at.clone().setY(0.3), 0xffb547, 0.03, 0.8, 0.4);
+        const P = G.player;
+        if (P === self && !P.dead && Math.hypot(P.pos.x - at.x, P.pos.z - at.z) < 1.6 && Math.abs(P.pos.y - at.y) < 2) {
+          P.cd.melee = 0;
+          P.heal(30);
+          ui.feed('Hammer recovered: melee ready', ELEMENTS.solar.color);
+          sfx.engram(1);
+          flare(at.clone().setY(0.6), ELEMENTS.solar.hex, 0.8, 0.2);
+          return false;
+        }
+        return life > 0;
+      },
+      dispose() { G.scene?.remove(mesh); },
+    });
+  }
+
+  /** Arc jolt: lightning from p into up to n more enemies. */
+  jolt(p, n, dmg, skip = null) {
+    const pts = [p.clone()];
+    for (const e of enemiesNear(p, 10, n + 1)) {
+      if (e === skip || !e.alive || pts.length > n) continue;
+      const c = e.center(new THREE.Vector3());
+      dealDamage(e, dmg, { element: 'arc', source: 'ability', pos: c });
+      pts.push(c);
+    }
+    if (pts.length > 1) castFx('chain', { pts, el: 'arc', w: 0.05 });
+  }
+
+  /** Solar burn: dps damage per second for t seconds. */
+  ignite(e, dps, t) {
+    let left = t, tick = 0.5;
+    addTicker({ update(dt) {
+      left -= dt; tick -= dt;
+      if (tick <= 0 && e.alive) { tick = 0.5; dealDamage(e, dps * 0.5, { element: 'solar', source: 'ability' }); ember(e.center(new THREE.Vector3()), 0xff8b2b, 0.05, 1, 0.4); }
+      return left > 0 && e.alive;
+    } });
+  }
+
+  /** Void shield that ricochets between enemies, then flies back. */
+  throwShield(from, dir, bounces, dmgs, source) {
+    const col = ELEMENTS.void.hex, self = this;
+    const hit = new Set();
+    const launch = (pos, vel, target, i) => spawnPlayerProjectile({
+      kind: 'shield', pos, vel, gravity: 0, size: 0.22, color: col, life: 1.4, target, turn: 12,
+      onHit: (p, e) => {
+        if (e && e.alive) {
+          hit.add(e);
+          dealDamage(e, source === 'super' ? superDmg(dmgs[Math.min(i, dmgs.length - 1)]) : dmgs[Math.min(i, dmgs.length - 1)], { element: 'void', source, pos: p.clone(), weaken: 2 });
+          sparks(p, col, 10, 5, 0.07, 0.3);
+        }
+        const next = i + 1 < bounces ? enemiesNear(p, 14, 6).find((x) => x.alive && !hit.has(x)) : null;
+        if (next) {
+          const c = next.center(new THREE.Vector3());
+          launch(p.clone(), c.sub(p).normalize().multiplyScalar(30), next, i + 1);
+        } else if (G.player === self && !self.dead) {
+          // fly back to the thrower (visual only)
+          const back = self.eye.clone().sub(p);
+          spawnPlayerProjectile({ kind: 'shield', pos: p.clone(), vel: back.normalize().multiplyScalar(36), gravity: 0, size: 0.22, color: col, life: Math.min(1.2, p.distanceTo(self.eye) / 36), visualOnly: true, onHit: () => {} });
+        }
+      },
+    });
+    launch(from, dir.clone().multiplyScalar(30), enemiesNear(from.clone().addScaledVector(dir, 8), 10, 1)[0] || null, 0);
+  }
+
+  /** Sentinel Shield bash (F / V during the super). */
+  shieldBash() {
+    const S = this.superActive;
+    if (S.bashCd > 0) return;
+    S.bashCd = 0.55;
+    this.throwFist(0.3, true);
+    const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
+    const p = this.pos.clone().addScaledVector(fwd, 2).setY(1);
+    for (const e of enemiesNear(p, 3.2)) dealDamage(e, superDmg(300), { element: 'void', source: 'super', pos: e.center(new THREE.Vector3()), knock: fwd.clone().multiplyScalar(12) });
+    castFx('slam', { p, el: 'void', r: 4 });
+    this.shake = Math.max(this.shake, 0.2);
+    sfx.melee();
   }
 
   knifeHit(p, e, dir) {
@@ -840,6 +1043,7 @@ export class Player {
   }
 
   useClass() {
+    if (this.superActive?.type === 'staff') return; // Arc Staff dodges are free (handled in the super)
     if (this.cd.class > 0) { sfx.denied(); return; }
     const id = this.cls.abilities.class.id;
     this.cd.class = this.cdMax.class;
@@ -862,10 +1066,40 @@ export class Player {
       addTicker({ update(dt) { t -= dt; afterimage(self.pos, col, 0.35); return t > 0; } });
       this.fovKick = Math.max(this.fovKick, 10);
       if (id === 'vanish') { this.invisT = 4; ui.feed('Invisible', ELEMENTS.void.color); }
+    } else if (id === 'gambler') {
+      this.staffDodge();
+      this.cd.melee = 0;
+      this.lethalT = 4;
+      ui.feed('Melee ready  ·  Lethal Current', ELEMENTS.arc.color);
+    } else if (id === 'phoenix') {
+      // Phoenix Dive: from the air, slam down in a solar burst; always heals
+      const airborne = !this.onGround && this.pos.y > 0.4;
+      if (airborne) { this.vel.set(this.vel.x * 0.2, -30, this.vel.z * 0.2); this.diving = true; }
+      else castFx('phoenix', { p: this.pos.clone(), r: 4 });
+      this.heal(60);
+      this.restore(5);
+      sfx.heal();
+    } else if (id === 'ward') {
+      castFx('ward', { p: this.pos.clone(), r: 6 });
+      this.addOvershield(OVERSHIELD_MAX);
     } else if (id === 'rift' || id === 'empower') {
       castFx('rift', { p: this.pos.clone(), kind: id === 'empower' ? 'empower' : 'heal' });
       ui.screenFlash(id === 'empower' ? '#5fd3ff' : '#b07cff', 0.2);
     }
+  }
+
+  /** Quick dodge in the movement direction (Gambler's Dodge, Arc Staff). */
+  staffDodge() {
+    const md = this.moveDir;
+    if (md && md.len > 0) this.dashDir.set(md.x, 0, md.z);
+    else this.dashDir.copy(this.getForward(new THREE.Vector3()).setY(0).normalize().negate());
+    this.dash = 0.22; this.dashSpeed = 21;
+    this.instantReload(this.weapon);
+    castFx('dodge', { p: this.pos.clone(), el: 'arc' });
+    const self = this, col = ELEMENTS.arc.hex;
+    let t = 0.22;
+    addTicker({ update(dt) { t -= dt; afterimage(self.pos, col, 0.35); return t > 0; } });
+    this.fovKick = Math.max(this.fovKick, 10);
   }
 
   useSuper() {
@@ -883,8 +1117,10 @@ export class Player {
     ui.centerMessage(ab.name, '', 1.5);
     const w = this.weapon;
     w.reloading = false; w.charge = 0;
-    const T = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12 }[ab.id];
-    this.superActive = { type: ab.id, t: T, max: T, cd: 0, shots: ab.id === 'revolver' ? 6 : ab.id === 'tether' ? 3 : 0, launched: false };
+    const T = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: 12 }[ab.id];
+    this.superActive = { type: ab.id, t: T, max: T, cd: 0, shots: ab.id === 'revolver' ? 6 : ab.id === 'tether' ? 3 : 0, launched: false, combo: 0, comboT: 0, bashCd: 0, dodgeCd: 0, auraT: 0 };
+    if (ab.id === 'songflame') { this.cd.grenade = 0; this.cd.melee = 0; }
+    if (ab.id === 'sentinel') this.addOvershield(OVERSHIELD_MAX, 15);
     this.showModel();
   }
 
@@ -1008,6 +1244,44 @@ export class Player {
         castFx('chain', { pts, el: 'arc', w: 0.07 });
         sfx.zap();
       }
+    }
+    if (S.type === 'staff') {
+      // Arc Staff: three-hit combo, the third is a shockwave; C dodges for free
+      S.comboT -= dt; S.dodgeCd -= dt;
+      if (S.comboT <= 0) S.combo = 0;
+      if (G.input.pressed.KeyC && S.dodgeCd <= 0) { S.dodgeCd = 0.7; this.staffDodge(); }
+      if ((inp.mouse.leftPressed || inp.mouse.left) && S.cd <= 0) {
+        S.cd = 0.34; S.combo = (S.combo % 3) + 1; S.comboT = 0.9;
+        const flat = fwd.clone().setY(0).normalize();
+        const center = this.pos.clone().addScaledVector(flat, 2).setY(1);
+        const finisher = S.combo === 3;
+        for (const e of enemiesNear(center, finisher ? 4.2 : 3.2)) {
+          dealDamage(e, superDmg(finisher ? 520 : 260), { element: 'arc', source: 'super', pos: e.center(new THREE.Vector3()), knock: flat.clone().multiplyScalar(finisher ? 12 : 5) });
+        }
+        castFx(finisher ? 'slam' : 'chain', finisher ? { p: center, el: 'arc', r: 5 } : { pts: [hand.clone(), center.clone().add(new THREE.Vector3(-flat.z * 1.5, 0, flat.x * 1.5)), center.clone().add(new THREE.Vector3(flat.z * 1.5, 0, -flat.x * 1.5))], el: 'arc', w: 0.06 });
+        this.throwFist(0.25, true);
+        this.superModel.rotation.z = S.combo === 2 ? 0.9 : S.combo === 1 ? -0.9 : 0;
+        if (finisher) { this.shake = 0.25; sfx.explosion(4); } else sfx.melee();
+      }
+    }
+    if (S.type === 'sentinel') {
+      // Sentinel Shield: click throws the shield (ricochets, returns), hold right-click to guard
+      S.bashCd -= dt;
+      S.guard = inp.mouse.right;
+      this.superModel.position.x = S.guard ? -0.12 : 0;
+      if (inp.mouse.leftPressed && S.cd <= 0 && !S.guard) {
+        S.cd = 0.9;
+        this.throwShield(this.eye.clone().addScaledVector(fwd, 0.6), fwd, 4, [380, 300, 240, 200], 'super');
+        this.throwFist(0.3);
+        sfx.throw();
+      }
+    }
+    if (S.type === 'songflame') {
+      // Song of Flame: keep shooting; abilities recharge fast; empower allies around you
+      S.auraT -= dt;
+      this.restore(0.5);
+      if (S.auraT <= 0) { S.auraT = 2; castFx('songflame', { p: this.pos.clone(), r: 15 }); }
+      if (Math.random() < 0.6) ember(hand, Math.random() < 0.5 ? 0xffb547 : 0xff6a2b, 0.04, 1.2, 0.5);
     }
     if (S.t <= 0) { this.superActive = null; this.showModel(); }
   }

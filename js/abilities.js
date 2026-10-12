@@ -240,6 +240,64 @@ export function abilityFx(kind, o, local) {
       sfx.heal();
       break;
     }
+    case 'healburst': { // Healing Grenade: Restoration for every player caught in it (each applies it to themselves)
+      const p = V(o.p), col = hex('solar');
+      shockwave(p.clone().setY(0.05), o.r, col, 0.6);
+      glowBurst(p, 0xffe0a0, 24, 7, 0.1, 0.7, 2, 0.4);
+      pillar(p, 1.2, 6, col, 0.8, 0.4);
+      const P = G.player;
+      if (P && !P.dead && P.pos.distanceTo(p) < o.r) { P.heal(40); P.restore(6); ui.feed('Restoration', '#ffb547'); }
+      sfx.heal();
+      break;
+    }
+    case 'suppress': { // Suppressor Grenade
+      const p = V(o.p), col = hex('void');
+      shockwave(p.clone().setY(0.05), o.r, col, 0.6);
+      shockwave(p.clone().setY(1), o.r * 0.7, 0xe6d0ff, 0.4);
+      glowBurst(p, col, 26, 8, 0.1, 0.6, 0, 0.3);
+      explosionFx(p, 2.5, col);
+      break;
+    }
+    case 'phoenix': { // Phoenix Dive landing / ground cast
+      const p = V(o.p), col = hex('solar');
+      shockwave(p.clone().setY(0.05), o.r, col, 0.6);
+      shockwave(p.clone().setY(0.05), o.r * 0.6, 0xffe0a0, 0.4);
+      pillar(p, 1.4, 5, col, 0.8, 0.35);
+      for (let i = 0; i < 3; i++) swirl(p, 2.5, i ? col : 0xffe0a0, 1.2, true, 0.08, 2);
+      break;
+    }
+    case 'ward': { // Bastion Ward: a dome that destroys enemy shots and refreshes overshields inside
+      const p = V(o.p), r = o.r, col = hex('void');
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      const wire = new THREE.Mesh(new THREE.SphereGeometry(r * 1.01, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xe6d0ff, wireframe: true, transparent: true, opacity: 0.25, depthWrite: false }));
+      dome.position.set(p.x, 0, p.z); wire.position.copy(dome.position);
+      G.scene.add(dome, wire);
+      shockwave(p.clone().setY(0.05), r, col, 0.6);
+      let life = 8, pulse = 0;
+      addTicker({
+        ward: { p: new THREE.Vector3(p.x, 0, p.z), r2: r * r },
+        update(dt) {
+          life -= dt; pulse -= dt; wire.rotation.y += dt * 0.3;
+          dome.material.opacity = 0.12 + 0.05 * Math.sin(G.time * 4);
+          const P = G.player;
+          if (pulse <= 0) {
+            pulse = 1;
+            if (P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r) P.addOvershield(25, 3);
+          }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(dome, wire); },
+      });
+      sfx.ability();
+      break;
+    }
+    case 'songflame': { // Song of Flame aura: empowers allies near the caster (on their own screens)
+      const p = V(o.p);
+      ringFx(p.clone().setY(0.1), 3, hex('solar'), 0.5);
+      const P = G.player;
+      if (!local && P && !P.dead && P.pos.distanceTo(p) < o.r) { P.buffs.empower = Math.max(P.buffs.empower, 2.2); P.restore(2.2); }
+      break;
+    }
     case 'airburst': { // Burst Glide / Triple Jump
       const p = V(o.p), col = hex(o.el);
       shockwave(p, 1.8, col, 0.4);

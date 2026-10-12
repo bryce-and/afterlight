@@ -455,6 +455,8 @@ export class Enemy {
     const ml = Math.hypot(mx, mz);
     this.weakenT = Math.max(0, (this.weakenT || 0) - dt);
     this.slowT = Math.max(0, (this.slowT || 0) - dt);
+    this.suppressT = Math.max(0, (this.suppressT || 0) - dt);
+    if (this.suppressT > 0 && Math.random() < 0.2) sparks(this.headPos(_v), 0x7a4ab0, 1, 1.5, 0.06, 0.3);
     if (this.weakenT > 0 && Math.random() < 0.15) sparks(this.center(_v), 0x7a4ab0, 1, 1, 0.08, 0.4);
     const speed = def.speed * (this.burstLeft > 0 && !this.isBoss ? 0.4 : 1) * (this.slowT > 0 ? 0.35 : 1);
     if (ml > 0) { mx /= ml; mz /= ml; }
@@ -487,8 +489,8 @@ export class Enemy {
     const sw = Math.sin(this.walk) * (ml > 0 ? 0.6 : 0);
     m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
 
-    // ---- attacks ----
-    if (!P.dead) {
+    // ---- attacks ---- (suppressed enemies cannot attack)
+    if (!P.dead && !(this.suppressT > 0)) {
       if (def.melee) {
         // wind up, then lunge ~3m; the hit lands if the player is in reach during the lunge
         this.meleeT -= dt;
@@ -742,6 +744,7 @@ export function updateEnemyShots(dt) {
       s.pos.addScaledVector(s.vel, dt / steps);
       if (s.pos.y < 0.02) hit = 'ground';
       else if (pointInColliders(s.pos)) hit = 'wall';
+      else if (G.tickers.some((t) => t.ward && t.ward.p.distanceToSquared(s.pos) < t.ward.r2)) hit = 'wall'; // Bastion Ward
       else if (!P.dead && distToPlayer(s.pos) < 0.5) hit = 'player';
     }
     if (hit) {

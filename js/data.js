@@ -127,7 +127,7 @@ export const CLASSES = {
         name: 'Sunbreaker', element: 'solar', color: '#ff8b2b', tagline: 'Walls, hammers, and fire.',
         abilities: {
           grenade: { id: 'pulse', name: 'Solar Grenade', cd: 22, desc: 'Lands and pulses solar fire six times.' },
-          melee: { id: 'fist', name: 'Hammer Strike', cd: 10, desc: 'Lunge at a nearby target and detonate on impact.' },
+          melee: { id: 'hammerthrow', name: 'Throwing Hammer', cd: 10, desc: 'Hurl a solar hammer. Walk over it after it lands to pick it up: your melee recharges instantly and you heal.' },
           class: { id: 'barricade', name: 'Towering Barricade', cd: 26, desc: 'Raise a wall that blocks enemy fire for the whole fireteam and reloads your weapons.' },
           super: { id: 'hammers', name: 'Hammer of Sol', desc: 'For 15s hurl explosive solar hammers and take 40% less damage.' },
         },
@@ -139,6 +139,16 @@ export const CLASSES = {
           melee: { id: 'charge', name: 'Shoulder Charge', cd: 9, desc: 'Sprint-tackle forward, slamming the first enemy you hit.' },
           class: { id: 'barricade', name: 'Towering Barricade', cd: 26, desc: 'Raise a wall that blocks enemy fire for the whole fireteam and reloads your weapons.' },
           super: { id: 'fists', name: 'Fists of Havoc', desc: 'For 14s, each click is a lunging arc slam. Take 50% less damage and move faster.' },
+        },
+      },
+      sentinel: {
+        name: 'Sentinel', element: 'void', color: '#b07cff', tagline: 'A shield for the fireteam. Overshields and suppression.',
+        passive: 'Void abilities grant you an overshield.',
+        abilities: {
+          grenade: { id: 'suppressor', name: 'Suppressor Grenade', cd: 22, desc: 'Explodes and suppresses enemies: they cannot attack for 4s and take extra damage.' },
+          melee: { id: 'shieldthrow', name: 'Shield Throw', cd: 11, desc: 'Throw your shield to ricochet through up to 3 enemies. Grants an overshield.' },
+          class: { id: 'ward', name: 'Bastion Ward', cd: 34, desc: 'Raise a dome for 8s that destroys enemy shots and refreshes the overshield of everyone inside.' },
+          super: { id: 'sentinel', name: 'Sentinel Shield', desc: 'For 15s: click to throw a shield that ricochets through enemies and returns, hold right-click to guard, F to bash.' },
         },
       },
     },
@@ -165,6 +175,16 @@ export const CLASSES = {
           super: { id: 'tether', name: 'Shadowshot', desc: 'Three void arrows that tether enemies: pulled, slowed, weakened, and burned.' },
         },
       },
+      arcstrider: {
+        name: 'Arcstrider', element: 'arc', color: '#5fd3ff', tagline: 'Up close and never still. Dodge, strike, repeat.',
+        passive: 'Dodging recharges your melee; melee kills fully heal you.',
+        abilities: {
+          grenade: { id: 'flux', name: 'Flux Grenade', cd: 20, desc: 'Sticks to the first enemy it hits and detonates, jolting lightning into two more.' },
+          melee: { id: 'combo', name: 'Combination Blow', cd: 9, desc: 'Lunging arc strike. A kill fully heals you and refunds half the melee.' },
+          class: { id: 'gambler', name: "Gambler's Dodge", cd: 9, desc: 'Dodge and fully recharge your melee. Your next melee within 4s hits twice as hard and chains.' },
+          super: { id: 'staff', name: 'Arc Staff', desc: 'For 14s, wield a staff: three-hit combos with a shockwave finisher, dodge freely with C, and take 55% less damage.' },
+        },
+      },
     },
   },
   arcanist: {
@@ -187,6 +207,16 @@ export const CLASSES = {
           melee: { id: 'chainl', name: 'Chain Lightning', cd: 10, desc: 'Ranged arc strike that jumps to three more enemies.' },
           class: { id: 'empower', name: 'Empowering Rift', cd: 32, desc: 'Conjure a well that gives everyone inside +25% weapon damage.' },
           super: { id: 'stormtrance', name: 'Stormtrance', desc: 'For 12s, hold fire to pour chain lightning from your hands.' },
+        },
+      },
+      dawnblade: {
+        name: 'Dawnblade', element: 'solar', color: '#ffb547', tagline: 'Fire that heals. Abilities that never stop.',
+        passive: 'Your abilities grant Restoration: health and shields regenerate for a few seconds.',
+        abilities: {
+          grenade: { id: 'healing', name: 'Healing Grenade', cd: 20, desc: 'A solar burst that damages enemies and grants Restoration to you and allies nearby.' },
+          melee: { id: 'snap', name: 'Incinerator Snap', cd: 9, desc: 'Snap your fingers: three explosions burst down a line ahead and set enemies burning.' },
+          class: { id: 'phoenix', name: 'Phoenix Dive', cd: 16, desc: 'In the air, dive to the ground in a solar burst. Always heals you and grants Restoration.' },
+          super: { id: 'songflame', name: 'Song of Flame', desc: 'For 12s keep your guns: grenades and melees recharge 8x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
         },
       },
     },
@@ -294,7 +324,7 @@ export const LOCATIONS = [
 // Wave modes played on the mission maps' boss arenas; every 10th wave is that arena's boss.
 export const ACTIVITIES = [
   { id: 'horde', name: 'Horde', waves: 30, chestEvery: 5, arenaEvery: 10, desc: 'Survive 30 waves. A cache every 5 waves, a new arena and its boss every 10, and a guaranteed exotic at the end.' },
-  { id: 'endless', name: 'Endless', waves: Infinity, chestEvery: 5, arenaEvery: 10, desc: 'The waves never stop and keep getting harder. A cache every 5 waves and a new arena every 10. How long can you last?' },
+  { id: 'endless', name: 'Endless', waves: Infinity, chestEvery: 5, arenaEvery: 10, desc: 'The waves never stop and keep getting harder. A cache every 5 waves, a new arena every 10, and past wave 30 a guaranteed exotic every 10 waves. How long can you last?' },
 ];
 
 export const CONTROLS = [

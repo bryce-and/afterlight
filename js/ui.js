@@ -557,6 +557,7 @@ function openSubclass() {
     <div class="sp-pick">${Object.entries(subs).map(([id, sc]) => `<button class="sp-sub${id === cls.subclassId ? ' on' : ''}" data-sub="${id}" style="--ec:${sc.color}"><b>${sc.name}</b><span>${ELEMENTS[sc.element].name}</span></button>`).join('')}</div>
     <div class="abil-list">
       ${[['super', 'X'], ['grenade', 'Q'], ['melee', 'F'], ['class', 'C']].map(([k, key]) => `<div class="abil-row" style="--ec:${el.color}"><kbd>${key}</kbd><div><b>${cls.abilities[k].name}</b><span>${cls.abilities[k].desc}${cls.abilities[k].cd ? `  ·  ${cls.abilities[k].cd}s cooldown` : ''}</span></div></div>`).join('')}
+      ${cls.passive ? `<div class="abil-row" style="--ec:${el.color}"><kbd>★</kbd><div><b>Subclass trait</b><span>${cls.passive}</span></div></div>` : ''}
       <div class="abil-row"><kbd>Space</kbd><div><b>${cls.jumpName}</b><span>Class jump</span></div></div>
       <div class="abil-row"><kbd>V</kbd><div><b>Melee</b><span>A quick strike that lunges toward close enemies. No cooldown.</span></div></div>
     </div>
@@ -602,7 +603,7 @@ export function enterMission() {
   showOnly('hud');
   cache.clear();
   const P = G.player;
-  hud.shield = $('#vitals .shield-fill'); hud.health = $('#vitals .health-fill'); hud.revives = $('#revives');
+  hud.shield = $('#vitals .shield-fill'); hud.over = $('#vitals .over-fill'); hud.health = $('#vitals .health-fill'); hud.revives = $('#revives');
   hud.objLoc = $('#objective .obj-loc'); hud.objName = $('#objective .obj-name'); hud.objText = $('#objective .obj-text');
   hud.boss = $('#bossbar'); hud.bossName = $('#bossbar .boss-name'); hud.bossHp = $('#bossbar .boss-hp'); hud.bossSh = $('#bossbar .boss-shield');
   hud.wp = $('#waypoint'); hud.wpDist = $('#waypoint .wp-dist');
@@ -659,6 +660,7 @@ export function updateHUD(dt) {
   const P = G.player, M = G.mission, cam = G.camera;
   setStyle(hud.shield, 'sh', 'width', `${(P.shield / P.maxShield) * 100}%`);
   setStyle(hud.health, 'hp', 'width', `${(P.health / P.maxHealth) * 100}%`);
+  setStyle(hud.over, 'ov', 'width', `${Math.round((P.over / 60) * 100)}%`);
   setClass(hud.health.parentElement, 'hpbar', 'low', P.health < 40);
   setText(hud.revives, 'rev', M.coop ? `Lives ${Math.max(0, M.lives)}` : `Revives ${Math.max(0, M.revives)}`);
   setText(hud.objText, 'obj', M.objective);

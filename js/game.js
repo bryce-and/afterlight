@@ -16,6 +16,7 @@ import { net } from './net.js';
 import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest } from './coop.js';
 
 const _c = new THREE.Vector3();
+const ABILITY_POWER = 1.4;
 
 // ---------------------------------------------------------------------------
 // Mission lifecycle
@@ -344,6 +345,8 @@ export function dealDamage(e, amount, o = {}) {
   if (!e.alive) return { killed: false, dealt: 0 };
   const M = G.mission;
   let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
+  // grenades and melees hit 40% harder than their listed numbers and keep pace with enemy health
+  if (!o.raw && (o.source === 'ability' || o.source === 'melee')) dmg *= ABILITY_POWER * M.hpMult;
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
@@ -360,6 +363,7 @@ export function dealDamage(e, amount, o = {}) {
   // status effects (applied by the owner of the enemy; members' hits carry them over the network)
   if (o.weaken) e.weakenT = Math.max(e.weakenT || 0, o.weaken);
   if (o.slow) e.slowT = Math.max(e.slowT || 0, o.slow);
+  if (o.suppress) e.suppressT = Math.max(e.suppressT || 0, o.suppress);
   if (e.weakenT > 0) dmg *= 1.3;
   let dealt = 0, shieldHit = false;
   if (e.shield > 0) {
@@ -488,6 +492,12 @@ export function projectileMesh(o) {
     const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), basicMat(0xffc070, true));
     glow.position.z = -0.3;
     g.add(body, tip, glow);
+  } else if (o.kind === 'shield') {
+    // Sentinel shield: a void-rimmed disc
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.06, 12).rotateX(Math.PI / 2), mat(0x3a3048));
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.04, 4, 16), mat(o.color, { emissive: o.color, emissiveIntensity: 2.4 }));
+    const boss = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), basicMat(0xe6d0ff, true));
+    g.add(disc, rim, boss);
   } else if (o.kind === 'hammer') {
     const h = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 5), mat(0x5a3a22));
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.18), mat(o.color, { emissive: o.color, emissiveIntensity: 2.5 }));
@@ -856,6 +866,7 @@ function openActChest() {
   for (let i = 0; i < n; i++) {
     let rIdx = Math.max(i === 0 ? 2 : 1, rollRarityIdx(M.g + Math.floor(c.wave / 5)));
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
+    if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
     rewards.push(rollItem(Math.min(MAX_POWER, pp + randInt(1, 4)), rIdx));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));

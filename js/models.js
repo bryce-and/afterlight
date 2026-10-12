@@ -401,6 +401,37 @@ export function buildSuperModel(type) {
     }
     return finish(g, { muzzleF: 0.3, muzzleY: 0, S: 0.05, hip: [0.2, -0.22, -0.42], ads: 0.42, flash: 0x5fd3ff });
   }
+  if (type === 'staff') {
+    // Arc Staff: a staff angled up and away from the hand, with crackling ends
+    const glow = mat(0x5fd3ff, { emissive: 0x5fd3ff, emissiveIntensity: 2.6 });
+    const st = new THREE.Group();
+    st.add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.95, 6), mat(0x39404c)));
+    for (const s of [-1, 1]) {
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 6), glow);
+      band.position.y = s * 0.3;
+      const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), glow);
+      tip.position.y = s * 0.5; tip.scale.y = 2;
+      st.add(band, tip);
+    }
+    st.rotation.set(-0.9, 0.2, -0.55);
+    st.position.set(0.0, 0.02, -0.12);
+    g.add(st);
+    B(0.07, 0.06, 0.08, 0.02, -0.03, 0.12, mat(0x24272c));
+    return finish(g, { muzzleF: 0.4, muzzleY: 0.1, S: 0.1, hip: [0.2, -0.24, -0.46], ads: 0.5, flash: 0x5fd3ff });
+  }
+  if (type === 'sentinel') {
+    // Sentinel Shield: round void shield on the left arm, glowing rim
+    const glow = mat(0xb07cff, { emissive: 0xb07cff, emissiveIntensity: 2.4 });
+    const face = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 14).rotateX(Math.PI / 2), mat(0x3a3048));
+    face.position.set(-0.16, 0.02, -0.12);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 4, 18), glow);
+    rim.position.copy(face.position);
+    const boss = new THREE.Mesh(new THREE.IcosahedronGeometry(0.05, 0), new THREE.MeshBasicMaterial({ color: 0xe6d0ff }));
+    boss.position.set(-0.16, 0.02, -0.15);
+    g.add(face, rim, boss);
+    B(0.09, 0.08, 0.1, 0.08, -0.06, 0.1, mat(0x2a2d33));
+    return finish(g, { muzzleF: 0.2, muzzleY: 0.02, S: 0.05, hip: [0.2, -0.2, -0.42], ads: 0.42, flash: 0xb07cff });
+  }
   if (type === 'tether') {
     const glow = new THREE.MeshBasicMaterial({ color: 0xb07cff });
     const limb = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.018, 4, 18, Math.PI * 0.9), glow);

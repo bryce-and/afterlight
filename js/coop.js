@@ -170,7 +170,7 @@ export function damageRemote(r, dmg, from) {
 /** Member: report a hit on a host-owned enemy. */
 export function sendHit(e, dmg, o) {
   lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source });
-  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, sb: o.shieldBreaker ? 1 : 0 });
+  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, sb: o.shieldBreaker ? 1 : 0 });
 }
 
 export function sendFx(msg) { if (net.active && G.state === 'playing') send(msg); }
@@ -190,7 +190,7 @@ function myState() {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId,
     x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.invisT > 0 ? 1 : 0,
     // animation: sprinting, airborne, firing, and the gun in hand
-    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, w: P.superActive ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
+    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, w: P.superActive && !P.keepsGuns ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
   };
 }
 
@@ -338,7 +338,7 @@ net.on('p', (m, from) => { if (inMission()) ensureRemote({ ...m, id: from }); })
 net.on('hit', (m, from) => {
   if (!inMission()) return;
   const e = getEnemyByNetId(m.id);
-  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, shieldBreaker: !!m.sb });
+  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, shieldBreaker: !!m.sb });
 });
 
 // both: effects
