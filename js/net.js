@@ -5,9 +5,6 @@ import { G } from './state.js';
 // members send their state, hits and effects to the host, which relays.
 
 const PEER_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
-// Cloudflare Worker that hands out short-lived TURN relay credentials (relay-worker/worker.js).
-const RELAY_URL = '';
-const STUN_ONLY = [{ urls: 'stun:stun.cloudflare.com:3478' }, { urls: 'stun:stun.l.google.com:19302' }];
 const PREFIX = 'afterlight-ft1-';
 export const MAX_FIRETEAM = 3;
 
@@ -21,7 +18,6 @@ export const net = {
   members: [], // [{ id, name, cls, power }]
   sel: null, // host's selected mission { li, mi }
   status: '',
-  relay: false, // true once Cloudflare relay credentials were fetched
   handlers: {},
   onLobby: null, // UI hook
   get active() { return this.role !== 'solo'; },
@@ -95,30 +91,10 @@ function makeCode() {
   return Array.from({ length: 6 }, () => A[Math.floor(Math.random() * A.length)]).join('');
 }
 
-/** ICE servers: Cloudflare relay when available, otherwise direct connections only. */
-async function iceServers() {
-  if (!RELAY_URL) { net.relay = false; return STUN_ONLY; }
-  try {
-    const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 5000);
-    const res = await fetch(RELAY_URL, { signal: ctl.signal });
-    clearTimeout(t);
-    const data = await res.json();
-    if (!res.ok || !Array.isArray(data.iceServers)) throw new Error(data.error || `relay returned ${res.status}`);
-    net.relay = true;
-    return data.iceServers;
-  } catch (e) {
-    console.warn('Relay credentials unavailable; using direct connections only.', e);
-    net.relay = false;
-    return STUN_ONLY;
-  }
-}
-
-async function openPeer(id) {
-  const opts = LOCAL_TEST ? null : { debug: 1, config: { iceServers: await iceServers() } };
+function openPeer(id) {
   return new Promise((res, rej) => {
     const Ctor = LOCAL_TEST ? LocalPeer : window.Peer;
-    const peer = LOCAL_TEST ? new Ctor(id) : id ? new Ctor(id, opts) : new Ctor(opts);
+    const peer = LOCAL_TEST ? new Ctor(id) : id ? new Ctor(id, { debug: 1 }) : new Ctor({ debug: 1 });
     const fail = (err) => { peer.destroy(); rej(err); };
     const t = setTimeout(() => fail(new Error('The matchmaking server did not answer. Try again in a moment.')), 12000);
     peer.on('open', (pid) => { clearTimeout(t); res(peer); });
@@ -199,9 +175,7 @@ export async function joinFireteam(code, profile) {
   const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
   await new Promise((res, rej) => {
     // the server knows the code but the direct link never opened: usually a strict network/firewall
-    const t = setTimeout(() => rej(new Error(net.relay
-      ? `Found fireteam ${code}, but couldn't connect, even through the relay. Check both connections and try again.`
-      : `Found fireteam ${code}, but couldn't connect directly, and the relay server isn't available. Some school, work, or mobile networks block direct connections.`)), 15000);
+    const t = setTimeout(() => rej(new Error(`Found fireteam ${code}, but couldn't connect to it directly. Some school, work, or mobile networks block this; try another network.`)), 12000);
     conn.on('open', () => { clearTimeout(t); res(); });
     peer.on('error', (e) => { clearTimeout(t); rej(e.type === 'peer-unavailable' ? new Error(`No fireteam found with code ${code}.`) : e); });
   }).catch((e) => { peer.destroy(); throw e; });
