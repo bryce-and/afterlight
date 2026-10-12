@@ -133,10 +133,10 @@ export const CLASSES = {
 
 // ---------- Enemies ----------
 export const ENEMY_TYPES = {
-  grunt: { hp: 95, speed: 3.4, range: 26, prefer: 14, fireCd: [1.4, 2.4], burst: 3, burstGap: 0.14, dmg: 6, projSpeed: 26, shotSize: 0.11, scale: 1.0 },
+  grunt: { hp: 95, speed: 3.4, range: 26, prefer: 14, fireCd: [1.9, 3.0], burst: 3, burstGap: 0.14, dmg: 6, projSpeed: 26, shotSize: 0.11, scale: 1.0 },
   rusher: { hp: 70, speed: 7.2, melee: true, meleeDmg: 16, scale: 0.9 },
-  captain: { hp: 300, shield: 180, speed: 3.8, range: 30, prefer: 16, fireCd: [1.2, 2.0], burst: 5, burstGap: 0.1, dmg: 7, projSpeed: 30, shotSize: 0.12, scale: 1.2 },
-  heavy: { hp: 900, speed: 2.3, range: 34, prefer: 13, fireCd: [2.2, 3.2], burst: 1, burstGap: 0.2, dmg: 26, projSpeed: 17, shotSize: 0.3, splash: 3, scale: 1.65 },
+  captain: { hp: 300, shield: 180, speed: 3.8, range: 30, prefer: 16, fireCd: [1.6, 2.6], burst: 5, burstGap: 0.1, dmg: 7, projSpeed: 30, shotSize: 0.12, scale: 1.2 },
+  heavy: { hp: 900, speed: 2.3, range: 34, prefer: 13, fireCd: [2.8, 3.8], burst: 1, burstGap: 0.2, dmg: 26, projSpeed: 17, shotSize: 0.3, splash: 3, scale: 1.65 },
   boss: { hp: 5200, shield: 1500, speed: 2.6, range: 45, prefer: 16, fireCd: [1.6, 2.4], burst: 5, burstGap: 0.12, dmg: 12, projSpeed: 24, shotSize: 0.22, splash: 2.5, scale: 2.6 },
 };
 

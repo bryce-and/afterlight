@@ -186,14 +186,14 @@ export function buildLevel(loc, def) {
         const x = z.center.x + Math.sin(a) * 24, zz = z.center.z + Math.cos(a) * 24;
         if (inBounds(x, zz, 1)) addBox(x, zz, 1.8, R(6, 10), 1.8, C.wall);
       }
-      for (let k = 0; k < 7; k++) placeRandom(weighted([[P.crate, 2], [P.wall, 3], [P.rock, 2]]), z.center.x, z.center.z, 10, 19, 2);
+      for (let k = 0; k < 11; k++) placeRandom(weighted([[P.crate, 2], [P.wall, 4], [P.rock, 2], [P.pillar, 1]]), z.center.x, z.center.z, 9, 19, 2);
     } else {
-      const n = 8 + Math.floor(rng() * 4);
-      for (let k = 0; k < n; k++) placeRandom(weighted([[P.crate, 3], [P.wall, 3], [P.rock, 2], [P.pillar, 1], [P.platform, 1], [themed, 2]]), z.center.x, z.center.z, 6, 19, 2.5);
+      const n = 12 + Math.floor(rng() * 4);
+      for (let k = 0; k < n; k++) placeRandom(weighted([[P.crate, 3], [P.wall, 4], [P.rock, 2], [P.pillar, 2], [P.platform, 1], [themed, 2]]), z.center.x, z.center.z, 5, 20, 2.2);
     }
   }
-  for (let k = 0; k < 75; k++) {
-    const fn = weighted([[P.rock, 3], [themed, 4], [P.crate, 1], [P.wall, 1]]);
+  for (let k = 0; k < 95; k++) {
+    const fn = weighted([[P.rock, 3], [themed, 4], [P.crate, 2], [P.wall, 2]]);
     const x = R(bounds.minX + 4, bounds.maxX - 4), z = R(bounds.minZ + 4, bounds.maxZ - 4);
     if (isClear(x, z, 3)) fn(x, z);
   }

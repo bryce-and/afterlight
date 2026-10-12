@@ -137,6 +137,9 @@ export class Enemy {
     this.seed = Math.random() * 100;
     this.specialT = rand(4, 6);
     this.thresholds = this.isBoss ? [0.66, 0.33] : [];
+    // shooters hide behind cover between bursts
+    this.usesCover = typeId === 'grunt' || typeId === 'captain';
+    this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0 };
     const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion' }[M.loc.id];
     this.model = buildModel(this, M.loc.colors, faction);
     this.hitMeshes = this.model.hit;
@@ -211,12 +214,19 @@ export class Enemy {
           const zig = Math.sin(G.time * 3 + this.seed) * (dist > 6 ? 0.6 : 0);
           mx = nx - nz * zig; mz = nz + nx * zig;
         }
+      } else if (this.usesCover && this.ai.state !== 'advance') {
+        const m = this.coverMove(dt);
+        mx = m.x; mz = m.z;
       } else {
         if (dist > def.prefer + 5 || (!this.los && dist > 6)) { mx = nx; mz = nz; }
         else if (dist < def.prefer - 6) { mx = -nx; mz = -nz; }
         this.strafeT -= dt;
-        if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(1.2, 3); }
-        mx += -nz * this.strafe * 0.7; mz += nx * this.strafe * 0.7;
+        if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(2, 4); }
+        mx += -nz * this.strafe * 0.35; mz += nx * this.strafe * 0.35;
+        if (this.usesCover) {
+          this.ai.t -= dt;
+          if (this.ai.t <= 0) { this.ai.t = 0.8; const c = findCover(this); if (c) { this.ai.cover = c; this.ai.state = 'toCover'; this.ai.t = 4; } }
+        }
       }
     }
     const ml = Math.hypot(mx, mz);
@@ -264,13 +274,18 @@ export class Enemy {
         m.arms.forEach((a) => (a.rotation.x += (-1.3 - a.rotation.x) * Math.min(1, dt * 6)));
       } else {
         this.fireT -= dt;
-        if (this.fireT <= 0 && this.los && dist < def.range) {
+        const mayFire = !this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance';
+        if (mayFire && this.fireT <= 0 && this.los && dist < def.range) {
           this.burstLeft = def.burst; this.burstT = 0;
           this.fireT = rand(def.fireCd[0], def.fireCd[1]) + def.burst * def.burstGap;
         }
         if (this.burstLeft > 0) {
           this.burstT -= dt;
-          if (this.burstT <= 0) { this.shoot(dist); this.burstLeft--; this.burstT = def.burstGap; }
+          if (this.burstT <= 0) {
+            this.shoot(dist); this.burstLeft--; this.burstT = def.burstGap;
+            // burst done while peeking: duck back behind cover
+            if (this.burstLeft === 0 && this.usesCover && this.ai.state === 'peek') { this.ai.state = 'toCover'; this.ai.t = 3; }
+          }
         }
       }
       if (this.isBoss) this.bossUpdate(dt, dist);
@@ -279,6 +294,39 @@ export class Enemy {
     m.group.position.copy(this.pos);
     m.group.rotation.y = this.yaw;
     return true;
+  }
+
+  /** Cover state machine: toCover -> hide -> peek (shoot one burst) -> toCover ... */
+  coverMove(dt) {
+    const A = this.ai, P = G.player;
+    A.t -= dt;
+    const go = (p) => {
+      const dx = p.x - this.pos.x, dz = p.z - this.pos.z, d = Math.hypot(dx, dz);
+      return d > 0.35 ? { x: dx / d, z: dz / d, d } : { x: 0, z: 0, d };
+    };
+    if (A.state === 'toCover') {
+      const m = go(A.cover);
+      if (m.d <= 0.35 || A.t <= 0) { A.state = 'hide'; A.t = rand(1.0, 2.2); A.exposeT = 0.5; }
+      return m;
+    }
+    if (A.state === 'hide') {
+      A.exposeT -= dt;
+      if (A.exposeT <= 0) {
+        A.exposeT = 0.5;
+        // flanked: cover no longer blocks the player's view, so find new cover
+        if (hasLOS(P.eye, _v.set(this.pos.x, this.height * 0.5, this.pos.z))) { A.state = 'advance'; A.t = 0; return { x: 0, z: 0 }; }
+      }
+      if (A.t <= 0) {
+        A.state = 'peek'; A.t = 1.8;
+        A.peek = peekPoint(this, A.cover);
+        this.fireT = Math.min(this.fireT, 0.3);
+      }
+      return { x: 0, z: 0 };
+    }
+    // peek: sidestep out until we can see the player; the firing code takes the shot
+    if (A.t <= 0) { A.state = 'hide'; A.t = rand(0.8, 1.6); return { x: 0, z: 0 }; }
+    if (this.los) return { x: 0, z: 0 };
+    return go(A.peek);
   }
 
   shoot(dist, spreadMul = 1, dirOverride = null) {
@@ -336,6 +384,51 @@ export class Enemy {
       sfx.alert();
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cover finding
+// ---------------------------------------------------------------------------
+const _c = new THREE.Vector3();
+
+/** Finds a spot behind a collider that blocks the player's view, or null. */
+function findCover(e) {
+  const P = G.player;
+  const b = G.level.bounds;
+  let best = null, bestScore = Infinity;
+  for (const c of G.colliders) {
+    const hx = (c.max.x - c.min.x) / 2, hz = (c.max.z - c.min.z) / 2, h = c.max.y - c.min.y;
+    if (h < 1.0 || hx > 15 || hz > 15) continue; // too low to hide behind, or a boundary wall
+    const cx = (c.min.x + c.max.x) / 2, cz = (c.min.z + c.max.z) / 2;
+    const toE = Math.hypot(cx - e.pos.x, cz - e.pos.z);
+    if (toE > 14) continue;
+    let dx = cx - P.pos.x, dz = cz - P.pos.z;
+    const dl = Math.hypot(dx, dz) || 1;
+    dx /= dl; dz /= dl;
+    const edge = Math.min(Math.abs(dx) > 1e-3 ? hx / Math.abs(dx) : Infinity, Math.abs(dz) > 1e-3 ? hz / Math.abs(dz) : Infinity);
+    const off = edge + e.radius + 0.35;
+    _c.set(cx + dx * off, 0, cz + dz * off);
+    const pd = Math.hypot(_c.x - P.pos.x, _c.z - P.pos.z);
+    if (pd < 7 || pd > e.def.range) continue;
+    if (_c.x < b.minX + 1 || _c.x > b.maxX - 1 || _c.z < b.minZ + 1 || _c.z > b.maxZ - 1) continue;
+    if (pointInColliders(_c.clone().setY(0.5), e.radius)) continue;
+    if (hasLOS(P.eye, _c.clone().setY(Math.min(1.0, h - 0.1)))) continue; // must actually block the view
+    const score = toE + Math.abs(pd - e.def.prefer) * 0.4;
+    if (score < bestScore) { bestScore = score; best = _c.clone(); }
+  }
+  return best;
+}
+
+/** A spot just to the side of cover, where the shooter can see the player. */
+function peekPoint(e, cover) {
+  const P = G.player;
+  const dx = P.pos.x - cover.x, dz = P.pos.z - cover.z, d = Math.hypot(dx, dz) || 1;
+  const px = -dz / d, pz = dx / d;
+  for (const s of Math.random() < 0.5 ? [1, -1] : [-1, 1]) {
+    const p = new THREE.Vector3(cover.x + px * s * 1.8 + (dx / d) * 0.6, 0, cover.z + pz * s * 1.8 + (dz / d) * 0.6);
+    if (!pointInColliders(p.clone().setY(0.5), e.radius)) return p;
+  }
+  return new THREE.Vector3(cover.x + (dx / d) * 1.5, 0, cover.z + (dz / d) * 1.5);
 }
 
 // ---------------------------------------------------------------------------
