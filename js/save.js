@@ -16,7 +16,9 @@ export function loadSave() {
       grantArmory(s);
       if (!s.namesV3) { s.inventory.forEach(modernizeItem); s.namesV3 = true; writeSave(s); }
       if (!s.heavyExoticsV4) { migrateHeavyExotics(s); s.heavyExoticsV4 = true; writeSave(s); }
+      const exoticsFresh = !s.exoticsV5; // regenerated from current stats, so already balanced
       if (!s.exoticsV5) { upgradeExotics(s); s.exoticsV5 = true; writeSave(s); }
+      if (!s.balanceV6) { rebalanceWeapons(s, exoticsFresh); s.balanceV6 = true; writeSave(s); }
       return s;
     }
     console.error('Save file has an unexpected shape; ignoring it.', s);
@@ -40,11 +42,24 @@ export function createSave(classId) {
   for (const it of gear) s.equipped[it.slot] = it.id;
   grantArmory(s);
   s.namesV3 = true;
+  s.balanceV6 = true;
   writeSave(s);
   return s;
 }
 
 /** Rebuild owned exotics with their signature perks and handling (keeps id, power, slot equip). */
+// Weapon balance pass: damage is rolled into each item when it drops, so owned
+// weapons are rescaled by how much their archetype's base damage changed.
+const BALANCE_V6 = { shotgun: 23 / 16, sniper: 360 / 260, fusion: 52 / 38, rocket: 900 / 560, glauncher: 380 / 260, mg: 32 / 26 };
+function rebalanceWeapons(s, skipExotics) {
+  for (const it of s.inventory) {
+    if (it.kind !== 'weapon' || (skipExotics && it.rarity === 'exotic')) continue;
+    let k = BALANCE_V6[it.arch] ?? 1;
+    if (it.slot === 'heavy' && it.reserve != null) k *= 1.4 / 1.7; // heavy versions of special exotics (multiplier 1.7 -> 1.4)
+    it.stats.dmg = +(it.stats.dmg * k).toFixed(1);
+  }
+}
+
 function upgradeExotics(s) {
   for (let i = 0; i < s.inventory.length; i++) {
     const it = s.inventory[i];
