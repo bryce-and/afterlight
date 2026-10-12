@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ELEMENTS } from './data.js';
+import { buildGunModel } from './models.js';
 
 // Low-poly Guardian models for the Character screen. Units are metres; the
 // figure stands on y = 0 facing +z (toward the camera).
@@ -184,21 +185,67 @@ export function buildCharacter(classId, elementId) {
   group.add(disc, ring);
   const gh = ghost();
   group.add(gh);
-  let t = Math.random() * 10;
+  let t = Math.random() * 10, phase = 0, gun = null;
+  const knee = (leg) => leg.children[2];
+  const elbow = (arm) => arm.children[1];
+  const towards = (cur, target, k) => cur + (target - cur) * k;
   return {
     group,
-    update(dt) {
+    /** Hold a weapon (item-like { arch, rarity, element }) or null for empty hands. */
+    get gun() { return gun; },
+    setGun(item) {
+      if (gun) { b.torso.remove(gun); gun = null; }
+      if (!item) return;
+      gun = buildGunModel(item);
+      gun.traverse((o) => { o.userData.gunPart = true; if (o.userData.hand) o.visible = false; });
+      gun.userData.flash.visible = false;
+      gun.rotation.order = 'YXZ';
+      gun.position.set(-0.2, 0.42, 0.3); // right hand, chest height (the figure faces +z, its right is -x)
+      b.torso.add(gun);
+    },
+    /** pose: null = idle on the Character screen; otherwise { speed, sprint, air, pitch, firing, dead }. */
+    update(dt, pose = null) {
       t += dt;
       const br = Math.sin(t * 1.6);
-      b.torso.position.y = 0.98 + br * 0.006;
-      b.chest.scale.set(1 + br * 0.01, 1, 1 + br * 0.015);
-      b.arms[0].rotation.z = -0.12 - br * 0.02;
-      b.arms[1].rotation.z = 0.12 + br * 0.02;
-      b.head.rotation.y = Math.sin(t * 0.4) * 0.12;
-      if (b.cloak) b.cloak.rotation.x = 0.05 + Math.sin(t * 1.3) * 0.03;
+      if (b.cloak) b.cloak.rotation.x = 0.05 + Math.sin(t * 1.3) * 0.03 + (pose ? Math.min(0.5, (pose.speed || 0) * 0.05) : 0);
       if (b.robe) b.robe.rotation.y = Math.sin(t * 0.9) * 0.03;
       gh.position.set(0.55 + Math.sin(t * 0.7) * 0.05, 1.85 + Math.sin(t * 1.9) * 0.05, 0.25);
       gh.rotation.set(Math.sin(t) * 0.2, -0.5 + Math.sin(t * 0.6) * 0.3, t * 0.3);
+      if (!pose) {
+        b.torso.position.y = 0.98 + br * 0.006;
+        b.chest.scale.set(1 + br * 0.01, 1, 1 + br * 0.015);
+        b.arms[0].rotation.z = -0.12 - br * 0.02;
+        b.arms[1].rotation.z = 0.12 + br * 0.02;
+        b.head.rotation.y = Math.sin(t * 0.4) * 0.12;
+        return;
+      }
+      const k = Math.min(1, dt * 12);
+      const speed = pose.speed || 0, pitch = pose.pitch || 0;
+      // legs: walk / run cycle, tucked in the air
+      phase += dt * speed * (pose.sprint ? 1.25 : 1.55);
+      const amp = Math.min(1, speed / 6) * (pose.sprint ? 0.95 : 0.6);
+      const sw = Math.sin(phase);
+      const hipT = pose.air ? [-0.7, -0.35] : [sw * amp, -sw * amp];
+      const kneeT = pose.air ? [1.1, 0.6] : [Math.max(0, Math.sin(phase + 1.6)) * amp * 1.3, Math.max(0, Math.sin(phase + 1.6 + Math.PI)) * amp * 1.3];
+      b.legs.forEach((leg, i) => { leg.rotation.x = towards(leg.rotation.x, hipT[i], k); knee(leg).rotation.x = towards(knee(leg).rotation.x, kneeT[i], k); });
+      // torso: bob while moving, lean forward when sprinting
+      b.torso.position.y = 0.98 - (pose.air ? 0.05 : Math.abs(Math.sin(phase)) * 0.045 * Math.min(1, speed / 4));
+      b.torso.rotation.x = towards(b.torso.rotation.x, pose.sprint ? 0.25 : 0, k);
+      b.head.rotation.x = towards(b.head.rotation.x, -pitch * 0.6 - (pose.sprint ? 0.2 : 0), k);
+      b.head.rotation.y = 0;
+      // arms: shouldered weapon aimed with the look pitch, lowered while sprinting
+      const aim = pose.sprint ? -0.55 : -1.35 - pitch * 0.85;
+      const kick = pose.firing ? Math.random() * 0.08 : 0;
+      b.arms[0].rotation.x = towards(b.arms[0].rotation.x, aim + kick, k);
+      b.arms[0].rotation.z = towards(b.arms[0].rotation.z, pose.sprint ? -0.15 : 0.1, k);
+      b.arms[1].rotation.x = towards(b.arms[1].rotation.x, (pose.sprint ? -0.4 : -1.2 - pitch * 0.85) + kick, k);
+      b.arms[1].rotation.z = towards(b.arms[1].rotation.z, pose.sprint ? 0.2 : -0.55, k);
+      elbow(b.arms[0]).rotation.x = towards(elbow(b.arms[0]).rotation.x, pose.sprint ? -0.9 : -0.15, k);
+      elbow(b.arms[1]).rotation.x = towards(elbow(b.arms[1]).rotation.x, pose.sprint ? -0.9 : -0.35, k);
+      if (gun) {
+        gun.rotation.set(towards(gun.rotation.x, pose.sprint ? 0.7 : pitch, k), Math.PI, pose.sprint ? -0.6 : 0);
+        gun.userData.flash.visible = !!pose.firing && Math.random() < 0.5;
+      }
     },
   };
 }

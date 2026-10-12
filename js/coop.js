@@ -112,7 +112,13 @@ export function fxProjectile(o) {
 // ---------------------------------------------------------------------------
 function myState() {
   const P = G.player;
-  return { id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.invisT > 0 ? 1 : 0 };
+  const wi = P.weapon.item;
+  return {
+    id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId,
+    x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.invisT > 0 ? 1 : 0,
+    // animation: sprinting, airborne, firing, and the gun in hand
+    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, w: P.superActive ? '' : `${wi.arch}|${wi.rarity}|${wi.element}`,
+  };
 }
 
 export function netTick(dt) {
@@ -166,7 +172,7 @@ function ensureRemote(st) {
 }
 
 function removeAvatar(r) {
-  if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; }
+  if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; r.gunKey = undefined; r.wasInv = false; }
   r.plate?.remove(); r.plate = null;
 }
 
@@ -187,7 +193,21 @@ function updateAvatars(dt) {
     g.position.copy(r.pos);
     g.rotation.y = r.yaw + Math.PI;
     g.rotation.x = r.dead ? -1.4 : 0;
-    r.avatar.update(dt);
+    const st = r.state || {};
+    const gunKey = st.w ?? '';
+    if (r.gunKey !== gunKey) {
+      r.gunKey = gunKey;
+      const [arch, rarity, element] = gunKey.split('|');
+      r.avatar.setGun(gunKey ? { arch, rarity, element } : null);
+    }
+    r.avatar.update(dt, { speed: Math.hypot(r.vel.x, r.vel.z), sprint: !!st.s, air: !!st.a, pitch: st.pt || 0, firing: !!st.f });
+    // Vanishing Step: barely visible to teammates too
+    if (r.wasInv !== r.inv) {
+      r.wasInv = r.inv;
+      // character materials are per-avatar; gun materials are shared, so hide the gun instead of fading it
+      r.avatar.group.traverse((o) => { if (o.material && !o.userData.gunPart) { o.material.transparent = r.inv; o.material.opacity = r.inv ? 0.18 : 1; } });
+      if (r.avatar.gun) r.avatar.gun.visible = !r.inv;
+    }
     _p.set(r.pos.x, r.pos.y + 2.35, r.pos.z).project(G.camera);
     if (r.plate) {
       const vis = _p.z < 1;

@@ -13,7 +13,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{
+ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "./js/abilities.js": "./js/abilities.js?v=dev1",
+  "./js/audio.js": "./js/audio.js?v=dev1",
+  "./js/characters.js": "./js/characters.js?v=dev1",
+  "./js/coop.js": "./js/coop.js?v=dev1",
+  "./js/data.js": "./js/data.js?v=dev1",
+  "./js/effects.js": "./js/effects.js?v=dev1",
+  "./js/enemies.js": "./js/enemies.js?v=dev1",
+  "./js/game.js": "./js/game.js?v=dev1",
+  "./js/icons.js": "./js/icons.js?v=dev1",
+  "./js/loot.js": "./js/loot.js?v=dev1",
+  "./js/main.js": "./js/main.js?v=dev1",
+  "./js/models.js": "./js/models.js?v=dev1",
+  "./js/net.js": "./js/net.js?v=dev1",
+  "./js/physics.js": "./js/physics.js?v=dev1",
+  "./js/player.js": "./js/player.js?v=dev1",
+  "./js/save.js": "./js/save.js?v=dev1",
+  "./js/state.js": "./js/state.js?v=dev1",
+  "./js/ui.js": "./js/ui.js?v=dev1",
+  "./js/util.js": "./js/util.js?v=dev1",
+  "./js/world.js": "./js/world.js?v=dev1"
+ }
+}
 </script>
 </head>
 <body>
@@ -72,6 +96,6 @@
 <div id="failed" class="screen overlay hidden"></div>
 
 <noscript>Afterlight needs JavaScript to run.</noscript>
-<script type="module" src="js/main.js"></script>
+<script type="module">import './js/main.js';</script>
 </body>
 </html>
