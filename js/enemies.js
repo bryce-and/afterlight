@@ -336,7 +336,7 @@ export class Enemy {
     this.burstLeft = 0; this.burstT = 0;
     this.strafe = Math.random() < 0.5 ? -1 : 1; this.strafeT = rand(1, 3);
     this.losT = Math.random() * 0.3; this.los = false;
-    this.meleeT = 0.5; this.flash = 0; this.walk = Math.random() * 6; this.yaw = 0;
+    this.meleeT = 0.5; this.windup = 0; this.lunge = 0; this.lungeHit = false; this.lungeDir = new THREE.Vector3(); this.flash = 0; this.walk = Math.random() * 6; this.yaw = 0;
     this.knock = new THREE.Vector3();
     this.seed = Math.random() * 100;
     this.specialT = rand(4, 6);
@@ -415,7 +415,8 @@ export class Enemy {
     let mx = 0, mz = 0;
     if (!P.dead) {
       if (def.melee) {
-        if (dist > 1.5) {
+        if (this.windup > 0 || this.lunge > 0) { /* rooted while winding up; lunge moves below */ }
+        else if (dist > 1.5) {
           const zig = Math.sin(G.time * 3 + this.seed) * (dist > 6 ? 0.6 : 0);
           mx = nx - nz * zig; mz = nz + nx * zig;
         }
@@ -439,6 +440,7 @@ export class Enemy {
     if (ml > 0) { mx /= ml; mz /= ml; }
     this.pos.x += (mx * speed + this.knock.x) * dt;
     this.pos.z += (mz * speed + this.knock.z) * dt;
+    if (this.lunge > 0) this.pos.addScaledVector(this.lungeDir, 11 * dt);
     this.knock.multiplyScalar(Math.exp(-6 * dt));
     for (const o of G.enemies) {
       if (o === this || !o.alive) continue;
@@ -468,15 +470,35 @@ export class Enemy {
     // ---- attacks ----
     if (!P.dead) {
       if (def.melee) {
+        // wind up, then lunge ~3m; the hit lands if the player is in reach during the lunge
         this.meleeT -= dt;
         const vdy = Math.abs(P.pos.y - this.pos.y);
-        if (dist < 1.9 && vdy < 1.6 && this.meleeT <= 0) {
-          this.meleeT = 1.1;
-          damagePlayer(def.meleeDmg * this.dmgMult, this.pos);
-          m.arms.forEach((a) => (a.rotation.x = -2.2));
-          sfx.melee();
+        const reach = 1.25 + this.radius;
+        if (this.windup > 0) {
+          this.windup -= dt;
+          m.torso.rotation.x = (m.torso.userData.rx ?? (m.torso.userData.rx = m.torso.rotation.x)) - 0.35;
+          m.arms.forEach((a) => (a.rotation.x = -2.4));
+          if (this.windup <= 0) {
+            this.lunge = 0.26; this.lungeHit = false;
+            this.lungeDir.set(nx, 0, nz);
+          }
+        } else if (this.lunge > 0) {
+          this.lunge -= dt;
+          m.torso.rotation.x = (m.torso.userData.rx ?? 0) + 0.3;
+          if (!this.lungeHit && dist < reach && vdy < 2.2) {
+            this.lungeHit = true;
+            damagePlayer(def.meleeDmg * this.dmgMult, this.pos);
+            m.arms.forEach((a) => (a.rotation.x = -0.6));
+            sfx.melee();
+            P.shake = Math.max(P.shake, 0.2);
+            P.vel.x += this.lungeDir.x * 5; P.vel.z += this.lungeDir.z * 5;
+          }
+          if (this.lunge <= 0 && m.torso.userData.rx !== undefined) m.torso.rotation.x = m.torso.userData.rx;
+        } else if (dist < 3.4 && vdy < 2.2 && this.meleeT <= 0 && this.los) {
+          this.windup = 0.22; this.meleeT = 1.2;
+          sfx.enemyShot();
         }
-        m.arms.forEach((a) => (a.rotation.x += (-1.3 - a.rotation.x) * Math.min(1, dt * 6)));
+        if (this.windup <= 0 && this.lunge <= 0) m.arms.forEach((a) => (a.rotation.x += (-1.3 - a.rotation.x) * Math.min(1, dt * 6)));
       } else {
         this.fireT -= dt;
         const mayFire = !this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance';
