@@ -1,0 +1,329 @@
+import * as THREE from 'three';
+import { mulberry32, hashStr } from './util.js';
+
+const matCache = new Map();
+export function mat(color, o = {}) {
+  const key = `${color}|${o.emissive ?? ''}|${o.emissiveIntensity ?? ''}|${o.opacity ?? ''}`;
+  let m = matCache.get(key);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, metalness: 0.05, ...o });
+    matCache.set(key, m);
+  }
+  return m;
+}
+
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+
+// ---------------------------------------------------------------------------
+// Mission level
+// ---------------------------------------------------------------------------
+export function buildLevel(loc, def) {
+  const rng = mulberry32(hashStr(def.id));
+  const R = (a, b) => a + rng() * (b - a);
+  const RP = (arr) => arr[Math.floor(rng() * arr.length)];
+  const C = loc.colors;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(C.sky);
+  scene.fog = new THREE.Fog(C.fog, loc.fog[0], loc.fog[1]);
+  scene.add(new THREE.HemisphereLight(C.hemiTop, C.hemiBot, loc.light.hemi));
+  const sun = new THREE.DirectionalLight(C.sun, loc.light.sun);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 1, far: 220 });
+  sun.shadow.bias = -0.0006;
+  sun.shadow.normalBias = 0.03;
+  scene.add(sun, sun.target);
+  const sunOffset = new THREE.Vector3(...loc.sunDir).normalize().multiplyScalar(90);
+
+  // sky body (planet / moon hanging in the sky)
+  const sb = new THREE.Mesh(new THREE.IcosahedronGeometry(loc.skyBody.size, 2), new THREE.MeshBasicMaterial({ color: loc.skyBody.color, fog: false }));
+  sb.position.set(...loc.skyBody.pos);
+  scene.add(sb);
+
+  // ---- zones ----
+  const names = [...loc.zoneNames].sort(() => rng() - 0.5);
+  const zones = [];
+  for (let i = 0; i < def.zones; i++) {
+    const isBoss = i === def.zones - 1;
+    const z = -(i + 1) * 58 - (isBoss ? 12 : 0);
+    const x = isBoss ? 0 : R(-26, 26);
+    zones.push({ center: new THREE.Vector3(x, 0, z), isBoss, name: names[i] });
+  }
+  const spawn = new THREE.Vector3(0, 0, 14);
+  const bounds = { minX: -66, maxX: 66, minZ: zones[zones.length - 1].center.z - 40, maxZ: 28 };
+
+  // ---- ground ----
+  const s1 = rng() * 100;
+  const heightAt = (x, z) => {
+    const n = Math.sin(x * 0.11 + s1) * Math.cos(z * 0.09 - s1) + 0.6 * Math.sin((x + z) * 0.23 + s1 * 2) + 0.3 * Math.cos(x * 0.41 - z * 0.37);
+    const out = Math.max(0, bounds.minX - x, x - bounds.maxX, bounds.minZ - z, z - bounds.maxZ);
+    if (out <= 0) return n * 0.12;
+    return n * 0.12 + Math.min(out, 90) * 0.7 * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
+  };
+  scene.add(buildGround(bounds, C, heightAt, rng));
+
+  // ---- obstacles ----
+  const colliders = [], staticMeshes = [];
+  const clear = [{ x: spawn.x, z: spawn.z, r: 7 }, ...zones.map((z) => ({ x: z.center.x, z: z.center.z, r: z.isBoss ? 9 : 4.5 }))];
+  const inBounds = (x, z, r) => x - r > bounds.minX + 1 && x + r < bounds.maxX - 1 && z - r > bounds.minZ + 1 && z + r < bounds.maxZ - 1;
+  const isClear = (x, z, r) => inBounds(x, z, r) && clear.every((c) => (x - c.x) ** 2 + (z - c.z) ** 2 > (c.r + r) ** 2);
+
+  const addCollider = (minX, minY, minZ, maxX, maxY, maxZ, mesh) => {
+    colliders.push({ min: new THREE.Vector3(minX, minY, minZ), max: new THREE.Vector3(maxX, maxY, maxZ) });
+    if (mesh) staticMeshes.push(mesh);
+  };
+  const addBox = (x, z, w, h, d, color, y = 0, collide = true, matOpts) => {
+    const m = new THREE.Mesh(BOX, mat(color, matOpts));
+    m.scale.set(w, h, d);
+    m.position.set(x, y + h / 2, z);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    if (collide) addCollider(x - w / 2, y, z - d / 2, x + w / 2, y + h, z + d / 2, m);
+    return m;
+  };
+  const addRock = (x, z, s, y = 0, collide = true) => {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), mat(RP([C.rock, C.rock2])));
+    const sy = R(0.6, 1.1);
+    m.scale.set(R(0.9, 1.2), sy, R(0.9, 1.2));
+    m.rotation.y = R(0, 6.28);
+    m.position.set(x, y + s * sy * 0.45, z);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    const hw = s * 0.75;
+    if (collide) addCollider(x - hw, y, z - hw, x + hw, y + s * sy * 1.25, z + hw, m);
+  };
+  const addMesh = (geo, color, x, y, z, matOpts) => {
+    const m = new THREE.Mesh(geo, mat(color, matOpts));
+    m.position.set(x, y, z);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    return m;
+  };
+
+  const P = {
+    crate: (x, z) => { const s = R(1.1, 1.6); addBox(x, z, s, s, s, RP([C.metal, C.accent, C.crate])); if (rng() < 0.4) addBox(x + R(-0.2, 0.2), z + R(-0.2, 0.2), s * 0.7, s * 0.7, s * 0.7, C.metal, s); },
+    wall: (x, z) => { const len = R(4, 8), h = R(1.3, 2.8); if (rng() < 0.5) addBox(x, z, len, h, 0.8, C.wall); else addBox(x, z, 0.8, h, len, C.wall); },
+    pillar: (x, z) => { const h = R(3, 7); addBox(x, z, 1.4, h, 1.4, C.wall); if (rng() < 0.5) addBox(x, z, 1.9, 0.4, 1.9, C.metal, h); },
+    platform: (x, z) => { const w = R(5, 8), d = R(5, 8); addBox(x, z, w, 1.1, d, C.wall); addBox(x + w / 2 + 0.7, z, 1.4, 0.55, 1.6, C.metal); },
+    rock: (x, z) => addRock(x, z, R(1.2, 3)),
+  };
+
+  const themed = {
+    earth: (x, z, y = 0, col = true) => {
+      const t = rng();
+      if (t < 0.45) { // rusted car hulk
+        const rot = rng() < 0.5;
+        const w = rot ? 1.9 : 4.2, d = rot ? 4.2 : 1.9;
+        const col1 = RP([C.accent, 0x8e4a2a, 0x6b5a4a]);
+        addBox(x, z, w, 1.0, d, col1, y + 0.25, col);
+        addBox(x + (rot ? 0 : -0.3), z + (rot ? -0.3 : 0), rot ? 1.7 : 2.2, 0.8, rot ? 2.2 : 1.7, col1, y + 1.25, col);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) addBox(x + sx * (w / 2 - 0.3), z + sz * (d / 2 - 0.6), rot ? 0.3 : 0.6, 0.5, rot ? 0.6 : 0.3, 0x222222, y, false);
+      } else if (t < 0.8) { // pine tree
+        const h = R(4, 7);
+        addMesh(new THREE.CylinderGeometry(0.18, 0.28, h * 0.5, 5), 0x4a3a2a, x, y + h * 0.25, z);
+        for (let k = 0; k < 3; k++) addMesh(new THREE.ConeGeometry(1.6 - k * 0.4, h * 0.38, 6), C.foliage, x, y + h * (0.45 + k * 0.17), z);
+        if (col) addCollider(x - 0.35, y, z - 0.35, x + 0.35, y + h, z + 0.35, null);
+      } else { // fuel tank
+        const r = R(1.6, 2.4), h = R(2.5, 4);
+        const m = addMesh(new THREE.CylinderGeometry(r, r, h, 8), C.metal, x, y + h / 2, z);
+        addMesh(new THREE.CylinderGeometry(r * 1.02, r * 1.02, 0.25, 8), C.accent, x, y + h * 0.7, z);
+        if (col) addCollider(x - r * 0.85, y, z - r * 0.85, x + r * 0.85, y + h, z + r * 0.85, m);
+      }
+    },
+    moon: (x, z, y = 0, col = true) => {
+      if (rng() < 0.5) { // glowing crystal cluster
+        const n = 3 + Math.floor(rng() * 3);
+        let main = null;
+        for (let k = 0; k < n; k++) {
+          const s = R(0.5, 1.4);
+          const m = addMesh(new THREE.OctahedronGeometry(s, 0), C.accent, x + R(-1, 1), y + s * 0.8, z + R(-1, 1), { emissive: C.accent, emissiveIntensity: 0.9 });
+          m.scale.y = R(1.5, 2.6); m.rotation.set(R(-0.3, 0.3), R(0, 6), R(-0.3, 0.3));
+          if (!main) main = m;
+        }
+        if (col) addCollider(x - 1.2, y, z - 1.2, x + 1.2, y + 2.5, z + 1.2, main);
+      } else { // bone spire
+        const r = R(0.8, 1.5), h = R(5, 11);
+        const m = addMesh(new THREE.ConeGeometry(r, h, 5), 0xcfc8b2, x, y + h / 2, z);
+        m.rotation.z = R(-0.12, 0.12);
+        if (col) addCollider(x - r * 0.6, y, z - r * 0.6, x + r * 0.6, y + h * 0.7, z + r * 0.6, m);
+      }
+    },
+    mars: (x, z, y = 0, col = true) => {
+      if (rng() < 0.55) { // mesa
+        const r = R(2.5, 5), h = R(3, 8);
+        const m = addMesh(new THREE.CylinderGeometry(r * 0.8, r, h, 7), RP([C.rock, C.rock2]), x, y + h / 2, z);
+        if (col) addCollider(x - r * 0.75, y, z - r * 0.75, x + r * 0.75, y + h, z + r * 0.75, m);
+      } else { // half-buried dome
+        const r = R(2, 3.5);
+        const m = addMesh(new THREE.SphereGeometry(r, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), C.metal, x, y, z);
+        addMesh(new THREE.TorusGeometry(r * 0.98, 0.12, 4, 12).rotateX(Math.PI / 2), C.accent, x, y + 0.2, z, { emissive: C.accent, emissiveIntensity: 0.4 });
+        if (col) addCollider(x - r * 0.7, y, z - r * 0.7, x + r * 0.7, y + r * 0.85, z + r * 0.7, m);
+      }
+    },
+  }[loc.id];
+
+  const placeRandom = (fn, cx, cz, rMin, rMax, size = 3) => {
+    for (let t = 0; t < 12; t++) {
+      const a = R(0, Math.PI * 2), r = R(rMin, rMax);
+      const x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
+      if (isClear(x, z, size)) { fn(x, z); return true; }
+    }
+    return false;
+  };
+  const weighted = (table) => {
+    const total = table.reduce((s, t) => s + t[1], 0);
+    let r = rng() * total;
+    for (const [fn, w] of table) { r -= w; if (r <= 0) return fn; }
+    return table[0][0];
+  };
+
+  for (const z of zones) {
+    if (z.isBoss) {
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + 0.2;
+        const x = z.center.x + Math.sin(a) * 24, zz = z.center.z + Math.cos(a) * 24;
+        if (inBounds(x, zz, 1)) addBox(x, zz, 1.8, R(6, 10), 1.8, C.wall);
+      }
+      for (let k = 0; k < 7; k++) placeRandom(weighted([[P.crate, 2], [P.wall, 3], [P.rock, 2]]), z.center.x, z.center.z, 10, 19, 2);
+    } else {
+      const n = 8 + Math.floor(rng() * 4);
+      for (let k = 0; k < n; k++) placeRandom(weighted([[P.crate, 3], [P.wall, 3], [P.rock, 2], [P.pillar, 1], [P.platform, 1], [themed, 2]]), z.center.x, z.center.z, 6, 19, 2.5);
+    }
+  }
+  for (let k = 0; k < 75; k++) {
+    const fn = weighted([[P.rock, 3], [themed, 4], [P.crate, 1], [P.wall, 1]]);
+    const x = R(bounds.minX + 4, bounds.maxX - 4), z = R(bounds.minZ + 4, bounds.maxZ - 4);
+    if (isClear(x, z, 3)) fn(x, z);
+  }
+  // edge scenery on the slopes (no collision)
+  for (let k = 0; k < 70; k++) {
+    const side = Math.floor(rng() * 4);
+    const off = R(6, 45);
+    let x, z;
+    if (side === 0) { x = bounds.minX - off; z = R(bounds.minZ - 40, bounds.maxZ + 40); }
+    else if (side === 1) { x = bounds.maxX + off; z = R(bounds.minZ - 40, bounds.maxZ + 40); }
+    else if (side === 2) { z = bounds.minZ - off; x = R(bounds.minX - 40, bounds.maxX + 40); }
+    else { z = bounds.maxZ + off; x = R(bounds.minX - 40, bounds.maxX + 40); }
+    const y = heightAt(x, z) - 0.6;
+    if (rng() < 0.5) addRock(x, z, R(3, 8), y, false); else themed(x, z, y, false);
+  }
+  // invisible boundary walls
+  const T = 200;
+  addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.minX, T, bounds.maxZ + 10, null);
+  addCollider(bounds.maxX, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.maxZ + 10, null);
+  addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.minZ, null);
+  addCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
+
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds };
+}
+
+function buildGround(bounds, C, heightAt, rng) {
+  const pad = 130;
+  const minX = bounds.minX - pad, maxX = bounds.maxX + pad, minZ = bounds.minZ - pad, maxZ = bounds.maxZ + pad;
+  const W = maxX - minX, D = maxZ - minZ;
+  const geo = new THREE.PlaneGeometry(W, D, Math.round(W / 5), Math.round(D / 5));
+  geo.rotateX(-Math.PI / 2);
+  geo.translate((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
+  const g2 = geo.toNonIndexed();
+  g2.computeVertexNormals();
+  const p2 = g2.attributes.position;
+  const colors = new Float32Array(p2.count * 3);
+  const c = new THREE.Color(), cA = new THREE.Color(C.ground), cB = new THREE.Color(C.ground2), rA = new THREE.Color(C.rock), rB = new THREE.Color(C.rock2);
+  for (let i = 0; i < p2.count; i += 3) {
+    const y = (p2.getY(i) + p2.getY(i + 1) + p2.getY(i + 2)) / 3;
+    if (y > 1.2) c.lerpColors(rA, rB, rng()); else c.lerpColors(cA, cB, rng());
+    for (let k = 0; k < 3; k++) { colors[(i + k) * 3] = c.r; colors[(i + k) * 3 + 1] = c.g; colors[(i + k) * 3 + 2] = c.b; }
+  }
+  g2.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mesh = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }));
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// ---------------------------------------------------------------------------
+// Orbit / menu backdrop: a spinning low-poly planet in a starfield
+// ---------------------------------------------------------------------------
+function planetNoise(v) {
+  return Math.sin(v.x * 3.1 + 1.3) * Math.sin(v.y * 2.7 + 0.4) * Math.sin(v.z * 3.3 + 2.1)
+    + 0.5 * Math.sin(v.x * 7.3 - v.z * 5.1 + v.y * 6.2)
+    + 0.25 * Math.sin(v.x * 13 + v.y * 11 - v.z * 9);
+}
+
+function buildPlanet(loc) {
+  const geo = new THREE.IcosahedronGeometry(3.2, 4);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  const elev = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).normalize();
+    let n = planetNoise(v);
+    if (loc.planetColors.sea) n = Math.max(n, 0);
+    elev[i] = n;
+    v.multiplyScalar(3.2 * (1 + n * 0.055));
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  const cols = loc.planetColors.c.map((h) => new THREE.Color(h));
+  const colors = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i += 3) {
+    const e = Math.max(elev[i], elev[i + 1], elev[i + 2]);
+    const c = e <= 0.0 ? cols[0] : e < 0.35 ? cols[1] : e < 0.75 ? cols[2] : cols[3];
+    for (let k = 0; k < 3; k++) { colors[(i + k) * 3] = c.r; colors[(i + k) * 3 + 1] = c.g; colors[(i + k) * 3 + 2] = c.b; }
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const planet = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
+  const atmo = new THREE.Mesh(new THREE.IcosahedronGeometry(3.55, 3), new THREE.MeshBasicMaterial({ color: loc.atmo, transparent: true, opacity: 0.12, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const g = new THREE.Group();
+  g.add(planet, atmo);
+  return g;
+}
+
+export function createMenuScene() {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x04060a);
+  const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 1000);
+  camera.position.set(0, 0.6, 18);
+  scene.add(new THREE.HemisphereLight(0x8899bb, 0x050608, 0.5));
+  const key = new THREE.DirectionalLight(0xffffff, 3.2);
+  key.position.set(-10, 4, 8);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x6fa8ff, 1.0);
+  rim.position.set(8, -2, -6);
+  scene.add(rim);
+
+  const starGeo = new THREE.BufferGeometry();
+  const sp = new Float32Array(2400 * 3);
+  for (let i = 0; i < 2400; i++) {
+    const v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(200 + Math.random() * 100);
+    sp.set([v.x, v.y, v.z], i * 3);
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false }));
+  scene.add(stars);
+
+  const holder = new THREE.Group();
+  holder.position.set(4.4, -0.2, 0);
+  holder.rotation.z = 0.25;
+  scene.add(holder);
+  let planet = null, currentId = null;
+
+  return {
+    scene, camera,
+    setLocation(loc) {
+      if (currentId === loc.id) return;
+      currentId = loc.id;
+      if (planet) holder.remove(planet);
+      planet = buildPlanet(loc);
+      holder.add(planet);
+    },
+    setOffset(x) { holder.position.x = x; },
+    update(dt) {
+      if (planet) planet.rotation.y += dt * 0.08;
+      stars.rotation.y += dt * 0.004;
+    },
+    resize() { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); },
+  };
+}

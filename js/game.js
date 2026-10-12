@@ -1,0 +1,552 @@
+import * as THREE from 'three';
+import { G, unlockPointer } from './state.js';
+import { LOCATIONS, ELEMENTS, ENERGY, RARITIES, rarityIndex } from './data.js';
+import { buildLevel, mat } from './world.js';
+import { Enemy, updateEnemyShots } from './enemies.js';
+import { Player } from './player.js';
+import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight } from './effects.js';
+import { explosionFx } from './effects.js';
+import { pointInColliders } from './physics.js';
+import { rollItem, rollRarityIdx, MAX_POWER } from './loot.js';
+import { addItem, writeSave, playerPower } from './save.js';
+import { sfx } from './audio.js';
+import * as ui from './ui.js';
+import { rand, randInt, pick, clamp } from './util.js';
+
+const _c = new THREE.Vector3();
+
+// ---------------------------------------------------------------------------
+// Mission lifecycle
+// ---------------------------------------------------------------------------
+export function startMission(li, mi) {
+  const loc = LOCATIONS[li], def = loc.missions[mi], g = li * 3 + mi;
+  cleanupMission();
+  const level = buildLevel(loc, def);
+  G.level = level;
+  G.scene = level.scene;
+  G.colliders = level.colliders;
+  G.staticMeshes = level.staticMeshes;
+  G.hitDirty = true;
+  G.scene.add(G.camera);
+  initEffects(G.scene);
+  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
+  const pp = playerPower(G.save);
+  const delta = clamp(pp - def.power, -40, 10);
+  G.mission = {
+    loc, def, li, mi, g, phase: 'travel', current: 0, revives: 3, kills: 0, crits: 0, deaths: 0, loot: [],
+    startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
+    playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
+    checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
+    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', waves: makeWaves(i, z.isBoss, g, def), waveIdx: 0, enemies: [] })),
+  };
+  G.time = 0;
+  G.player = new Player(G.save);
+  G.player.spawn(level.spawn);
+  G.state = 'playing';
+  ui.enterMission();
+  ui.centerMessage(def.name, `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
+  if (delta < -4) setTimeout(() => ui.feed(`Underpowered by ${-delta}: enemies hit harder and take less damage`, '#ff7a6b'), 1500);
+  sfx.areaClear();
+}
+
+export function retryMission() {
+  const M = G.mission;
+  startMission(M.li, M.mi);
+}
+
+export function abandonMission() {
+  cleanupMission();
+  ui.showOrbit();
+}
+
+function cleanupMission() {
+  if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
+  clearEffects();
+  G.scene = null; G.level = null; G.player = null; G.mission = null;
+  G.colliders = []; G.staticMeshes = []; G.hitTargets = [];
+  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
+}
+
+export function missionFailed() {
+  G.state = 'failed';
+  unlockPointer();
+  ui.showFailed(G.mission);
+}
+
+function finishMission() {
+  G.state = 'complete';
+  unlockPointer();
+  ui.showComplete(G.mission);
+}
+
+// ---------------------------------------------------------------------------
+// Waves
+// ---------------------------------------------------------------------------
+function makeWaves(zi, isBoss, g, def) {
+  const T = (type, n) => Array.from({ length: n }, () => ({ type, element: type === 'captain' ? pick(ENERGY) : undefined }));
+  if (isBoss) {
+    return [[{ type: 'boss', name: def.boss.name, element: def.boss.element }, ...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4))]];
+  }
+  const w1 = [...T('grunt', 3 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4) + (zi > 0 ? 1 : 0))];
+  if (zi >= 1 || g >= 2) w1.push(...T('captain', 1));
+  const w2 = [...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 2 + Math.floor(g / 3))];
+  if (g >= 1 || zi >= 1) w2.push(...T('captain', 1 + (g >= 5 && zi >= 1 ? 1 : 0)));
+  if (zi >= 1 && g >= 1) w2.push(...T('heavy', 1 + Math.floor(g / 5)));
+  const waves = [w1, w2];
+  if (g >= 4 && zi >= 2) waves.push([...T('grunt', 3), ...T('captain', 1), ...T('heavy', 1)]);
+  return waves;
+}
+
+export function findSpawn(center, angle, spread, rMin, rMax) {
+  const b = G.level.bounds;
+  for (let i = 0; i < 24; i++) {
+    const a = angle + rand(-spread, spread), r = rand(rMin, rMax);
+    const p = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
+    p.x = clamp(p.x, b.minX + 2, b.maxX - 2);
+    p.z = clamp(p.z, b.minZ + 2, b.maxZ - 2);
+    if (!pointInColliders(_c.copy(p).setY(0.5), 0.8) && p.distanceTo(G.player.pos) > 8) return p;
+  }
+  return center.clone();
+}
+
+function spawnWave(z, idx) {
+  const M = G.mission, P = G.player;
+  const away = Math.atan2(P.pos.x - z.center.x, P.pos.z - z.center.z) + Math.PI;
+  for (const sp of z.waves[idx]) {
+    const pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
+    const e = new Enemy(sp.type, pos, {
+      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? 1 + M.g * 0.08 : 1), dmgMult: M.dmgMult, element: sp.element, name: sp.name,
+    });
+    G.enemies.push(e);
+    z.enemies.push(e);
+  }
+  G.hitDirty = true;
+  if (idx > 0) { ui.feed(`${M.loc.faction} reinforcements inbound`, '#ffb36b'); sfx.alert(); }
+}
+
+export function spawnBossAdds(boss) {
+  const M = G.mission;
+  const z = boss.zone;
+  const specs = ['grunt', 'grunt', 'grunt', 'rusher', 'rusher'];
+  if (M.g >= 2) specs.push('captain');
+  for (const type of specs) {
+    const pos = findSpawn(boss.pos, rand(0, Math.PI * 2), Math.PI, 5, 14);
+    const e = new Enemy(type, pos, { zone: z, hpMult: M.hpMult, dmgMult: M.dmgMult, element: type === 'captain' ? pick(ENERGY) : undefined });
+    G.enemies.push(e);
+    z.enemies.push(e);
+  }
+  G.hitDirty = true;
+  ui.centerMessage(`${boss.name} calls for aid`, 'Shield restored', 2);
+  sfx.alert();
+}
+
+// ---------------------------------------------------------------------------
+// Per-frame update
+// ---------------------------------------------------------------------------
+export function updateGame(dt) {
+  G.time += dt;
+  const P = G.player;
+  P.update(dt);
+  if (G.state !== 'playing') return; // mission may have failed during player update
+  for (let i = G.enemies.length - 1; i >= 0; i--) {
+    if (!G.enemies[i].update(dt)) G.enemies.splice(i, 1);
+  }
+  updateEnemyShots(dt);
+  updateProjectiles(dt);
+  updateTickers(dt);
+  updatePickups(dt);
+  updateEffects(dt);
+  updateMission(dt);
+  const L = G.level;
+  L.sun.position.copy(P.pos).add(L.sunOffset);
+  L.sun.target.position.copy(P.pos);
+  ui.updateHUD(dt);
+}
+
+function updateMission(dt) {
+  const M = G.mission, P = G.player;
+  if (M.phase === 'travel' || M.phase === 'combat') {
+    const z = M.zones[M.current];
+    if (z.state === 'pending') {
+      M.objective = `Travel to ${z.name}`;
+      M.waypoint = z.center;
+      if (Math.hypot(P.pos.x - z.center.x, P.pos.z - z.center.z) < (z.isBoss ? 28 : 24)) {
+        z.state = 'active';
+        M.phase = 'combat';
+        spawnWave(z, 0);
+        z.waveIdx = 1;
+        if (z.isBoss) { ui.centerMessage(M.def.boss.name, `${M.loc.faction} champion`, 3); sfx.bossIntro(); }
+        else { ui.centerMessage(z.name, `${M.loc.faction} presence detected`, 2.2); sfx.alert(); }
+      }
+    } else if (z.state === 'active') {
+      let alive = 0, nearest = null, nd = Infinity;
+      for (const e of z.enemies) {
+        if (!e.alive) continue;
+        alive++;
+        const d = e.pos.distanceTo(P.pos);
+        if (d < nd) { nd = d; nearest = e; }
+      }
+      if (!z.isBoss && z.waveIdx < z.waves.length && alive <= 2) { spawnWave(z, z.waveIdx); z.waveIdx++; }
+      M.objective = z.isBoss ? `Defeat ${M.def.boss.name}` : `Clear ${z.name}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
+      M.waypoint = !z.isBoss && alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
+      if (z.waveIdx >= z.waves.length && alive === 0) zoneCleared(z);
+    }
+  } else if (M.phase === 'loot') {
+    M.objective = 'Open the cache';
+    M.waypoint = M.chest.pos;
+    const near = P.pos.distanceTo(M.chest.pos) < 3.2;
+    ui.prompt(near ? '[E]  Open Cache' : null);
+    if (near && G.input.pressed.KeyE) openChest();
+  } else if (M.phase === 'done') {
+    ui.prompt(null);
+    M.chest.lid.rotation.x = Math.max(-1.9, M.chest.lid.rotation.x - dt * 4);
+    M.doneT -= dt;
+    if (M.doneT <= 0) finishMission();
+  }
+}
+
+function zoneCleared(z) {
+  const M = G.mission, P = G.player;
+  z.state = 'cleared';
+  if (z.isBoss) {
+    M.phase = 'loot';
+    const dir = P.pos.clone().sub(z.center).setY(0);
+    const pos = z.center.clone().add(dir.lengthSq() > 1 ? dir.normalize().multiplyScalar(3) : new THREE.Vector3(0, 0, 3));
+    M.chest = spawnChest(pos);
+    ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
+    sfx.missionComplete();
+    P.health = P.maxHealth; P.shield = P.maxShield;
+  } else {
+    ui.centerMessage('Area Secured', '', 2);
+    sfx.areaClear();
+    M.current++;
+    M.checkpoint = z.center.clone();
+    M.phase = 'travel';
+    const drop = P.pos.clone().add(new THREE.Vector3(0, 1, 0));
+    spawnPickup('special', drop);
+    if (Math.random() < 0.6) spawnPickup('heavy', drop);
+  }
+}
+
+function spawnChest(pos) {
+  const g = new THREE.Group();
+  const gold = 0xf4c542;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.0), mat(0x3b3f47));
+  base.position.y = 0.4;
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.12, 1.04), mat(gold, { emissive: gold, emissiveIntensity: 1.2 }));
+  trim.position.y = 0.78;
+  const lid = new THREE.Group();
+  lid.position.set(0, 0.84, -0.5);
+  const lidMesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 1.0), mat(0x4a4f58));
+  lidMesh.position.set(0, 0.12, 0.5);
+  lid.add(lidMesh);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 30, 8, 1, true), basicMat(gold, true));
+  beam.position.y = 15;
+  beam.material = beam.material.clone();
+  beam.material.opacity = 0.18;
+  g.add(base, trim, lid, beam);
+  g.position.copy(pos).setY(0);
+  g.traverse((o) => { if (o.isMesh && o !== beam) o.castShadow = true; });
+  G.scene.add(g);
+  return { group: g, lid, beam, pos: g.position.clone(), opened: false };
+}
+
+function openChest() {
+  const M = G.mission;
+  M.chest.opened = true;
+  M.chest.beam.visible = false;
+  sfx.chest();
+  sparks(M.chest.pos.clone().setY(1), 0xf4c542, 30, 8, 0.1, 0.8);
+  const pp = playerPower(G.save);
+  const first = !G.save.cleared[M.def.id];
+  const n = first ? 3 : 2;
+  const base = Math.max(M.def.power, pp);
+  const rewards = [];
+  for (let i = 0; i < n; i++) {
+    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarityIdx(M.g + (first ? 2 : 0)));
+    if (first && M.mi === 2 && i === 0) rIdx = 4;
+    rewards.push(rollItem(Math.min(MAX_POWER, base + randInt(1, 4)), rIdx));
+  }
+  rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
+  const glimmer = 120 + M.g * 45;
+  G.save.glimmer += glimmer;
+  G.save.cleared[M.def.id] = true;
+  M.rewardGlimmer = glimmer;
+  M.firstClear = first;
+  M.rewards = rewards;
+  writeSave(G.save);
+  M.phase = 'done';
+  M.doneT = 3.8;
+}
+
+export function grantItem(item) {
+  const auto = addItem(G.save, item);
+  if (G.mission && !G.mission.loot.includes(item)) G.mission.loot.push(item);
+  ui.lootToast(item);
+  sfx.engram(rarityIndex(item.rarity));
+  if (auto) ui.feed(`Inventory full: auto-dismantled ${auto.name}`, '#aaa');
+  writeSave(G.save);
+}
+
+// ---------------------------------------------------------------------------
+// Combat
+// ---------------------------------------------------------------------------
+export function getHitTargets() {
+  if (G.hitDirty) {
+    G.hitTargets = [...G.staticMeshes];
+    for (const e of G.enemies) if (e.alive) for (const m of e.hitMeshes) G.hitTargets.push(m);
+    G.hitDirty = false;
+  }
+  return G.hitTargets;
+}
+
+export function enemiesNear(pos, r, n = 99, exclude = null) {
+  const c = new THREE.Vector3();
+  return G.enemies
+    .filter((e) => e.alive && e !== exclude && e.center(c).distanceTo(pos) < r + e.radius)
+    .sort((a, b) => a.pos.distanceToSquared(pos) - b.pos.distanceToSquared(pos))
+    .slice(0, n);
+}
+
+export function dealDamage(e, amount, o = {}) {
+  if (!e.alive) return { killed: false, dealt: 0 };
+  const M = G.mission;
+  let dmg = amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
+  if (e.isBoss && o.source === 'super') dmg *= 0.5;
+  let dealt = 0, shieldHit = false;
+  if (e.shield > 0) {
+    shieldHit = true;
+    const mult = o.element && o.element === e.shieldEl ? 2.5 : 1;
+    const sd = dmg * mult;
+    if (sd >= e.shield) {
+      dealt += e.shield;
+      dmg = (sd - e.shield) / mult;
+      e.shield = 0;
+      e.breakShield(mult > 1);
+    } else {
+      e.shield -= sd; dealt += sd; dmg = 0;
+    }
+  }
+  if (dmg > 0) { e.hp -= dmg; dealt += dmg; }
+  e.flash = 0.12;
+  if (o.knock && !e.isBoss) e.knock.add(o.knock);
+  const killed = e.hp <= 0;
+  ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dealt, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
+  ui.hitmarker(!!o.crit, killed);
+  sfx.hit(o.crit);
+  if (killed) killEnemy(e, o);
+  return { killed, dealt };
+}
+
+export function killEnemy(e, o = {}) {
+  if (!e.alive) return;
+  e.alive = false;
+  e.hp = 0;
+  G.hitDirty = true;
+  e.onDeath();
+  const M = G.mission;
+  M.kills++;
+  if (o.crit) M.crits++;
+  G.player.onKill(e, o);
+  sfx.kill();
+  const pos = e.pos.clone().setY(0.8);
+  const r = Math.random();
+  const heavy = e.typeId === 'heavy';
+  if (r < (heavy ? 0.5 : 0.1)) spawnPickup('special', pos);
+  else if (r < (heavy ? 0.8 : 0.15)) spawnPickup('heavy', pos);
+  const chance = { grunt: 0.06, rusher: 0.05, captain: 0.3, heavy: 0.45, boss: 1 }[e.typeId];
+  if (Math.random() < chance) dropEngram(pos);
+  if (e.isBoss) {
+    dropEngram(pos); dropEngram(pos);
+    spawnPickup('heavy', pos); spawnPickup('special', pos);
+    G.player.shake = 0.5;
+    explosionFx(e.center(new THREE.Vector3()), 6, M.loc.colors.eye);
+    for (const o2 of e.zone.enemies) if (o2.alive) killEnemy(o2, {});
+  }
+}
+
+function dropEngram(pos) {
+  const M = G.mission;
+  const pp = playerPower(G.save);
+  const rIdx = rollRarityIdx(M.g * 0.5);
+  const power = clamp(Math.max(pp, M.def.power - 3) + randInt(-1, 2), 1, MAX_POWER);
+  spawnPickup('engram', pos, rollItem(power, rIdx));
+}
+
+export function explode(pos, radius, dmg, element, o = {}) {
+  const col = ELEMENTS[element]?.hex ?? 0xffaa55;
+  if (o.small) { sparks(pos, col, 6, radius * 2, 0.08, 0.4); flashLight(pos, col, 15 * radius, radius * 3, 0.15); }
+  else explosionFx(pos, radius, col);
+  sfx.explosion(radius);
+  const c = new THREE.Vector3();
+  for (const e of G.enemies) {
+    if (!e.alive) continue;
+    e.center(c);
+    const d = Math.max(0, c.distanceTo(pos) - e.radius);
+    if (d > radius) continue;
+    const f = 1 - 0.5 * (d / radius);
+    const kb = c.clone().sub(pos).setY(0).normalize().multiplyScalar((6 * f) / e.def.scale);
+    dealDamage(e, dmg * f, { element, source: o.source || 'explosion', weapon: o.weapon, pos: c.clone().setY(c.y + e.height * 0.3), knock: kb });
+  }
+  const P = G.player;
+  const pd = P.pos.distanceTo(pos);
+  if (pd < radius * 3) P.shake = Math.max(P.shake, 0.4 * (1 - pd / (radius * 3)));
+}
+
+export function damagePlayer(amount, from) {
+  G.player.takeDamage(amount * G.mission.incomingMult, from);
+}
+
+// ---------------------------------------------------------------------------
+// Tickers (timed ability zones etc.)
+// ---------------------------------------------------------------------------
+export function addTicker(t) { G.tickers.push(t); }
+
+function updateTickers(dt) {
+  for (let i = G.tickers.length - 1; i >= 0; i--) {
+    const t = G.tickers[i];
+    if (!t.update(dt)) { t.dispose?.(); G.tickers.splice(i, 1); }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Player projectiles
+// ---------------------------------------------------------------------------
+function projectileMesh(o) {
+  const g = new THREE.Group();
+  if (o.kind === 'rocket') {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.5, 6).rotateX(Math.PI / 2), mat(0x3b4048));
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.15, 6).rotateX(Math.PI / 2), mat(o.color, { emissive: o.color, emissiveIntensity: 1.5 }));
+    tip.position.z = 0.32;
+    const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), basicMat(0xffc070, true));
+    glow.position.z = -0.3;
+    g.add(body, tip, glow);
+  } else if (o.kind === 'hammer') {
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 5), mat(0x5a3a22));
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.18), mat(o.color, { emissive: o.color, emissiveIntensity: 2.5 }));
+    head.position.y = 0.3;
+    g.add(h, head);
+  } else if (o.kind === 'nova') {
+    g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 0.6, 1), basicMat(0xf0e0ff)));
+    g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size, 1), basicMat(o.color, true)));
+  } else {
+    g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size, 0), mat(o.color, { emissive: o.color, emissiveIntensity: 1.8 })));
+  }
+  return g;
+}
+
+export function spawnPlayerProjectile(o) {
+  const mesh = projectileMesh(o);
+  mesh.position.copy(o.pos);
+  G.scene.add(mesh);
+  G.projectiles.push({ ...o, mesh, age: 0 });
+}
+
+function updateProjectiles(dt) {
+  const tmp = new THREE.Vector3();
+  for (let i = G.projectiles.length - 1; i >= 0; i--) {
+    const p = G.projectiles[i];
+    p.age += dt;
+    if (p.tracking) {
+      const speed = p.vel.length();
+      const dir = p.vel.clone().normalize();
+      let best = null, bd = Infinity;
+      for (const e of G.enemies) {
+        if (!e.alive) continue;
+        e.center(tmp);
+        const to = tmp.clone().sub(p.pos);
+        const d = to.length();
+        if (d < 70 && to.normalize().dot(dir) > 0.4 && d < bd) { bd = d; best = to; }
+      }
+      if (best) p.vel.lerp(best.multiplyScalar(speed), Math.min(1, dt * 3.5)).setLength(speed);
+    }
+    const steps = Math.max(1, Math.ceil((p.vel.length() * dt) / 0.35));
+    let hit = null, hitEnemy = null;
+    for (let s = 0; s < steps && !hit; s++) {
+      p.vel.y -= (p.gravity * dt) / steps;
+      p.pos.addScaledVector(p.vel, dt / steps);
+      if (p.pos.y <= 0.05) { hit = 'ground'; p.pos.y = 0.1; break; }
+      if (pointInColliders(p.pos)) { hit = 'wall'; break; }
+      for (const e of G.enemies) {
+        if (!e.alive) continue;
+        const r = e.radius + (p.size || 0.1);
+        if ((p.pos.x - e.pos.x) ** 2 + (p.pos.z - e.pos.z) ** 2 < r * r && p.pos.y >= e.pos.y && p.pos.y <= e.pos.y + e.height) { hit = 'enemy'; hitEnemy = e; break; }
+      }
+    }
+    if (!hit && p.age > p.life) hit = 'timeout';
+    if (hit) {
+      G.scene.remove(p.mesh);
+      G.projectiles.splice(i, 1);
+      p.onHit(p.pos.clone(), hitEnemy);
+      continue;
+    }
+    p.mesh.position.copy(p.pos);
+    if (p.kind === 'hammer') p.mesh.rotation.x -= dt * 18;
+    else if (p.kind === 'nova') p.mesh.rotation.y += dt * 4;
+    else p.mesh.lookAt(tmp.copy(p.pos).add(p.vel));
+    if (p.kind === 'rocket' && Math.random() < 0.7) sparks(p.pos, 0x9a9a9a, 1, 0.5, 0.14, 0.5);
+    if (p.kind === 'nova' && Math.random() < 0.8) sparks(p.pos, p.color, 2, 2, 0.12, 0.4);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pickups: ammo bricks and engrams
+// ---------------------------------------------------------------------------
+const brickGeo = new THREE.BoxGeometry(0.45, 0.25, 0.3);
+const engramGeo = new THREE.IcosahedronGeometry(0.3, 0);
+const engramGlow = new THREE.IcosahedronGeometry(0.45, 0);
+
+export function spawnPickup(type, pos, item = null) {
+  const g = new THREE.Group();
+  if (type === 'engram') {
+    const hex = RARITIES[rarityIndex(item.rarity)].hex;
+    g.add(new THREE.Mesh(engramGeo, mat(hex, { emissive: hex, emissiveIntensity: 1.4 })));
+    const glow = new THREE.Mesh(engramGlow, basicMat(hex, true));
+    glow.material = glow.material.clone();
+    glow.material.opacity = 0.3;
+    g.add(glow);
+  } else {
+    const col = type === 'special' ? 0x3fd17a : 0xa66bff;
+    g.add(new THREE.Mesh(brickGeo, mat(col, { emissive: col, emissiveIntensity: 1.0 })));
+  }
+  g.position.copy(pos);
+  G.scene.add(g);
+  G.pickups.push({ type, item, mesh: g, pos: pos.clone(), vel: new THREE.Vector3(rand(-2.5, 2.5), 5, rand(-2.5, 2.5)), age: 0 });
+}
+
+function updatePickups(dt) {
+  const P = G.player;
+  const tgt = new THREE.Vector3(P.pos.x, P.pos.y + 0.9, P.pos.z);
+  for (let i = G.pickups.length - 1; i >= 0; i--) {
+    const k = G.pickups[i];
+    k.age += dt;
+    const d = k.pos.distanceTo(tgt);
+    if (!P.dead && k.age > 0.6 && d < 5) {
+      k.pos.addScaledVector(tgt.clone().sub(k.pos).normalize(), Math.min(d, 14 * dt));
+    } else {
+      k.vel.y -= 15 * dt;
+      k.pos.addScaledVector(k.vel, dt);
+      if (k.pos.y < 0.55) { k.pos.y = 0.55; k.vel.set(0, 0, 0); }
+    }
+    k.mesh.position.copy(k.pos);
+    k.mesh.position.y += Math.sin(k.age * 3) * 0.08;
+    k.mesh.rotation.y += dt * 2;
+    k.mesh.rotation.x += dt * 0.7;
+    if (!P.dead && k.age > 0.4 && d < 1.3) {
+      collect(k);
+      G.scene.remove(k.mesh);
+      G.pickups.splice(i, 1);
+    } else if (k.age > 120) {
+      G.scene.remove(k.mesh);
+      G.pickups.splice(i, 1);
+    }
+  }
+}
+
+function collect(k) {
+  const P = G.player;
+  if (k.type === 'engram') { grantItem(k.item); return; }
+  P.addAmmo(k.type);
+  sfx.pickupAmmo();
+  ui.feed(k.type === 'special' ? '+ Special ammo' : '+ Heavy ammo', k.type === 'special' ? '#3fd17a' : '#b48bff');
+}
