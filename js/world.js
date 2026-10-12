@@ -6,9 +6,10 @@ import MOON from './level-moon.js';
 import MARS from './level-mars.js';
 import TITAN from './level-titan.js';
 import TANGLED from './level-tangled.js';
+import IO from './level-io.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED };
+const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO };
 
 const matCache = new Map();
 export function mat(color, o = {}) {
@@ -236,6 +237,28 @@ export function buildLevel(loc, def) {
       addBox(x, z, 0.25, h, 0.25, C.metal, y, col);
       addBox(x + 0.45, z, 0.7, 1.6, 0.05, RP([C.enemy, 0x8a3a5a]), y + h - 1.9, false);
       return addBox(x, z, 0.2, 0.2, 0.2, C.accent, y + h, false, { emissive: C.accent, emissiveIntensity: 1.5 });
+    },
+    io: (x, z, y = 0, col = true) => {
+      const t = rng();
+      if (t < 0.4) { // white mineral spire where the Traveler's Light crystallised
+        const h = R(4, 9), r = R(0.6, 1.2);
+        addMesh(new THREE.ConeGeometry(r * 1.6, h * 0.3, 6), C.rock, x, y + h * 0.15, z);
+        const m = addMesh(new THREE.ConeGeometry(r, h, 5), 0xf2eee0, x, y + h / 2, z, { emissive: 0xfff4d0, emissiveIntensity: 0.25 });
+        m.rotation.z = R(-0.15, 0.15);
+        if (col) addCollider(x - r, y, z - r, x + r, y + h, z + r, m);
+        return m;
+      } else if (t < 0.7) { // teal sulfur pool with a steaming vent
+        const r = R(1.8, 3.2);
+        addMesh(new THREE.CylinderGeometry(r * 1.15, r * 1.25, 0.18, 9), C.ground2, x, y + 0.09, z);
+        addMesh(new THREE.CylinderGeometry(r, r, 0.04, 9), C.foliage, x, y + 0.2, z, { emissive: C.foliage, emissiveIntensity: 0.6 });
+        return addMesh(new THREE.ConeGeometry(0.5, 1.2, 6), C.rock2, x + r * 0.4, y + 0.6, z);
+      }
+      // Red Legion supply drop pod
+      const h = R(2.4, 3.2);
+      const m = addBox(x, z, 1.8, h, 1.8, C.metal, y, col);
+      addBox(x, z, 2.2, 0.3, 2.2, C.enemy, y + h, false);
+      addBox(x, z + 0.92, 1.2, 0.18, 0.06, C.accent, y + h * 0.6, false, { emissive: C.accent, emissiveIntensity: 1.6 });
+      return m;
     },
   }[loc.theme || loc.id];
 

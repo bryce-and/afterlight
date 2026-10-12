@@ -350,7 +350,7 @@ export class Enemy {
     // shooters hide behind cover between bursts
     this.usesCover = typeId === 'grunt' || typeId === 'captain';
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0 };
-    const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers' }[M.loc.id];
+    const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
     this.model = buildModel(this, M.loc.colors, faction);
     this.height = this.model.height * def.scale;
     this.hitMeshes = this.model.hit;

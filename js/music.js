@@ -17,6 +17,7 @@ const THEMES = {
   mars: { root: 52, scale: MINOR, tempo: 96, prog: [0, 3, 5, 4], pad: 'strings', lead: 'brass', drums: 'war', choir: 0.5 },
   titan: { root: 45, scale: DORIAN, tempo: 78, prog: [0, 6, 3, 0], pad: 'drone', lead: 'pluck', drums: 'pulse', choir: 0.6 },
   tangled: { root: 55, scale: MINOR, tempo: 100, prog: [0, 6, 5, 4], pad: 'strings', lead: 'pluck', drums: 'drive', choir: 0.4 },
+  io: { root: 47, scale: DORIAN, tempo: 76, prog: [0, 3, 6, 4], pad: 'drone', lead: 'glass', drums: 'deep', choir: 0.9 },
 };
 
 let bus = null, verb = null, layers = null, timer = null;

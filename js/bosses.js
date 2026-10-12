@@ -648,4 +648,119 @@ export const BOSS_MODELS = {
     torso.add(c.muzzle);
     c.height = 2.9;
   },
+
+  // -------------------------------------------------------------------------
+  // IO: Taken, Psions and the Vex
+  // -------------------------------------------------------------------------
+  takencaptain(c) {
+    const { B, add } = c;
+    // Taken are pure black silhouettes outlined in white Light, with blazing white eyes
+    const black = mat(0x0a0a0e), edge = mat(0xf4f6ff, { emissive: 0xdfe6ff, emissiveIntensity: 2.6 });
+    const eye = mat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 3.2 });
+    legs(c, 1.05, 0.17, 0.14, black, black, true);
+    const torso = c.pivot(0, 1.05, 0);
+    torso.rotation.x = 0.12;
+    c.torso = torso;
+    B(0.62, 0.62, 0.42, 0, 0.42, 0, black, torso);
+    for (const y of [0.13, 0.73]) B(0.66, 0.03, 0.46, 0, y, 0, edge, torso);
+    // captain's cape, shredded into floating Taken strips
+    for (let i = 0; i < 5; i++) B(0.13, 1.0 - (i % 2) * 0.25, 0.03, -0.3 + i * 0.15, -0.05, -0.26, black, torso, false, [0.22, 0, (i - 2) * 0.06]);
+    // tall hood-crest
+    B(0.32, 0.26, 0.34, 0, 0.92, 0.04, black, torso, true);
+    B(0.05, 0.42, 0.42, 0, 1.18, -0.04, black, torso, true, [-0.35, 0, 0]);
+    B(0.03, 0.42, 0.03, 0, 1.18, 0.18, edge, torso, true, [-0.35, 0, 0]);
+    // four blank white eyes
+    for (const x of [-0.08, 0.08]) for (const y of [0.9, 0.97]) add(new THREE.SphereGeometry(0.035, 6, 5), eye, x, y, 0.22, torso, true);
+    // four arms, the upper pair raised, each edged in white
+    const arms = [];
+    for (const [y, lift, len] of [[0.66, -1.5, 0.62], [0.36, -0.9, 0.5]]) for (const s of [-1, 1]) {
+      const a = arm(c, torso, s * 0.36, y, len, 0.09, black, lift, s * -0.2);
+      B(0.02, len, 0.02, s * 0.05, -len / 2, 0.05, edge, a);
+      arms.push(a);
+    }
+    c.arms.push(...arms);
+    // Taken blight orbs drifting around it
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * PI * 2;
+      ico(c, 0.11, 0, black, Math.cos(a) * 0.62, 0.3 + (i % 2) * 0.5, Math.sin(a) * 0.4, torso);
+      ico(c, 0.04, 0, edge, Math.cos(a) * 0.62, 0.3 + (i % 2) * 0.5, Math.sin(a) * 0.4 + 0.1, torso);
+    }
+    // shrapnel launcher in the lower right hand
+    gun(c, torso, 0.36, 0.3, 0.42, 0.55, 0.12);
+    c.height = 2.4;
+  },
+
+  psionflayer(c) {
+    const { B, add, bodyMat, dark, accent } = c;
+    // the Flayers fight as a trio: a lead Psion with two kneeling-air twins welded to its Light
+    const suit = mat(0x6a2a24), gold = mat(0xb08a3a);
+    const psi = mat(0xff9a6a, { emissive: 0xff5a2a, emissiveIntensity: 2.2 });
+    const psion = (parent, x, z, s) => {
+      const p = c.pivot(x, 0, z, parent);
+      p.scale.setScalar(s);
+      p.userData.hips = [-1, 1].map((k) => {
+        const hip = c.pivot(k * 0.09, 0.95, 0, p);
+        B(0.09, 0.45, 0.1, 0, -0.23, 0.02, suit, hip);
+        B(0.09, 0.5, 0.1, 0, -0.7, 0, dark, hip);
+        return hip;
+      });
+      B(0.32, 0.4, 0.2, 0, 1.12, 0, suit, p);
+      B(0.36, 0.08, 0.24, 0, 1.3, 0, gold, p);
+      // the big bulbous Psion head with its single slit visor
+      add(new THREE.SphereGeometry(0.2, 8, 6), bodyMat, 0, 1.55, 0.02, p, true).scale.set(1, 1.15, 1.2);
+      B(0.22, 0.04, 0.04, 0, 1.56, 0.24, psi, p, true);
+      for (const k of [-1, 1]) B(0.06, 0.5, 0.06, k * 0.22, 1.05, 0.12, suit, p, false, [-0.9, 0, k * -0.2]);
+      ico(c, 0.07, 0, psi, 0, 1.18, 0.42, p);
+      return p;
+    };
+    const lead = psion(c.g, 0, 0, 1.15);
+    c.torso = lead;
+    // the two twins hover behind on psionic Light
+    for (const s of [-1, 1]) {
+      const t = psion(c.g, s * 0.75, -0.45, 0.85);
+      t.position.y = 0.35;
+      t.rotation.y = s * -0.3;
+      add(new THREE.TorusGeometry(0.22, 0.03, 4, 12), psi, 0, 0.02, 0, t, false, [PI / 2, 0, 0]);
+    }
+    // psionic links between the three heads
+    for (const s of [-1, 1]) B(0.03, 0.03, 0.85, s * 0.38, 1.95, -0.22, psi, c.g, false, [0, s * 1.0, 0]);
+    // legs list lets the walk cycle swing the lead's thighs
+    c.legs.push(...lead.userData.hips);
+    c.muzzle.position.set(0, 1.18, 0.55);
+    lead.add(c.muzzle);
+    c.height = 2.2;
+  },
+
+  vexmind(c) {
+    const { B, add, dark } = c;
+    // Protheon, Modular Mind: a floating brass frame around a milky core and one red eye
+    const brass = mat(0x9a7a4a), bronze = mat(0x5a4632), white = mat(0xe8e4d8);
+    const milk = mat(0xf2f6ff, { emissive: 0xcfe0ff, emissiveIntensity: 1.6 });
+    const red = mat(0xff3a2a, { emissive: 0xff2a1a, emissiveIntensity: 3 });
+    c.hover = true;
+    const body = c.pivot(0, 1.35, 0);
+    c.torso = body;
+    // hexagonal head-plate standing upright, eye at the center
+    add(new THREE.CylinderGeometry(0.85, 0.85, 0.22, 6).rotateX(PI / 2), brass, 0, 0.25, 0, body);
+    add(new THREE.CylinderGeometry(0.62, 0.62, 0.26, 6).rotateX(PI / 2), bronze, 0, 0.25, 0.04, body);
+    add(new THREE.SphereGeometry(0.22, 10, 8), red, 0, 0.25, 0.2, body, true).scale.z = 0.5;
+    add(new THREE.TorusGeometry(0.3, 0.04, 4, 6), brass, 0, 0.25, 0.2, body, true);
+    // milky radiolaria core hanging below the plate
+    ico(c, 0.42, 1, milk, 0, -0.5, -0.05, body);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * PI * 2;
+      B(0.08, 0.7, 0.08, Math.cos(a) * 0.5, -0.3, Math.sin(a) * 0.3 - 0.05, white, body, false, [Math.sin(a) * 0.3, 0, Math.cos(a) * -0.3]);
+    }
+    // modular blocks orbiting the frame (Protheon splits and rebuilds itself)
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * PI * 2;
+      B(0.24, 0.24, 0.24, Math.cos(a) * 1.15, 0.25 + Math.sin(a) * 1.15, -0.1, i % 2 ? brass : white, body, false, [a, a, 0]);
+    }
+    // backplate spines
+    for (const s of [-1, 0, 1]) B(0.1, 1.1, 0.1, s * 0.4, 0.4, -0.2, bronze, body, false, [0, 0, s * -0.4]);
+    B(0.5, 0.06, 0.06, 0, -0.95, -0.05, dark, body);
+    c.muzzle.position.set(0, 0.25, 0.4);
+    body.add(c.muzzle);
+    c.height = 2.6;
+  },
 };

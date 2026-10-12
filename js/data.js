@@ -348,6 +348,21 @@ export const LOCATIONS = [
       { id: 'ts3', mood: 'storm', name: 'Scorned', power: 110, zones: 4, boss: { name: 'Fikrul, the Fanatic', element: 'solar' , model: 'fanatic' }, desc: 'Cross the wreck fields of Jetsam of Saturn and end the Fanatic who raises the Scorn.' },
     ],
   },
+  {
+    id: 'io', name: 'Io', planetName: 'Io', faction: 'Cabal',
+    desc: 'The moon the Traveler touched last, sulfur-yellow under the bulk of Jupiter. The Red Legion drill for its secrets, the Taken stalk the Rupture and the Vex guard the Pyramidion.',
+    fog: [36, 190], sunDir: [0.6, 1, -0.3], light: { hemi: 1.7, sun: 2.2 },
+    colors: { sky: 0xd8c08a, fog: 0xc8b07a, hemiTop: 0xfff0c8, hemiBot: 0x5a3e26, sun: 0xfff2d0, ground: 0xc9b46a, ground2: 0xb39a52, rock: 0x9a5a34, rock2: 0x6e3e26, wall: 0x8a8478, metal: 0x55504a, accent: 0xff5a2a, crate: 0x6a5a40, foliage: 0x5ab8a8, enemy: 0x7a3a2a, enemy2: 0x2a1c18, eye: 0xff7a3a },
+    planetColors: { sea: false, c: [0x8a5a2a, 0xc9a24a, 0xe2cf7a, 0xf4ecc0] }, atmo: 0xffe08a,
+    skyBody: { color: 0xd8a878, size: 120, pos: [-320, 190, -460] },
+    enemyNames: { grunt: 'Legionary', rusher: 'War Beast', captain: 'Centurion', heavy: 'Colossus' },
+    zoneNames: ['Lost Oasis', "Giant's Scar", 'The Rupture', 'Terrabase Charon', 'Echo Mesa', 'Excavation Site XII', 'Aphix Conduit', 'The Pyramidion'],
+    missions: [
+      { id: 'io1', mood: 'dawn', name: 'Sacred Ground', power: 115, zones: 3, boss: { name: 'Malok-Ra, Taken Captain', element: 'void', model: 'takencaptain' }, desc: 'Cross the Lost Oasis and Giant\'s Scar to the Rupture, where the Taken have gathered at the Traveler\'s last touch.' },
+      { id: 'io2', mood: 'day', name: 'Echo Mesa', power: 120, zones: 4, boss: { name: 'The Psion Flayers', element: 'solar', model: 'psionflayer' }, desc: 'Break the Red Legion lines from Terrabase Charon to the great drill and silence the Psions running it.' },
+      { id: 'io3', mood: 'night', name: 'The Pyramidion', power: 125, zones: 4, boss: { name: 'Protheon, Modular Mind', element: 'arc', model: 'vexmind' }, desc: 'Descend past Excavation Site XII into the Vex Pyramidion and take apart the Mind that guards it.' },
+    ],
+  },
 ];
 
 // ---------- Activities ----------
