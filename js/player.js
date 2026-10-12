@@ -678,6 +678,7 @@ export class Player {
       gravity: 22, size: 0.16, color: ELEMENTS[el].hex, life: 2.0, onHit: (pt, e) => this.detonateGrenade(id, pt, e),
     });
     flare(start, ELEMENTS[el].hex, 0.4, 0.15);
+    if (this.cls.subclassId === 'dawnblade') this.restore(3); // Dawnblade trait: abilities grant Restoration
     this.throwFist(0.32);
     sfx.throw();
   }
