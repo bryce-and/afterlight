@@ -336,7 +336,7 @@ export function dealDamage(e, amount, o = {}) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
     sendHit(e, dmg, o);
     const shieldHit = e.shield > 0;
-    if (shieldHit) e.shield = Math.max(0, e.shield - dmg * (o.element === e.shieldEl ? 2.5 : 1));
+    if (shieldHit) e.shield = Math.max(0, e.shield - dmg * (o.shieldBreaker ? 4 : o.element === e.shieldEl ? 2.5 : 1));
     else e.hp = Math.max(1, e.hp - dmg);
     e.flash = 0.12;
     ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dmg, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
@@ -351,7 +351,7 @@ export function dealDamage(e, amount, o = {}) {
   let dealt = 0, shieldHit = false;
   if (e.shield > 0) {
     shieldHit = true;
-    const mult = o.element && o.element === e.shieldEl ? 2.5 : 1;
+    const mult = o.shieldBreaker ? 4 : o.element && o.element === e.shieldEl ? 2.5 : 1;
     const sd = dmg * mult;
     if (sd >= e.shield) {
       dealt += e.shield;

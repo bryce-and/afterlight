@@ -1,5 +1,5 @@
 import { SLOTS, LOCATIONS, RARITIES, classKit } from './data.js';
-import { starterGear, dismantleValue, armoryGear, modernizeItem, heavyVersion } from './loot.js';
+import { starterGear, dismantleValue, armoryGear, modernizeItem, heavyVersion, makeExotic } from './loot.js';
 import { EXOTIC_WEAPONS } from './data.js';
 
 const KEY = 'afterlight_save_v1';
@@ -16,6 +16,7 @@ export function loadSave() {
       grantArmory(s);
       if (!s.namesV3) { s.inventory.forEach(modernizeItem); s.namesV3 = true; writeSave(s); }
       if (!s.heavyExoticsV4) { migrateHeavyExotics(s); s.heavyExoticsV4 = true; writeSave(s); }
+      if (!s.exoticsV5) { upgradeExotics(s); s.exoticsV5 = true; writeSave(s); }
       return s;
     }
     console.error('Save file has an unexpected shape; ignoring it.', s);
@@ -41,6 +42,22 @@ export function createSave(classId) {
   s.namesV3 = true;
   writeSave(s);
   return s;
+}
+
+/** Rebuild owned exotics with their signature perks and handling (keeps id, power, slot equip). */
+function upgradeExotics(s) {
+  for (let i = 0; i < s.inventory.length; i++) {
+    const it = s.inventory[i];
+    if (it.kind !== 'weapon' || it.rarity !== 'exotic') continue;
+    const fresh = makeExotic(it.name, it.power);
+    if (!fresh) continue;
+    const wasEquipped = s.equipped[it.slot] === it.id;
+    s.inventory[i] = { ...fresh, id: it.id, power: it.power, isNew: it.isNew };
+    if (wasEquipped && fresh.slot !== it.slot) {
+      const next = s.inventory.filter((x) => x.slot === it.slot && x.id !== it.id).sort((a, b) => b.power - a.power)[0];
+      if (next) s.equipped[it.slot] = next.id; else delete s.equipped[it.slot];
+    }
+  }
 }
 
 /** Legend of Acrius and Whisper of the Worm moved to the Heavy slot. */

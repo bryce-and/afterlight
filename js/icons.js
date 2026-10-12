@@ -23,7 +23,7 @@ function init() {
 }
 
 export function weaponIcon(item) {
-  const key = `${item.arch}|${item.rarity}|${item.element}`;
+  const key = `${item.arch}|${item.rarity}|${item.element}|${item.rarity === 'exotic' ? item.name : ''}`;
   if (cache.has(key)) return cache.get(key);
   if (!rr) init();
   const model = buildGunModel(item);

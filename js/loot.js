@@ -49,13 +49,15 @@ function weaponName(rIdx, arch) {
 
 const clampPower = (p) => Math.max(1, Math.min(MAX_POWER, Math.round(p)));
 
-export function makeWeapon(slot, power, rIdx, archOverride) {
+const MOD_REPLACE = ['mode', 'burst', 'burstDelay', 'pellets', 'charge'];
+
+export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
   const rar = RARITIES[rIdx];
-  let arch, element, name, exotic = null, flavor = '';
+  let arch, element, name, exotic = null, flavor = '', tpl = null;
   if (rar.id === 'exotic') {
     const pool = EXOTIC_WEAPONS.filter((e) => (e.slot || ARCHETYPES[e.arch].slot) === slot);
-    const tpl = pick(pool);
-    arch = tpl.arch; element = tpl.element; name = tpl.name; exotic = tpl.perk; flavor = tpl.flavor;
+    tpl = (exoticName && EXOTIC_WEAPONS.find((e) => e.name === exoticName)) || pick(pool);
+    arch = tpl.arch; element = tpl.element; name = tpl.name; exotic = tpl.perks[0]; flavor = tpl.flavor;
   } else {
     arch = archOverride || pick(Object.values(ARCHETYPES).filter((a) => a.slot === slot)).id;
     element = slot === 'primary' ? (Math.random() < 0.6 ? 'kinetic' : pick(ENERGY)) : pick(ENERGY);
@@ -72,15 +74,33 @@ export function makeWeapon(slot, power, rIdx, archOverride) {
     range: Math.round(A.range * roll(0.9, 1.12)),
   };
   if (A.mag === 1) stats.mag = 1;
-  const pool = PERK_POOL[slot].filter((p) => !(p === 'extmag' && A.mag === 1));
   const perks = [];
-  while (perks.length < rar.perks && perks.length < pool.length) {
-    const p = pick(pool);
-    if (!perks.includes(p)) perks.push(p);
+  let mods = null;
+  if (tpl) {
+    // exotics: fixed signature perks and their own handling
+    mods = {};
+    for (const [k, v] of Object.entries(tpl.mods || {})) {
+      if (MOD_REPLACE.includes(k)) mods[k] = v;
+      else if (k in stats) stats[k] = k === 'mag' || k === 'rpm' ? Math.max(1, Math.round(stats[k] * v)) : +(stats[k] * v).toFixed(k === 'spread' ? 4 : 1);
+    }
+  } else {
+    const pool = PERK_POOL[slot].filter((p) => !(p === 'extmag' && A.mag === 1));
+    while (perks.length < rar.perks && perks.length < pool.length) {
+      const p = pick(pool);
+      if (!perks.includes(p)) perks.push(p);
+    }
   }
-  const item = { id: newId(), kind: 'weapon', slot, arch, element, rarity: rar.id, name, power: clampPower(power), stats, perks, exotic, flavor, isNew: true };
-  if (slot !== A.slot) heavyVersion(item);
+  const item = { id: newId(), kind: 'weapon', slot: tpl?.slot || slot, arch, element, rarity: rar.id, name, power: clampPower(power), stats, perks, exotic, flavor, isNew: true };
+  if (tpl) { item.exoticPerks = [...tpl.perks]; item.mods = mods; }
+  if (item.slot !== A.slot) heavyVersion(item);
   return item;
+}
+
+/** A specific exotic by name (used to upgrade exotics from older saves). */
+export function makeExotic(name, power) {
+  const tpl = EXOTIC_WEAPONS.find((e) => e.name === name);
+  if (!tpl) return null;
+  return makeWeapon(tpl.slot || ARCHETYPES[tpl.arch].slot, power, 4, null, name);
 }
 
 export function makeArmor(slot, power, rIdx) {
@@ -119,6 +139,7 @@ export function armoryGear(owned, power) {
 
 /** A special weapon type living in the Heavy slot: more damage, less ammo. */
 export function heavyVersion(item) {
+  if (item.reserve) return item; // already converted
   item.slot = 'heavy';
   item.stats.dmg = +(item.stats.dmg * HEAVY_VERSION.dmg).toFixed(1);
   item.reserve = HEAVY_VERSION.reserve;
@@ -131,7 +152,7 @@ export function modernizeItem(it) {
   if (it.kind === 'armor') { if (it.rarity === 'exotic') it.name = EXOTIC_ARMOR[it.slot]; return; }
   if (it.rarity === 'exotic') {
     const tpl = EXOTIC_WEAPONS.find((e) => e.arch === it.arch);
-    if (tpl) Object.assign(it, { name: tpl.name, element: tpl.element, exotic: tpl.perk, flavor: tpl.flavor });
+    if (tpl) Object.assign(it, { name: tpl.name, element: tpl.element, exotic: tpl.perks[0], flavor: tpl.flavor });
   } else if (it.rarity === 'legendary') it.name = pick(LEGENDARY[it.arch]);
   else if (it.rarity === 'common') it.name = `${pick(FOUNDRY)} ${CODE[it.arch]}-${randInt(2, 9)}`;
 }

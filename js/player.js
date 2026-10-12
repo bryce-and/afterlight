@@ -27,8 +27,9 @@ function applySpread(dir, spread) {
 
 function makeWeapon(item) {
   if (!item) throw new Error('Player: an equipped weapon is missing from the save.');
-  const A = ARCHETYPES[item.arch];
-  const perks = new Set([...(item.perks || []), item.exotic].filter(Boolean));
+  // exotics can change the archetype's handling (burst size, pellets, fire mode...)
+  const A = { ...ARCHETYPES[item.arch], ...(item.mods || {}) };
+  const perks = new Set([...(item.perks || []), ...(item.exoticPerks || [item.exotic])].filter(Boolean));
   const mag = Math.max(1, Math.round(item.stats.mag * (perks.has('extmag') ? 1.3 : 1)));
   const primary = item.slot === 'primary';
   const reserveBase = item.reserve ?? A.reserve, brick = item.brick ?? A.brick;
@@ -246,6 +247,7 @@ export class Player {
       ww.killclipWindow = Math.max(0, ww.killclipWindow - dt);
       ww.killclipT = Math.max(0, ww.killclipT - dt);
       ww.bloom = Math.max(0, ww.bloom - dt * 0.06);
+      if (G.time - this.lastFire > 0.5) ww.spin = Math.max(0, (ww.spin || 0) - dt * 2);
       ww.queued = Math.max(0, ww.queued - dt);
     }
     this.buffs.rampageT -= dt;
@@ -290,7 +292,7 @@ export class Player {
     else if (A.mode === 'charge') {
       if (held && w.fireCd <= 0) {
         if (w.charge === 0) sfx.charge();
-        w.charge += dt;
+        w.charge += dt * (1 + (w.has('spinup') ? (w.spin || 0) : 0));
         if (w.charge >= A.charge) { this.fire(w); w.charge = 0; }
       } else w.charge = 0;
     }
@@ -362,6 +364,9 @@ export class Player {
   }
 
   fire(w) {
+    // Spinning Up: sustained fire ramps the rate of fire
+    if (w.has('spinup')) w.spin = Math.min(1, (w.spin || 0) + 60 / w.s.rpm * 0.9);
+    const spinMul = w.has('spinup') ? 1 + 0.7 * (w.spin || 0) : 1;
     const A = w.A, s = w.s;
     w.ammo--;
     if (w.memento > 0) w.memento--;
@@ -369,9 +374,9 @@ export class Player {
     if (A.mode === 'burst') {
       if (w.burstLeft <= 0) w.burstLeft = A.burst;
       w.burstLeft--;
-      w.fireCd = w.burstLeft > 0 ? 60 / s.rpm : A.burstDelay;
+      w.fireCd = (w.burstLeft > 0 ? 60 / s.rpm : A.burstDelay) / spinMul;
       if (w.ammo <= 0) w.burstLeft = 0;
-    } else w.fireCd = 60 / s.rpm;
+    } else w.fireCd = 60 / s.rpm / spinMul;
     const eye = this.eye;
     const fwd = this.getForward(_fwd);
     const spread = this.getSpread(w);
@@ -442,7 +447,7 @@ export class Player {
   applyHit(w, e, dmg, crit, point, o = {}) {
     const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit);
     const element = o.element ?? w.item.element;
-    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon' });
+    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker') });
     if (o.isSuper) return res;
     w.hitCount++;
     if (w.has('endless') && w.hitCount % 3 === 0) w.ammo = Math.min(w.mag, w.ammo + 1);
@@ -454,6 +459,12 @@ export class Player {
         dealDamage(other, dmg * m * 0.5, { element: 'arc', source: 'perk', pos: c });
       }
     }
+    if (crit && w.has('whitenail')) {
+      // White Nail: three precision hits in a row refill 3 rounds for free
+      w.wn = G.time - (w.wnT || 0) < 4 ? (w.wn || 0) + 1 : 1;
+      w.wnT = G.time;
+      if (w.wn >= 3) { w.wn = 0; w.ammo = Math.min(w.mag, w.ammo + 3); ui.feed('White Nail', '#6dff8e'); sfx.engram(2); }
+    } else if (!crit && w.has('whitenail')) w.wn = 0;
     if (w.has('thorn')) {
       // Mark of the Devourer: poison for 3 ticks
       let n = 3, t = 1;

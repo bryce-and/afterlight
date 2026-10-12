@@ -408,7 +408,10 @@ function tipHTML(it) {
     body += row('Range', st.range, A.range * 1.6, `${st.range}m`, cs && cs.range);
     body += '</div>';
     const perks = [];
-    if (it.exotic) perks.push(`<div class="tt-perk exo"><i></i><div><b>${EXOTIC_PERKS[it.exotic].name}</b><span>${EXOTIC_PERKS[it.exotic].desc}</span></div></div>`);
+    for (const xp of it.exoticPerks || (it.exotic ? [it.exotic] : [])) {
+      const d = EXOTIC_PERKS[xp] || PERKS[xp];
+      if (d) perks.push(`<div class="tt-perk exo"><i></i><div><b>${d.name}</b><span>${d.desc}</span></div></div>`);
+    }
     for (const p of it.perks) perks.push(`<div class="tt-perk"><i></i><div><b>${PERKS[p].name}</b><span>${PERKS[p].desc}</span></div></div>`);
     if (perks.length) body += `<div class="tt-perks">${perks.join('')}</div>`;
     if (it.flavor) body += `<div class="tt-flavor">${esc(it.flavor)}</div>`;

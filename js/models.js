@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ELEMENTS } from './data.js';
+import { ELEMENTS, EXOTIC_WEAPONS } from './data.js';
 import { mat } from './world.js';
 
 // Viewmodel guns are authored in "f" coordinates: f = metres forward of the
@@ -171,11 +171,20 @@ function finish(g, { muzzleF, muzzleY = 0, S, hip, ads, flash = 0xffd27a, gripF 
 // ---------------------------------------------------------------------------
 // Guns
 // ---------------------------------------------------------------------------
+const EXO_LOOK = Object.fromEntries(EXOTIC_WEAPONS.map((e) => [e.name, e.look]));
+
 export function buildGunModel(item) {
+  const look = item.rarity === 'exotic' ? EXO_LOOK[item.name] : null;
+  const g = buildBaseGun(item, look);
+  if (look) exoticParts(g, look);
+  return g;
+}
+
+function buildBaseGun(item, look) {
   const g = new THREE.Group();
   const k = kit(g);
   const { B, T, P } = k;
-  const body = mat(BODY[item.rarity] ?? BODY.common);
+  const body = mat(look?.body ?? BODY[item.rarity] ?? BODY.common);
   const dark = mat(0x262a30), mid = mat(0x454b54), steel = mat(0x6a7078), gripM = mat(0x1d2024), wood = mat(0x5a3d2b);
   const el = ELEMENTS[item.element];
   const glow = mat(el.hex, { emissive: el.hex, emissiveIntensity: 1.4 });
@@ -413,4 +422,68 @@ export function buildSuperModel(type) {
   const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: 0xb07cff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
   core.position.set(0, 0.06, -0.2); shell.position.copy(core.position); g.add(core, shell);
   return finish(g, { muzzleF: 0.2, muzzleY: 0.06, S: 0.06, hip: [0.16, -0.18, -0.38], ads: 0.4, flash: 0xb07cff });
+}
+
+// ---------------------------------------------------------------------------
+// Exotic signature parts, layered on the archetype's base model
+// ---------------------------------------------------------------------------
+function exoticParts(g, look) {
+  const k = kit(g);
+  const { B, add } = k;
+  const mf = -g.userData.muzzle.position.z; // muzzle distance forward of the grip
+  const S = g.userData.sightY;
+  const acc = mat(look.accent);
+  const glow = mat(look.accent, { emissive: look.accent, emissiveIntensity: 1.6 });
+  const fwdCone = (r, h, x, y, f, m) => add(new THREE.ConeGeometry(r, h, 5).rotateX(-Math.PI / 2), m, x, y, f);
+  for (const part of look.parts) {
+    switch (part) {
+      case 'stripes': for (const x of [-1, 1]) B(0.006, 0.014, 0.32, x * 0.042, 0.0, 0.05, glow); break;
+      case 'drum': add(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 12).rotateZ(Math.PI / 2), acc, 0, -0.12, 0.12); add(new THREE.TorusGeometry(0.06, 0.01, 4, 14).rotateY(Math.PI / 2), mat(0xc9a046, { emissive: 0x8a6a1e, emissiveIntensity: 0.6 }), 0, -0.12, 0.12); break;
+      case 'fins': for (const x of [-1, 1]) B(0.006, 0.05, 0.22, x * 0.046, 0.03, mf - 0.22, glow, 0.15).rotation.z = x * 0.35; break;
+      case 'sun':
+        add(new THREE.TorusGeometry(0.055, 0.01, 4, 18), glow, 0, 0.01, mf - 0.08);
+        for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(new THREE.ConeGeometry(0.008, 0.04, 3), glow, Math.cos(a) * 0.075, 0.01 + Math.sin(a) * 0.075, mf - 0.08).rotation.z = a - Math.PI / 2; }
+        break;
+      case 'spikes':
+        for (let i = 0; i < 7; i++) for (const x of [-1, 1]) add(new THREE.ConeGeometry(0.01, 0.06, 4), acc, x * 0.04, 0.02 - (i % 2) * 0.02, 0.0 + i * 0.045).rotation.z = -x * Math.PI / 2;
+        for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(0.009, 0.05, 4), glow, 0, 0.05, 0.05 + i * 0.06);
+        break;
+      case 'spade': for (const x of [-1, 1]) B(0.004, 0.04, 0.04, x * 0.034, 0.0, 0.04, glow, Math.PI / 4); break;
+      case 'orb':
+        add(new THREE.IcosahedronGeometry(0.04, 1), new THREE.MeshBasicMaterial({ color: look.accent }), 0, S * 0.5, -0.1);
+        add(new THREE.IcosahedronGeometry(0.06, 1), new THREE.MeshBasicMaterial({ color: look.accent, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }), 0, S * 0.5, -0.1);
+        break;
+      case 'siva': for (let i = 0; i < 5; i++) B(0.006, 0.02, 0.03, (i % 2 ? 1 : -1) * 0.043, -0.02 + (i % 3) * 0.02, -0.05 + i * 0.06, glow); break;
+      case 'star': for (const x of [-1, 1]) { B(0.004, 0.07, 0.014, x * 0.04, 0.0, 0.06, glow); B(0.004, 0.07, 0.014, x * 0.04, 0.0, 0.06, glow, Math.PI / 2); B(0.004, 0.045, 0.012, x * 0.041, 0.0, 0.06, glow, Math.PI / 4); } break;
+      case 'hazard': for (let i = 0; i < 6; i++) for (const x of [-1, 1]) B(0.004, 0.03, 0.025, x * 0.042, -0.01, -0.06 + i * 0.05, i % 2 ? acc : mat(0x111111)); break;
+      case 'bull': for (const x of [-1, 1]) add(new THREE.ConeGeometry(0.012, 0.08, 4).rotateX(-Math.PI / 2 - 0.5), mat(0xe8dcc0), x * 0.04, 0.05, mf - 0.14).rotation.z = -x * 0.4; break;
+      case 'jaw': for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.009, 0.04, 3).rotateX(Math.PI), mat(0xe8e0d0), -0.03 + i * 0.015, -0.04, mf - 0.04); B(0.07, 0.012, 0.08, 0, -0.03, mf - 0.06, glow); break;
+      case 'blade': B(0.008, 0.028, 0.44, 0, -0.05, mf - 0.26, mat(0xdfe6ee)); B(0.03, 0.02, 0.02, 0, -0.05, mf - 0.49, mat(0x1b1d22)); B(0.012, 0.07, 0.012, 0, -0.09, 0.02, glow); break;
+      case 'crystal': for (let i = 0; i < 5; i++) { const o = add(new THREE.OctahedronGeometry(0.025 + (i % 2) * 0.01, 0), glow, (i - 2) * 0.02, 0.03 + (i % 2) * 0.03, mf - 0.08 - (i % 3) * 0.04); o.scale.y = 1.8; o.rotation.z = (i - 2) * 0.3; } break;
+      case 'coils': for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(0.06, 0.012, 4, 16), glow, 0, 0.0, mf - 0.2 + i * 0.06); break;
+      case 'ornate': { const gold = mat(0xf4d27a, { emissive: 0x8a6a1e, emissiveIntensity: 0.5 }); for (const x of [-1, 1]) B(0.006, 0.01, 0.42, x * 0.04, 0.03, 0.15, gold); add(new THREE.ConeGeometry(0.03, 0.12, 4), gold, 0, 0.09, -0.08); B(0.05, 0.05, 0.03, 0, 0.0, mf - 0.05, glow); break; }
+      case 'wings':
+        for (const x of [-1, 1]) {
+          const w = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape([[0.04, 0.02], [0.32, 0.07], [0.26, 0.13], [0.1, 0.1]].map(([a, b]) => new THREE.Vector2(a, b))), { depth: 0.006, bevelEnabled: false }).rotateY(Math.PI / 2), mat(look.body));
+          w.position.set(x * 0.045, 0, 0); g.add(w);
+          B(0.008, 0.006, 0.26, x * 0.05, 0.075, 0.18, glow);
+        }
+        break;
+      case 'prongs': for (const [x, y] of [[0, 0.04], [-0.035, -0.02], [0.035, -0.02]]) B(0.01, 0.01, 0.14, x, y, mf + 0.03, glow); break;
+      case 'mouth': for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; fwdCone(0.01, 0.05, Math.cos(a) * 0.04, 0.01 + Math.sin(a) * 0.04, mf + 0.01, mat(0xe8e0d0)); } add(new THREE.CircleGeometry(0.035, 10), glow, 0, 0.01, mf + 0.005); break;
+      case 'wolf': {
+        const gold = mat(0xf4d27a, { emissive: 0x8a6a1e, emissiveIntensity: 0.5 });
+        fwdCone(0.095, 0.2, 0, 0.02, mf + 0.06, gold);
+        for (const x of [-1, 1]) { add(new THREE.ConeGeometry(0.025, 0.08, 4), gold, x * 0.05, 0.11, mf - 0.06); B(0.02, 0.012, 0.01, x * 0.035, 0.05, mf - 0.02, glow); }
+        break;
+      }
+      case 'skull': {
+        const bone = mat(0xe8e0d0);
+        for (const x of [-1, 1]) { add(new THREE.IcosahedronGeometry(0.035, 0), bone, x * 0.09, 0.02, 0.1); B(0.006, 0.012, 0.012, x * 0.12, 0.025, 0.09, glow); }
+        break;
+      }
+      default: console.warn('Unknown exotic part', part);
+    }
+  }
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
 }
