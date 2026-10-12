@@ -103,6 +103,7 @@ function renderOrbit() {
       <nav class="tabs">
         ${['director', 'character'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}</button>`).join('')}
       </nav>
+      <button class="btn install-app hidden" id="install-app" title="Install Afterlight as an app">Install App</button>
       <div class="pstats">
         <span class="cls-chip" style="--cc:${cls.color}">${cls.name}</span>
         <span class="power">◆ ${playerPower(s)}</span>
@@ -111,6 +112,15 @@ function renderOrbit() {
     </header>
     <main id="orbit-main" class="tab-${orbitTab}"></main>`;
   $$('.tab').forEach((b) => b.addEventListener('click', () => { sfx.ui(); orbitTab = b.dataset.tab; renderOrbit(); }));
+  $('#install-app').addEventListener('click', async () => {
+    const p = G.installPrompt;
+    if (!p) return;
+    p.prompt();
+    await p.userChoice.catch(() => null);
+    G.installPrompt = null;
+    refreshInstall();
+  });
+  refreshInstall();
   const main = $('#orbit-main');
   if (orbitTab === 'director') renderDirector(main);
   else renderCharScreen(main);
@@ -909,4 +919,9 @@ export function orbitNotice(text) {
   n.textContent = text;
   document.body.appendChild(n);
   setTimeout(() => n.remove(), 4500);
+}
+
+/** Show the Install App button only when the browser offers installation. */
+export function refreshInstall() {
+  $('#install-app')?.classList.toggle('hidden', !G.installPrompt);
 }

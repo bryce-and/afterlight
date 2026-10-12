@@ -101,3 +101,19 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 window.AFTERLIGHT = G; // handy for debugging in the console
+
+// ---------------------------------------------------------------------------
+// Web app: installable, works offline, warns before closing mid-mission
+// ---------------------------------------------------------------------------
+if ('serviceWorker' in navigator && window.top === window) {
+  navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('Service worker not registered:', e.message));
+}
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  G.installPrompt = e;
+  ui.refreshInstall();
+});
+addEventListener('appinstalled', () => { G.installPrompt = null; ui.refreshInstall(); });
+addEventListener('beforeunload', (e) => {
+  if (G.mission && ['playing', 'paused'].includes(G.state)) { e.preventDefault(); e.returnValue = ''; }
+});
