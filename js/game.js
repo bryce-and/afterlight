@@ -331,7 +331,7 @@ export function dealDamage(e, amount, o = {}) {
   if (!e.alive) return { killed: false, dealt: 0 };
   const M = G.mission;
   let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
-  if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.5;
+  if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
     sendHit(e, dmg, o);

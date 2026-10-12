@@ -41,6 +41,13 @@ function makeWeapon(item) {
   };
 }
 
+// Supers hit hard and keep pace with the mission: their damage scales with the same
+// multiplier as enemy health, so a super feels as strong in the last mission as the first.
+const SUPER_POWER = 2.2;
+const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
+// damage taken while each super is active
+const SUPER_ARMOR = { hammers: 0.45, fists: 0.35, stormtrance: 0.5, revolver: 0.6, tether: 0.6 };
+
 export class Player {
   constructor(save) {
     this.cls = activeKit(save);
@@ -529,10 +536,7 @@ export class Player {
 
   takeDamage(amount, from) {
     if (this.dead || G.mission.phase === 'done') return;
-    if (this.superActive?.type === 'hammers') amount *= 0.6;
-    if (this.superActive?.type === 'fists') amount *= 0.5;
-    if (this.superActive?.type === 'stormtrance') amount *= 0.7;
-    if (this.superActive?.type === 'revolver') amount *= 0.8;
+    if (this.superActive) amount *= SUPER_ARMOR[this.superActive.type] ?? 1;
     if (this.dash > 0) amount *= 0.5;
     this.regenT = this.regenDelay;
     const hadShield = this.shield > 0;
@@ -871,7 +875,7 @@ export class Player {
         spawnPlayerProjectile({
           kind: 'hammer', pos: this.eye.clone().addScaledVector(fwd, 0.8), vel: fwd.clone().multiplyScalar(40).add(new THREE.Vector3(0, 3, 0)),
           gravity: 9, size: 0.2, color: ELEMENTS.solar.hex, life: 4,
-          onHit: (p) => { explode(p, 4.5, 420, 'solar', { source: 'super' }); castFx('blast', { p, el: 'solar', r: 4.5 }); },
+          onHit: (p) => { explode(p, 4.5, superDmg(420), 'solar', { source: 'super' }); castFx('blast', { p, el: 'solar', r: 4.5 }); },
         });
         this.kick = 1; flash.visible = true;
         this.throwFist(0.25);
@@ -881,12 +885,12 @@ export class Player {
     if (S.type === 'revolver' && inp.mouse.leftPressed && S.cd <= 0 && S.shots > 0) {
       S.cd = 0.35; S.shots--;
       const pseudo = { s: { range: 200 }, A: { prec: 1.5 }, item: { element: 'solar' }, has: () => false };
-      const end = this.hitscan(this.eye, fwd, pseudo, 1100, hand, { isSuper: true, element: 'solar', precMult: 1.5, range: 220, noTracer: true });
+      const end = this.hitscan(this.eye, fwd, pseudo, superDmg(1100), hand, { isSuper: true, element: 'solar', precMult: 1.5, range: 220, noTracer: true });
       const pts = [hand.clone(), end.clone()];
       let prev = end;
       for (const e of enemiesNear(end, 10, 2)) {
         const c = e.center(new THREE.Vector3());
-        dealDamage(e, 350, { element: 'solar', source: 'super', pos: c });
+        dealDamage(e, superDmg(350), { element: 'solar', source: 'super', pos: c });
         pts.push(c);
         prev = c;
       }
@@ -905,7 +909,7 @@ export class Player {
         spawnPlayerProjectile({
           kind: 'nova', pos: this.eye.clone().addScaledVector(fwd, 1.2), vel: fwd.clone().multiplyScalar(30), gravity: 0,
           size: 0.7, color: ELEMENTS.void.hex, life: 5,
-          onHit: (p) => { explode(p, 10, 2600, 'void', { source: 'super' }); castFx('blast', { p, el: 'void', r: 10, big: true }); },
+          onHit: (p) => { explode(p, 10, superDmg(2600), 'void', { source: 'super' }); castFx('blast', { p, el: 'void', r: 10, big: true }); },
         });
         this.kick = 1;
         this.throwFist(0.35);
@@ -926,7 +930,7 @@ export class Player {
         S.slamT -= dt;
         if (S.slamT <= 0) {
           const p = this.pos.clone().addScaledVector(this.dashDir, 1.2).setY(0.6);
-          explode(p, 5, 520, 'arc', { source: 'super' });
+          explode(p, 5, superDmg(520), 'arc', { source: 'super' });
           castFx('slam', { p, el: 'arc', r: 6 });
           this.shake = Math.max(this.shake, 0.3);
           sfx.explosion(6);
@@ -939,7 +943,7 @@ export class Player {
       spawnPlayerProjectile({
         kind: 'seeker', pos: this.eye.clone().addScaledVector(fwd, 0.8), vel: fwd.clone().multiplyScalar(60), gravity: 3, size: 0.12, color: ELEMENTS.void.hex, life: 3,
         onHit: (p, e) => {
-          if (e && e.alive) dealDamage(e, 300, { element: 'void', source: 'super', pos: p.clone(), weaken: 4 });
+          if (e && e.alive) dealDamage(e, superDmg(300), { element: 'void', source: 'super', pos: p.clone(), weaken: 4 });
           castFx('tether', { p });
         },
       });
@@ -965,12 +969,12 @@ export class Player {
         const pts = [hand.clone()];
         if (best) {
           const bc = best.center(new THREE.Vector3());
-          dealDamage(best, 26, { element: 'arc', source: 'super', pos: bc });
+          dealDamage(best, superDmg(26), { element: 'arc', source: 'super', pos: bc });
           pts.push(bc);
           for (const e of enemiesNear(best.pos, 8, 3)) {
             if (e === best) continue;
             const ec = e.center(new THREE.Vector3());
-            dealDamage(e, 14, { element: 'arc', source: 'super', pos: ec });
+            dealDamage(e, superDmg(14), { element: 'arc', source: 'super', pos: ec });
             pts.push(ec);
           }
         } else pts.push(this.eye.clone().addScaledVector(fwd, 10));
