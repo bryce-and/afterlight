@@ -10,6 +10,7 @@ import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, e
 import { getEquipped, activeKit } from './save.js';
 import { fxTracer, requestLife, DOWN_TIME } from './coop.js';
 import { castFx } from './abilities.js';
+import { buildCharacter } from './characters.js';
 import * as ui from './ui.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
@@ -48,6 +49,9 @@ const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
 // damage taken while each super is active
 const SUPER_ARMOR = { hammers: 0.45, fists: 0.35, stormtrance: 0.5, revolver: 0.6, tether: 0.6, staff: 0.45, sentinel: 0.5, songflame: 0.6 };
 const OVERSHIELD_MAX = 60;
+// roaming supers play in third person, over the right shoulder
+const TPS_SUPERS = new Set(['hammers', 'fists', 'staff', 'sentinel', 'stormtrance']);
+const _ray = new THREE.Raycaster(), _f = new THREE.Vector3(), _r = new THREE.Vector3(), _cp = new THREE.Vector3(), _pv = new THREE.Vector3();
 
 export class Player {
   constructor(save) {
@@ -127,6 +131,42 @@ export class Player {
     if (this.cur === i) { this.switchT = this.switchMax; this.adsT = 0; }
     this.showModel();
   }
+  get thirdPerson() { return !!this.superActive && !this.dead && TPS_SUPERS.has(this.superActive.type); }
+
+  /** Aim direction from the eye. In third person: toward whatever is under the crosshair, so shots land where you aim. */
+  aimForward(out) {
+    this.getForward(out);
+    if ((this.tpsT || 0) < 0.5) return out;
+    _ray.set(G.camera.position, out);
+    _ray.far = 250;
+    const hit = _ray.intersectObjects(getHitTargets(), false).find((h) => h.distance > 0.5);
+    const target = hit ? hit.point : _cp.copy(G.camera.position).addScaledVector(out, 250);
+    return out.copy(target).sub(this.eye).normalize();
+  }
+
+  /** Your own body, shown while the camera is over the shoulder. */
+  updateBody(dt) {
+    const k = this.tpsT || 0;
+    if (k <= 0.02) {
+      if (this.body) this.body.group.visible = false;
+      this.viewmodel.visible = !this.dead;
+      return;
+    }
+    if (!this.body) {
+      this.body = buildCharacter(G.save.classId, this.cls.element);
+      this.body.group.children[1].visible = false; // stage disc
+      this.body.group.children[2].visible = false; // stage ring
+      this.body.setGun(null);
+    }
+    const b = this.body.group;
+    if (b.parent !== G.scene) G.scene.add(b);
+    b.visible = k > 0.3;
+    this.viewmodel.visible = !this.dead && k < 0.3;
+    b.position.copy(this.pos);
+    b.rotation.y = this.yaw + Math.PI;
+    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: this.punchT > 0 });
+  }
+
   get keepsGuns() { return this.superActive?.type === 'songflame'; }
   activeModel() { return this.superActive && !this.keepsGuns ? this.superModel : this.weapon.model; }
 
@@ -167,6 +207,7 @@ export class Player {
         }
       }
       this.updateCamera(dt);
+      this.updateBody(dt);
       return;
     }
     const zoom = this.currentZoom();
@@ -185,6 +226,7 @@ export class Player {
     this.updateRegen(dt);
     this.updateCamera(dt);
     this.updateViewmodel(dt);
+    this.updateBody(dt);
   }
 
   currentZoom() {
@@ -394,6 +436,10 @@ export class Player {
   }
 
   muzzlePos(out) {
+    if ((this.tpsT || 0) > 0.5) {
+      // right hand of the third-person body
+      return out.set(this.pos.x, this.pos.y + 1.3, this.pos.z).addScaledVector(_r.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw)), 0.35).addScaledVector(this.getForward(_f).setY(0).normalize(), 0.45);
+    }
     const m = this.activeModel();
     G.camera.updateMatrixWorld(true);
     return m.userData.muzzle.getWorldPosition(out);
@@ -1129,7 +1175,7 @@ export class Player {
     const S = this.superActive;
     S.t -= dt; S.cd -= dt;
     const inp = G.input;
-    const fwd = this.getForward(new THREE.Vector3());
+    const fwd = this.aimForward(new THREE.Vector3());
     const flash = this.superModel.userData.flash;
     const hand = this.muzzlePos(new THREE.Vector3());
     if (S.type === 'hammers') {
@@ -1294,6 +1340,20 @@ export class Player {
     this.shake = damp(this.shake, 0, 6, dt);
     const sx = (Math.random() - 0.5) * this.shake * 0.25, sy = (Math.random() - 0.5) * this.shake * 0.25;
     cam.position.copy(this.eye);
+    this.tpsT = damp(this.tpsT || 0, this.thirdPerson ? 1 : 0, 6, dt);
+    if (this.tpsT > 0.001) {
+      const cp = Math.cos(this.pitch);
+      _f.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp);
+      _r.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+      _pv.copy(this.eye).addScaledVector(_r, 0.45); // shoulder pivot
+      _cp.copy(_pv).addScaledVector(_r, 0.35).add({ x: 0, y: 0.3, z: 0 }).addScaledVector(_f, -3.4);
+      // pull the camera in front of any wall between it and the shoulder
+      const dir = _cp.clone().sub(_pv), len = dir.length();
+      _ray.set(_pv, dir.normalize()); _ray.far = len;
+      const hit = _ray.intersectObjects(G.staticMeshes, false)[0];
+      if (hit) _cp.copy(_pv).addScaledVector(dir, Math.max(0.2, hit.distance - 0.3));
+      cam.position.lerpVectors(this.eye, _cp, this.tpsT);
+    }
     cam.rotation.set(this.pitch + sx, this.yaw + sy, this.dead ? 0.4 : 0);
     this.fovKick = damp(this.fovKick, 0, 5, dt);
     const fov = this.baseFov / lerp(1, this.currentZoom(), this.adsT) + this.sprintT * 6 + this.fovKick;
