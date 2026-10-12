@@ -149,7 +149,8 @@ function finish(g, { muzzleF, muzzleY = 0, S, hip, ads, flash = 0xffd27a, gripF 
   const { B } = kit(g);
   const sleeve = B(0.1, 0.1, 0.42, 0.05, -0.22, gripF - 0.26, mat(0x3a3f47));
   sleeve.rotation.x = 0.4;
-  B(0.075, 0.085, 0.1, 0.0, -0.1, gripF - 0.02, mat(0x24272c));
+  sleeve.userData.hand = true;
+  B(0.075, 0.085, 0.1, 0.0, -0.1, gripF - 0.02, mat(0x24272c)).userData.hand = true;
   const muzzle = new THREE.Object3D();
   muzzle.position.set(0, muzzleY, -muzzleF);
   g.add(muzzle);

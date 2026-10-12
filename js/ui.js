@@ -3,6 +3,7 @@ import { G, lockPointer, unlockPointer } from './state.js';
 import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex } from './data.js';
 import { playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
 import { dismantleValue } from './loot.js';
+import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
 import { startMission, retryMission, abandonMission } from './game.js';
 import { initAudio, setVolume, sfx } from './audio.js';
 import { esc, clamp } from './util.js';
@@ -31,6 +32,7 @@ export function initUI() {
 export function showTitle() {
   G.state = 'title';
   showOnly('title');
+  G.menu.setMode('planet');
   G.menu.setLocation(LOCATIONS[0]);
   G.menu.setOffset(4.4);
   $('#title .t-hint').textContent = G.save ? 'Click to continue' : 'Click to begin';
@@ -39,6 +41,7 @@ export function showTitle() {
 export function showClassSelect(fromOrbit = false) {
   G.state = 'classes';
   showOnly('classes');
+  G.menu.setMode('planet');
   G.menu.setOffset(0);
   const el = $('#classes');
   el.innerHTML = `
@@ -72,11 +75,12 @@ export function showClassSelect(fromOrbit = false) {
 // ---------------------------------------------------------------------------
 // Orbit (director / inventory / character)
 // ---------------------------------------------------------------------------
-let orbitTab = 'director', selLoc = null, selMission = null, invSlot = 'primary', invSel = null;
+let orbitTab = 'director', selLoc = null, selMission = null;
 
 export function showOrbit(tab) {
   G.state = 'orbit';
   if (tab) orbitTab = tab;
+  if (orbitTab !== 'director') orbitTab = 'character';
   showOnly('orbit');
   setVolume(G.save.settings.volume);
   if (selLoc === null) {
@@ -95,7 +99,7 @@ function renderOrbit() {
     <header class="topbar">
       <div class="brand">AFTERLIGHT</div>
       <nav class="tabs">
-        ${['director', 'inventory', 'character'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'inventory' && newCount ? `<span class="badge">${newCount}</span>` : ''}</button>`).join('')}
+        ${['director', 'character'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}</button>`).join('')}
       </nav>
       <div class="pstats">
         <span class="cls-chip" style="--cc:${cls.color}">${cls.name}</span>
@@ -107,13 +111,13 @@ function renderOrbit() {
   $$('.tab').forEach((b) => b.addEventListener('click', () => { sfx.ui(); orbitTab = b.dataset.tab; renderOrbit(); }));
   const main = $('#orbit-main');
   if (orbitTab === 'director') renderDirector(main);
-  else if (orbitTab === 'inventory') renderInventory(main);
-  else renderCharacter(main);
+  else renderCharScreen(main);
 }
 
 function renderDirector(main) {
   const s = G.save;
   const loc = LOCATIONS[selLoc];
+  G.menu.setMode('planet');
   G.menu.setLocation(loc);
   G.menu.setOffset(4.4);
   const missions = loc.missions;
@@ -182,136 +186,256 @@ function itemCard(it, { equipped = false, selected = false, compact = false } = 
   </div>`;
 }
 
-function statBar(label, val, max, text) {
-  const pct = clamp((val / max) * 100, 2, 100);
-  return `<div class="stat"><span class="s-l">${label}</span><span class="s-bar"><i style="width:${pct}%"></i></span><span class="s-v">${text ?? val}</span></div>`;
+// ---------------------------------------------------------------------------
+// Character screen (Destiny-style): model in the middle, weapons left, armour right
+// ---------------------------------------------------------------------------
+let flySlot = null, hoverId = null, dismantle = null;
+
+function playerStats() {
+  const s = G.save, cls = CLASSES[s.classId];
+  const st = { ...cls.base };
+  for (const sl of ARMOR_SLOTS) { const it = getEquipped(s, sl); if (it) { st.mob += it.stats.mob; st.res += it.stats.res; st.rec += it.stats.rec; } }
+  return st;
 }
 
-function itemDetail(it) {
+function tileHTML(it, equipped = false) {
+  const rar = RARITIES[rarityIndex(it.rarity)];
+  const weapon = it.kind === 'weapon';
+  const art = weapon ? `<img src="${weaponIcon(it)}" alt="" draggable="false">` : armorIcon(it.slot);
+  return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
+    ${art}
+    ${weapon ? `<span class="t-el el" style="background:${ELEMENTS[it.element].color}"></span><span class="t-ammo ammo-ico" style="--ac:${AMMO[it.slot].color}"></span>` : ''}
+    <span class="t-power">${it.power}</span>${it.isNew ? '<i class="t-new"></i>' : ''}
+  </button>`;
+}
+
+function renderCharScreen(main) {
+  const s = G.save;
+  const cls = CLASSES[s.classId];
+  const el = ELEMENTS[cls.element];
+  G.menu.setMode('character', s.classId, cls.element);
+  const st = playerStats();
+  const slot = (sl) => {
+    const it = getEquipped(s, sl);
+    const hasNew = s.inventory.some((i) => i.slot === sl && i.isNew);
+    return `<div class="cs-slot" data-slot="${sl}"><div class="cs-label">${SLOT_NAMES[sl]}${hasNew ? '<i class="dot"></i>' : ''}</div>${it ? tileHTML(it, true) : '<div class="tile empty"></div>'}</div>`;
+  };
+  main.innerHTML = `
+    <div class="cs">
+      <div class="cs-head">
+        <div class="cs-class" style="color:${cls.color}">${cls.name}</div>
+        <div class="cs-sub">${cls.subclass}  ·  ${el.name}</div>
+      </div>
+      <div class="cs-power"><span class="pw">◆</span>${playerPower(s)}<small>Power</small></div>
+      <div class="cs-col left">
+        <div class="cs-slot"><div class="cs-label">Subclass</div><button class="tile subclass" id="cs-sub" style="--rc:${el.color}" aria-label="Subclass">${subclassIcon(el.color)}</button></div>
+        ${WEAPON_SLOTS.map(slot).join('')}
+      </div>
+      <div class="cs-stage" id="cs-stage" title="Drag to rotate"></div>
+      <div class="cs-col right">${ARMOR_SLOTS.map(slot).join('')}</div>
+      <div class="cs-stats">
+        ${[['Mobility', st.mob, `+${Math.round(st.mob * 1.2)}% speed`], ['Resilience', st.res, `${Math.round(55 + st.res * 3)} shield`], ['Recovery', st.rec, `${clamp(4.6 - st.rec * 0.1, 1.6, 4.6).toFixed(1)}s regen`]]
+          .map(([n, v, d]) => `<div class="cs-stat" title="${d}"><b>${v}</b><span>${n}</span><i><em style="width:${Math.min(100, (v / 40) * 100)}%"></em></i></div>`).join('')}
+      </div>
+      <div class="cs-foot">
+        <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
+        <span class="hint">Click a slot to swap  ·  Hover for details  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
+      </div>
+      <div class="cs-fly hidden" id="cs-fly"></div>
+      <div class="cs-tip hidden" id="cs-tip"></div>
+      <div class="cs-panel hidden" id="cs-panel"></div>
+    </div>`;
+
+  const root = $('.cs', main);
+  root.addEventListener('mouseover', (e) => {
+    const t = e.target.closest('[data-id]');
+    if (t) showTip(t); else if (!e.target.closest('#cs-tip')) hideTip();
+  });
+  root.addEventListener('mouseleave', hideTip);
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest('.tile');
+    if (e.target.closest('#cs-sub')) { openSubclass(); return; }
+    if (t && t.dataset.id) {
+      const it = getItem(s, t.dataset.id);
+      if (t.closest('.cs-slot')) { toggleFly(it.slot, t); return; }
+      if (e.shiftKey) { if (infuseItem(s, it.id)) { sfx.engram(3); flySlot = null; renderOrbit(); } else sfx.denied(); return; }
+      equipItem(s, it.id);
+      sfx.engram(1);
+      flySlot = null;
+      renderOrbit();
+      return;
+    }
+    if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
+  });
+  // drag the stage to turn the character
+  const stage = $('#cs-stage', main);
+  let dragX = null;
+  stage.addEventListener('pointerdown', (e) => { dragX = e.clientX; stage.setPointerCapture(e.pointerId); closeFly(); });
+  stage.addEventListener('pointermove', (e) => { if (dragX === null) return; G.menu.rotateChar((e.clientX - dragX) * 0.012); dragX = e.clientX; });
+  stage.addEventListener('pointerup', () => { dragX = null; });
+  if (flySlot) { const anchor = $(`.cs-slot[data-slot="${flySlot}"] .tile`, main); if (anchor) openFly(flySlot, anchor); }
+}
+
+function toggleFly(sl, anchor) {
+  sfx.ui();
+  if (flySlot === sl) { closeFly(); return; }
+  openFly(sl, anchor);
+}
+
+function openFly(sl, anchor) {
+  const s = G.save;
+  flySlot = sl;
+  const items = s.inventory.filter((i) => i.slot === sl && !isEquipped(s, i))
+    .sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
+  const fly = $('#cs-fly');
+  fly.innerHTML = `<div class="fly-head">${SLOT_NAMES[sl]}<span>${items.length}</span></div>
+    ${items.length ? `<div class="fly-grid">${items.map((it) => tileHTML(it)).join('')}</div>` : '<div class="fly-empty">Nothing else for this slot yet. Engrams drop from enemies and boss caches.</div>'}`;
+  fly.classList.remove('hidden');
+  const r = anchor.getBoundingClientRect(), host = $('.cs').getBoundingClientRect();
+  const left = anchor.closest('.cs-col').classList.contains('left');
+  const fw = fly.offsetWidth, fh = fly.offsetHeight;
+  let x = left ? r.right + 14 : r.left - fw - 14;
+  let y = r.top;
+  x = clamp(x, host.left + 8, host.right - fw - 8);
+  y = clamp(y, host.top + 8, host.bottom - fh - 8);
+  fly.style.left = `${x - host.left}px`;
+  fly.style.top = `${y - host.top}px`;
+  $$('.cs-slot').forEach((n) => n.classList.toggle('open', n.dataset.slot === sl));
+}
+
+function closeFly() {
+  flySlot = null;
+  hideTip();
+  $('#cs-fly')?.classList.add('hidden');
+  $$('.cs-slot').forEach((n) => n.classList.remove('open'));
+}
+
+function tipHTML(it) {
   const s = G.save;
   const rar = RARITIES[rarityIndex(it.rarity)];
   const eq = getEquipped(s, it.slot);
-  const delta = eq && eq !== it ? it.power - eq.power : 0;
+  const equipped = eq === it;
+  const cmp = !equipped && eq ? eq : null;
+  const delta = (a, b, invert = false) => {
+    if (!cmp) return '';
+    const d = invert ? b - a : a - b;
+    if (Math.abs(d) < 0.005) return '';
+    return `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${Number.isInteger(d) ? d : d.toFixed(1)}</span>`;
+  };
   let body = '';
   if (it.kind === 'weapon') {
-    const A = ARCHETYPES[it.arch];
-    const st = it.stats;
-    const el = ELEMENTS[it.element];
-    const am = AMMO[it.slot];
-    body += `<div class="d-el"><span style="color:${el.color}">${el.name}</span>  ·  <span class="ammo-chip" style="--ac:${am.color}"><span class="ammo-ico"></span>${am.name} Ammo</span></div>`;
-    body += '<div class="stats">';
-    body += statBar('Impact', st.dmg * (A.pellets || 1), A.dmg * (A.pellets || 1) * 1.6, Math.round(st.dmg) + (A.pellets ? ` x${A.pellets}` : ''));
-    body += statBar('Rate of Fire', st.rpm, A.rpm * 1.6, `${st.rpm} rpm`);
-    body += statBar('Magazine', st.mag, A.mag * 1.6, st.mag);
-    body += statBar('Reload', 1 / st.reload, (1 / A.reload) * 1.6, `${st.reload.toFixed(1)}s`);
-    body += statBar('Range', st.range, A.range * 1.6, `${st.range}m`);
-    body += statBar('Stability', 1 / st.spread, (1 / A.spread) * 1.6, Math.round(50 * (A.spread / st.spread)));
+    const A = ARCHETYPES[it.arch], st = it.stats, el = ELEMENTS[it.element], am = AMMO[it.slot];
+    const cs = cmp && cmp.arch === it.arch ? cmp.stats : null;
+    const row = (label, v, max, txt, cv, inv) => `<div class="tt-stat"><span>${label}</span><i><em style="width:${clamp((v / max) * 100, 3, 100)}%"></em></i><b>${txt}${cs ? delta(v, cv, inv) : ''}</b></div>`;
+    body += `<div class="tt-top"><div class="tt-pow">${it.power}${cmp ? delta(it.power, cmp.power) : ''}</div><div class="tt-tags"><span style="color:${el.color}">◆ ${el.name}</span><span class="ammo-chip" style="--ac:${am.color}"><span class="ammo-ico"></span>${am.name}</span></div></div>`;
+    body += '<div class="tt-stats">';
+    body += row('Impact', st.dmg * (A.pellets || 1), A.dmg * (A.pellets || 1) * 1.6, Math.round(st.dmg) + (A.pellets ? `×${A.pellets}` : ''), cs && cs.dmg * (A.pellets || 1));
+    body += row('Rate of Fire', st.rpm, A.rpm * 1.6, `${st.rpm}`, cs && cs.rpm);
+    body += row('Magazine', st.mag, A.mag * 1.6, st.mag, cs && cs.mag);
+    body += row('Reload', 1 / st.reload, (1 / A.reload) * 1.6, `${st.reload.toFixed(1)}s`, cs && 1 / cs.reload);
+    body += row('Range', st.range, A.range * 1.6, `${st.range}m`, cs && cs.range);
     body += '</div>';
     const perks = [];
-    if (it.exotic) perks.push(`<div class="perk exo"><b>${EXOTIC_PERKS[it.exotic].name}</b><span>${EXOTIC_PERKS[it.exotic].desc}</span></div>`);
-    for (const p of it.perks) perks.push(`<div class="perk"><b>${PERKS[p].name}</b><span>${PERKS[p].desc}</span></div>`);
-    body += perks.length ? `<div class="perks">${perks.join('')}</div>` : '<div class="perks none">No perks</div>';
-    if (it.flavor) body += `<div class="flavor">${esc(it.flavor)}</div>`;
+    if (it.exotic) perks.push(`<div class="tt-perk exo"><i></i><div><b>${EXOTIC_PERKS[it.exotic].name}</b><span>${EXOTIC_PERKS[it.exotic].desc}</span></div></div>`);
+    for (const p of it.perks) perks.push(`<div class="tt-perk"><i></i><div><b>${PERKS[p].name}</b><span>${PERKS[p].desc}</span></div></div>`);
+    if (perks.length) body += `<div class="tt-perks">${perks.join('')}</div>`;
+    if (it.flavor) body += `<div class="tt-flavor">${esc(it.flavor)}</div>`;
   } else {
-    const st = it.stats;
-    body += `<div class="d-el">${SLOT_NAMES[it.slot]}</div><div class="stats">`;
-    body += statBar('Mobility', st.mob, 12);
-    body += statBar('Resilience', st.res, 12);
-    body += statBar('Recovery', st.rec, 12);
-    body += `</div><div class="perks none">Total ${st.mob + st.res + st.rec}</div>`;
+    const st = it.stats, c = cmp ? cmp.stats : null;
+    body += `<div class="tt-top"><div class="tt-pow">${it.power}${cmp ? delta(it.power, cmp.power) : ''}</div><div class="tt-tags"><span>${SLOT_NAMES[it.slot]}</span></div></div><div class="tt-stats">`;
+    for (const [k, n] of [['mob', 'Mobility'], ['res', 'Resilience'], ['rec', 'Recovery']]) {
+      body += `<div class="tt-stat"><span>${n}</span><i><em style="width:${clamp((st[k] / 12) * 100, 3, 100)}%"></em></i><b>${st[k]}${c ? delta(st[k], c[k]) : ''}</b></div>`;
+    }
+    body += `<div class="tt-stat total"><span>Total</span><i></i><b>${st.mob + st.res + st.rec}</b></div></div>`;
   }
   const inf = infuseInfo(s, it);
-  const equipped = isEquipped(s, it);
-  return `<div class="detail" style="--rc:${rar.color}">
-    <div class="d-head"><div class="d-rar">${rar.name} ${typeLine(it)}</div><div class="d-name">${esc(it.name)}</div>
-      <div class="d-power">◆ ${it.power}${delta ? `<span class="${delta > 0 ? 'up' : 'down'}">${delta > 0 ? '▲' : '▼'} ${Math.abs(delta)}</span>` : ''}</div></div>
-    ${body}
-    <div class="d-actions">
-      <button class="btn primary" data-act="equip" ${equipped ? 'disabled' : ''}>${equipped ? 'Equipped' : 'Equip'}</button>
-      <button class="btn" data-act="infuse" ${inf.possible && s.glimmer >= inf.cost ? '' : 'disabled'} title="Raise this item's power to the highest you own in this slot">Infuse to ◆${inf.target} (⬡${inf.cost})</button>
-      <button class="btn danger" data-act="dismantle" ${equipped ? 'disabled' : ''}>Dismantle (+⬡${dismantleValue(it)})</button>
+  const foot = equipped
+    ? '<div class="tt-foot">Equipped</div>'
+    : `<div class="tt-foot"><span>Click: Equip</span><span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
+  return `<div class="tt-head r-${it.rarity}" style="--rc:${rar.color}"><div class="tt-name">${esc(it.name)}</div><div class="tt-type">${rar.name} ${typeLine(it)}</div></div><div class="tt-body">${body}</div>${foot}`;
+}
+
+function showTip(tile) {
+  const it = getItem(G.save, tile.dataset.id);
+  if (!it) return;
+  hoverId = it.id;
+  if (it.isNew && !tile.closest('.cs-slot')) { it.isNew = false; writeSave(G.save); tile.querySelector('.t-new')?.remove(); }
+  const tip = $('#cs-tip');
+  tip.innerHTML = tipHTML(it);
+  tip.classList.remove('hidden');
+  const r = tile.getBoundingClientRect(), host = $('.cs').getBoundingClientRect();
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = r.right + 12;
+  if (x + tw > host.right - 8) x = r.left - tw - 12;
+  const y = clamp(r.top, host.top + 8, host.bottom - th - 8);
+  tip.style.left = `${Math.max(host.left + 8, x) - host.left}px`;
+  tip.style.top = `${y - host.top}px`;
+}
+
+function hideTip() {
+  hoverId = null;
+  cancelDismantle();
+  $('#cs-tip')?.classList.add('hidden');
+}
+
+function startDismantle() {
+  if (dismantle || !hoverId) return;
+  const it = getItem(G.save, hoverId);
+  if (!it || isEquipped(G.save, it)) { sfx.denied(); return; }
+  const bar = $('#cs-tip .tt-hold em');
+  const t0 = performance.now(), DUR = 900;
+  const id = it.id;
+  const tick = () => {
+    const k = (performance.now() - t0) / DUR;
+    if (bar) bar.style.width = `${Math.min(100, k * 100)}%`;
+    if (k >= 1) {
+      dismantle = null;
+      const v = dismantleItem(G.save, id);
+      sfx.ui();
+      hideTip();
+      renderOrbit();
+      feedOrbit(`Dismantled ${it.name}  +⬡${v}`);
+      return;
+    }
+    dismantle = requestAnimationFrame(tick);
+  };
+  dismantle = requestAnimationFrame(tick);
+}
+
+function cancelDismantle() {
+  if (dismantle) cancelAnimationFrame(dismantle);
+  dismantle = null;
+  const bar = $('#cs-tip .tt-hold em');
+  if (bar) bar.style.width = '0%';
+}
+
+function feedOrbit(text) {
+  const n = document.createElement('div');
+  n.className = 'cs-toast';
+  n.textContent = text;
+  $('.cs')?.appendChild(n);
+  setTimeout(() => n.remove(), 2200);
+}
+
+function openSubclass() {
+  sfx.ui();
+  closeFly();
+  const s = G.save, cls = CLASSES[s.classId], el = ELEMENTS[cls.element];
+  const p = $('#cs-panel');
+  p.innerHTML = `
+    <div class="sp-head" style="--ec:${el.color}"><div><div class="eyebrow">${cls.name}  ·  ${el.name}</div><div class="sp-title">${cls.subclass}</div><div class="sp-tag">${cls.tagline}</div></div><button class="sp-x" id="sp-close" aria-label="Close">✕</button></div>
+    <div class="abil-list">
+      ${[['super', 'X'], ['grenade', 'Q'], ['melee', 'F'], ['class', 'C']].map(([k, key]) => `<div class="abil-row" style="--ec:${el.color}"><kbd>${key}</kbd><div><b>${cls.abilities[k].name}</b><span>${cls.abilities[k].desc}${cls.abilities[k].cd ? `  ·  ${cls.abilities[k].cd}s cooldown` : ''}</span></div></div>`).join('')}
+      <div class="abil-row"><kbd>Space</kbd><div><b>${cls.jumpName}</b><span>Class jump</span></div></div>
+      <div class="abil-row"><kbd>V</kbd><div><b>Melee</b><span>A quick strike that lunges toward close enemies. No cooldown.</span></div></div>
     </div>
-  </div>`;
-}
-
-function renderInventory(main) {
-  const s = G.save;
-  G.menu.setOffset(9);
-  const rIdx = (x) => rarityIndex(x.rarity);
-  const items = s.inventory.filter((i) => i.slot === invSlot).sort((a, b) => (isEquipped(s, b) - isEquipped(s, a)) || b.power - a.power || rIdx(b) - rIdx(a));
-  if (!invSel || !getItem(s, invSel) || getItem(s, invSel).slot !== invSlot) invSel = s.equipped[invSlot];
-  const sel = getItem(s, invSel);
-  main.innerHTML = `
-    <div class="inventory">
-      <aside class="slots">
-        <div class="eyebrow">Weapons</div>
-        ${WEAPON_SLOTS.map((sl) => slotBtn(sl)).join('')}
-        <div class="eyebrow" style="margin-top:14px">Armor</div>
-        ${ARMOR_SLOTS.map((sl) => slotBtn(sl)).join('')}
-        <div class="inv-count">${s.inventory.length} / ${INVENTORY_CAP} items</div>
-      </aside>
-      <section class="grid-wrap">
-        <div class="eyebrow">${SLOT_NAMES[invSlot]}  ·  ${items.length} items</div>
-        <div class="grid">${items.map((it) => itemCard(it, { equipped: isEquipped(s, it), selected: it.id === invSel })).join('')}</div>
-      </section>
-      <section class="detail-wrap">${sel ? itemDetail(sel) : ''}</section>
+    <details class="sp-controls"><summary>All controls</summary>${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</details>
+    <div class="row-btns">
+      <button class="btn" id="change-class">Change Class</button>
+      <button class="btn danger" id="reset-save">Reset Save</button>
     </div>`;
-  function slotBtn(sl) {
-    const it = getEquipped(s, sl);
-    const hasNew = s.inventory.some((i) => i.slot === sl && i.isNew);
-    return `<button class="slot ${sl === invSlot ? 'on' : ''}" data-slot="${sl}"><span class="sl-name">${SLOT_NAMES[sl]}${hasNew ? '<i class="dot"></i>' : ''}</span>${it ? itemCard(it, { compact: true }) : ''}</button>`;
-  }
-  $$('.slot', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); invSlot = b.dataset.slot; invSel = null; renderOrbit(); }));
-  $$('.grid .item', main).forEach((b) => b.addEventListener('click', () => {
-    sfx.ui();
-    invSel = b.dataset.id;
-    const it = getItem(s, invSel);
-    if (it.isNew) { it.isNew = false; writeSave(s); }
-    renderOrbit();
-  }));
-  $$('.grid .item', main).forEach((b) => b.addEventListener('dblclick', () => { equipItem(s, b.dataset.id); renderOrbit(); }));
-  $$('.d-actions .btn', main).forEach((b) => b.addEventListener('click', () => {
-    const act = b.dataset.act;
-    if (act === 'equip') { equipItem(s, invSel); sfx.engram(1); }
-    else if (act === 'dismantle') { dismantleItem(s, invSel); invSel = null; sfx.ui(); }
-    else if (act === 'infuse') { if (infuseItem(s, invSel)) sfx.engram(3); }
-    renderOrbit();
-  }));
-}
-
-function renderCharacter(main) {
-  const s = G.save;
-  G.menu.setOffset(4.4);
-  const cls = CLASSES[s.classId];
-  const st = { ...cls.base };
-  for (const sl of ARMOR_SLOTS) { const it = getEquipped(s, sl); if (it) { st.mob += it.stats.mob; st.res += it.stats.res; st.rec += it.stats.rec; } }
-  main.innerHTML = `
-    <div class="character">
-      <section class="char-main" style="--cc:${cls.color}">
-        <div class="eyebrow">${ELEMENTS[cls.element].name}  ·  ${cls.subclass}</div>
-        <h1 class="screen-title">${cls.name}</h1>
-        <p class="desc">${cls.tagline}</p>
-        <div class="stats big">
-          ${statBar('Mobility', st.mob, 40, `${st.mob}  (+${Math.round(st.mob * 1.2)}% speed)`)}
-          ${statBar('Resilience', st.res, 40, `${st.res}  (${Math.round(55 + st.res * 3)} shield)`)}
-          ${statBar('Recovery', st.rec, 40, `${st.rec}  (${clamp(4.6 - st.rec * 0.1, 1.6, 4.6).toFixed(1)}s regen delay)`)}
-        </div>
-        <div class="abil-list">
-          ${[['grenade', 'Q'], ['melee', 'F'], ['class', 'C'], ['super', 'X']].map(([k, key]) => `<div class="abil-row"><kbd>${key}</kbd><div><b>${cls.abilities[k].name}</b><span>${cls.abilities[k].desc}${cls.abilities[k].cd ? `  ·  ${cls.abilities[k].cd}s cooldown` : ''}</span></div></div>`).join('')}
-          <div class="abil-row"><kbd>Space</kbd><div><b>${cls.jumpName}</b><span>Class movement</span></div></div>
-        </div>
-        <div class="row-btns">
-          <button class="btn" id="change-class">Change Class</button>
-          <button class="btn danger" id="reset-save">Reset Save</button>
-        </div>
-      </section>
-      <section class="controls-card">
-        <div class="eyebrow">Controls</div>
-        ${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}
-        <div class="eyebrow" style="margin-top:16px">Tips</div>
-        <p class="tip">Headshots deal precision damage (yellow numbers). Match your weapon element to an enemy's shield color to break it 2.5x faster. Engrams drop from enemies; boss caches drop guaranteed rare-or-better gear.</p>
-      </section>
-    </div>`;
+  p.classList.remove('hidden');
+  $('#sp-close').addEventListener('click', () => p.classList.add('hidden'));
   $('#change-class').addEventListener('click', () => showClassSelect(true));
   $('#reset-save').addEventListener('click', (ev) => {
     const b = ev.currentTarget;
@@ -322,6 +446,14 @@ function renderCharacter(main) {
     showClassSelect();
   });
 }
+
+// Hold F to dismantle, Esc to close flyouts (only on the Character screen)
+addEventListener('keydown', (e) => {
+  if (G.state !== 'orbit' || orbitTab !== 'character') return;
+  if (e.code === 'KeyF' && !e.repeat) startDismantle();
+  if (e.code === 'Escape') { closeFly(); $('#cs-panel')?.classList.add('hidden'); }
+});
+addEventListener('keyup', (e) => { if (e.code === 'KeyF') cancelDismantle(); });
 
 // ---------------------------------------------------------------------------
 // HUD
@@ -653,12 +785,12 @@ export function showComplete(M) {
       <div class="grid rewards">${loot.map((it) => itemCard(it)).join('')}</div>
       <div class="row-btns">
         <button class="btn primary" id="c-orbit">Return to Orbit</button>
-        <button class="btn" id="c-inv">View Inventory</button>
+        <button class="btn" id="c-inv">View Character</button>
         <button class="btn" id="c-replay">Replay</button>
       </div>
     </div>`;
   $('#c-orbit').addEventListener('click', () => abandonMission());
-  $('#c-inv').addEventListener('click', () => { orbitTab = 'inventory'; abandonMission(); });
+  $('#c-inv').addEventListener('click', () => { orbitTab = 'character'; flySlot = null; abandonMission(); });
   $('#c-replay').addEventListener('click', () => { lockPointer(); retryMission(); });
 }
 

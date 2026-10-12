@@ -19,6 +19,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 - **3 classes**: Titan (Sunbreaker), Hunter (Gunslinger), Warlock (Voidwalker). Each has a grenade, melee, class ability, super, and jump.
 - **12 weapon types** (every player gets one of each) in primary / special / heavy slots, aim down sights, reloads, recoil, precision damage, elemental shields.
 - **3 destinations, 9 missions**: the Cosmodrome (Fallen), the Moon (Hive), and Mars (Cabal) and a boss at the end.
+- **Character screen** in the style of Destiny: 3D class model, weapons left, armor right, flyouts to swap gear, item cards, hold F to dismantle.
 - **Loot**: engrams drop from enemies, boss caches give rare-or-better gear, five rarities up to Exotic, random perks, power level, infusion, dismantling for Glimmer.
 - Progress saves to the browser's localStorage.
 

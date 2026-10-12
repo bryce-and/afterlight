@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32, hashStr } from './util.js';
+import { buildCharacter } from './characters.js';
 
 const matCache = new Map();
 export function mat(color, o = {}) {
@@ -304,6 +305,17 @@ export function createMenuScene() {
   const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false }));
   scene.add(stars);
 
+  // character stage (Character screen)
+  const charHolder = new THREE.Group();
+  charHolder.visible = false;
+  scene.add(charHolder);
+  const charLight = new THREE.DirectionalLight(0xfff2e0, 2.6);
+  charLight.position.set(2, 3, 4);
+  const charRim = new THREE.DirectionalLight(0x8fb4ff, 2.2);
+  charRim.position.set(-3, 2.5, -3);
+  charHolder.add(charLight, charRim, new THREE.HemisphereLight(0xc8d4e8, 0x1a1c22, 1.2));
+  let character = null, charKey = null, charYaw = 0.35, mode = 'planet';
+
   const holder = new THREE.Group();
   holder.position.set(4.4, -0.2, 0);
   holder.rotation.z = 0.25;
@@ -320,7 +332,30 @@ export function createMenuScene() {
       holder.add(planet);
     },
     setOffset(x) { holder.position.x = x; },
+    setMode(m, classId, elementId) {
+      mode = m;
+      holder.visible = m === 'planet';
+      charHolder.visible = m === 'character';
+      if (m === 'character') {
+        const key = classId + elementId;
+        if (charKey !== key) {
+          if (character) charHolder.remove(character.group);
+          character = buildCharacter(classId, elementId);
+          charHolder.add(character.group);
+          charKey = key;
+        }
+        // keep the whole figure in frame on tall or wide screens
+        const dist = 5.4 * Math.max(1, 0.95 / camera.aspect);
+        camera.position.set(0, 1.25, dist);
+        camera.lookAt(0, 1.08, 0);
+      } else {
+        camera.position.set(0, 0.6, 18);
+        camera.lookAt(0, 0, 0);
+      }
+    },
+    rotateChar(d) { charYaw += d; },
     update(dt) {
+      if (character && mode === 'character') { character.update(dt); character.group.rotation.y = charYaw; }
       if (planet) planet.rotation.y += dt * 0.08;
       stars.rotation.y += dt * 0.004;
     },
