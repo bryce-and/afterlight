@@ -113,6 +113,18 @@ export const EXOTIC_WEAPONS = [
 ];
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
 export const HEAVY_VERSION = { dmg: 1.4, reserve: 10, brick: 3 };
+// Rolled perk on Legendary armor (one per piece; the same perk on several pieces stacks)
+export const ARMOR_PERKS = {
+  grenadier: { name: 'Grenadier', desc: 'Grenade recharges 15% faster.' },
+  brawler: { name: 'Brawler', desc: 'Powered melee recharges 15% faster.' },
+  kickstart: { name: 'Utility Kickstart', desc: 'Class ability recharges 20% faster.' },
+  dynamo: { name: 'Dynamo', desc: 'Super charges 12% faster.' },
+  recuperation: { name: 'Recuperation', desc: 'Kills restore 15 health.' },
+  handson: { name: 'Hands-On', desc: 'Melee and ability kills give extra super energy.' },
+  plating: { name: 'Resilient Plating', desc: 'Take 8% less damage.' },
+  reserves: { name: 'Ammo Reserves', desc: '+20% reserve ammo for special and heavy weapons.' },
+};
+
 // What each exotic armor piece does (works on any class)
 export const EXOTIC_ARMOR_PERKS = {
   'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'The first hit of your super deals 4x damage. Golden Gun becomes a single shot that deals 6x damage.' },

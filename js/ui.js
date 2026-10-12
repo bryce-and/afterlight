@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS, ARMOR_PERKS } from './data.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
@@ -373,10 +373,11 @@ function renderCharScreen(main) {
       const it = getItem(s, t.dataset.id);
       if (t.closest('.cs-slot')) { toggleFly(it.slot, t); return; }
       if (e.shiftKey) { if (infuseItem(s, it.id)) { sfx.engram(3); flySlot = null; renderOrbit(); } else sfx.denied(); return; }
-      equipItem(s, it.id);
+      const swapped = equipItem(s, it.id);
       sfx.engram(1);
       flySlot = null;
       renderOrbit();
+      if (swapped) orbitNotice(`${swapped.name} unequipped: only one exotic armor piece at a time.`);
       return;
     }
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
@@ -481,6 +482,9 @@ function tipHTML(it) {
     body += `<div class="tt-stat total"><span>Total</span><i></i><b>${st.mob + st.res + st.rec}</b></div></div>`;
     const xp = it.rarity === 'exotic' && EXOTIC_ARMOR_PERKS[it.name];
     if (xp) body += `<div class="tt-perks"><div class="tt-perk exo"><i></i><div><b>${xp.name}</b><span>${xp.desc}</span></div></div></div>`;
+    const ap = it.perk && ARMOR_PERKS[it.perk];
+    if (ap) body += `<div class="tt-perks"><div class="tt-perk"><i></i><div><b>${ap.name}</b><span>${ap.desc}</span></div></div></div>`;
+    if (it.rarity === 'exotic') body += '<div class="tt-note">Only one exotic armor piece can be equipped.</div>';
   }
   const inf = infuseInfo(s, it);
   const foot = equipped

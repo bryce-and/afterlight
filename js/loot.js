@@ -1,4 +1,4 @@
-import { ARCHETYPES, RARITIES, RARITY_WEIGHTS, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, RARITIES, RARITY_WEIGHTS, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ARMOR_PERKS, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt, rand, weightedIndex } from './util.js';
 
 export const MAX_POWER = 100;
@@ -103,6 +103,8 @@ export function makeExotic(name, power) {
   return makeWeapon(tpl.slot || ARCHETYPES[tpl.arch].slot, power, 4, null, name);
 }
 
+export const rollArmorPerk = () => pick(Object.keys(ARMOR_PERKS));
+
 export function makeArmor(slot, power, rIdx) {
   const rar = RARITIES[rIdx];
   const total = rar.armorPts + randInt(-1, 2);
@@ -113,7 +115,9 @@ export function makeArmor(slot, power, rIdx) {
   if (rar.id === 'exotic') name = pick(EXOTIC_ARMOR[slot]);
   else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(ARMOR_NOUN[slot])}`;
   else name = `${pick(ADJ)} ${pick(ARMOR_NOUN[slot])}`;
-  return { id: newId(), kind: 'armor', slot, rarity: rar.id, name, power: clampPower(power), stats: { mob, res, rec }, isNew: true };
+  const item = { id: newId(), kind: 'armor', slot, rarity: rar.id, name, power: clampPower(power), stats: { mob, res, rec }, isNew: true };
+  if (rar.id === 'legendary') item.perk = rollArmorPerk();
+  return item;
 }
 
 export function rollItem(power, rIdx, slot = pick(SLOTS)) {

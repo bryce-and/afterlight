@@ -80,6 +80,13 @@ export class Player {
     // exotic armor effects (any class can wear any exotic)
     this.exo = new Set(ARMOR_SLOTS.map((sl) => getEquipped(save, sl)).filter((it) => it?.rarity === 'exotic').map((it) => EXOTIC_ARMOR_PERKS[it.name]?.id).filter(Boolean));
     if (this.exo.has('synthoceps')) this.cdMax.melee *= 0.75;
+    // Legendary armor perks (stack across pieces)
+    this.ap = {};
+    for (const sl of ARMOR_SLOTS) { const p = getEquipped(save, sl)?.perk; if (p) this.ap[p] = (this.ap[p] || 0) + 1; }
+    const ap = (k) => this.ap[k] || 0;
+    this.cdMax.grenade *= Math.max(0.4, 1 - 0.15 * ap('grenadier'));
+    this.cdMax.melee *= Math.max(0.4, 1 - 0.15 * ap('brawler'));
+    this.cdMax.class *= Math.max(0.4, 1 - 0.2 * ap('kickstart'));
     if (this.exo.has('stomp')) { this.cdMax.class *= 0.7; this.jumpV *= 1.3; this.speed *= 1.08; }
     this.heart = { grenade: 0, melee: 0, class: 0 }; // Heart of Inmost Light: timers on the empowered abilities
     this.meleeT = 0; // recent melee use (Synthoceps)
@@ -111,6 +118,7 @@ export class Player {
     G.camera.add(this.fist);
     this.weapons = WEAPON_SLOTS.map((slot) => makeWeapon(getEquipped(save, slot)));
     for (const w of this.weapons) { w.model = buildGunModel(w.item); w.model.visible = false; this.viewmodel.add(w.model); }
+    if (this.ap.reserves) for (const w of this.weapons) if (w.reserve !== Infinity) { const k = 1 + 0.2 * this.ap.reserves; w.reserve = Math.round(w.reserve * k); w.maxReserve = Math.round(w.maxReserve * k); }
     this.superModel = buildSuperModel(ab.super.id);
     this.superModel.visible = false;
     this.viewmodel.add(this.superModel);
@@ -610,6 +618,8 @@ export class Player {
     const gain = (o.source === 'ability' ? 5 : 3) + (o.crit ? 1 : 0) + typeBonus;
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + gain);
     for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - 0.6);
+    if (this.ap.recuperation) this.heal(15 * this.ap.recuperation);
+    if ((o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + 4 * this.ap.handson);
     if (o.source === 'ability' || o.source === 'melee') {
       if (this.exo.has('nezarec')) { if (this.nezT <= 0) ui.feed("Nezarec's Sin: abilities surge", ELEMENTS.void.color); this.nezT = 5; }
       if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.heal(1000); ui.feed('Skullfort: melee recharged', '#ffb36b'); }
@@ -646,6 +656,7 @@ export class Player {
     if (this.over > 0) { const a = Math.min(this.over, amount); this.over -= a; amount -= a; if (amount <= 0) { sfx.hurt(); return; } }
     if (this.dash > 0) amount *= 0.5;
     if (this.contraT > 0) amount *= 0.8; // Contraverse Hold
+    if (this.ap.plating) amount *= Math.max(0.6, 1 - 0.08 * this.ap.plating);
     this.regenT = this.regenDelay;
     const hadShield = this.shield > 0;
     if (this.shield > 0) {
@@ -726,7 +737,7 @@ export class Player {
     this.updateExoticArmor(dt);
     this.lethalT = Math.max(0, this.lethalT - dt);
     this.meleeLock = Math.max(0, this.meleeLock - dt);
-    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * 0.75);
+    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * 0.75 * (1 + 0.12 * (this.ap.dynamo || 0)));
     const ready = this.superCharge >= 100;
     if (ready && !this.superWasReady) { sfx.superReady(); ui.feed('Super ready [X]', ELEMENTS[this.cls.element].color); }
     this.superWasReady = ready;
