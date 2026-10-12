@@ -345,7 +345,7 @@ export class Enemy {
     // shooters hide behind cover between bursts
     this.usesCover = typeId === 'grunt' || typeId === 'captain';
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0 };
-    const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion' }[M.loc.id];
+    const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow' }[M.loc.id];
     this.model = buildModel(this, M.loc.colors, faction);
     this.height = this.model.height * def.scale;
     this.hitMeshes = this.model.hit;
@@ -394,8 +394,9 @@ export class Enemy {
     if (this.remote) { this.remoteStep(dt); return true; }
     // target the nearest living fireteam member (just the local player when solo)
     this.tgtT = (this.tgtT ?? 0) - dt;
-    if (this.tgtT <= 0 || !this.tgt || this.tgt.dead) { this.tgtT = 0.5; this.tgt = pickTarget(this); }
-    const P = this.tgt;
+    if (this.tgtT <= 0 || !this.tgt || this.tgt.dead || this.tgt.invisT > 0 || this.tgt.inv) { this.tgtT = 0.5; this.tgt = pickTarget(this); }
+    // nobody to target (everyone invisible or down): hold position
+    const P = this.tgt || { pos: this.pos.clone().add(new THREE.Vector3(0, 0, 0.01)), eye: this.pos, vel: new THREE.Vector3(), dead: true };
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z;
     const dist = Math.hypot(dx, dz) || 0.001;
     const nx = dx / dist, nz = dz / dist;
@@ -417,6 +418,8 @@ export class Enemy {
     }
 
     // ---- movement ----
+    // enemies with a 3:1 numbers advantage push and shoot instead of hiding
+    const pushing = (G.mission.aggro ?? 0) >= 3;
     let mx = 0, mz = 0;
     if (!P.dead) {
       if (def.melee) {
@@ -425,23 +428,30 @@ export class Enemy {
           const zig = Math.sin(G.time * 3 + this.seed) * (dist > 6 ? 0.6 : 0);
           mx = nx - nz * zig; mz = nz + nx * zig;
         }
-      } else if (this.usesCover && this.ai.state !== 'advance') {
+      } else if (this.usesCover && this.ai.state !== 'advance' && !pushing) {
         const m = this.coverMove(dt);
         mx = m.x; mz = m.z;
       } else {
-        if (dist > def.prefer + 5 || (!this.los && dist > 6)) { mx = nx; mz = nz; }
-        else if (dist < def.prefer - 6) { mx = -nx; mz = -nz; }
+        if (this.usesCover && this.ai.state !== 'advance') this.ai.state = 'advance'; // numbers advantage: leave cover
+        // pushing: close in to ~60% of preferred range and keep shooting
+        const want = pushing ? def.prefer * 0.6 : def.prefer;
+        if (dist > want + 4 || (!this.los && dist > 6)) { mx = nx; mz = nz; }
+        else if (dist < want - 6) { mx = -nx; mz = -nz; }
         this.strafeT -= dt;
         if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(2, 4); }
-        mx += -nz * this.strafe * 0.35; mz += nx * this.strafe * 0.35;
-        if (this.usesCover) {
+        const sf = pushing ? 0.25 : 0.35;
+        mx += -nz * this.strafe * sf; mz += nx * this.strafe * sf;
+        if (this.usesCover && !pushing) {
           this.ai.t -= dt;
-          if (this.ai.t <= 0) { this.ai.t = 0.8; const c = findCover(this); if (c) { this.ai.cover = c; this.ai.state = 'toCover'; this.ai.t = 4; } }
+          if (this.ai.t <= 0) { this.ai.t = 1.2; const c = findCover(this); if (c) { this.ai.cover = c; this.ai.state = 'toCover'; this.ai.t = 4; } }
         }
       }
     }
     const ml = Math.hypot(mx, mz);
-    const speed = def.speed * (this.burstLeft > 0 && !this.isBoss ? 0.4 : 1);
+    this.weakenT = Math.max(0, (this.weakenT || 0) - dt);
+    this.slowT = Math.max(0, (this.slowT || 0) - dt);
+    if (this.weakenT > 0 && Math.random() < 0.15) sparks(this.center(_v), 0x7a4ab0, 1, 1, 0.08, 0.4);
+    const speed = def.speed * (this.burstLeft > 0 && !this.isBoss ? 0.4 : 1) * (this.slowT > 0 ? 0.35 : 1);
     if (ml > 0) { mx /= ml; mz /= ml; }
     this.pos.x += (mx * speed + this.knock.x) * dt;
     this.pos.z += (mz * speed + this.knock.z) * dt;
@@ -519,7 +529,12 @@ export class Enemy {
           if (this.burstT <= 0) {
             this.shoot(dist); this.burstLeft--; this.burstT = def.burstGap;
             // burst done while peeking: duck back behind cover
-            if (this.burstLeft === 0 && this.usesCover && this.ai.state === 'peek') { this.ai.state = 'toCover'; this.ai.t = 3; }
+            if (this.burstLeft === 0 && this.usesCover && this.ai.state === 'peek') {
+              // two bursts per peek, then duck back
+              this.ai.bursts = (this.ai.bursts || 0) + 1;
+              if (this.ai.bursts >= 2) { this.ai.state = 'toCover'; this.ai.t = 3; }
+              else this.fireT = Math.min(this.fireT, 0.5);
+            }
           }
         }
       }
@@ -564,7 +579,7 @@ export class Enemy {
     };
     if (A.state === 'toCover') {
       const m = go(A.cover);
-      if (m.d <= 0.35 || A.t <= 0) { A.state = 'hide'; A.t = rand(1.0, 2.2); A.exposeT = 0.5; }
+      if (m.d <= 0.35 || A.t <= 0) { A.state = 'hide'; A.t = rand(0.6, 1.3); A.exposeT = 0.5; }
       return m;
     }
     if (A.state === 'hide') {
@@ -575,14 +590,14 @@ export class Enemy {
         if (hasLOS(P.eye, _v.set(this.pos.x, this.height * 0.5, this.pos.z))) { A.state = 'advance'; A.t = 0; return { x: 0, z: 0 }; }
       }
       if (A.t <= 0) {
-        A.state = 'peek'; A.t = 1.8;
+        A.state = 'peek'; A.t = 3.2; A.bursts = 0;
         A.peek = peekPoint(this, A.cover);
         this.fireT = Math.min(this.fireT, 0.3);
       }
       return { x: 0, z: 0 };
     }
     // peek: sidestep out until we can see the player; the firing code takes the shot
-    if (A.t <= 0) { A.state = 'hide'; A.t = rand(0.8, 1.6); return { x: 0, z: 0 }; }
+    if (A.t <= 0) { A.state = 'hide'; A.t = rand(0.5, 1.0); return { x: 0, z: 0 }; }
     if (this.los) return { x: 0, z: 0 };
     return go(A.peek);
   }

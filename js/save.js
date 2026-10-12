@@ -1,5 +1,6 @@
-import { SLOTS, LOCATIONS, RARITIES } from './data.js';
-import { starterGear, dismantleValue, armoryGear, modernizeItem } from './loot.js';
+import { SLOTS, LOCATIONS, RARITIES, classKit } from './data.js';
+import { starterGear, dismantleValue, armoryGear, modernizeItem, heavyVersion } from './loot.js';
+import { EXOTIC_WEAPONS } from './data.js';
 
 const KEY = 'afterlight_save_v1';
 export const INVENTORY_CAP = 60;
@@ -14,6 +15,7 @@ export function loadSave() {
       s.settings = { sens: 1, fov: 80, volume: 0.6, ...(s.settings || {}) };
       grantArmory(s);
       if (!s.namesV3) { s.inventory.forEach(modernizeItem); s.namesV3 = true; writeSave(s); }
+      if (!s.heavyExoticsV4) { migrateHeavyExotics(s); s.heavyExoticsV4 = true; writeSave(s); }
       return s;
     }
     console.error('Save file has an unexpected shape; ignoring it.', s);
@@ -41,6 +43,20 @@ export function createSave(classId) {
   return s;
 }
 
+/** Legend of Acrius and Whisper of the Worm moved to the Heavy slot. */
+function migrateHeavyExotics(s) {
+  const heavyNames = new Set(EXOTIC_WEAPONS.filter((e) => e.slot === 'heavy').map((e) => e.name));
+  for (const it of s.inventory) {
+    if (it.kind !== 'weapon' || it.slot !== 'special' || !heavyNames.has(it.name)) continue;
+    const wasEquipped = s.equipped.special === it.id;
+    heavyVersion(it);
+    if (wasEquipped) {
+      const next = s.inventory.filter((i) => i.slot === 'special').sort((a, b) => b.power - a.power)[0];
+      if (next) s.equipped.special = next.id; else delete s.equipped.special;
+    }
+  }
+}
+
 /** Every save gets one of each weapon type exactly once (v2 armory). */
 function grantArmory(s) {
   if (s.armoryV2) return;
@@ -50,6 +66,9 @@ function grantArmory(s) {
   s.armoryV2 = true;
   writeSave(s);
 }
+
+/** The player's class + chosen subclass. */
+export const activeKit = (s) => classKit(s.classId, s.subclass?.[s.classId]);
 
 export const getItem = (s, id) => s.inventory.find((i) => i.id === id);
 export const getEquipped = (s, slot) => getItem(s, s.equipped[slot]);

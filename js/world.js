@@ -18,17 +18,35 @@ const BOX = new THREE.BoxGeometry(1, 1, 1);
 // ---------------------------------------------------------------------------
 // Mission level
 // ---------------------------------------------------------------------------
+// Time of day / weather per mission: tints the sky, fog and light.
+const MOODS = {
+  day: null,
+  dawn: { tint: 0xffa27a, k: 0.35, light: 0.9, fog: 1 },
+  dusk: { tint: 0x8a4a7a, k: 0.45, light: 0.72, fog: 0.9 },
+  storm: { tint: 0x56606c, k: 0.6, light: 0.6, fog: 0.55 },
+  night: { tint: 0x0c1424, k: 0.65, light: 0.55, fog: 0.8 },
+};
+function withMood(colors, moodId) {
+  const m = MOODS[moodId];
+  if (!m) return { C: colors, light: 1, fog: 1 };
+  const C = { ...colors };
+  const t = new THREE.Color(m.tint);
+  for (const key of ['sky', 'fog', 'hemiTop', 'sun']) C[key] = new THREE.Color(colors[key]).lerp(t, m.k).getHex();
+  return { C, light: m.light, fog: m.fog };
+}
+
 export function buildLevel(loc, def) {
   const rng = mulberry32(hashStr(def.id));
   const R = (a, b) => a + rng() * (b - a);
   const RP = (arr) => arr[Math.floor(rng() * arr.length)];
-  const C = loc.colors;
+  const mood = withMood(loc.colors, def.mood);
+  const C = mood.C;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(C.sky);
-  scene.fog = new THREE.Fog(C.fog, loc.fog[0], loc.fog[1]);
-  scene.add(new THREE.HemisphereLight(C.hemiTop, C.hemiBot, loc.light.hemi));
-  const sun = new THREE.DirectionalLight(C.sun, loc.light.sun);
+  scene.fog = new THREE.Fog(C.fog, loc.fog[0] * mood.fog, loc.fog[1] * mood.fog);
+  scene.add(new THREE.HemisphereLight(C.hemiTop, C.hemiBot, loc.light.hemi * (0.5 + 0.5 * mood.light)));
+  const sun = new THREE.DirectionalLight(C.sun, loc.light.sun * mood.light);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 1, far: 220 });
@@ -41,6 +59,12 @@ export function buildLevel(loc, def) {
   const sb = new THREE.Mesh(new THREE.IcosahedronGeometry(loc.skyBody.size, 2), new THREE.MeshBasicMaterial({ color: loc.skyBody.color, fog: false }));
   sb.position.set(...loc.skyBody.pos);
   scene.add(sb);
+  if (loc.skyBody.ring) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(loc.skyBody.size * 1.35, loc.skyBody.size * 2.1, 48), new THREE.MeshBasicMaterial({ color: 0xd8c49a, fog: false, transparent: true, opacity: 0.75, side: THREE.DoubleSide }));
+    ring.position.copy(sb.position);
+    ring.rotation.set(1.2, 0.3, 0.2);
+    scene.add(ring);
+  }
 
   // ---- zones ----
   const names = [...loc.zoneNames].sort(() => rng() - 0.5);
@@ -60,9 +84,15 @@ export function buildLevel(loc, def) {
     const n = Math.sin(x * 0.11 + s1) * Math.cos(z * 0.09 - s1) + 0.6 * Math.sin((x + z) * 0.23 + s1 * 2) + 0.3 * Math.cos(x * 0.41 - z * 0.37);
     const out = Math.max(0, bounds.minX - x, x - bounds.maxX, bounds.minZ - z, z - bounds.maxZ);
     if (out <= 0) return n * 0.12;
+    if (loc.sea) return n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // the play area is a deck above the sea
     return n * 0.12 + Math.min(out, 90) * 0.7 * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
   };
   scene.add(buildGround(bounds, C, heightAt, rng));
+  if (loc.sea) {
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 }));
+    sea.position.set(0, -0.7, (bounds.minZ + bounds.maxZ) / 2);
+    scene.add(sea);
+  }
 
   // ---- obstacles ----
   const colliders = [], staticMeshes = [];
@@ -162,7 +192,28 @@ export function buildLevel(loc, def) {
         if (col) addCollider(x - r * 0.7, y, z - r * 0.7, x + r * 0.7, y + r * 0.85, z + r * 0.7, m);
       }
     },
-  }[loc.id];
+    titan: (x, z, y = 0, col = true) => {
+      const t = rng();
+      if (t < 0.4) { // arcology module with lit windows
+        const rot = rng() < 0.5, w = rot ? 6 : 4, d = rot ? 4 : 6, h = R(3, 4.5);
+        const m = addBox(x, z, w, h, d, C.wall, y, col);
+        addBox(x, z, w + 0.06, 0.35, d + 0.06, C.accent, y + h * 0.62, false, { emissive: C.accent, emissiveIntensity: 1.1 });
+        addBox(x, z, w * 0.7, 0.4, d * 0.7, C.metal, y + h, false);
+        return m;
+      } else if (t < 0.7) { // pipeline on supports
+        const along = rng() < 0.5, L = R(8, 13);
+        const pipe = addMesh(new THREE.CylinderGeometry(0.55, 0.55, L, 8).rotateZ(Math.PI / 2).rotateY(along ? 0 : Math.PI / 2), C.metal, x, y + 1.1, z);
+        for (const s of [-1, 1]) addBox(along ? x + s * (L / 2 - 0.6) : x, along ? z : z + s * (L / 2 - 0.6), 0.5, 1.1, 0.5, C.rock2, y, false);
+        if (col) addCollider(along ? x - L / 2 : x - 0.6, y, along ? z - 0.6 : z - L / 2, along ? x + L / 2 : x + 0.6, y + 1.7, along ? z + 0.6 : z + L / 2, pipe);
+        return pipe;
+      }
+      // stilted tower with a tank on top
+      const h = R(5, 8);
+      for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) addBox(x + sx * 1.4, z + sz * 1.4, 0.4, h, 0.4, C.rock2, y, col);
+      addBox(x, z, 3.6, 0.4, 3.6, C.metal, y + h, false);
+      return addMesh(new THREE.CylinderGeometry(1.3, 1.3, 2.2, 10), C.wall, x, y + h + 1.5, z);
+    },
+  }[loc.theme || loc.id];
 
   const placeRandom = (fn, cx, cz, rMin, rMax, size = 3) => {
     for (let t = 0; t < 12; t++) {
@@ -179,20 +230,102 @@ export function buildLevel(loc, def) {
     return table[0][0];
   };
 
+  // ---- layout style (each mission has its own) ----
+  const layout = def.layout || 'open';
+  // a broken-walled room: wall segments of uneven height, with door gaps on the given sides
+  const room = (cx, cz, w, d, h, doors) => {
+    const t = 0.8, gap = 3.2;
+    const side = (horiz, fixed, from, to, door) => {
+      const len = to - from, mid = (from + to) / 2;
+      const segs = door ? [[from, mid - gap / 2], [mid + gap / 2, to]] : [[from, to]];
+      for (const [a, b] of segs) {
+        const L = b - a;
+        if (L < 0.6) continue;
+        const hh = h * R(0.55, 1);
+        if (horiz) addBox((a + b) / 2, fixed, L, hh, t, C.wall); else addBox(fixed, (a + b) / 2, t, hh, L, C.wall);
+      }
+    };
+    side(true, cz - d / 2, cx - w / 2, cx + w / 2, doors.includes('n'));
+    side(true, cz + d / 2, cx - w / 2, cx + w / 2, doors.includes('s'));
+    side(false, cx - w / 2, cz - d / 2, cz + d / 2, doors.includes('w'));
+    side(false, cx + w / 2, cz - d / 2, cz + d / 2, doors.includes('e'));
+  };
+  const twoDoors = () => { const all = ['n', 's', 'e', 'w'].sort(() => rng() - 0.5); return all.slice(0, 2); };
+  // walled compound around a zone, gates on the near (+z) and far (-z) sides, towers at the corners
+  const fortress = (cx, cz, half) => {
+    const h = 3.6, t = 1.2, gate = 6.5;
+    for (const s of [-1, 1]) {
+      const zz = cz + s * half;
+      for (const [a, b] of [[cx - half, cx - gate / 2], [cx + gate / 2, cx + half]]) if (inBounds((a + b) / 2, zz, 1)) addBox((a + b) / 2, zz, b - a, h, t, C.wall);
+      const xx = cx + s * half;
+      if (inBounds(xx, cz, 1)) addBox(xx, cz, t, h, half * 2, C.wall);
+      for (const s2 of [-1, 1]) {
+        const tx = cx + s * half, tz = cz + s2 * half;
+        if (!inBounds(tx, tz, 2)) continue;
+        addBox(tx, tz, 3, 9, 3, C.wall);
+        addBox(tx, tz, 4, 0.5, 4, C.metal, 9, false);
+      }
+    }
+    for (let i = -half + 2; i < half - 1; i += 3) for (const s of [-1, 1]) addBox(cx + i, cz + s * half, 1, 0.6, t + 0.1, C.metal, h, false);
+  };
+  const coverMix = weighted.bind(null, [[P.crate, 3], [P.wall, 4], [P.rock, 2], [P.pillar, 2], [P.platform, 1], [themed, 2]]);
+
   for (const z of zones) {
+    const cx = z.center.x, cz = z.center.z;
+    if (layout === 'fortress') {
+      fortress(cx, cz, z.isBoss ? 25 : 17);
+      for (let k = 0; k < (z.isBoss ? 10 : 8); k++) placeRandom(coverMix(), cx, cz, 6, z.isBoss ? 20 : 13, 2);
+      continue;
+    }
+    if (layout === 'ruins') {
+      for (let k = 0; k < (z.isBoss ? 5 : 4); k++) {
+        const w = R(7, 10), d = R(7, 10);
+        placeRandom((x, zz) => room(x, zz, w, d, R(2.6, 3.8), twoDoors()), cx, cz, 10, z.isBoss ? 22 : 17, Math.max(w, d) / 2 + 0.5);
+      }
+      for (let k = 0; k < 5; k++) placeRandom(coverMix(), cx, cz, 5, 18, 2);
+      continue;
+    }
     if (z.isBoss) {
       for (let k = 0; k < 8; k++) {
         const a = (k / 8) * Math.PI * 2 + 0.2;
-        const x = z.center.x + Math.sin(a) * 24, zz = z.center.z + Math.cos(a) * 24;
+        const x = cx + Math.sin(a) * 24, zz = cz + Math.cos(a) * 24;
         if (inBounds(x, zz, 1)) addBox(x, zz, 1.8, R(6, 10), 1.8, C.wall);
       }
-      for (let k = 0; k < 11; k++) placeRandom(weighted([[P.crate, 2], [P.wall, 4], [P.rock, 2], [P.pillar, 1]]), z.center.x, z.center.z, 9, 19, 2);
+      for (let k = 0; k < 11; k++) placeRandom(weighted([[P.crate, 2], [P.wall, 4], [P.rock, 2], [P.pillar, 1]]), cx, cz, 9, 19, 2);
     } else {
-      const n = 12 + Math.floor(rng() * 4);
-      for (let k = 0; k < n; k++) placeRandom(weighted([[P.crate, 3], [P.wall, 4], [P.rock, 2], [P.pillar, 2], [P.platform, 1], [themed, 2]]), z.center.x, z.center.z, 5, 20, 2.2);
+      const n = (layout === 'canyon' ? 9 : 12) + Math.floor(rng() * 4);
+      for (let k = 0; k < n; k++) placeRandom(coverMix(), cx, cz, 5, 20, 2.2);
     }
   }
-  for (let k = 0; k < 95; k++) {
+  if (layout === 'canyon') {
+    // tall cliff columns line the route between zones, opening up around each arena
+    const pts = [spawn, ...zones.map((zz) => zz.center)];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const len = Math.hypot(b.x - a.x, b.z - a.z), dx = (b.x - a.x) / len, dz = (b.z - a.z) / len;
+      for (let tt = 0; tt <= len; tt += 6.5) {
+        const px = a.x + dx * tt, pz = a.z + dz * tt;
+        const nearZone = zones.some((zz) => Math.hypot(px - zz.center.x, pz - zz.center.z) < 22);
+        for (const s of [-1, 1]) {
+          const off = (nearZone ? 25 : 14) + R(0, 4);
+          const x = px - dz * s * off, zz = pz + dx * s * off;
+          const r = R(3.2, 4.8), h = R(8, 15);
+          if (!inBounds(x, zz, r * 0.8)) continue;
+          const m = addMesh(new THREE.CylinderGeometry(r * 0.75, r, h, 7), RP([C.rock, C.rock2]), x, h / 2, zz);
+          addCollider(x - r * 0.75, 0, zz - r * 0.75, x + r * 0.75, h, zz + r * 0.75, m);
+        }
+      }
+    }
+  }
+  if (layout === 'ruins') {
+    for (let k = 0; k < 16; k++) {
+      const w = R(7, 11), d = R(7, 11);
+      const x = R(bounds.minX + 8, bounds.maxX - 8), zz = R(bounds.minZ + 8, bounds.maxZ - 8);
+      if (isClear(x, zz, Math.max(w, d) / 2 + 1)) room(x, zz, w, d, R(2.4, 4.2), twoDoors());
+    }
+  }
+  const filler = { open: 95, ruins: 45, canyon: 40, fortress: 55 }[layout] ?? 95;
+  for (let k = 0; k < filler; k++) {
     const fn = weighted([[P.rock, 3], [themed, 4], [P.crate, 2], [P.wall, 2]]);
     const x = R(bounds.minX + 4, bounds.maxX - 4), z = R(bounds.minZ + 4, bounds.maxZ - 4);
     if (isClear(x, z, 3)) fn(x, z);
@@ -206,8 +339,8 @@ export function buildLevel(loc, def) {
     else if (side === 1) { x = bounds.maxX + off; z = R(bounds.minZ - 40, bounds.maxZ + 40); }
     else if (side === 2) { z = bounds.minZ - off; x = R(bounds.minX - 40, bounds.maxX + 40); }
     else { z = bounds.maxZ + off; x = R(bounds.minX - 40, bounds.maxX + 40); }
-    const y = heightAt(x, z) - 0.6;
-    if (rng() < 0.5) addRock(x, z, R(3, 8), y, false); else themed(x, z, y, false);
+    const y = loc.sea ? -0.7 : heightAt(x, z) - 0.6;
+    if (rng() < 0.5 && !loc.sea) addRock(x, z, R(3, 8), y, false); else themed(x, z, y, false);
   }
   // invisible boundary walls
   const T = 200;

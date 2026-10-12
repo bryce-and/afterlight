@@ -36,7 +36,7 @@ export const ARCHETYPES = {
   auto: { id: 'auto', name: 'Auto Rifle', slot: 'primary', dmg: 15, rpm: 600, mode: 'auto', mag: 34, reload: 1.9, spread: 0.028, ads: 0.007, zoom: 1.35, prec: 1.6, range: 38, recoil: 0.010, bloom: 0.003 },
   hand: { id: 'hand', name: 'Hand Cannon', slot: 'primary', dmg: 60, rpm: 140, mode: 'semi', mag: 11, reload: 1.7, spread: 0.014, ads: 0.002, zoom: 1.45, prec: 2.0, range: 32, recoil: 0.045 },
   pulse: { id: 'pulse', name: 'Pulse Rifle', slot: 'primary', dmg: 22, rpm: 900, mode: 'burst', burst: 3, burstDelay: 0.3, mag: 30, reload: 2.0, spread: 0.02, ads: 0.004, zoom: 1.5, prec: 1.7, range: 42, recoil: 0.012 },
-  scout: { id: 'scout', name: 'Scout Rifle', slot: 'primary', dmg: 40, rpm: 200, mode: 'semi', mag: 16, reload: 2.1, spread: 0.02, ads: 0.001, zoom: 2.2, prec: 1.8, range: 60, recoil: 0.02 },
+  scout: { id: 'scout', name: 'Scout Rifle', slot: 'primary', dmg: 40, rpm: 200, mode: 'semi', mag: 16, reload: 2.1, spread: 0.02, ads: 0.001, zoom: 1.7, prec: 1.8, range: 60, recoil: 0.02 },
   smg: { id: 'smg', name: 'Submachine Gun', slot: 'primary', dmg: 10, rpm: 900, mode: 'auto', mag: 42, reload: 1.6, spread: 0.04, ads: 0.016, zoom: 1.2, prec: 1.5, range: 20, recoil: 0.006, bloom: 0.002 },
   shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 16, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.06, zoom: 1.15, prec: 1.4, range: 12, recoil: 0.08 },
   sniper: { id: 'sniper', name: 'Sniper Rifle', slot: 'special', dmg: 260, rpm: 50, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.5, spread: 0.07, ads: 0.0, zoom: 4.5, prec: 2.6, range: 150, recoil: 0.09 },
@@ -70,26 +70,44 @@ export const EXOTIC_PERKS = {
   voidheart: { name: 'Cosmology', desc: 'Every kill detonates the target in an explosion of its element.' },
   pierce: { name: 'Overpenetration', desc: 'Shots pierce through every enemy in their path.' },
   sunburst: { name: 'Perfect Fifth', desc: 'Every 5th precision hit detonates.' },
+  thorn: { name: 'Mark of the Devourer', desc: 'Hits poison the target, dealing extra damage over 3 seconds.' },
+  memento: { name: 'Memento Mori', desc: 'Reloading empowers the next 6 rounds with +40% damage.' },
+  explosive: { name: 'Explosive Payload', desc: 'Every hit explodes for extra splash damage.' },
 };
 export const PERK_POOL = {
   primary: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'precise'],
   special: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow'],
   heavy: ['rampage', 'killclip', 'extmag', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow'],
 };
+// slot overrides follow Destiny 2: Legend of Acrius and Whisper of the Worm are Heavy (Power) weapons
 export const EXOTIC_WEAPONS = [
   { name: 'SUROS Regime', arch: 'auto', element: 'kinetic', perk: 'endless', flavor: 'Spin up. Never stop.' },
+  { name: 'Sweet Business', arch: 'auto', element: 'kinetic', perk: 'endless', flavor: 'Business is good.' },
+  { name: 'Hard Light', arch: 'auto', element: 'arc', perk: 'pierce', flavor: 'Bounces off walls. Not off enemies.' },
   { name: 'Sunshot', arch: 'hand', element: 'solar', perk: 'voidheart', flavor: 'Every target becomes a small sun.' },
+  { name: 'Thorn', arch: 'hand', element: 'kinetic', perk: 'thorn', flavor: 'To rend one\'s enemies is to see them not as equals.' },
+  { name: 'Ace of Spades', arch: 'hand', element: 'kinetic', perk: 'memento', flavor: 'Always kept close.' },
   { name: 'Graviton Lance', arch: 'pulse', element: 'void', perk: 'voidheart', flavor: 'A burst that folds space around the fallen.' },
+  { name: 'Outbreak Perfected', arch: 'pulse', element: 'kinetic', perk: 'chain', flavor: 'The swarm spreads.' },
   { name: 'Polaris Lance', arch: 'scout', element: 'solar', perk: 'sunburst', flavor: 'Five notes, and the last one burns.' },
   { name: 'Riskrunner', arch: 'smg', element: 'arc', perk: 'chain', flavor: 'Ride the lightning.' },
-  { name: 'Legend of Acrius', arch: 'shotgun', element: 'arc', perk: 'pierce', flavor: 'A king\'s weapon, built to end arguments.' },
-  { name: 'Whisper of the Worm', arch: 'sniper', element: 'void', perk: 'pierce', flavor: 'It hungers for one more shot.' },
+  { name: 'The Huckleberry', arch: 'smg', element: 'arc', perk: 'memento', flavor: 'Keep the trigger down and it never stops.' },
+  { name: 'Lord of Wolves', arch: 'shotgun', element: 'solar', perk: 'sunburst', flavor: 'The pack hunts as one.' },
+  { name: 'Izanagi\'s Burden', arch: 'sniper', element: 'kinetic', perk: 'memento', flavor: 'One shot, all of it.' },
   { name: 'Telesto', arch: 'fusion', element: 'void', perk: 'voidheart', flavor: 'Nobody knows why it works. Nobody asks.' },
+  { name: 'Merciless', arch: 'fusion', element: 'solar', perk: 'explosive', flavor: 'It never stops charging.' },
+  { name: 'Legend of Acrius', arch: 'shotgun', element: 'arc', perk: 'pierce', slot: 'heavy', flavor: 'A king\'s weapon, built to end arguments.' },
+  { name: 'Whisper of the Worm', arch: 'sniper', element: 'void', perk: 'pierce', slot: 'heavy', flavor: 'It hungers for one more shot.' },
   { name: 'Sleeper Simulant', arch: 'linear', element: 'solar', perk: 'chain', flavor: 'A single line that bends to find its mark.' },
+  { name: 'Arbalest', arch: 'linear', element: 'kinetic', perk: 'memento', flavor: 'Built to break shields.' },
   { name: 'Thunderlord', arch: 'mg', element: 'arc', perk: 'chain', flavor: 'The longer it sings, the louder the storm.' },
+  { name: 'Xenophage', arch: 'mg', element: 'solar', perk: 'explosive', flavor: 'Every round a small explosion.' },
   { name: 'Gjallarhorn', arch: 'rocket', element: 'solar', perk: 'cluster', flavor: 'Wolves run in packs.' },
+  { name: 'Truth', arch: 'rocket', element: 'void', perk: 'tracking', flavor: 'It finds you.' },
   { name: 'The Prospector', arch: 'glauncher', element: 'arc', perk: 'cluster', flavor: 'Strike it rich.' },
 ];
+/** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
+export const HEAVY_VERSION = { dmg: 1.7, reserve: 10, brick: 3 };
 export const EXOTIC_ARMOR = {
   helmet: 'Celestial Nighthawk', arms: 'Synthoceps', chest: 'Heart of Inmost Light', legs: 'St0mp-EE5',
 };
@@ -97,39 +115,87 @@ export const EXOTIC_ARMOR = {
 // ---------- Classes ----------
 export const CLASSES = {
   vanguard: {
-    id: 'vanguard', name: 'Titan', subclass: 'Sunbreaker', element: 'solar', color: '#ff8b2b',
-    tagline: 'Sunbreaker. Walls, hammers, and fire.',
+    id: 'vanguard', name: 'Titan', color: '#ff8b2b',
     base: { mob: 2, res: 7, rec: 3 }, jump: 'lift', jumpName: 'Catapult Lift (hold Space in air)',
-    abilities: {
-      grenade: { id: 'pulse', name: 'Solar Grenade', cd: 22, desc: 'Lands and pulses solar fire six times.' },
-      melee: { id: 'fist', name: 'Hammer Strike', cd: 10, desc: 'Lunge at a nearby target and detonate on impact.' },
-      class: { id: 'barricade', name: 'Towering Barricade', cd: 26, desc: 'Raise a wall that blocks enemy fire and instantly reloads all weapons.' },
-      super: { id: 'hammers', name: 'Hammer of Sol', desc: 'For 15s hurl explosive solar hammers and take 40% less damage.' },
+    subclasses: {
+      sunbreaker: {
+        name: 'Sunbreaker', element: 'solar', color: '#ff8b2b', tagline: 'Walls, hammers, and fire.',
+        abilities: {
+          grenade: { id: 'pulse', name: 'Solar Grenade', cd: 22, desc: 'Lands and pulses solar fire six times.' },
+          melee: { id: 'fist', name: 'Hammer Strike', cd: 10, desc: 'Lunge at a nearby target and detonate on impact.' },
+          class: { id: 'barricade', name: 'Towering Barricade', cd: 26, desc: 'Raise a wall that blocks enemy fire for the whole fireteam and reloads your weapons.' },
+          super: { id: 'hammers', name: 'Hammer of Sol', desc: 'For 15s hurl explosive solar hammers and take 40% less damage.' },
+        },
+      },
+      striker: {
+        name: 'Striker', element: 'arc', color: '#5fd3ff', tagline: 'Charge in and hit like lightning.',
+        abilities: {
+          grenade: { id: 'pulse', name: 'Pulse Grenade', cd: 20, desc: 'Lands and pulses arc damage six times.' },
+          melee: { id: 'charge', name: 'Shoulder Charge', cd: 9, desc: 'Sprint-tackle forward, slamming the first enemy you hit.' },
+          class: { id: 'barricade', name: 'Towering Barricade', cd: 26, desc: 'Raise a wall that blocks enemy fire for the whole fireteam and reloads your weapons.' },
+          super: { id: 'fists', name: 'Fists of Havoc', desc: 'For 14s, each click is a lunging arc slam. Take 50% less damage and move faster.' },
+        },
+      },
     },
   },
   stalker: {
-    id: 'stalker', name: 'Hunter', subclass: 'Gunslinger', element: 'solar', color: '#ffb547',
-    tagline: 'Gunslinger. Dodges, knives, and the Golden Gun.',
+    id: 'stalker', name: 'Hunter', color: '#ffb547',
     base: { mob: 7, res: 2, rec: 3 }, jump: 'double', jumpName: 'Triple Jump (press Space in air)',
-    abilities: {
-      grenade: { id: 'arcbolt', name: 'Swarm Grenade', cd: 20, desc: 'Detonates and sends seekers into up to 4 nearby enemies.' },
-      melee: { id: 'knife', name: 'Knife Trick', cd: 9, desc: 'Throw a flaming knife. Precision hits deal double damage.' },
-      class: { id: 'dodge', name: "Gambler's Dodge", cd: 10, desc: 'Dash in your movement direction and instantly reload.' },
-      super: { id: 'revolver', name: 'Golden Gun', desc: 'Six devastating solar shots that burn nearby enemies.' },
+    subclasses: {
+      gunslinger: {
+        name: 'Gunslinger', element: 'solar', color: '#ffb547', tagline: 'Dodges, knives, and the Golden Gun.',
+        abilities: {
+          grenade: { id: 'swarm', name: 'Swarm Grenade', cd: 20, desc: 'Detonates and sends seekers into up to 4 nearby enemies.' },
+          melee: { id: 'knife', name: 'Knife Trick', cd: 9, desc: 'Throw a flaming knife. Precision hits deal double damage.' },
+          class: { id: 'dodge', name: "Gambler's Dodge", cd: 10, desc: 'Dash in your movement direction and instantly reload.' },
+          super: { id: 'revolver', name: 'Golden Gun', desc: 'Six devastating solar shots that burn nearby enemies.' },
+        },
+      },
+      nightstalker: {
+        name: 'Nightstalker', element: 'void', color: '#b07cff', tagline: 'Smoke, invisibility, and tethers.',
+        abilities: {
+          grenade: { id: 'axion', name: 'Axion Bolt', cd: 20, desc: 'Releases two void bolts that hunt down enemies.' },
+          melee: { id: 'snare', name: 'Snare Bomb', cd: 10, desc: 'Throw a smoke bomb that sticks, then bursts into a cloud that slows and weakens enemies.' },
+          class: { id: 'vanish', name: 'Vanishing Step', cd: 12, desc: 'Dodge, reload, and turn invisible for 4s. Enemies lose track of you.' },
+          super: { id: 'tether', name: 'Shadowshot', desc: 'Three void arrows that tether enemies: pulled, slowed, weakened, and burned.' },
+        },
+      },
     },
   },
   arcanist: {
-    id: 'arcanist', name: 'Warlock', subclass: 'Voidwalker', element: 'void', color: '#b07cff',
-    tagline: 'Voidwalker. Heal, drain, and annihilate.',
-    base: { mob: 3, res: 3, rec: 7 }, jump: 'glide', jumpName: 'Burst Glide (hold Space in air)',
-    abilities: {
-      grenade: { id: 'vortex', name: 'Vortex Grenade', cd: 24, desc: 'Creates a void singularity that pulls and shreds enemies.' },
-      melee: { id: 'siphon', name: 'Energy Drain', cd: 11, desc: 'Ranged void strike that restores health and shields.' },
-      class: { id: 'rift', name: 'Healing Rift', cd: 32, desc: 'Conjure a well that heals you and speeds reloads while inside.' },
-      super: { id: 'nova', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits.' },
+    id: 'arcanist', name: 'Warlock', color: '#b07cff',
+    base: { mob: 3, res: 3, rec: 7 }, jump: 'glide', jumpName: 'Burst Glide (press Space in air)',
+    subclasses: {
+      voidwalker: {
+        name: 'Voidwalker', element: 'void', color: '#b07cff', tagline: 'Heal, drain, and annihilate.',
+        abilities: {
+          grenade: { id: 'vortex', name: 'Vortex Grenade', cd: 24, desc: 'Creates a void singularity that pulls and shreds enemies.' },
+          melee: { id: 'siphon', name: 'Energy Drain', cd: 11, desc: 'Ranged void strike that restores health and shields.' },
+          class: { id: 'rift', name: 'Healing Rift', cd: 32, desc: 'Conjure a well that heals everyone inside and speeds reloads.' },
+          super: { id: 'nova', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits.' },
+        },
+      },
+      stormcaller: {
+        name: 'Stormcaller', element: 'arc', color: '#5fd3ff', tagline: 'Call down the storm.',
+        abilities: {
+          grenade: { id: 'storm', name: 'Storm Grenade', cd: 22, desc: 'Summons a storm cloud that strikes enemies below with lightning.' },
+          melee: { id: 'chainl', name: 'Chain Lightning', cd: 10, desc: 'Ranged arc strike that jumps to three more enemies.' },
+          class: { id: 'empower', name: 'Empowering Rift', cd: 32, desc: 'Conjure a well that gives everyone inside +25% weapon damage.' },
+          super: { id: 'stormtrance', name: 'Stormtrance', desc: 'For 12s, hold fire to pour chain lightning from your hands.' },
+        },
+      },
     },
   },
 };
+
+/** Merged class + subclass data. Falls back to the class's first subclass. */
+export function classKit(classId, subId) {
+  const c = CLASSES[classId];
+  const ids = Object.keys(c.subclasses);
+  const sid = c.subclasses[subId] ? subId : ids[0];
+  const sub = c.subclasses[sid];
+  return { ...c, ...sub, className: c.name, subclassId: sid, subclass: sub.name, color: sub.color };
+}
 
 // ---------- Enemies ----------
 export const ENEMY_TYPES = {
@@ -152,9 +218,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig' },
     zoneNames: ['The Steppes', 'Skywatch', 'The Divide', 'Forgotten Shore', 'Rocketyard', 'Mothyards'],
     missions: [
-      { id: 'e1', name: 'A Guardian Rises', power: 10, zones: 3, boss: { name: 'Riksis, Devil Archon', element: 'arc' }, desc: 'Your Ghost has brought you back. Fight through the Fallen and get to the Wall.' },
-      { id: 'e2', name: 'The Last Array', power: 18, zones: 3, boss: { name: 'Sepiks Prime', element: 'solar' }, desc: 'Restore the old Rasputin array and reach out to the stars.' },
-      { id: 'e3', name: "The Devils' Lair", power: 26, zones: 4, boss: { name: 'Draksis, Winter Kell', element: 'void' }, desc: 'Strike at the heart of the House of Devils and bring down their Kell.' },
+      { id: 'e1', layout: 'open', mood: 'dawn', name: 'A Guardian Rises', power: 10, zones: 3, boss: { name: 'Riksis, Devil Archon', element: 'arc' }, desc: 'Your Ghost has brought you back. Fight through the Fallen and get to the Wall.' },
+      { id: 'e2', layout: 'ruins', mood: 'day', name: 'The Last Array', power: 18, zones: 3, boss: { name: 'Sepiks Prime', element: 'solar' }, desc: 'Restore the old Rasputin array and reach out to the stars.' },
+      { id: 'e3', layout: 'fortress', mood: 'dusk', name: "The Devils' Lair", power: 26, zones: 4, boss: { name: 'Draksis, Winter Kell', element: 'void' }, desc: 'Strike at the heart of the House of Devils and bring down their Kell.' },
     ],
   },
   {
@@ -167,9 +233,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
     zoneNames: ["Archer's Line", 'Anchor of Light', 'Hellmouth', 'Temple of Crota', 'Gatehouse', "World's Grave"],
     missions: [
-      { id: 'm1', name: 'The Dark Beyond', power: 35, zones: 3, boss: { name: 'Sardok, Eye of Oryx', element: 'void' }, desc: 'Follow the trail of a lost Guardian into the Hive tunnels.' },
-      { id: 'm2', name: 'Chamber of Night', power: 44, zones: 4, boss: { name: 'Omnigul, Will of Crota', element: 'arc' }, desc: 'Silence the wizard whose screams carry Crota\'s will across the Moon.' },
-      { id: 'm3', name: "Crota's End", power: 53, zones: 4, boss: { name: 'Crota, Son of Oryx', element: 'solar' }, desc: 'Descend into the Hellmouth and end the god-prince of the Hive.' },
+      { id: 'm1', layout: 'canyon', mood: 'night', name: 'The Dark Beyond', power: 35, zones: 3, boss: { name: 'Sardok, Eye of Oryx', element: 'void' }, desc: 'Follow the trail of a lost Guardian into the Hive tunnels.' },
+      { id: 'm2', layout: 'ruins', mood: 'night', name: 'Chamber of Night', power: 44, zones: 4, boss: { name: 'Omnigul, Will of Crota', element: 'arc' }, desc: 'Silence the wizard whose screams carry Crota\'s will across the Moon.' },
+      { id: 'm3', layout: 'fortress', mood: 'storm', name: "Crota's End", power: 53, zones: 4, boss: { name: 'Crota, Son of Oryx', element: 'solar' }, desc: 'Descend into the Hellmouth and end the god-prince of the Hive.' },
     ],
   },
   {
@@ -182,9 +248,24 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Legionary', rusher: 'War Beast', captain: 'Centurion', heavy: 'Colossus' },
     zoneNames: ['The Barrens', 'Scablands', 'The Buried City', 'Dust Palace', 'Valley of Kings', 'Hollows'],
     missions: [
-      { id: 'r1', name: 'The Buried City', power: 62, zones: 4, boss: { name: 'Valus Ta\'aurc', element: 'solar' }, desc: 'Push through the Cabal lines into the ruins buried under the sand.' },
-      { id: 'r2', name: 'Dust Palace', power: 72, zones: 4, boss: { name: 'Bracus Zahn', element: 'void' }, desc: 'Storm the Cabal command post and bring down the Bracus who holds it.' },
-      { id: 'r3', name: 'The Red War', power: 82, zones: 5, boss: { name: 'Dominus Ghaul', element: 'arc' }, desc: 'The Red Legion\'s commander has come for the Light. Send him back to the dark.' },
+      { id: 'r1', layout: 'open', mood: 'day', name: 'The Buried City', power: 62, zones: 4, boss: { name: 'Valus Ta\'aurc', element: 'solar' }, desc: 'Push through the Cabal lines into the ruins buried under the sand.' },
+      { id: 'r2', layout: 'canyon', mood: 'dusk', name: 'Dust Palace', power: 72, zones: 4, boss: { name: 'Bracus Zahn', element: 'void' }, desc: 'Storm the Cabal command post and bring down the Bracus who holds it.' },
+      { id: 'r3', layout: 'fortress', mood: 'storm', name: 'The Red War', power: 82, zones: 5, boss: { name: 'Dominus Ghaul', element: 'arc' }, desc: 'The Red Legion\'s commander has come for the Light. Send him back to the dark.' },
+    ],
+  },
+  {
+    id: 'titan', name: 'New Pacific Arcology', planetName: 'Titan', faction: 'Hive', sea: true,
+    desc: 'A Golden Age city on stilts rises out of the methane seas of Saturn\'s largest moon. The Hive have nested in its flooded towers.',
+    fog: [24, 150], sunDir: [-0.3, 1, 0.6], light: { hemi: 1.7, sun: 1.6 },
+    colors: { sky: 0x9fb5a9, fog: 0xa9bcae, hemiTop: 0xd8e6dc, hemiBot: 0x3a4a44, sun: 0xfff4e0, ground: 0x6f7a74, ground2: 0x5f6a64, rock: 0x4f5a55, rock2: 0x414b47, wall: 0xc9cfcb, metal: 0x7a8580, accent: 0xffc56a, crate: 0x8a7a5a, foliage: 0x3b4a44, sea: 0x2f4f4a, enemy: 0xd6cfb8, enemy2: 0x2a2d2a, eye: 0x6dff8e },
+    planetColors: { sea: true, c: [0x2f4a46, 0x8c7a52, 0xb59a62, 0xdcc48e] }, atmo: 0xe8c890,
+    skyBody: { color: 0xe0c89a, size: 80, pos: [300, 170, -420], ring: true },
+    enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
+    zoneNames: ['The Rig', "Siren's Watch", 'The Solarium', 'Arcology Interior', 'The Methane Sea', 'Spine of Keres'],
+    missions: [
+      { id: 't1', layout: 'open', mood: 'storm', name: 'Hope', power: 88, zones: 4, boss: { name: 'Kathok, Swordbearer', element: 'arc' }, desc: 'Find the Guardians holed up in the Arcology and break the Hive siege on the rigs.' },
+      { id: 't2', layout: 'ruins', mood: 'day', name: 'The Sunken Labs', power: 92, zones: 4, boss: { name: 'Ir Halak, Brood Wizard', element: 'void' }, desc: 'Push into the flooded labs where the Hive are growing something in the dark.' },
+      { id: 't3', layout: 'fortress', mood: 'dusk', name: "Savathûn's Song", power: 96, zones: 5, boss: { name: "Sedrak, Song of Savathûn", element: 'solar' }, desc: 'Silence the Hive choir singing Savathûn\'s song beneath the Arcology.' },
     ],
   },
 ];

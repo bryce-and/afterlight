@@ -13,7 +13,7 @@ import { sfx } from './audio.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp } from './util.js';
 import { net } from './net.js';
-import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers } from './coop.js';
+import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx } from './coop.js';
 
 const _c = new THREE.Vector3();
 
@@ -203,6 +203,8 @@ function updateMission(dt) {
         if (d < nd) { nd = d; nearest = e; }
       }
       if (!z.isBoss && z.waveIdx < z.waves.length && alive <= 2) { spawnWave(z, z.waveIdx); z.waveIdx++; }
+      const fighters = allPlayers().filter((p) => !p.dead).length || 1;
+      M.aggro = alive / fighters;
       M.objective = z.isBoss ? `Defeat ${M.def.boss.name}` : `Clear ${z.name}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
       M.waypoint = !z.isBoss && alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
       if (z.waveIdx >= z.waves.length && alive === 0) zoneCleared(z);
@@ -342,6 +344,10 @@ export function dealDamage(e, amount, o = {}) {
     sfx.hit(o.crit);
     return { killed: false, dealt: dmg };
   }
+  // status effects (applied by the owner of the enemy; members' hits carry them over the network)
+  if (o.weaken) e.weakenT = Math.max(e.weakenT || 0, o.weaken);
+  if (o.slow) e.slowT = Math.max(e.slowT || 0, o.slow);
+  if (e.weakenT > 0) dmg *= 1.3;
   let dealt = 0, shieldHit = false;
   if (e.shield > 0) {
     shieldHit = true;
@@ -423,6 +429,8 @@ export function explode(pos, radius, dmg, element, o = {}) {
   const col = ELEMENTS[element]?.hex ?? 0xffaa55;
   if (o.small) { sparks(pos, col, 6, radius * 2, 0.08, 0.4); flashLight(pos, col, 15 * radius, radius * 3, 0.15); }
   else explosionFx(pos, radius, col);
+  // teammates see every explosion; only this machine applies its damage
+  sendFx({ t: 'fx', k: 'boom', p: [Math.round(pos.x * 100) / 100, Math.round(pos.y * 100) / 100, Math.round(pos.z * 100) / 100], r: radius, c: col, s: o.small ? 1 : 0 });
   sfx.explosion(radius);
   const c = new THREE.Vector3();
   for (const e of G.enemies) {

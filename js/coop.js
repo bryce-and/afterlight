@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { net, send, broadcast, sendTo } from './net.js';
 import { buildCharacter } from './characters.js';
-import { CLASSES } from './data.js';
 import { Enemy, fireEnemyShot } from './enemies.js';
-import { tracer, explosionFx } from './effects.js';
+import { tracer, explosionFx, sparks } from './effects.js';
+import { replayFx } from './abilities.js';
+import { classKit } from './data.js';
 import { startMission, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId } from './game.js';
 import { playerPower } from './save.js';
 import { sfx } from './audio.js';
@@ -16,7 +17,6 @@ import * as ui from './ui.js';
 //  - Everyone rolls their own loot from kill events (client-side loot).
 
 const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss'];
-const FX_RADIUS = { rocket: 6.5, glauncher: 4.5, grenade: 3.5, hammer: 4.5, nova: 10, knife: 0.8, seeker: 2, drain: 0.6 };
 const r2 = (v) => Math.round(v * 100) / 100;
 
 export const remotes = new Map(); // id -> remote player record
@@ -42,9 +42,10 @@ export function pickTarget(e) {
   for (const p of allPlayers()) {
     if (!p || p.dead) continue;
     const d = (p.pos.x - e.pos.x) ** 2 + (p.pos.z - e.pos.z) ** 2;
+    if ((p.invisT > 0 || p.inv) && d > 9) continue; // Vanishing Step
     if (d < bd) { bd = d; best = p; }
   }
-  return best || G.player;
+  return best || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,7 +97,7 @@ export function damageRemote(r, dmg, from) {
 /** Member: report a hit on a host-owned enemy. */
 export function sendHit(e, dmg, o) {
   lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source });
-  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon' });
+  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0 });
 }
 
 export function sendFx(msg) { if (net.active && G.state === 'playing') send(msg); }
@@ -111,7 +112,7 @@ export function fxProjectile(o) {
 // ---------------------------------------------------------------------------
 function myState() {
   const P = G.player;
-  return { id: net.myId, n: G.save.settings.name, c: G.save.classId, x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth) };
+  return { id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.invisT > 0 ? 1 : 0 };
 }
 
 export function netTick(dt) {
@@ -148,18 +149,18 @@ function ensureRemote(st) {
     r = { id: st.id, remote: true, pos: new THREE.Vector3(st.x, st.y, st.z), target: new THREE.Vector3(st.x, st.y, st.z), eye: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: st.yw, dead: false, inMission: false, avatar: null, plate: null };
     remotes.set(st.id, r);
   }
-  r.name = st.n; r.h = st.h; r.dead = !!st.d; r.state = st;
+  r.name = st.n; r.h = st.h; r.dead = !!st.d; r.inv = !!st.iv; r.state = st;
   if (!r.inMission) { r.pos.set(st.x, st.y, st.z); r.inMission = true; }
-  if (r.cls !== st.c) { removeAvatar(r); r.cls = st.c; }
+  if (r.cls !== st.c || r.sc !== st.sc) { removeAvatar(r); r.cls = st.c; r.sc = st.sc; }
   r.target.set(st.x, st.y, st.z);
   r.targetYaw = st.yw;
   if (!r.avatar && G.scene) {
-    const ch = buildCharacter(st.c, CLASSES[st.c].element);
+    const ch = buildCharacter(st.c, classKit(st.c, st.sc).element);
     ch.group.children[1].visible = false; // stage disc
     ch.group.children[2].visible = false; // stage ring
     r.avatar = ch;
     G.scene.add(ch.group);
-    r.plate = ui.makeNameplate(st.n, CLASSES[st.c].color);
+    r.plate = ui.makeNameplate(st.n, classKit(st.c, st.sc).color);
   }
   return r;
 }
@@ -242,7 +243,7 @@ net.on('p', (m, from) => { if (inMission()) ensureRemote({ ...m, id: from }); })
 net.on('hit', (m, from) => {
   if (!inMission()) return;
   const e = getEnemyByNetId(m.id);
-  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true });
+  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl });
 });
 
 // both: effects
@@ -251,8 +252,13 @@ net.on('fx', (m, from) => {
   if (net.isHost) broadcast(m, from);
   if (m.k === 'tr') tracer(new THREE.Vector3(...m.a), new THREE.Vector3(...m.b), m.c, 0.02, 0.06);
   else if (m.k === 'pj') {
-    const r = FX_RADIUS[m.kind] ?? 1;
-    spawnPlayerProjectile({ kind: m.kind, pos: new THREE.Vector3(...m.p), vel: new THREE.Vector3(...m.v), gravity: m.g, size: m.s, color: m.c, life: m.l, visualOnly: true, onHit: (p) => explosionFx(p, r * 0.6, m.c) });
+    // visual copy only: the caster's explosion arrives as its own 'boom'
+    spawnPlayerProjectile({ kind: m.kind, pos: new THREE.Vector3(...m.p), vel: new THREE.Vector3(...m.v), gravity: m.g, size: m.s, color: m.c, life: m.l, visualOnly: true, onHit: () => {} });
+  } else if (m.k === 'boom') {
+    const p = new THREE.Vector3(...m.p);
+    if (m.s) sparks(p, m.c, 6, m.r * 2, 0.08, 0.4); else explosionFx(p, m.r, m.c);
+  } else if (m.k === 'ab') {
+    replayFx(m.kind, m.o);
   }
 });
 

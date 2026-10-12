@@ -1,4 +1,4 @@
-import { ARCHETYPES, RARITIES, RARITY_WEIGHTS, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ENERGY, SLOTS, WEAPON_SLOTS } from './data.js';
+import { ARCHETYPES, RARITIES, RARITY_WEIGHTS, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt, rand, weightedIndex } from './util.js';
 
 export const MAX_POWER = 100;
@@ -53,7 +53,7 @@ export function makeWeapon(slot, power, rIdx, archOverride) {
   const rar = RARITIES[rIdx];
   let arch, element, name, exotic = null, flavor = '';
   if (rar.id === 'exotic') {
-    const pool = EXOTIC_WEAPONS.filter((e) => ARCHETYPES[e.arch].slot === slot);
+    const pool = EXOTIC_WEAPONS.filter((e) => (e.slot || ARCHETYPES[e.arch].slot) === slot);
     const tpl = pick(pool);
     arch = tpl.arch; element = tpl.element; name = tpl.name; exotic = tpl.perk; flavor = tpl.flavor;
   } else {
@@ -78,7 +78,9 @@ export function makeWeapon(slot, power, rIdx, archOverride) {
     const p = pick(pool);
     if (!perks.includes(p)) perks.push(p);
   }
-  return { id: newId(), kind: 'weapon', slot, arch, element, rarity: rar.id, name, power: clampPower(power), stats, perks, exotic, flavor, isNew: true };
+  const item = { id: newId(), kind: 'weapon', slot, arch, element, rarity: rar.id, name, power: clampPower(power), stats, perks, exotic, flavor, isNew: true };
+  if (slot !== A.slot) heavyVersion(item);
+  return item;
 }
 
 export function makeArmor(slot, power, rIdx) {
@@ -113,6 +115,15 @@ export function armoryGear(owned, power) {
   return Object.values(ARCHETYPES)
     .filter((A) => !owned.has(A.id))
     .map((A) => ({ ...makeWeapon(A.slot, power, 0, A.id), name: ARMORY_NAMES[A.id] ?? A.name }));
+}
+
+/** A special weapon type living in the Heavy slot: more damage, less ammo. */
+export function heavyVersion(item) {
+  item.slot = 'heavy';
+  item.stats.dmg = +(item.stats.dmg * HEAVY_VERSION.dmg).toFixed(1);
+  item.reserve = HEAVY_VERSION.reserve;
+  item.brick = HEAVY_VERSION.brick;
+  return item;
 }
 
 /** Renames gear from older saves to the Destiny names (keeps stats and perks). */

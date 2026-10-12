@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex } from './data.js';
-import { playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit } from './data.js';
+import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
 import { startMission, retryMission, abandonMission } from './game.js';
@@ -54,11 +54,10 @@ export function showClassSelect(fromOrbit = false) {
       <div class="cls-grid">
         ${Object.values(CLASSES).map((c) => `
           <button class="cls-card" data-cls="${c.id}" style="--cc:${c.color}">
-            <div class="cls-el">${ELEMENTS[c.element].name}  ·  ${c.subclass}</div>
+            <div class="cls-el">${Object.values(c.subclasses).map((sc) => `<span style="color:${sc.color}">${sc.name}</span>`).join('  ·  ')}</div>
             <div class="cls-name">${c.name}</div>
-            <div class="cls-tag">${c.tagline}</div>
             <ul class="cls-abs">
-              ${['grenade', 'melee', 'class', 'super'].map((k) => `<li><b>${c.abilities[k].name}</b><span>${c.abilities[k].desc}</span></li>`).join('')}
+              ${Object.values(c.subclasses).map((sc) => `<li><b style="color:${sc.color}">${sc.name} (${ELEMENTS[sc.element].name})</b><span>${sc.tagline} Super: ${sc.abilities.super.name}.</span></li>`).join('')}
               <li><b>${c.jumpName}</b><span>Movement ability</span></li>
             </ul>
             <div class="cls-pick">Select</div>
@@ -96,7 +95,7 @@ export function showOrbit(tab) {
 
 function renderOrbit() {
   const s = G.save;
-  const cls = CLASSES[s.classId];
+  const cls = activeKit(s);
   const newCount = s.inventory.filter((i) => i.isNew).length;
   $('#orbit').innerHTML = `
     <header class="topbar">
@@ -265,7 +264,7 @@ function tileHTML(it, equipped = false) {
 
 function renderCharScreen(main) {
   const s = G.save;
-  const cls = CLASSES[s.classId];
+  const cls = activeKit(s);
   const el = ELEMENTS[cls.element];
   G.menu.setMode('character', s.classId, cls.element);
   const st = playerStats();
@@ -293,6 +292,7 @@ function renderCharScreen(main) {
       </div>
       <div class="cs-foot">
         <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
+        <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
         <span class="hint">Click a slot to swap  ·  Hover for details  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
       </div>
       <div class="cs-fly hidden" id="cs-fly"></div>
@@ -320,6 +320,14 @@ function renderCharScreen(main) {
       return;
     }
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
+  });
+  $('#cs-reset', main).addEventListener('click', (ev) => {
+    const b = ev.currentTarget;
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Click again: delete gear and progress'; return; }
+    resetSave();
+    G.save = null;
+    selLoc = null; selMission = null;
+    showClassSelect();
   });
   // drag the stage to turn the character
   const stage = $('#cs-stage', main);
@@ -474,10 +482,12 @@ function feedOrbit(text) {
 function openSubclass() {
   sfx.ui();
   closeFly();
-  const s = G.save, cls = CLASSES[s.classId], el = ELEMENTS[cls.element];
+  const s = G.save, cls = activeKit(s), el = ELEMENTS[cls.element];
   const p = $('#cs-panel');
+  const subs = CLASSES[s.classId].subclasses;
   p.innerHTML = `
-    <div class="sp-head" style="--ec:${el.color}"><div><div class="eyebrow">${cls.name}  ·  ${el.name}</div><div class="sp-title">${cls.subclass}</div><div class="sp-tag">${cls.tagline}</div></div><button class="sp-x" id="sp-close" aria-label="Close">✕</button></div>
+    <div class="sp-head" style="--ec:${el.color}"><div><div class="eyebrow">${cls.className}  ·  ${el.name}</div><div class="sp-title">${cls.subclass}</div><div class="sp-tag">${cls.tagline}</div></div><button class="sp-x" id="sp-close" aria-label="Close">✕</button></div>
+    <div class="sp-pick">${Object.entries(subs).map(([id, sc]) => `<button class="sp-sub${id === cls.subclassId ? ' on' : ''}" data-sub="${id}" style="--ec:${sc.color}"><b>${sc.name}</b><span>${ELEMENTS[sc.element].name}</span></button>`).join('')}</div>
     <div class="abil-list">
       ${[['super', 'X'], ['grenade', 'Q'], ['melee', 'F'], ['class', 'C']].map(([k, key]) => `<div class="abil-row" style="--ec:${el.color}"><kbd>${key}</kbd><div><b>${cls.abilities[k].name}</b><span>${cls.abilities[k].desc}${cls.abilities[k].cd ? `  ·  ${cls.abilities[k].cd}s cooldown` : ''}</span></div></div>`).join('')}
       <div class="abil-row"><kbd>Space</kbd><div><b>${cls.jumpName}</b><span>Class jump</span></div></div>
@@ -486,19 +496,17 @@ function openSubclass() {
     <details class="sp-controls"><summary>All controls</summary>${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</details>
     <div class="row-btns">
       <button class="btn" id="change-class">Change Class</button>
-      <button class="btn danger" id="reset-save">Reset Save</button>
     </div>`;
   p.classList.remove('hidden');
+  $$('.sp-sub', p).forEach((b) => b.addEventListener('click', () => {
+    s.subclass = { ...(s.subclass || {}), [s.classId]: b.dataset.sub };
+    writeSave(s);
+    sfx.engram(2);
+    renderOrbit();
+    openSubclass();
+  }));
   $('#sp-close').addEventListener('click', () => p.classList.add('hidden'));
   $('#change-class').addEventListener('click', () => showClassSelect(true));
-  $('#reset-save').addEventListener('click', (ev) => {
-    const b = ev.currentTarget;
-    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Click again to delete everything'; return; }
-    resetSave();
-    G.save = null;
-    selLoc = null; selMission = null;
-    showClassSelect();
-  });
 }
 
 // Hold F to dismantle, Esc to close flyouts (only on the Character screen)
@@ -545,7 +553,7 @@ export function enterMission() {
   $('#super .super-name').textContent = ab.super.name;
   $('#weapons').innerHTML = P.weapons.map((w, i) => {
     const rar = RARITIES[rarityIndex(w.item.rarity)];
-    const ammo = AMMO[w.A.slot];
+    const ammo = AMMO[w.item.slot];
     return `<div class="wrow" data-i="${i}" style="--rc:${rar.color};--ec:${ELEMENTS[w.item.element].color};--ac:${ammo.color}">
       <div class="w-key">${i + 1}</div>
       <div class="w-info"><div class="w-name"><span class="el" title="${ELEMENTS[w.item.element].name}"></span>${esc(w.item.name)}</div><div class="w-type">${ARCHETYPES[w.item.arch].name}</div></div>

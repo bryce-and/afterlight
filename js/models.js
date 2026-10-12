@@ -91,7 +91,7 @@ function holo(k, m, S, f, y0, color = RED) {
   }
 }
 
-function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED) {
+function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED, simple = false) {
   const len = fFront - fRear, c = (fRear + fFront) / 2;
   k.T(r, len * 0.6, 0, S, c, darkDS, 18, r, true);
   k.T(r, len * 0.25, 0, S, fFront - len * 0.125, darkDS, 18, r * 1.35, true);
@@ -107,6 +107,13 @@ function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED) {
   const rf = fFront - 0.004;
   k.add(new THREE.CircleGeometry(r * 1.3, 24), lensMat, 0, S, fFront);
   const ink = retMat(0x0b0c0e), t = 0.0011, R = r * 1.3;
+  if (simple) {
+    // plain thin crosshair with a dot
+    k.add(new THREE.PlaneGeometry(R * 2, t * 0.6), ink, 0, S, rf);
+    k.add(new THREE.PlaneGeometry(t * 0.6, R * 2), ink, 0, S, rf);
+    k.add(new THREE.CircleGeometry(0.0011, 10), retMat(color), 0, S, rf + 0.0005);
+    return;
+  }
   // duplex crosshair: thick outer posts, thin centre lines, red centre dot
   for (const s of [-1, 1]) {
     k.add(new THREE.PlaneGeometry(R * 0.7, t * 2), ink, s * (R * 0.3 + R * 0.35), S, rf);
@@ -230,8 +237,8 @@ export function buildGunModel(item) {
       grip(k, gripM); triggerGuard(k, dark, steel);
       P([[-0.12, 0.03], [-0.38, 0.025], [-0.4, -0.09], [-0.3, -0.1], [-0.12, -0.034]], 0.042, body, 0, [[[-0.16, 0.0], [-0.24, 0.0], [-0.24, -0.05], [-0.17, -0.04]]]);
       B(0.058, 0.008, 0.26, 0, 0.018, 0.12, glow);
-      scope(k, dark, S, -0.02, 0.17, 0.045, 0.03);
-      return finish(g, { muzzleF: 0.75, muzzleY: 0.008, S, hip: [0.21, -0.22, -0.5], ads: 0.09, flash: fc });
+      scope(k, dark, S, 0.0, 0.13, 0.045, 0.028, RED, true);
+      return finish(g, { muzzleF: 0.75, muzzleY: 0.008, S, hip: [0.21, -0.22, -0.5], ads: 0.17, flash: fc });
     }
     case 'smg': {
       S = 0.09;
@@ -374,6 +381,33 @@ export function buildSuperModel(type) {
     B(0.065, 0.1, 0.26, 0, 0.01, 0.1, gold); T(0.024, 0.24, 0, 0.02, 0.33, gold); T(0.05, 0.08, 0, -0.005, 0.1, glow, 6);
     B(0.05, 0.14, 0.06, 0, -0.1, -0.03, mat(0x2a1f10), -0.35); B(0.068, 0.016, 0.16, 0, 0.06, 0.12, glow);
     return finish(g, { muzzleF: 0.46, muzzleY: 0.02, S: 0.075, hip: [0.18, -0.17, -0.36], ads: 0.32, flash: 0xff8b2b });
+  }
+  if (type === 'fists') {
+    const glow = mat(0x5fd3ff, { emissive: 0x5fd3ff, emissiveIntensity: 2.2 });
+    const plate = mat(0x6c727b);
+    for (const [x, f] of [[0.02, 0.22], [-0.3, 0.12]]) {
+      B(0.16, 0.14, 0.18, x, -0.02, f, plate);
+      B(0.17, 0.05, 0.04, x, 0.03, f + 0.08, glow);
+      B(0.12, 0.12, 0.32, x + 0.03, -0.08, f - 0.22, mat(0x3a3f47));
+    }
+    return finish(g, { muzzleF: 0.3, muzzleY: 0, S: 0.05, hip: [0.2, -0.22, -0.42], ads: 0.42, flash: 0x5fd3ff });
+  }
+  if (type === 'tether') {
+    const glow = new THREE.MeshBasicMaterial({ color: 0xb07cff });
+    const limb = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.018, 4, 18, Math.PI * 0.9), glow);
+    limb.rotation.set(0, Math.PI / 2, Math.PI / 2 + Math.PI * 0.05);
+    limb.position.set(0, 0, -0.15);
+    g.add(limb);
+    B(0.004, 0.6, 0.004, 0, 0, 0.0, new THREE.MeshBasicMaterial({ color: 0xe6d0ff }));
+    B(0.02, 0.02, 0.5, 0, 0, -0.18, glow);
+    B(0.05, 0.12, 0.05, 0, 0, -0.15, mat(0x2a2030));
+    return finish(g, { muzzleF: 0.45, muzzleY: 0, S: 0.05, hip: [0.18, -0.18, -0.42], ads: 0.42, flash: 0xb07cff });
+  }
+  if (type === 'stormtrance') {
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 1), new THREE.MeshBasicMaterial({ color: 0xe0f6ff }));
+    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 0), new THREE.MeshBasicMaterial({ color: 0x5fd3ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+    core.position.set(0, 0.04, -0.22); shell.position.copy(core.position); g.add(core, shell);
+    return finish(g, { muzzleF: 0.22, muzzleY: 0.04, S: 0.04, hip: [0.16, -0.18, -0.38], ads: 0.4, flash: 0x5fd3ff });
   }
   const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 1), new THREE.MeshBasicMaterial({ color: 0xe6d0ff }));
   const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), new THREE.MeshBasicMaterial({ color: 0xb07cff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
