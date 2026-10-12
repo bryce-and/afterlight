@@ -190,7 +190,7 @@ function myState() {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId,
     x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.invisT > 0 ? 1 : 0,
     // animation: sprinting, airborne, firing, and the gun in hand
-    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, w: P.superActive && !P.keepsGuns ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
+    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 || P.punchT > 0 ? 1 : 0, sp: P.thirdPerson ? P.superActive.type : '', w: P.superActive && !P.keepsGuns ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
   };
 }
 
@@ -247,7 +247,7 @@ function ensureRemote(st) {
 }
 
 function removeAvatar(r) {
-  if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; r.gunKey = undefined; r.wasInv = false; }
+  if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; r.gunKey = undefined; r.prop = undefined; r.wasInv = false; }
   r.plate?.remove(); r.plate = null;
 }
 
@@ -275,7 +275,10 @@ function updateAvatars(dt) {
       const [arch, rarity, element, name] = gunKey.split('|');
       r.avatar.setGun(gunKey ? { arch, rarity, element, name } : null);
     }
-    r.avatar.update(dt, { speed: Math.hypot(r.vel.x, r.vel.z), sprint: !!st.s, air: !!st.a, pitch: st.pt || 0, firing: !!st.f });
+    // super prop in hand (hammer, gauntlets, staff, shield, storm orbs)
+    const prop = st.sp || null;
+    if (r.prop !== prop) { r.prop = prop; r.avatar.setProp(prop); }
+    r.avatar.update(dt, { speed: Math.hypot(r.vel.x, r.vel.z), sprint: !!st.s, air: !!st.a, pitch: st.pt || 0, firing: !!st.f, armsLow: prop === 'fists' && !st.f });
     // Vanishing Step: barely visible to teammates too
     if (r.wasInv !== r.inv) {
       r.wasInv = r.inv;
