@@ -350,7 +350,7 @@ function renderCharScreen(main) {
       </div>
       <div class="cs-foot">
         <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
-        <span class="cs-auto" title="Weapon drops of these rarities are dismantled into glimmer automatically">Auto-dismantle
+        <span class="cs-auto" title="Weapon and armor drops of these rarities are dismantled into glimmer automatically">Auto-dismantle
           ${['common', 'uncommon', 'rare'].map((r) => `<button class="cs-auto-t ${s.settings.autoDismantle?.[r] ? 'on' : ''}" data-r="${r}" style="--rc:${RARITIES[rarityIndex(r)].color}">${{ common: 'White', uncommon: 'Green', rare: 'Blue' }[r]}</button>`).join('')}</span>
         <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
         <span class="hint">Click a slot to swap  ·  Hover for details  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>

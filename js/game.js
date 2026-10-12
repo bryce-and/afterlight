@@ -309,7 +309,7 @@ function openChest() {
 }
 
 export function grantItem(item) {
-  if (item.kind === 'weapon' && G.save.settings.autoDismantle?.[item.rarity]) {
+  if (G.save.settings.autoDismantle?.[item.rarity]) { // weapons and armor alike
     const v = dismantleValue(item);
     G.save.glimmer += v;
     writeSave(G.save);
