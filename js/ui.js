@@ -7,6 +7,8 @@ import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
 import { startMission, retryMission, abandonMission } from './game.js';
 import { initAudio, setVolume, sfx } from './audio.js';
 import { esc, clamp } from './util.js';
+import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, MAX_FIRETEAM } from './net.js';
+import { profile, launchFireteam } from './coop.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -19,6 +21,7 @@ function showOnly(...ids) {
 }
 
 export function initUI() {
+  net.onLobby = () => { if (G.state === 'orbit') renderOrbit(); };
   $('#title').addEventListener('click', () => {
     initAudio();
     sfx.ui();
@@ -139,6 +142,7 @@ function renderDirector(main) {
             <div class="loc-planet">${l.planetName}</div><div class="loc-name">${l.name}</div>
             <div class="loc-prog">${un ? `${done}/3 cleared` : 'Locked'}</div></button>`;
         }).join('')}
+        ${fireteamHTML()}
       </aside>
       <section class="loc-detail">
         <div class="eyebrow">${loc.planetName}  ·  ${loc.faction}</div>
@@ -157,7 +161,7 @@ function renderDirector(main) {
         </div>
         <div class="launch-row">
           <div class="power-cmp">Your Power <b>◆ ${pp}</b>${m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
-          <button id="launch" class="btn primary" ${m ? '' : 'disabled'}>Launch</button>
+          <button id="launch" class="btn primary" ${m && !net.isClient ? '' : 'disabled'}>${net.isClient ? 'Leader launches' : net.isHost ? 'Launch Fireteam' : 'Launch'}</button>
         </div>
       </section>
     </div>`;
@@ -166,8 +170,58 @@ function renderDirector(main) {
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
     lockPointer();
-    startMission(selLoc, selMission);
+    if (net.isHost) launchFireteam(selLoc, selMission);
+    else startMission(selLoc, selMission);
   });
+  if (net.isHost && m && (net.sel?.li !== selLoc || net.sel?.mi !== selMission)) setSelection(selLoc, selMission);
+  wireFireteam(main);
+}
+
+function fireteamHTML() {
+  if (!net.active) {
+    return `<div class="ft">
+      <div class="eyebrow">Fireteam</div>
+      <label class="ft-lbl" for="ft-name">Your name</label>
+      <input id="ft-name" class="ft-in" maxlength="16" value="${esc(profile().name)}" autocomplete="off">
+      <button class="btn" id="ft-create">Create Fireteam</button>
+      <div class="ft-join"><input id="ft-code" class="ft-in" maxlength="6" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Fireteam code"><button class="btn" id="ft-join">Join</button></div>
+      ${net.status ? `<div class="ft-status">${esc(net.status)}</div>` : ''}
+      <p class="ft-hint">Co-op for up to ${MAX_FIRETEAM}. Share your code; every player gets their own loot.</p>
+    </div>`;
+  }
+  const sel = net.sel ? LOCATIONS[net.sel.li]?.missions[net.sel.mi] : null;
+  return `<div class="ft on">
+    <div class="eyebrow">Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}</div>
+    <button class="ft-code" id="ft-copy" title="Copy the code">${net.code}<span>Copy</span></button>
+    <div class="ft-members">${net.members.map((mm) => `<div class="ft-m"><span class="ft-dot" style="background:${CLASSES[mm.cls]?.color || '#fff'}"></span><b>${esc(mm.name)}</b><span>${CLASSES[mm.cls]?.name || ''}  ◆${mm.power}</span>${mm.leader ? '<i>Leader</i>' : ''}</div>`).join('')}</div>
+    ${net.isClient ? `<div class="ft-status">${sel ? `Leader picked: ${esc(sel.name)}` : 'Waiting for the leader to pick a mission'}</div>` : '<div class="ft-status">You lead. Pick a mission and launch.</div>'}
+    <button class="btn ghost" id="ft-leave">Leave Fireteam</button>
+  </div>`;
+}
+
+function wireFireteam(main) {
+  const nameIn = $('#ft-name', main);
+  nameIn?.addEventListener('change', () => { G.save.settings.name = nameIn.value.trim().slice(0, 16) || profile().name; writeSave(G.save); });
+  const errText = (e) => (e && e.message) || String(e);
+  $('#ft-create', main)?.addEventListener('click', async () => {
+    if (nameIn) { G.save.settings.name = nameIn.value.trim().slice(0, 16) || profile().name; writeSave(G.save); }
+    net.status = 'Creating fireteam…'; renderOrbit();
+    try { await createFireteam(profile()); } catch (e) { console.error(e); net.status = errText(e); }
+    renderOrbit();
+  });
+  $('#ft-join', main)?.addEventListener('click', async () => {
+    if (nameIn) { G.save.settings.name = nameIn.value.trim().slice(0, 16) || profile().name; writeSave(G.save); }
+    const code = $('#ft-code', main).value;
+    net.status = 'Joining…'; renderOrbit();
+    try { await joinFireteam(code, profile()); } catch (e) { console.error(e); net.status = errText(e); }
+    renderOrbit();
+  });
+  $('#ft-code', main)?.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#ft-join', main).click(); });
+  $('#ft-copy', main)?.addEventListener('click', (e) => {
+    const b = e.currentTarget;
+    navigator.clipboard?.writeText(net.code).then(() => { b.querySelector('span').textContent = 'Copied'; }).catch(() => { b.querySelector('span').textContent = 'Select & copy'; });
+  });
+  $('#ft-leave', main)?.addEventListener('click', () => leaveFireteam());
 }
 
 function typeLine(it) {
@@ -503,6 +557,8 @@ export function enterMission() {
   hud.objLoc.textContent = `${M.loc.planetName}  ·  ${M.loc.name}`;
   hud.objName.textContent = M.def.name;
   $('#feed').innerHTML = '';
+  $('#nameplates').innerHTML = '';
+  $('#roster').classList.add('hidden');
   $('#center-msg').classList.remove('show');
   hideDeath();
   prompt(null);
@@ -517,7 +573,7 @@ export function updateHUD(dt) {
   setStyle(hud.shield, 'sh', 'width', `${(P.shield / P.maxShield) * 100}%`);
   setStyle(hud.health, 'hp', 'width', `${(P.health / P.maxHealth) * 100}%`);
   setClass(hud.health.parentElement, 'hpbar', 'low', P.health < 40);
-  setText(hud.revives, 'rev', `Revives ${Math.max(0, M.revives)}`);
+  setText(hud.revives, 'rev', M.coop ? `Fireteam of ${M.fireteam}` : `Revives ${Math.max(0, M.revives)}`);
   setText(hud.objText, 'obj', M.objective);
   // vignette
   flashV = Math.max(0, flashV - dt * 2.5);
@@ -565,7 +621,7 @@ export function updateHUD(dt) {
   if (cmT > 0) { cmT -= dt; if (cmT <= 0) $('#center-msg').classList.remove('show'); }
   // boss bar
   const z = M.zones[M.current];
-  const boss = z && z.isBoss && z.state === 'active' ? z.enemies.find((e) => e.isBoss && e.alive) : null;
+  const boss = G.enemies.find((e) => e.isBoss && e.alive && e.spawnT >= 1) || null;
   setClass(hud.boss, 'boss', 'hidden', !boss);
   if (boss) {
     setText(hud.bossName, 'bn', boss.name);
@@ -712,7 +768,7 @@ function updateDamageNumbers(dt) {
 export function showDeath(revives) {
   const el = $('#death');
   el.classList.remove('hidden');
-  el.querySelector('.d-sub').textContent = revives < 0 ? 'No revives remaining' : `Revives remaining: ${revives}`;
+  el.querySelector('.d-sub').textContent = revives === Infinity ? 'Your fireteam fights on' : revives < 0 ? 'No revives remaining' : `Revives remaining: ${revives}`;
 }
 export function updateDeath(t) { const el = $('#death .d-timer'); if (el) el.textContent = t > 0 ? `Reviving in ${t.toFixed(1)}s` : ''; }
 export function hideDeath() { $('#death').classList.add('hidden'); }
@@ -723,8 +779,9 @@ export function setLockHint(show) { $('#lock-hint').classList.toggle('hidden', !
 // Pause / complete / failed
 // ---------------------------------------------------------------------------
 export function showPause() {
-  if (G.state !== 'playing') return;
-  G.state = 'paused';
+  if (G.state !== 'playing' || G.mpMenu) return;
+  const coop = !!G.mission?.coop;
+  if (coop) G.mpMenu = true; else G.state = 'paused';
   unlockPointer();
   const s = G.save.settings;
   const el = $('#pause');
@@ -732,7 +789,8 @@ export function showPause() {
   el.innerHTML = `
     <div class="modal">
       <div class="eyebrow">${esc(G.mission.def.name)}</div>
-      <h1 class="screen-title">Paused</h1>
+      <h1 class="screen-title">${coop ? 'Menu' : 'Paused'}</h1>
+      ${coop ? '<p class="desc">Your fireteam keeps playing while this menu is open.</p>' : ''}
       <div class="settings">
         <label>Mouse sensitivity <span id="v-sens">${s.sens.toFixed(2)}</span><input type="range" id="s-sens" min="0.2" max="3" step="0.05" value="${s.sens}"></label>
         <label>Field of view <span id="v-fov">${s.fov}</span><input type="range" id="s-fov" min="65" max="105" step="1" value="${s.fov}"></label>
@@ -740,7 +798,7 @@ export function showPause() {
       </div>
       <div class="row-btns">
         <button class="btn primary" id="p-resume">Resume</button>
-        <button class="btn danger" id="p-abandon">Abandon Mission</button>
+        <button class="btn danger" id="p-abandon">${coop ? (net.isHost ? 'End Mission for Fireteam' : 'Leave Mission') : 'Abandon Mission'}</button>
       </div>
       <div class="ctl-grid">${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</div>
     </div>`;
@@ -749,10 +807,11 @@ export function showPause() {
   $('#s-fov').addEventListener('input', (e) => { s.fov = +e.target.value; $('#v-fov').textContent = s.fov; P.baseFov = s.fov; writeSave(G.save); });
   $('#s-vol').addEventListener('input', (e) => { s.volume = +e.target.value; $('#v-vol').textContent = `${Math.round(s.volume * 100)}%`; setVolume(s.volume); writeSave(G.save); });
   $('#p-resume').addEventListener('click', resumeGame);
-  $('#p-abandon').addEventListener('click', () => { el.classList.add('hidden'); abandonMission(); });
+  $('#p-abandon').addEventListener('click', () => { el.classList.add('hidden'); G.mpMenu = false; abandonMission(); });
 }
 
 export function resumeGame() {
+  if (G.mpMenu) { G.mpMenu = false; $('#pause').classList.add('hidden'); lockPointer(); return; }
   if (G.state !== 'paused') return;
   $('#pause').classList.add('hidden');
   G.state = 'playing';
@@ -791,7 +850,8 @@ export function showComplete(M) {
     </div>`;
   $('#c-orbit').addEventListener('click', () => abandonMission());
   $('#c-inv').addEventListener('click', () => { orbitTab = 'character'; flySlot = null; abandonMission(); });
-  $('#c-replay').addEventListener('click', () => { lockPointer(); retryMission(); });
+  if (M.coop && !net.isHost) $('#c-replay').remove();
+  else $('#c-replay').addEventListener('click', () => { lockPointer(); if (net.isHost) launchFireteam(M.li, M.mi); else retryMission(); });
 }
 
 export function showFailed(M) {
@@ -810,4 +870,35 @@ export function showFailed(M) {
     </div>`;
   $('#f-retry').addEventListener('click', () => { lockPointer(); retryMission(); });
   $('#f-orbit').addEventListener('click', () => abandonMission());
+}
+
+// ---------------------------------------------------------------------------
+// Co-op HUD bits
+// ---------------------------------------------------------------------------
+export function makeNameplate(name, color) {
+  const el = document.createElement('div');
+  el.className = 'nameplate';
+  el.style.setProperty('--nc', color);
+  el.textContent = name;
+  $('#nameplates').appendChild(el);
+  return el;
+}
+
+export function updateRoster(rows) {
+  const el = $('#roster');
+  el.classList.toggle('hidden', rows.length < 2);
+  el.innerHTML = rows.map((r) => `<div class="ro${r.dead ? ' down' : ''}${r.me ? ' me' : ''}"><span class="ro-dot" style="background:${CLASSES[r.cls]?.color || '#fff'}"></span><span class="ro-n">${esc(r.name)}</span><i><em style="width:${Math.round(clamp(r.h ?? 1, 0, 1) * 100)}%"></em></i></div>`).join('');
+}
+
+export function hideOverlays() {
+  for (const id of ['pause', 'complete', 'failed']) $('#' + id).classList.add('hidden');
+  G.mpMenu = false;
+}
+
+export function orbitNotice(text) {
+  const n = document.createElement('div');
+  n.className = 'orbit-toast';
+  n.textContent = text;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 4500);
 }

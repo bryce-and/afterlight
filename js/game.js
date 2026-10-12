@@ -12,6 +12,8 @@ import { addItem, writeSave, playerPower } from './save.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp } from './util.js';
+import { net } from './net.js';
+import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers } from './coop.js';
 
 const _c = new THREE.Vector3();
 
@@ -32,12 +34,15 @@ export function startMission(li, mi) {
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
   const pp = playerPower(G.save);
   const delta = clamp(pp - def.power, -40, 10);
+  onMissionStart();
+  const fireteam = net.count();
   G.mission = {
+    fireteam, coop: net.active, remote: net.isClient,
     loc, def, li, mi, g, phase: 'travel', current: 0, revives: 3, kills: 0, crits: 0, deaths: 0, loot: [],
     startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
-    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', waves: makeWaves(i, z.isBoss, g, def), waveIdx: 0, enemies: [] })),
+    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', waves: makeWaves(i, z.isBoss, g, def, fireteam), waveIdx: 0, enemies: [] })),
   };
   G.time = 0;
   G.player = new Player(G.save);
@@ -54,7 +59,9 @@ export function retryMission() {
   startMission(M.li, M.mi);
 }
 
-export function abandonMission() {
+/** silent: true when the network asked us to leave (don't echo messages back). */
+export function abandonMission(silent = false) {
+  if (!silent && G.mission && G.state !== 'complete' && G.state !== 'failed') onAbandon();
   cleanupMission();
   ui.showOrbit();
 }
@@ -82,8 +89,10 @@ function finishMission() {
 // ---------------------------------------------------------------------------
 // Waves
 // ---------------------------------------------------------------------------
-function makeWaves(zi, isBoss, g, def) {
-  const T = (type, n) => Array.from({ length: n }, () => ({ type, element: type === 'captain' ? pick(ENERGY) : undefined }));
+function makeWaves(zi, isBoss, g, def, fireteam = 1) {
+  // each extra fireteam member adds ~50% more enemies
+  const more = 1 + 0.5 * (fireteam - 1);
+  const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type, element: type === 'captain' ? pick(ENERGY) : undefined }));
   if (isBoss) {
     return [[{ type: 'boss', name: def.boss.name, element: def.boss.element }, ...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4))]];
   }
@@ -115,10 +124,11 @@ function spawnWave(z, idx) {
   for (const sp of z.waves[idx]) {
     const pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
     const e = new Enemy(sp.type, pos, {
-      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? 1 + M.g * 0.08 : 1), dmgMult: M.dmgMult, element: sp.element, name: sp.name,
+      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? (1 + M.g * 0.08) * (1 + 0.6 * (M.fireteam - 1)) : 1), dmgMult: M.dmgMult, element: sp.element, name: sp.name,
     });
     G.enemies.push(e);
     z.enemies.push(e);
+    registerEnemy(e);
   }
   G.hitDirty = true;
   if (idx > 0) { ui.feed(`${M.loc.faction} reinforcements inbound`, '#ffb36b'); sfx.alert(); }
@@ -127,13 +137,15 @@ function spawnWave(z, idx) {
 export function spawnBossAdds(boss) {
   const M = G.mission;
   const z = boss.zone;
-  const specs = ['grunt', 'grunt', 'grunt', 'rusher', 'rusher'];
-  if (M.g >= 2) specs.push('captain');
+  const specs = [];
+  const more = 1 + 0.5 * (M.fireteam - 1);
+  for (const [t, n] of [['grunt', 3], ['rusher', 2], ['captain', M.g >= 2 ? 1 : 0]]) for (let i = 0; i < Math.round(n * more); i++) specs.push(t);
   for (const type of specs) {
     const pos = findSpawn(boss.pos, rand(0, Math.PI * 2), Math.PI, 5, 14);
     const e = new Enemy(type, pos, { zone: z, hpMult: M.hpMult, dmgMult: M.dmgMult, element: type === 'captain' ? pick(ENERGY) : undefined });
     G.enemies.push(e);
     z.enemies.push(e);
+    registerEnemy(e);
   }
   G.hitDirty = true;
   ui.centerMessage(`${boss.name} calls for aid`, 'Shield restored', 2);
@@ -157,6 +169,7 @@ export function updateGame(dt) {
   updatePickups(dt);
   updateEffects(dt);
   updateMission(dt);
+  netTick(dt);
   const L = G.level;
   L.sun.position.copy(P.pos).add(L.sunOffset);
   L.sun.target.position.copy(P.pos);
@@ -165,12 +178,15 @@ export function updateGame(dt) {
 
 function updateMission(dt) {
   const M = G.mission, P = G.player;
+  // fireteam members get zones/objectives from the leader; only the cache is local
+  if (M.remote && M.phase !== 'loot' && M.phase !== 'done') return;
   if (M.phase === 'travel' || M.phase === 'combat') {
     const z = M.zones[M.current];
     if (z.state === 'pending') {
       M.objective = `Travel to ${z.name}`;
       M.waypoint = z.center;
-      if (Math.hypot(P.pos.x - z.center.x, P.pos.z - z.center.z) < (z.isBoss ? 28 : 24)) {
+      const near = allPlayers().some((p) => Math.hypot(p.pos.x - z.center.x, p.pos.z - z.center.z) < (z.isBoss ? 28 : 24));
+      if (near) {
         z.state = 'active';
         M.phase = 'combat';
         spawnWave(z, 0);
@@ -213,6 +229,7 @@ function zoneCleared(z) {
     const dir = P.pos.clone().sub(z.center).setY(0);
     const pos = z.center.clone().add(dir.lengthSq() > 1 ? dir.normalize().multiplyScalar(3) : new THREE.Vector3(0, 0, 3));
     M.chest = spawnChest(pos);
+    announceLoot(pos);
     ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
     sfx.missionComplete();
     P.health = P.maxHealth; P.shield = P.maxShield;
@@ -228,7 +245,7 @@ function zoneCleared(z) {
   }
 }
 
-function spawnChest(pos) {
+export function spawnChest(pos) {
   const g = new THREE.Group();
   const gold = 0xf4c542;
   const base = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.0), mat(0x3b3f47));
@@ -311,8 +328,20 @@ export function enemiesNear(pos, r, n = 99, exclude = null) {
 export function dealDamage(e, amount, o = {}) {
   if (!e.alive) return { killed: false, dealt: 0 };
   const M = G.mission;
-  let dmg = amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
-  if (e.isBoss && o.source === 'super') dmg *= 0.5;
+  let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
+  if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.5;
+  if (e.remote) {
+    // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
+    sendHit(e, dmg, o);
+    const shieldHit = e.shield > 0;
+    if (shieldHit) e.shield = Math.max(0, e.shield - dmg * (o.element === e.shieldEl ? 2.5 : 1));
+    else e.hp = Math.max(1, e.hp - dmg);
+    e.flash = 0.12;
+    ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dmg, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
+    ui.hitmarker(!!o.crit, false);
+    sfx.hit(o.crit);
+    return { killed: false, dealt: dmg };
+  }
   let dealt = 0, shieldHit = false;
   if (e.shield > 0) {
     shieldHit = true;
@@ -331,9 +360,11 @@ export function dealDamage(e, amount, o = {}) {
   e.flash = 0.12;
   if (o.knock && !e.isBoss) e.knock.add(o.knock);
   const killed = e.hp <= 0;
-  ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dealt, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
-  ui.hitmarker(!!o.crit, killed);
-  sfx.hit(o.crit);
+  if (!o.remoteHit) {
+    ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dealt, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
+    ui.hitmarker(!!o.crit, killed);
+    sfx.hit(o.crit);
+  }
   if (killed) killEnemy(e, o);
   return { killed, dealt };
 }
@@ -345,10 +376,24 @@ export function killEnemy(e, o = {}) {
   G.hitDirty = true;
   e.onDeath();
   const M = G.mission;
-  M.kills++;
-  if (o.crit) M.crits++;
-  G.player.onKill(e, o);
+  announceKill(e, o);
+  const mine = !o.by || o.by === net.myId;
+  if (mine) {
+    M.kills++;
+    if (o.crit) M.crits++;
+    G.player.onKill(e, o);
+  }
   sfx.kill();
+  rollDrops(e);
+  if (e.isBoss) {
+    G.player.shake = 0.5;
+    explosionFx(e.center(new THREE.Vector3()), 6, M.loc.colors.eye);
+    for (const o2 of e.zone.enemies) if (o2.alive) killEnemy(o2, {});
+  }
+}
+
+/** Ammo and engram drops. Every fireteam member rolls their own from each kill. */
+export function rollDrops(e) {
   const pos = e.pos.clone().setY(0.8);
   const r = Math.random();
   const heavy = e.typeId === 'heavy';
@@ -359,10 +404,11 @@ export function killEnemy(e, o = {}) {
   if (e.isBoss) {
     dropEngram(pos); dropEngram(pos);
     spawnPickup('heavy', pos); spawnPickup('special', pos);
-    G.player.shake = 0.5;
-    explosionFx(e.center(new THREE.Vector3()), 6, M.loc.colors.eye);
-    for (const o2 of e.zone.enemies) if (o2.alive) killEnemy(o2, {});
   }
+}
+
+export function getEnemyByNetId(id) {
+  return G.enemies.find((e) => e.netId === id);
 }
 
 function dropEngram(pos) {
@@ -455,6 +501,7 @@ export function projectileMesh(o) {
 }
 
 export function spawnPlayerProjectile(o) {
+  fxProjectile(o);
   const mesh = projectileMesh(o);
   mesh.position.copy(o.pos);
   G.scene.add(mesh);

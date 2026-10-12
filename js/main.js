@@ -33,7 +33,7 @@ const GAME_KEYS = new Set(['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyV', 'KeyC', 'KeyX
 addEventListener('keydown', (e) => {
   if (G.state === 'playing' && GAME_KEYS.has(e.code)) e.preventDefault();
   if (e.code === 'Escape') {
-    if (G.state === 'paused') { ui.resumeGame(); return; }
+    if (G.state === 'paused' || G.mpMenu) { ui.resumeGame(); return; }
     if (G.state === 'playing' && !document.pointerLockElement) { ui.showPause(); return; }
   }
   inp.keys[e.code] = true;
@@ -83,8 +83,10 @@ function frame(now) {
   last = now;
   try {
     if (G.state === 'playing') {
+      // co-op menu open: the world keeps running but this player's input is ignored
+      if (G.mpMenu) { inp.keys = {}; inp.pressed = {}; inp.mouse.left = inp.mouse.right = false; inp.mouse.dx = inp.mouse.dy = 0; }
       updateGame(dt);
-      ui.setLockHint(G.state === 'playing' && !document.pointerLockElement);
+      ui.setLockHint(G.state === 'playing' && !G.mpMenu && !document.pointerLockElement);
     }
     if (G.scene && ['playing', 'paused', 'complete', 'failed'].includes(G.state)) renderer.render(G.scene, G.camera);
     else { G.menu.update(dt); renderer.render(G.menu.scene, G.menu.camera); }

@@ -8,6 +8,7 @@ import { sparks, ringFx, basicMat, explosionFx, flashLight } from './effects.js'
 import { sfx } from './audio.js';
 import { damagePlayer, spawnBossAdds } from './game.js';
 import * as ui from './ui.js';
+import { pickTarget, allPlayers, damageRemote, announceShot } from './coop.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const shotGeo = new THREE.IcosahedronGeometry(1, 0);
@@ -390,7 +391,11 @@ export class Enemy {
       m.group.position.copy(this.pos);
       return true;
     }
-    const P = G.player;
+    if (this.remote) { this.remoteStep(dt); return true; }
+    // target the nearest living fireteam member (just the local player when solo)
+    this.tgtT = (this.tgtT ?? 0) - dt;
+    if (this.tgtT <= 0 || !this.tgt || this.tgt.dead) { this.tgtT = 0.5; this.tgt = pickTarget(this); }
+    const P = this.tgt;
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z;
     const dist = Math.hypot(dx, dz) || 0.001;
     const nx = dx / dist, nz = dz / dist;
@@ -487,11 +492,14 @@ export class Enemy {
           m.torso.rotation.x = (m.torso.userData.rx ?? 0) + 0.3;
           if (!this.lungeHit && dist < reach && vdy < 2.2) {
             this.lungeHit = true;
-            damagePlayer(def.meleeDmg * this.dmgMult, this.pos);
             m.arms.forEach((a) => (a.rotation.x = -0.6));
             sfx.melee();
-            P.shake = Math.max(P.shake, 0.2);
-            P.vel.x += this.lungeDir.x * 5; P.vel.z += this.lungeDir.z * 5;
+            if (P.remote) damageRemote(P, def.meleeDmg * this.dmgMult, this.pos);
+            else {
+              damagePlayer(def.meleeDmg * this.dmgMult, this.pos);
+              P.shake = Math.max(P.shake, 0.2);
+              P.vel.x += this.lungeDir.x * 5; P.vel.z += this.lungeDir.z * 5;
+            }
           }
           if (this.lunge <= 0 && m.torso.userData.rx !== undefined) m.torso.rotation.x = m.torso.userData.rx;
         } else if (dist < 3.4 && vdy < 2.2 && this.meleeT <= 0 && this.los) {
@@ -524,8 +532,31 @@ export class Enemy {
   }
 
   /** Cover state machine: toCover -> hide -> peek (shoot one burst) -> toCover ... */
+  /** Fireteam member's copy of a leader-owned enemy: just follow the network state. */
+  remoteStep(dt) {
+    const m = this.model;
+    const k = Math.min(1, dt * 10);
+    const ox = this.pos.x, oz = this.pos.z;
+    this.pos.x += (this.netPos.x - this.pos.x) * k;
+    this.pos.z += (this.netPos.z - this.pos.z) * k;
+    let dy = this.netYaw - this.yaw;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    this.yaw += dy * k;
+    const sp = Math.hypot(this.pos.x - ox, this.pos.z - oz) / Math.max(dt, 1e-3);
+    this.walk += dt * sp * 2.2;
+    const sw = Math.sin(this.walk) * (sp > 0.3 ? 0.6 : 0);
+    m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
+    this.flash = Math.max(0, this.flash - dt);
+    const f = Math.min(1, this.flash * 8);
+    m.bodyMat.emissive.setRGB(f, f, f);
+    if (m.shield) m.shield.visible = this.shield > 0;
+    m.group.position.copy(this.pos);
+    m.group.rotation.y = this.yaw;
+  }
+
   coverMove(dt) {
-    const A = this.ai, P = G.player;
+    const A = this.ai, P = this.tgt || G.player;
     A.t -= dt;
     const go = (p) => {
       const dx = p.x - this.pos.x, dz = p.z - this.pos.z, d = Math.hypot(dx, dz);
@@ -557,7 +588,7 @@ export class Enemy {
   }
 
   shoot(dist, spreadMul = 1, dirOverride = null) {
-    const P = G.player, def = this.def;
+    const P = this.tgt || G.player, def = this.def;
     this.model.group.updateMatrixWorld(true);
     const from = this.model.muzzle.getWorldPosition(new THREE.Vector3());
     let dir;
@@ -591,16 +622,18 @@ export class Enemy {
       ringFx(this.pos, 10, G.mission.loc.colors.eye, 0.6);
       explosionFx(_v.copy(this.pos).setY(0.5), 3, G.mission.loc.colors.eye);
       sfx.explosion(8);
-      if (dist < 9 && G.player.pos.y < 1.5) {
+      for (const P of allPlayers()) {
+        const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z) || 0.01;
+        if (P.dead || d >= 9 || P.pos.y >= 1.5) continue;
+        if (P.remote) { damageRemote(P, 32 * this.dmgMult, this.pos); continue; }
         damagePlayer(32 * this.dmgMult, this.pos);
-        const P = G.player;
-        P.vel.x += (P.pos.x - this.pos.x) / dist * 12;
-        P.vel.z += (P.pos.z - this.pos.z) / dist * 12;
+        P.vel.x += (P.pos.x - this.pos.x) / d * 12;
+        P.vel.z += (P.pos.z - this.pos.z) / d * 12;
         P.vel.y = 6;
       }
     } else if (this.los) {
       // fan volley
-      const P = G.player;
+      const P = this.tgt || G.player;
       this.model.group.updateMatrixWorld(true);
       const from = this.model.muzzle.getWorldPosition(new THREE.Vector3());
       const base = _v.set(P.pos.x, P.pos.y + 1, P.pos.z).sub(from).normalize();
@@ -620,7 +653,7 @@ const _c = new THREE.Vector3();
 
 /** Finds a spot behind a collider that blocks the player's view, or null. */
 function findCover(e) {
-  const P = G.player;
+  const P = e.tgt || G.player;
   const b = G.level.bounds;
   let best = null, bestScore = Infinity;
   for (const c of G.colliders) {
@@ -648,7 +681,7 @@ function findCover(e) {
 
 /** A spot just to the side of cover, where the shooter can see the player. */
 function peekPoint(e, cover) {
-  const P = G.player;
+  const P = e.tgt || G.player;
   const dx = P.pos.x - cover.x, dz = P.pos.z - cover.z, d = Math.hypot(dx, dz) || 1;
   const px = -dz / d, pz = dx / d;
   for (const s of Math.random() < 0.5 ? [1, -1] : [-1, 1]) {
@@ -661,7 +694,8 @@ function peekPoint(e, cover) {
 // ---------------------------------------------------------------------------
 // Enemy projectiles
 // ---------------------------------------------------------------------------
-export function fireEnemyShot(from, dir, speed, dmg, color, size, splash) {
+export function fireEnemyShot(from, dir, speed, dmg, color, size, splash, fromNet = false) {
+  if (!fromNet) announceShot(from, dir, speed, dmg, color, size, splash);
   const mesh = new THREE.Mesh(shotGeo, basicMat(color));
   mesh.scale.setScalar(size);
   mesh.position.copy(from);

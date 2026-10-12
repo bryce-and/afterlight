@@ -8,6 +8,7 @@ import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage } from './effects.js';
 import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh } from './game.js';
 import { getEquipped } from './save.js';
+import { fxTracer } from './coop.js';
 import * as ui from './ui.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
@@ -408,7 +409,11 @@ export class Player {
       if (groundT < range) { end = origin.clone().addScaledVector(dir, groundT); sparks(end, 0xd8c8a0, 3, 3, 0.05, 0.25); }
       else end = origin.clone().addScaledVector(dir, Math.min(range, 150));
     }
-    if (!o.noTracer) tracer(from, end, o.tracerColor ?? (w.item.element === 'kinetic' ? 0xffe3a0 : ELEMENTS[w.item.element].hex), o.tracerWidth ?? 0.02, 0.06);
+    if (!o.noTracer) {
+      const tc = o.tracerColor ?? (w.item.element === 'kinetic' ? 0xffe3a0 : ELEMENTS[w.item.element].hex);
+      tracer(from, end, tc, o.tracerWidth ?? 0.02, 0.06);
+      fxTracer(from, end, tc);
+    }
     return end;
   }
 
@@ -508,10 +513,16 @@ export class Player {
     this.superActive = null;
     this.viewmodel.visible = false;
     M.deaths++;
-    M.revives--;
-    if (M.revives < 0) { M.failing = true; this.respawnT = 2.5; }
-    else this.respawnT = 5;
-    ui.showDeath(M.revives);
+    if (M.coop) {
+      // fireteam play never fails the mission: respawn on a timer instead
+      this.respawnT = 6;
+      ui.showDeath(Infinity);
+    } else {
+      M.revives--;
+      if (M.revives < 0) { M.failing = true; this.respawnT = 2.5; }
+      else this.respawnT = 5;
+      ui.showDeath(M.revives);
+    }
     sfx.death();
   }
 
@@ -524,7 +535,7 @@ export class Player {
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    ui.centerMessage('Revived', `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    ui.centerMessage('Revived', M.coop ? 'Back in the fight' : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   updateRegen(dt) {
@@ -908,6 +919,7 @@ export class Player {
       const pseudo = { s: { range: 200 }, A: { prec: 1.5 }, item: { element: 'solar' }, has: () => false };
       const end = this.hitscan(this.eye, fwd, pseudo, 1100, hand, { isSuper: true, element: 'solar', precMult: 1.5, range: 220, noTracer: true });
       beam(hand, end, col, 0.12, 0.4);
+      fxTracer(hand, end, col);
       flare(end, 0xffd27a, 2.2, 0.3);
       shockwave(end, 3, col, 0.4);
       glowBurst(end, col, 16, 8, 0.1, 0.5, 1, 0.3);
