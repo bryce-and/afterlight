@@ -130,32 +130,21 @@ export function playerPower(s) {
 
 /**
  * Equips an item. Only one exotic armor piece and one exotic weapon can be equipped:
- * returns the exotic it replaced, if any. If that exotic weapon has no non-exotic
- * weapon to fall back to, nothing changes and it returns { ...that weapon, blocked: true }.
+ * equipping a second one is refused, and this returns the exotic already equipped
+ * in another slot (null when the item was equipped).
  */
 export function equipItem(s, id) {
   const it = getItem(s, id);
   if (!it) throw new Error(`equipItem: no item ${id}`);
-  let swapped = null;
-  if (it.kind === 'weapon' && it.rarity === 'exotic') {
-    for (const sl of ['primary', 'special', 'heavy']) {
-      const other = sl !== it.slot && getEquipped(s, sl);
-      if (!other || other.rarity !== 'exotic') continue;
-      const r = bestNonExotic(s, other);
-      if (!r) return { ...other, blocked: true };
-      s.equipped[sl] = r.id; swapped = other;
-    }
-  }
-  if (it.kind === 'armor' && it.rarity === 'exotic') {
-    for (const sl of ['helmet', 'arms', 'chest', 'legs']) {
-      const other = sl !== it.slot && getEquipped(s, sl);
-      if (other && other.rarity === 'exotic') { unequipExotic(s, other); swapped = other; }
-    }
+  if (it.rarity === 'exotic') {
+    const slots = it.kind === 'weapon' ? ['primary', 'special', 'heavy'] : ['helmet', 'arms', 'chest', 'legs'];
+    const other = slots.map((sl) => sl !== it.slot && getEquipped(s, sl)).find((x) => x && x.rarity === 'exotic');
+    if (other) return other;
   }
   s.equipped[it.slot] = id;
   it.isNew = false;
   writeSave(s);
-  return swapped;
+  return null;
 }
 
 /** Highest-power non-exotic weapon for the same slot as `it`. */

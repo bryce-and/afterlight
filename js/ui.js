@@ -373,12 +373,11 @@ function renderCharScreen(main) {
       const it = getItem(s, t.dataset.id);
       if (t.closest('.cs-slot')) { toggleFly(it.slot, t); return; }
       if (e.shiftKey) { if (infuseItem(s, it.id)) { sfx.engram(3); flySlot = null; renderOrbit(); } else sfx.denied(); return; }
-      const swapped = equipItem(s, it.id);
+      const blocker = equipItem(s, it.id);
+      if (blocker) { sfx.denied(); orbitNotice(`Swap out ${blocker.name} first: only one exotic ${blocker.kind === 'weapon' ? 'weapon' : 'armor piece'} at a time.`); return; }
       sfx.engram(1);
       flySlot = null;
       renderOrbit();
-      if (swapped?.blocked) orbitNotice(`${swapped.name} stays equipped: you need a non-exotic ${SLOT_NAMES[swapped.slot]} weapon to swap to.`);
-      else if (swapped) orbitNotice(`${swapped.name} unequipped: only one exotic ${swapped.kind === 'weapon' ? 'weapon' : 'armor piece'} at a time.`);
       return;
     }
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
@@ -957,11 +956,10 @@ function renderInventory() {
   $$('.inv-pick', el).forEach((b) => b.addEventListener('click', () => {
     const i = +b.dataset.slot, it = getItem(s, b.dataset.id);
     if (!it || P.weapons[i].item.id === it.id) return;
-    const swapped = equipItem(s, it.id);
-    if (swapped?.blocked) { sfx.denied(); return; }
+    const blocker = equipItem(s, it.id);
+    if (blocker) { sfx.denied(); orbitNotice(`Swap out ${blocker.name} first: only one exotic weapon at a time.`); return; }
     writeSave(s);
     P.swapWeapon(i, it);
-    if (swapped) P.swapWeapon(WEAPON_SLOTS.indexOf(swapped.slot), getEquipped(s, swapped.slot)); // only one exotic weapon
     renderWeaponRows();
     sfx.engram(1);
     renderInventory();
