@@ -38,14 +38,18 @@ export const ARCHETYPES = {
   pulse: { id: 'pulse', name: 'Pulse Rifle', slot: 'primary', dmg: 22, rpm: 900, mode: 'burst', burst: 3, burstDelay: 0.3, mag: 30, reload: 2.0, spread: 0.02, ads: 0.004, zoom: 1.5, prec: 1.7, range: 42, recoil: 0.012 },
   scout: { id: 'scout', name: 'Scout Rifle', slot: 'primary', dmg: 40, rpm: 200, mode: 'semi', mag: 16, reload: 2.1, spread: 0.02, ads: 0.001, zoom: 1.7, prec: 1.8, range: 60, recoil: 0.02 },
   smg: { id: 'smg', name: 'Submachine Gun', slot: 'primary', dmg: 10, rpm: 900, mode: 'auto', mag: 42, reload: 1.6, spread: 0.04, ads: 0.016, zoom: 1.2, prec: 1.5, range: 20, recoil: 0.006, bloom: 0.002 },
-  shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 23, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.06, zoom: 1.15, prec: 1.4, range: 12, recoil: 0.08 },
+  shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 23, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.06, zoom: 1.15, prec: 1.4, range: 12, recoil: 0.08, falloff: { close: 4, bonus: 1.3, min: 0.15, span: 1 } },
   sniper: { id: 'sniper', name: 'Sniper Rifle', slot: 'special', dmg: 360, rpm: 50, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.5, spread: 0.07, ads: 0.0, zoom: 4.5, prec: 2.6, range: 150, recoil: 0.09 },
-  fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 70, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.035, ads: 0.022, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
+  fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 70, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.026, ads: 0.016, falloff: { close: 8, bonus: 1.15, min: 0.3, span: 1 }, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
   linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 430, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 18, brick: 4, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
   rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 900, rpm: 40, mode: 'semi', mag: 1, reserve: 8, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
   mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 32, rpm: 720, mode: 'auto', mag: 70, reserve: 210, brick: 60, reload: 3.0, spread: 0.032, ads: 0.012, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
   glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 380, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.6, spread: 0.01, ads: 0.004, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
 };
+
+// Damage falloff: full damage out to the weapon's range, then it drops to `min` over
+// range * `span`. Inside `close` meters, damage rises toward `bonus` (point blank).
+export const DEFAULT_FALLOFF = { close: 0, bonus: 1, min: 0.5, span: 1.5 };
 
 // ---------- Perks ----------
 export const PERKS = {
@@ -61,6 +65,18 @@ export const PERKS = {
   precise: { name: 'Precision Instrument', desc: '+20% precision damage.' },
   scavenger: { name: 'Scavenger', desc: 'Kills have a chance to refill reserve ammo.' },
   overflow: { name: 'Overflow', desc: 'Ammo pickups overfill the magazine to 2x.' },
+  surrounded: { name: 'Surrounded', desc: '+25% damage while 3 or more enemies are within 8m.' },
+  opening: { name: 'Opening Shot', desc: 'The first shot after 2s without firing deals +25% damage with much tighter spread.' },
+  frenzy: { name: 'Frenzy', desc: 'After 6s of steady fighting: +20% damage and 30% faster reload until you stop for 3s.' },
+  feeding: { name: 'Feeding Frenzy', desc: 'Reloading within 3.5s of a kill is 45% faster.' },
+  incandescent: { name: 'Incandescent', desc: 'Kills set enemies within 5m burning for 3s.' },
+  voltshot: { name: 'Voltshot', desc: 'Reloading within 4s of a kill charges the next hit to jolt up to 3 nearby enemies.' },
+  destabilizing: { name: 'Destabilizing Rounds', desc: 'Kills pulse void energy that weakens enemies within 6m, so they take 30% more damage for 4s.' },
+  chainreaction: { name: 'Chain Reaction', desc: 'Every kill sets off an elemental explosion.' },
+  demolitionist: { name: 'Demolitionist', desc: 'Kills take an extra 2.5s off your grenade cooldown.' },
+  snapshot: { name: 'Snapshot Sights', desc: 'Aim down sights twice as fast.' },
+  reconstruction: { name: 'Reconstruction', desc: 'After 4s without firing, the magazine refills itself from reserves.' },
+  killingwind: { name: 'Killing Wind', desc: 'Kills give +15% movement speed and +25% range for 5s.' },
 };
 export const EXOTIC_PERKS = {
   chain: { name: 'Lightning Rod', desc: 'Every hit arcs to a nearby enemy for 50% damage.' },
@@ -94,9 +110,9 @@ export const EXOTIC_PERKS = {
   truth: { name: "Hunter's Trace", desc: 'Rocket kills instantly reload the launcher from reserves.' },
 };
 export const PERK_POOL = {
-  primary: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'precise'],
-  special: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow'],
-  heavy: ['rampage', 'killclip', 'extmag', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow'],
+  primary: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'precise', 'surrounded', 'opening', 'frenzy', 'feeding', 'incandescent', 'voltshot', 'destabilizing', 'demolitionist', 'snapshot', 'reconstruction', 'killingwind'],
+  special: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow', 'surrounded', 'opening', 'frenzy', 'feeding', 'incandescent', 'voltshot', 'chainreaction', 'demolitionist', 'snapshot', 'killingwind'],
+  heavy: ['rampage', 'killclip', 'extmag', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow', 'frenzy', 'incandescent', 'voltshot', 'chainreaction', 'demolitionist', 'reconstruction'],
 };
 // Exotics: perks (first one is the signature), stat mods (numbers multiply the roll,
 // mode/burst/pellets/charge replace the archetype), and a unique look for the model.

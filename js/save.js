@@ -27,6 +27,13 @@ export function loadSave() {
         for (const it of exo.slice(1)) unequipExotic(s, it);
         s.armorV7 = true; writeSave(s);
       }
+      if (!s.weaponsV10) {
+        // fusion rifles got tighter spread; only one exotic weapon may be equipped
+        for (const it of s.inventory) if (it.kind === 'weapon' && it.arch === 'fusion') it.stats.spread *= 0.026 / 0.035;
+        const exo = ['primary', 'special', 'heavy'].map((sl) => getEquipped(s, sl)).filter((it) => it?.rarity === 'exotic');
+        for (const it of exo.slice(1)) { const r = bestNonExotic(s, it); if (r) s.equipped[it.slot] = r.id; }
+        s.weaponsV10 = true; writeSave(s);
+      }
       return s;
     }
     console.error('Save file has an unexpected shape; ignoring it.', s);
@@ -52,6 +59,7 @@ export function createSave(classId) {
   s.namesV3 = true;
   s.balanceV6 = true;
   s.armorV7 = true;
+  s.weaponsV10 = true;
   writeSave(s);
   return s;
 }
@@ -120,11 +128,24 @@ export function playerPower(s) {
   return Math.floor(total / SLOTS.length);
 }
 
-/** Equips an item. Only one exotic armor piece can be worn: returns the exotic it replaced, if any. */
+/**
+ * Equips an item. Only one exotic armor piece and one exotic weapon can be equipped:
+ * returns the exotic it replaced, if any. If that exotic weapon has no non-exotic
+ * weapon to fall back to, nothing changes and it returns { ...that weapon, blocked: true }.
+ */
 export function equipItem(s, id) {
   const it = getItem(s, id);
   if (!it) throw new Error(`equipItem: no item ${id}`);
   let swapped = null;
+  if (it.kind === 'weapon' && it.rarity === 'exotic') {
+    for (const sl of ['primary', 'special', 'heavy']) {
+      const other = sl !== it.slot && getEquipped(s, sl);
+      if (!other || other.rarity !== 'exotic') continue;
+      const r = bestNonExotic(s, other);
+      if (!r) return { ...other, blocked: true };
+      s.equipped[sl] = r.id; swapped = other;
+    }
+  }
   if (it.kind === 'armor' && it.rarity === 'exotic') {
     for (const sl of ['helmet', 'arms', 'chest', 'legs']) {
       const other = sl !== it.slot && getEquipped(s, sl);
@@ -135,6 +156,11 @@ export function equipItem(s, id) {
   it.isNew = false;
   writeSave(s);
   return swapped;
+}
+
+/** Highest-power non-exotic weapon for the same slot as `it`. */
+function bestNonExotic(s, it) {
+  return s.inventory.filter((x) => x.kind === 'weapon' && x.slot === it.slot && x.rarity !== 'exotic').sort((a, b) => b.power - a.power)[0];
 }
 
 /** Swap an equipped exotic armor piece for the best non-exotic in its slot (or leave the slot empty). */

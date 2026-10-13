@@ -231,8 +231,8 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 #dmg-dirs { position: absolute; left: 50%; top: 50%; }
 .dmg-dir { position: absolute; left: 0; top: 0; width: 120px; height: 14px; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,60,50,0.95), transparent 70%); border-radius: 50%; }
 #dmg-layer { position: absolute; inset: 0; overflow: hidden; }
-.dmgnum { position: absolute; left: 0; top: 0; font-weight: 700; font-size: 20px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); white-space: nowrap; will-change: transform; }
-.dmgnum.crit { color: var(--gold); font-size: 24px; }
+.dmgnum { position: absolute; left: 0; top: 0; font-weight: 800; font-size: 23px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); white-space: nowrap; will-change: transform; }
+.dmgnum.crit { color: var(--gold); font-size: 28px; }
 #waypoint { position: absolute; left: 0; top: 0; }
 .wp-icon { width: 16px; height: 16px; border: 2px solid #fff; transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 6px rgba(0,0,0,0.6); background: rgba(255,255,255,0.15); }
 .wp-dist { position: absolute; top: 12px; left: 0; transform: translateX(-50%); font-weight: 700; font-size: 13px; text-shadow: 0 1px 3px #000; }

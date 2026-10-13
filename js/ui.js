@@ -377,7 +377,8 @@ function renderCharScreen(main) {
       sfx.engram(1);
       flySlot = null;
       renderOrbit();
-      if (swapped) orbitNotice(`${swapped.name} unequipped: only one exotic armor piece at a time.`);
+      if (swapped?.blocked) orbitNotice(`${swapped.name} stays equipped: you need a non-exotic ${SLOT_NAMES[swapped.slot]} weapon to swap to.`);
+      else if (swapped) orbitNotice(`${swapped.name} unequipped: only one exotic ${swapped.kind === 'weapon' ? 'weapon' : 'armor piece'} at a time.`);
       return;
     }
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
@@ -485,6 +486,9 @@ function tipHTML(it) {
     const ap = it.perk && ARMOR_PERKS[it.perk];
     if (ap) body += `<div class="tt-perks"><div class="tt-perk"><i></i><div><b>${ap.name}</b><span>${ap.desc}</span></div></div></div>`;
     if (it.rarity === 'exotic') body += '<div class="tt-note">Only one exotic armor piece can be equipped.</div>';
+  }
+  if (it.kind === 'weapon' && it.rarity === 'exotic') {
+    body += '<div class="tt-note">Only one exotic weapon can be equipped.</div>';
   }
   const inf = infuseInfo(s, it);
   const foot = equipped
@@ -841,17 +845,16 @@ function updateDamageDirs(dt) {
 // floating damage numbers
 const dmgPool = [], dmgActive = [];
 export function damageNumber(enemy, pos, amount, o = {}) {
-  const ex = dmgActive.find((d) => d.enemy === enemy && G.time - d.born < 0.12 && d.crit === !!o.crit);
-  if (ex) { ex.amount += amount; ex.el.textContent = Math.round(ex.amount); return; }
   let el = dmgPool.pop();
   if (!el) { el = document.createElement('div'); $('#dmg-layer').appendChild(el); }
   el.className = 'dmgnum' + (o.crit ? ' crit' : '');
   el.style.color = o.shield ? ELEMENTS[o.shield].color : '';
   el.style.display = 'block';
   el.textContent = Math.max(1, Math.round(amount));
-  const p = pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.2, (Math.random() - 0.5) * 0.5));
+  // every hit gets its own number (one per pellet); jitter keeps them from stacking
+  const p = pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.2 + Math.random() * 0.35, (Math.random() - 0.5) * 0.8));
   dmgActive.push({ el, enemy, pos: p, amount, born: G.time, life: 0.8, crit: !!o.crit });
-  if (dmgActive.length > 40) { const d = dmgActive.shift(); d.el.style.display = 'none'; dmgPool.push(d.el); }
+  if (dmgActive.length > 70) { const d = dmgActive.shift(); d.el.style.display = 'none'; dmgPool.push(d.el); }
 }
 function updateDamageNumbers(dt) {
   for (let i = dmgActive.length - 1; i >= 0; i--) {
@@ -862,7 +865,7 @@ function updateDamageNumbers(dt) {
     _p.copy(d.pos).project(G.camera);
     if (_p.z > 1) { d.el.style.opacity = '0'; continue; }
     const x = (_p.x * 0.5 + 0.5) * innerWidth, y = (-_p.y * 0.5 + 0.5) * innerHeight;
-    const sc = 0.8 + Math.max(0, d.life - 0.6) * 2;
+    const sc = 0.85 + Math.max(0, d.life - 0.6) * 2.75; // pops in big, then settles
     d.el.style.opacity = Math.min(1, d.life * 3).toFixed(2);
     d.el.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%,-50%) scale(${sc.toFixed(2)})`;
   }
@@ -954,9 +957,11 @@ function renderInventory() {
   $$('.inv-pick', el).forEach((b) => b.addEventListener('click', () => {
     const i = +b.dataset.slot, it = getItem(s, b.dataset.id);
     if (!it || P.weapons[i].item.id === it.id) return;
-    equipItem(s, it.id);
+    const swapped = equipItem(s, it.id);
+    if (swapped?.blocked) { sfx.denied(); return; }
     writeSave(s);
     P.swapWeapon(i, it);
+    if (swapped) P.swapWeapon(WEAPON_SLOTS.indexOf(swapped.slot), getEquipped(s, swapped.slot)); // only one exotic weapon
     renderWeaponRows();
     sfx.engram(1);
     renderInventory();

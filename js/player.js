@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G } from './state.js';
-import { CLASSES, ARCHETYPES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS } from './data.js';
+import { CLASSES, ARCHETYPES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF } from './data.js';
 import { clamp, lerp, damp } from './util.js';
 import { moveBody, hasLOS } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
@@ -43,7 +43,7 @@ function makeWeapon(item) {
     item, A, s: item.stats, has: (p) => perks.has(p), mag, ammo: mag,
     reserve: primary ? Infinity : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : Math.round(reserveBase * 1.5), brick, memento: 0,
     fireCd: 0, reloading: false, reloadT: 0, reloadMax: 1, burstLeft: 0, charge: 0, queued: 0, bloom: 0,
-    hitCount: 0, precHits: 0, perkT: 0, honed: 0, el: null, killclipWindow: 0, killclipT: 0, killclipArm: false, model: null,
+    hitCount: 0, precHits: 0, perkT: 0, honed: 0, el: null, feedWin: 0, voltWin: 0, voltArm: false, volt: false, reconT: 0, killclipWindow: 0, killclipT: 0, killclipArm: false, model: null,
   };
 }
 
@@ -99,7 +99,8 @@ export class Player {
     this.superCharge = 0; this.superActive = null; this.superWasReady = false;
     this.air = { fuel: 1, usedDouble: false };
     this.dash = 0; this.dashDir = new THREE.Vector3();
-    this.buffs = { rampage: 0, rampageT: 0, outlaw: 0, inRift: 0, empower: 0 };
+    this.buffs = { rampage: 0, rampageT: 0, outlaw: 0, inRift: 0, empower: 0, wind: 0 };
+    this.fightT = 0;
     this.invisT = 0; this.dashSpeed = 20; this.charge = null;
     this.over = 0; this.overT = 0; this.restoreT = 0; this.lethalT = 0; // overshield, Restoration, Lethal Current
     this.dead = false; this.respawnT = 0;
@@ -269,7 +270,7 @@ export class Player {
     this.moveDir = { x: wx, z: wz, len };
     this.sprinting = !!k.ShiftLeft && iz < 0 && this.adsT < 0.3 && G.time - this.lastFire > 0.35 && !this.weapon.reloading;
     this.sprintT = damp(this.sprintT, this.sprinting ? 1 : 0, 10, dt);
-    let speed = this.speed * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
+    let speed = this.speed * (this.buffs.wind > 0 ? 1.15 : 1) * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
     if (this.superActive?.type === 'hammers') speed *= 1.1;
     if (this.superActive?.type === 'fists') speed *= 1.3;
     const accel = this.onGround ? 14 : 2.5;
@@ -357,6 +358,8 @@ export class Player {
       ww.killclipWindow = Math.max(0, ww.killclipWindow - dt);
       ww.killclipT = Math.max(0, ww.killclipT - dt);
       ww.perkT = Math.max(0, ww.perkT - dt);
+      ww.feedWin = Math.max(0, ww.feedWin - dt);
+      ww.voltWin = Math.max(0, ww.voltWin - dt);
       ww.bloom = Math.max(0, ww.bloom - dt * 0.06);
       if (G.time - this.lastFire > 0.5) ww.spin = Math.max(0, (ww.spin || 0) - dt * 2);
       ww.queued = Math.max(0, ww.queued - dt);
@@ -366,6 +369,8 @@ export class Player {
     this.buffs.outlaw = Math.max(0, this.buffs.outlaw - dt);
     this.buffs.inRift = Math.max(0, this.buffs.inRift - dt);
     this.buffs.empower = Math.max(0, this.buffs.empower - dt);
+    this.buffs.wind = Math.max(0, this.buffs.wind - dt);
+    this.fightT = G.time - this.lastFire < 3 ? this.fightT + dt : 0; // Frenzy
     this.invisT = Math.max(0, this.invisT - dt);
     this.kick = damp(this.kick, 0, 14, dt);
     this.punchT = Math.max(0, this.punchT - dt);
@@ -387,7 +392,11 @@ export class Player {
       if (w.reloadT <= 0) this.finishReload(w);
     }
     const wantAds = inp.mouse.right && !w.reloading && this.punchT <= 0;
-    this.adsT = damp(this.adsT, wantAds ? 1 : 0, 14, dt);
+    this.adsT = damp(this.adsT, wantAds ? 1 : 0, w.has('snapshot') ? 28 : 14, dt);
+    if (w.has('reconstruction') && !w.reloading && w.ammo < w.mag && w.reserve > 0 && G.time - this.lastFire > 4) {
+      w.reconT += dt;
+      if (w.reconT >= 0.25) { w.reconT = 0; w.ammo++; if (w.reserve !== Infinity) w.reserve--; }
+    }
 
     const A = w.A;
     const held = inp.mouse.left, pressed = inp.mouse.leftPressed;
@@ -439,8 +448,11 @@ export class Player {
     if (this.buffs.outlaw > 0) t *= 0.55;
     if (w.has('hotswap')) t *= 0.85;
     if (this.exo.has('ophidian')) t *= 0.65;
+    if (w.has('feeding') && w.feedWin > 0) t *= 0.55;
+    if (w.has('frenzy') && this.fightT >= 6) t *= 0.7;
     w.reloadT = w.reloadMax = t;
     if (w.killclipWindow > 0) w.killclipArm = true;
+    if (w.voltWin > 0) w.voltArm = true;
     w.burstLeft = 0;
     sfx.reload();
   }
@@ -450,6 +462,7 @@ export class Player {
     w.ammo += take;
     if (w.reserve !== Infinity) w.reserve -= take;
     w.reloading = false;
+    if (w.voltArm) { w.voltArm = false; w.volt = true; }
     if (w.killclipArm) { w.killclipArm = false; w.killclipT = 5; ui.feed('Kill Clip active', '#ffd27a'); }
     if (w.has('memento')) w.memento = 6;
     if (w.has('volatile')) {
@@ -497,10 +510,16 @@ export class Player {
     if (w.honed) m *= w.honed;
     if (w.has('regime') && w.ammo < w.mag / 2) m *= 1.25;
     if (w.has('wolves') && w.perkT > 0) m *= 1.25;
+    if (w.has('surrounded') && enemiesNear(this.pos, 8, 3).length >= 3) m *= 1.25;
+    if (w.openShot) m *= 1.25;
+    if (w.has('frenzy') && this.fightT >= 6) m *= 1.2;
     return m;
   }
 
   fire(w) {
+    // Opening Shot: the first shot after a pause
+    w.openShot = w.has('opening') && G.time - (w.lastShotT ?? -99) > 2;
+    w.lastShotT = G.time;
     // Spinning Up: sustained fire ramps the rate of fire
     if (w.has('spinup')) w.spin = Math.min(1, (w.spin || 0) + 60 / w.s.rpm * 0.9);
     const spinMul = w.has('spinup') ? 1 + 0.7 * (w.spin || 0) : 1;
@@ -518,7 +537,7 @@ export class Player {
     if (w.has('wolves') && w.perkT > 0) w.fireCd /= 2;
     const eye = this.eye;
     const fwd = this.getForward(_fwd);
-    const spread = this.getSpread(w);
+    const spread = this.getSpread(w) * (w.openShot ? 0.4 : 1);
     const muzzle = this.muzzlePos(new THREE.Vector3());
     const el = ELEMENTS[wEl(w)];
     if (A.projectile) {
@@ -562,8 +581,10 @@ export class Player {
       if (e) {
         if (!e.alive || seen.has(e)) continue;
         seen.add(e);
-        const fr = w.s.range;
-        const fall = h.distance <= fr ? 1 : Math.max(0.5, 1 - ((h.distance - fr) / (fr * 1.5)) * 0.5);
+        const F = w.A?.falloff || DEFAULT_FALLOFF, d = h.distance;
+        const fr = w.s.range * (this.buffs.wind > 0 ? 1.25 : 1);
+        let fall = d <= fr ? 1 : Math.max(F.min, 1 - ((1 - F.min) * (d - fr)) / (fr * F.span));
+        if (F.close && d < F.close * 2) fall *= 1 + (F.bonus - 1) * Math.min(1, (F.close * 2 - d) / F.close); // point-blank bonus
         this.applyHit(w, e, dmg * fall, !!h.object.userData.crit, h.point, o);
         if (!(o.pierce || w.has('pierce') || w.A?.pierce)) { end = h.point; break; }
       } else {
@@ -590,6 +611,15 @@ export class Player {
     const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker') });
     if (o.isSuper) return res;
     w.hitCount++;
+    if (w.volt) {
+      // Voltshot: the charged hit jolts nearby enemies
+      w.volt = false;
+      for (const other of enemiesNear(e.pos, 10, 3, e)) {
+        const c = other.center(new THREE.Vector3());
+        lightning(point, c, ELEMENTS.arc.hex, 0.04);
+        dealDamage(other, w.s.dmg * (w.A.pellets || 1) * 0.6, { element: 'arc', source: 'perk', pos: c });
+      }
+    }
     const conducting = w.has('conductor') && w.perkT > 0;
     if (w.has('chain')) {
       for (const other of enemiesNear(e.pos, 9, conducting ? 3 : 1, e)) {
@@ -726,6 +756,17 @@ export class Player {
       w.ammo = Math.max(w.ammo, w.mag); w.reloading = false; w.memento = 6;
     }
     if (w.has('voidheart')) explode(c, 4, 180, w.item.element === 'kinetic' ? 'void' : w.item.element, { source: 'perk' });
+    const shot = w.s.dmg * (w.A.pellets || 1); // one full shot's damage
+    if (w.has('feeding')) w.feedWin = 3.5;
+    if (w.has('voltshot')) w.voltWin = 4;
+    if (w.has('incandescent')) for (const x of enemiesNear(c, 5, 6)) this.dot(x, shot * 0.2, 3, 'solar', ELEMENTS.solar.hex);
+    if (w.has('destabilizing')) {
+      glowBurst(c, ELEMENTS.void.hex, 14, 6, 0.1, 0.5);
+      for (const x of enemiesNear(c, 6, 6)) dealDamage(x, shot * 0.15, { element: 'void', source: 'perk', weaken: 4 });
+    }
+    if (w.has('chainreaction')) explode(c, 3.5, shot * 0.5, wEl(w) === 'kinetic' ? 'solar' : wEl(w), { source: 'perk' });
+    if (w.has('demolitionist')) this.cd.grenade = Math.max(0, this.cd.grenade - 2.5);
+    if (w.has('killingwind')) this.buffs.wind = 5;
     if (w.has('sunshot')) {
       // Sunburn: the blast leaps to nearby enemies
       explode(c, 3.5, w.s.dmg * 1.5, 'solar', { source: 'perk' });
