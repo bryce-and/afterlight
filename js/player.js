@@ -493,7 +493,7 @@ export class Player {
     if (crit && w.has('precise')) m *= 1.2;
     if (this.buffs.empower > 0) m *= 1.25;
     if (this.keepsGuns) m *= 1.3; // Song of Flame
-    if (w.memento > 0) m *= 1.4;
+    if (w.memento > 0) m *= 1.5;
     if (w.honed) m *= w.honed;
     if (w.has('regime') && w.ammo < w.mag / 2) m *= 1.25;
     if (w.has('wolves') && w.perkT > 0) m *= 1.25;
@@ -506,6 +506,7 @@ export class Player {
     const spinMul = w.has('spinup') ? 1 + 0.7 * (w.spin || 0) : 1;
     const A = w.A, s = w.s;
     w.ammo--;
+    w.mementoShot = w.memento > 0; // Ace of Spades: Memento rounds fire a white tracer and a bigger Firefly
     if (w.memento > 0) w.memento--;
     this.lastFire = G.time;
     if (A.mode === 'burst') {
@@ -532,7 +533,7 @@ export class Player {
       const pellets = A.pellets || 1;
       for (let i = 0; i < pellets; i++) {
         const dir = applySpread(fwd.clone(), spread);
-        this.hitscan(eye, dir, w, s.dmg, muzzle, A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : {});
+        this.hitscan(eye, dir, w, s.dmg, muzzle, A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : {});
       }
     }
     w.honed = 0;
@@ -719,7 +720,11 @@ export class Player {
     if (w.has('outlaw') && o.crit) this.buffs.outlaw = 6;
     if (w.has('leech')) this.heal(20);
     const c = e.center(new THREE.Vector3());
-    if (w.has('firefly') && o.crit) explode(c, 3, 90, 'solar', { source: 'perk' });
+    if (w.has('firefly') && o.crit) explode(c, w.mementoShot ? 4.5 : 3, w.mementoShot ? 180 : 90, 'solar', { source: 'perk' });
+    if (w.has('memento')) {
+      if (w.memento <= 0) ui.feed('Memento Mori', '#ffffff');
+      w.ammo = Math.max(w.ammo, w.mag); w.reloading = false; w.memento = 6;
+    }
     if (w.has('voidheart')) explode(c, 4, 180, w.item.element === 'kinetic' ? 'void' : w.item.element, { source: 'perk' });
     if (w.has('sunshot')) {
       // Sunburn: the blast leaps to nearby enemies

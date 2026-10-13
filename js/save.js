@@ -19,7 +19,7 @@ export function loadSave() {
       const exoticsFresh = !s.exoticsV5; // regenerated from current stats, so already balanced
       if (!s.exoticsV5) { upgradeExotics(s); s.exoticsV5 = true; writeSave(s); }
       if (!s.balanceV6) { rebalanceWeapons(s, exoticsFresh); s.balanceV6 = true; writeSave(s); }
-      if (!s.exoticsV8) { upgradeExotics(s); s.exoticsV8 = true; writeSave(s); } // new signature perks and exotic damage
+      if (!s.exoticsV9) { upgradeExotics(s); s.exoticsV9 = true; writeSave(s); } // exotic signature perks, damage and handling
       if (!s.armorV7) {
         // Legendary armor gains a rolled perk; only one exotic armor piece may be equipped
         for (const it of s.inventory) if (it.kind === 'armor' && it.rarity === 'legendary' && !it.perk) it.perk = rollArmorPerk();
