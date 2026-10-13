@@ -26,6 +26,11 @@ function applySpread(dir, spread) {
   return dir.addScaledVector(right, Math.cos(a) * r).addScaledVector(up2, Math.sin(a) * r).normalize();
 }
 
+/** Current element of a weapon (Hard Light cycles its own). */
+const wEl = (w) => w.el || w.item.element;
+const after = (sec, fn) => { let t = sec; addTicker({ update(dt) { t -= dt; if (t <= 0) { fn(); return false; } return true; } }); };
+const VOLATILE_CYCLE = ['arc', 'solar', 'void'];
+
 function makeWeapon(item) {
   if (!item) throw new Error('Player: an equipped weapon is missing from the save.');
   // exotics can change the archetype's handling (burst size, pellets, fire mode...)
@@ -38,7 +43,7 @@ function makeWeapon(item) {
     item, A, s: item.stats, has: (p) => perks.has(p), mag, ammo: mag,
     reserve: primary ? Infinity : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : Math.round(reserveBase * 1.5), brick, memento: 0,
     fireCd: 0, reloading: false, reloadT: 0, reloadMax: 1, burstLeft: 0, charge: 0, queued: 0, bloom: 0,
-    hitCount: 0, precHits: 0, killclipWindow: 0, killclipT: 0, killclipArm: false, model: null,
+    hitCount: 0, precHits: 0, perkT: 0, honed: 0, el: null, killclipWindow: 0, killclipT: 0, killclipArm: false, model: null,
   };
 }
 
@@ -351,6 +356,7 @@ export class Player {
       ww.fireCd = Math.max(0, ww.fireCd - dt);
       ww.killclipWindow = Math.max(0, ww.killclipWindow - dt);
       ww.killclipT = Math.max(0, ww.killclipT - dt);
+      ww.perkT = Math.max(0, ww.perkT - dt);
       ww.bloom = Math.max(0, ww.bloom - dt * 0.06);
       if (G.time - this.lastFire > 0.5) ww.spin = Math.max(0, (ww.spin || 0) - dt * 2);
       ww.queued = Math.max(0, ww.queued - dt);
@@ -403,7 +409,7 @@ export class Player {
     else if (A.mode === 'charge') {
       if (held && w.fireCd <= 0) {
         if (w.charge === 0) sfx.charge();
-        w.charge += dt * (1 + (w.has('spinup') ? (w.spin || 0) : 0));
+        w.charge += dt * (1 + (w.has('spinup') ? (w.spin || 0) : 0)) * (w.has('merciless') && w.perkT > 0 ? 6 : 1);
         if (w.charge >= A.charge) { this.fire(w); w.charge = 0; }
       } else w.charge = 0;
     }
@@ -420,6 +426,13 @@ export class Player {
   }
 
   startReload(w) {
+    if (w.has('honed') && !w.honed && w.mag > 1 && w.ammo >= w.mag) {
+      // Honed Edge: load the whole magazine into one shot
+      w.honed = w.ammo; w.ammo = 1;
+      ui.feed(`Honed Edge x${w.honed}`, '#d8333a');
+      sfx.reloadDone();
+      return;
+    }
     if (w.reloading || w.ammo >= w.mag || w.reserve <= 0) return;
     w.reloading = true;
     let t = w.s.reload;
@@ -439,6 +452,10 @@ export class Player {
     w.reloading = false;
     if (w.killclipArm) { w.killclipArm = false; w.killclipT = 5; ui.feed('Kill Clip active', '#ffd27a'); }
     if (w.has('memento')) w.memento = 6;
+    if (w.has('volatile')) {
+      w.el = VOLATILE_CYCLE[(VOLATILE_CYCLE.indexOf(wEl(w)) + 1) % VOLATILE_CYCLE.length];
+      ui.feed(`Hard Light: ${ELEMENTS[w.el].name}`, ELEMENTS[w.el].color);
+    }
     sfx.reloadDone();
   }
 
@@ -477,6 +494,9 @@ export class Player {
     if (this.buffs.empower > 0) m *= 1.25;
     if (this.keepsGuns) m *= 1.3; // Song of Flame
     if (w.memento > 0) m *= 1.4;
+    if (w.honed) m *= w.honed;
+    if (w.has('regime') && w.ammo < w.mag / 2) m *= 1.25;
+    if (w.has('wolves') && w.perkT > 0) m *= 1.25;
     return m;
   }
 
@@ -494,11 +514,12 @@ export class Player {
       w.fireCd = (w.burstLeft > 0 ? 60 / s.rpm : A.burstDelay) / spinMul;
       if (w.ammo <= 0) w.burstLeft = 0;
     } else w.fireCd = 60 / s.rpm / spinMul;
+    if (w.has('wolves') && w.perkT > 0) w.fireCd /= 2;
     const eye = this.eye;
     const fwd = this.getForward(_fwd);
     const spread = this.getSpread(w);
     const muzzle = this.muzzlePos(new THREE.Vector3());
-    const el = ELEMENTS[w.item.element];
+    const el = ELEMENTS[wEl(w)];
     if (A.projectile) {
       const dir = applySpread(fwd.clone(), spread);
       const start = eye.clone().addScaledVector(dir, 0.7).add(new THREE.Vector3(0, -0.15, 0));
@@ -514,6 +535,7 @@ export class Player {
         this.hitscan(eye, dir, w, s.dmg, muzzle, A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : {});
       }
     }
+    w.honed = 0;
     if (A.bloom) w.bloom = Math.min(0.025, w.bloom + A.bloom);
     const rec = A.recoil * (w.has('steady') ? 0.65 : 1) * lerp(1, 0.7, this.adsT);
     this.pitch += rec; this.recoilAcc += rec * 0.7;
@@ -554,7 +576,7 @@ export class Player {
       else end = origin.clone().addScaledVector(dir, Math.min(range, 150));
     }
     if (!o.noTracer) {
-      const tc = o.tracerColor ?? (w.item.element === 'kinetic' ? 0xffe3a0 : ELEMENTS[w.item.element].hex);
+      const tc = o.tracerColor ?? (wEl(w) === 'kinetic' ? 0xffe3a0 : ELEMENTS[wEl(w)].hex);
       tracer(from, end, tc, o.tracerWidth ?? 0.02, 0.06);
       fxTracer(from, end, tc);
     }
@@ -563,18 +585,67 @@ export class Player {
 
   applyHit(w, e, dmg, crit, point, o = {}) {
     const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit);
-    const element = o.element ?? w.item.element;
+    const element = o.element ?? wEl(w);
     const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker') });
     if (o.isSuper) return res;
     w.hitCount++;
-    if (w.has('endless') && w.hitCount % 3 === 0) w.ammo = Math.min(w.mag, w.ammo + 1);
+    const conducting = w.has('conductor') && w.perkT > 0;
     if (w.has('chain')) {
-      const other = enemiesNear(e.pos, 9, 1, e)[0];
-      if (other) {
+      for (const other of enemiesNear(e.pos, 9, conducting ? 3 : 1, e)) {
         const c = other.center(new THREE.Vector3());
         lightning(point, c, ELEMENTS.arc.hex, 0.03);
         dealDamage(other, dmg * m * 0.5, { element: 'arc', source: 'perk', pos: c });
       }
+    }
+    if (conducting && w.hitCount % 2 === 0) w.ammo = Math.min(w.mag, w.ammo + 1);
+    if (w.has('regime') && w.ammo < w.mag / 2) this.heal(2);
+    if (w.has('payday') && (w.spin || 0) >= 1 && Math.random() < 0.5) w.ammo = Math.min(w.mag, w.ammo + 1);
+    if (w.has('volatile')) {
+      const other = enemiesNear(e.pos, 12, 1, e)[0];
+      if (other) {
+        const c = other.center(new THREE.Vector3());
+        lightning(point, c, ELEMENTS[element].hex, 0.03);
+        dealDamage(other, dmg * m * 0.7, { element, source: 'perk', pos: c });
+      }
+    }
+    if (w.has('sleeper')) {
+      // Refraction: the bolt splits toward up to 2 more enemies
+      for (const other of enemiesNear(e.pos, 15, 2, e)) {
+        const c = other.center(new THREE.Vector3());
+        lightning(point, c, ELEMENTS.solar.hex, 0.05);
+        dealDamage(other, dmg * m * 0.8, { element, source: 'perk', pos: c });
+      }
+    }
+    if (crit && w.has('siva')) {
+      // Parasitic Nanites: a swarm that seeks nearby enemies
+      for (const other of enemiesNear(e.pos, 12, 2, e)) {
+        const from = point.clone();
+        after(0.35, () => {
+          const c = other.alive ? other.center(new THREE.Vector3()) : other.pos.clone().setY(1);
+          lightning(from, c, 0xd8333a, 0.025);
+          explode(c, 2, dmg * m * 0.5, 'kinetic', { source: 'perk', small: true });
+        });
+      }
+    }
+    if (w.has('telesto')) {
+      // Unstable Payload: pellets stick and pool into one blast per enemy
+      if (e.telDmg) e.telDmg += dmg * m * 0.35;
+      else {
+        e.telDmg = dmg * m * 0.35;
+        after(1, () => {
+          const c = e.alive ? e.center(new THREE.Vector3()) : e.pos.clone().setY(1);
+          explode(c, 2.5, e.telDmg, 'void', { source: 'perk' });
+          e.telDmg = 0;
+        });
+      }
+    }
+    if (w.has('reign') && w.hitCount % 8 === 0) {
+      lightning(point.clone().add(new THREE.Vector3(0, 14, 0)), point, ELEMENTS.arc.hex, 0.12);
+      explode(point, 3.5, dmg * m * 3, 'arc', { source: 'perk' });
+    }
+    if (w.has('xeno')) {
+      explode(point, 2.6, dmg * m * 0.5, 'solar', { source: 'perk', small: true });
+      for (const x of enemiesNear(point, 2.6, 4)) this.dot(x, dmg * m * 0.1, 3, 'solar', ELEMENTS.solar.hex);
     }
     if (crit && w.has('whitenail')) {
       // White Nail: three precision hits in a row refill 3 rounds for free
@@ -582,18 +653,22 @@ export class Player {
       w.wnT = G.time;
       if (w.wn >= 3) { w.wn = 0; w.ammo = Math.min(w.mag, w.ammo + 3); ui.feed('White Nail', '#6dff8e'); sfx.engram(2); }
     } else if (!crit && w.has('whitenail')) w.wn = 0;
-    if (w.has('thorn')) {
-      // Mark of the Devourer: poison for 3 ticks
-      let n = 3, t = 1;
-      const tick = dmg * m * 0.15;
-      addTicker({ update(dt) { t -= dt; if (t <= 0) { t = 1; n--; if (e.alive) { dealDamage(e, tick, { element: 'kinetic', source: 'perk' }); sparks(e.center(new THREE.Vector3()), 0x6dff8e, 3, 2, 0.06, 0.3); } } return n > 0 && e.alive; } });
-    }
+    if (w.has('thorn')) this.dot(e, dmg * m * 0.18, 4, 'kinetic', 0x6dff8e); // Mark of the Devourer
     if (w.has('explosive')) explode(point, 2.2, dmg * m * 0.4, w.item.element === 'kinetic' ? 'solar' : w.item.element, { source: 'perk', small: true });
     if (crit && w.has('sunburst')) {
       w.precHits++;
-      if (w.precHits % 5 === 0) explode(point, 3.5, dmg * 2.6, w.item.element === 'kinetic' ? 'solar' : w.item.element, { source: 'perk' });
+      if (w.precHits % 5 === 0) {
+        explode(point, 3.5, dmg * 2.6, w.item.element === 'kinetic' ? 'solar' : w.item.element, { source: 'perk' });
+        w.ammo = Math.max(w.ammo, w.mag);
+      }
     }
     return res;
+  }
+
+  /** Damage over time: n ticks, one per second. */
+  dot(e, tick, n, element, color) {
+    let t = 1;
+    addTicker({ update(dt) { t -= dt; if (t <= 0) { t = 1; n--; if (e.alive) { dealDamage(e, tick, { element, source: 'perk' }); sparks(e.center(new THREE.Vector3()), color, 3, 2, 0.06, 0.3); } } return n > 0 && e.alive; } });
   }
 
   weaponExplosion(w, p, enemy) {
@@ -606,6 +681,19 @@ export class Player {
         const off = new THREE.Vector3(Math.cos(i * 1.57) * 3, 0.5, Math.sin(i * 1.57) * 3).add(p);
         let t = 0.2 + i * 0.08;
         addTicker({ update(dt) { t -= dt; if (t <= 0) { explode(off, 2.8, dmg * 0.3, w.item.element, { source: 'perk' }); return false; } return true; } });
+      }
+    }
+    if (w.has('wolfpack')) {
+      // Wolfpack Rounds: four seekers split off toward the nearest enemies
+      const prey = enemiesNear(p, 18, 4);
+      for (let i = 0; i < 4; i++) {
+        const target = prey.length ? prey[i % prey.length] : null;
+        const fallback = new THREE.Vector3(Math.cos(i * 1.57) * 3, 0.5, Math.sin(i * 1.57) * 3).add(p);
+        after(0.25 + i * 0.1, () => {
+          const c = target?.alive ? target.center(new THREE.Vector3()) : fallback;
+          lightning(p, c, ELEMENTS[w.item.element].hex, 0.04);
+          explode(c, 2.5, dmg * 0.35, w.item.element, { source: 'perk' });
+        });
       }
     }
   }
@@ -633,6 +721,21 @@ export class Player {
     const c = e.center(new THREE.Vector3());
     if (w.has('firefly') && o.crit) explode(c, 3, 90, 'solar', { source: 'perk' });
     if (w.has('voidheart')) explode(c, 4, 180, w.item.element === 'kinetic' ? 'void' : w.item.element, { source: 'perk' });
+    if (w.has('sunshot')) {
+      // Sunburn: the blast leaps to nearby enemies
+      explode(c, 3.5, w.s.dmg * 1.5, 'solar', { source: 'perk' });
+      for (const x of enemiesNear(c, 10, 3)) {
+        const xc = x.center(new THREE.Vector3());
+        lightning(c, xc, ELEMENTS.solar.hex, 0.04);
+        explode(xc, 2.5, w.s.dmg * 1.2, 'solar', { source: 'perk', small: true });
+      }
+    }
+    if (w.has('thorn')) for (const x of enemiesNear(c, 7, 3)) this.dot(x, w.s.dmg * 0.3, 3, 'kinetic', 0x6dff8e);
+    if (w.has('ridebull')) { w.ammo = Math.max(w.ammo, w.mag); w.spin = 1; }
+    if (w.has('wolves')) { if (w.perkT <= 0) ui.feed('Release the Wolves', ELEMENTS.solar.color); w.perkT = 6; }
+    if (w.has('merciless')) w.perkT = 4;
+    if (w.has('acrius')) explode(c, 7, w.s.dmg * 4, 'arc', { source: 'perk' });
+    if (w.has('truth') && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); ui.feed("Truth: Hunter's Trace", ELEMENTS.void.color); }
     if (w.has('scavenger') && w.reserve !== Infinity && Math.random() < 0.4) {
       w.reserve = Math.min(w.maxReserve, w.reserve + (w.item.slot === 'heavy' ? Math.ceil(w.brick / 2) : 1));
     }
@@ -656,6 +759,8 @@ export class Player {
     if (this.over > 0) { const a = Math.min(this.over, amount); this.over -= a; amount -= a; if (amount <= 0) { sfx.hurt(); return; } }
     if (this.dash > 0) amount *= 0.5;
     if (this.contraT > 0) amount *= 0.8; // Contraverse Hold
+    const cw = this.weapon;
+    if (cw?.has('conductor')) { if (cw.perkT > 0) amount *= 0.75; else ui.feed('Arc Conductor', ELEMENTS.arc.color); cw.perkT = 6; }
     if (this.ap.plating) amount *= Math.max(0.6, 1 - 0.08 * this.ap.plating);
     this.regenT = this.regenDelay;
     const hadShield = this.shield > 0;
