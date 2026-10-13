@@ -4,6 +4,7 @@ import { EXOTIC_WEAPONS } from './data.js';
 
 const KEY = 'afterlight_save_v1';
 export const INVENTORY_CAP = 60;
+export const VAULT_CAP = 100;
 
 export function loadSave() {
   let raw;
@@ -13,6 +14,7 @@ export function loadSave() {
     const s = JSON.parse(raw);
     if (s && s.version === 1 && Array.isArray(s.inventory) && s.equipped && s.classId) {
       s.settings = { sens: 1, fov: 80, volume: 0.6, ...(s.settings || {}) };
+      if (!Array.isArray(s.vault)) s.vault = [];
       grantArmory(s);
       if (!s.namesV3) { s.inventory.forEach(modernizeItem); s.namesV3 = true; writeSave(s); }
       if (!s.heavyExoticsV4) { migrateHeavyExotics(s); s.heavyExoticsV4 = true; writeSave(s); }
@@ -53,7 +55,7 @@ export function resetSave() {
 
 export function createSave(classId) {
   const gear = starterGear();
-  const s = { version: 1, classId, glimmer: 250, inventory: gear, equipped: {}, cleared: {}, settings: { sens: 1, fov: 80, volume: 0.6 } };
+  const s = { version: 1, classId, glimmer: 250, inventory: gear, vault: [], equipped: {}, cleared: {}, settings: { sens: 1, fov: 80, volume: 0.6 } };
   for (const it of gear) s.equipped[it.slot] = it.id;
   grantArmory(s);
   s.namesV3 = true;
@@ -156,6 +158,29 @@ function bestNonExotic(s, it) {
 function unequipExotic(s, it) {
   const best = s.inventory.filter((x) => x.kind === 'armor' && x.slot === it.slot && x.rarity !== 'exotic').sort((a, b) => b.power - a.power)[0];
   if (best) s.equipped[it.slot] = best.id; else delete s.equipped[it.slot];
+}
+
+/** Moves an unequipped item into the vault. Returns null on success, or why it couldn't. */
+export function toVault(s, id) {
+  const it = getItem(s, id);
+  if (!it) throw new Error(`toVault: no item ${id}`);
+  if (isEquipped(s, it)) return 'Equipped gear stays on your character.';
+  if (s.vault.length >= VAULT_CAP) return `The vault is full (${VAULT_CAP} items).`;
+  s.inventory = s.inventory.filter((i) => i !== it);
+  s.vault.push(it);
+  writeSave(s);
+  return null;
+}
+
+/** Moves an item from the vault back to the character. Returns null on success, or why it couldn't. */
+export function fromVault(s, id) {
+  const it = s.vault.find((i) => i.id === id);
+  if (!it) throw new Error(`fromVault: no vault item ${id}`);
+  if (s.inventory.length >= INVENTORY_CAP) return `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.`;
+  s.vault = s.vault.filter((i) => i !== it);
+  s.inventory.push(it);
+  writeSave(s);
+  return null;
 }
 
 export function dismantleItem(s, id) {

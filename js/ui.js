@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
 import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS, ARMOR_PERKS } from './data.js';
-import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP } from './save.js';
+import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault } from './save.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission } from './game.js';
@@ -300,7 +300,7 @@ function itemCard(it, { equipped = false, selected = false, compact = false } = 
 // ---------------------------------------------------------------------------
 // Character screen (Destiny-style): model in the middle, weapons left, armour right
 // ---------------------------------------------------------------------------
-let flySlot = null, hoverId = null, dismantle = null;
+let flySlot = null, hoverId = null, dismantle = null, vaultOpen = false;
 
 function playerStats() {
   const s = G.save, cls = CLASSES[s.classId];
@@ -350,6 +350,7 @@ function renderCharScreen(main) {
       </div>
       <div class="cs-foot">
         <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
+        <button class="btn cs-vault-btn" id="cs-vault-btn">Vault <small>${s.vault.length} / ${VAULT_CAP}</small></button>
         <span class="cs-auto" title="Weapon and armor drops of these rarities are dismantled into glimmer automatically">Auto-dismantle
           ${['common', 'uncommon', 'rare'].map((r) => `<button class="cs-auto-t ${s.settings.autoDismantle?.[r] ? 'on' : ''}" data-r="${r}" style="--rc:${RARITIES[rarityIndex(r)].color}">${{ common: 'White', uncommon: 'Green', rare: 'Blue' }[r]}</button>`).join('')}</span>
         <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
@@ -358,6 +359,7 @@ function renderCharScreen(main) {
       <div class="cs-fly hidden" id="cs-fly"></div>
       <div class="cs-tip hidden" id="cs-tip"></div>
       <div class="cs-panel hidden" id="cs-panel"></div>
+      <div class="cs-vault hidden" id="cs-vault"></div>
     </div>`;
 
   const root = $('.cs', main);
@@ -367,6 +369,7 @@ function renderCharScreen(main) {
   });
   root.addEventListener('mouseleave', hideTip);
   root.addEventListener('click', (e) => {
+    if (e.target.closest('#cs-vault')) return; // the vault handles its own clicks
     const t = e.target.closest('.tile');
     if (e.target.closest('#cs-sub')) { openSubclass(); return; }
     if (t && t.dataset.id) {
@@ -382,6 +385,7 @@ function renderCharScreen(main) {
     }
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
   });
+  $('#cs-vault-btn', main).addEventListener('click', () => { sfx.ui(); closeFly(); vaultOpen = true; renderVault(); });
   $$('.cs-auto-t', main).forEach((b) => b.addEventListener('click', () => {
     const set = (s.settings.autoDismantle = s.settings.autoDismantle || {});
     set[b.dataset.r] = !set[b.dataset.r];
@@ -404,6 +408,44 @@ function renderCharScreen(main) {
   stage.addEventListener('pointermove', (e) => { if (dragX === null) return; G.menu.rotateChar((e.clientX - dragX) * 0.012); dragX = e.clientX; });
   stage.addEventListener('pointerup', () => { dragX = null; });
   if (flySlot) { const anchor = $(`.cs-slot[data-slot="${flySlot}"] .tile`, main); if (anchor) openFly(flySlot, anchor); }
+  if (vaultOpen) renderVault();
+}
+
+// Vault: click an item to move it between the character and the vault
+const SLOT_ORDER = [...WEAPON_SLOTS, ...ARMOR_SLOTS];
+const vaultSort = (a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot) || rarityIndex(b.rarity) - rarityIndex(a.rarity) || b.power - a.power;
+
+function renderVault() {
+  const s = G.save, v = $('#cs-vault');
+  if (!v) return;
+  const mine = s.inventory.filter((i) => !isEquipped(s, i)).sort(vaultSort);
+  const stored = [...s.vault].sort(vaultSort);
+  const grid = (items, empty) => (items.length ? `<div class="vault-grid">${items.map((it) => tileHTML(it)).join('')}</div>` : `<div class="fly-empty">${empty}</div>`);
+  v.innerHTML = `
+    <div class="vault-head"><div class="sp-title">Vault</div><button class="sp-x" id="vault-close" aria-label="Close vault">✕</button></div>
+    <div class="vault-cols">
+      <section class="vault-col" data-side="char"><div class="fly-head">Character<span>${s.inventory.length} / ${INVENTORY_CAP}</span></div>
+        ${grid(mine, 'Nothing unequipped to store. Equipped gear stays on your character.')}</section>
+      <section class="vault-col" data-side="vault"><div class="fly-head">Vault<span>${s.vault.length} / ${VAULT_CAP}</span></div>
+        ${grid(stored, 'The vault is empty. Click gear on the left to store it here.')}</section>
+    </div>
+    <div class="vault-hint">Click an item to move it to the other side</div>`;
+  v.classList.remove('hidden');
+  $('#vault-close', v).addEventListener('click', closeVault);
+  $$('.tile[data-id]', v).forEach((t) => t.addEventListener('click', () => {
+    const toChar = !!t.closest('[data-side="vault"]');
+    const err = toChar ? fromVault(s, t.dataset.id) : toVault(s, t.dataset.id);
+    hideTip();
+    if (err) { sfx.denied(); orbitNotice(err); return; }
+    sfx.engram(1);
+    renderOrbit(); // counts in the footer change too; reopens the vault
+  }));
+}
+
+function closeVault() {
+  vaultOpen = false;
+  hideTip();
+  $('#cs-vault')?.classList.add('hidden');
 }
 
 function toggleFly(sl, anchor) {
@@ -440,7 +482,7 @@ function closeFly() {
   $$('.cs-slot').forEach((n) => n.classList.remove('open'));
 }
 
-function tipHTML(it) {
+function tipHTML(it, side) {
   const s = G.save;
   const rar = RARITIES[rarityIndex(it.rarity)];
   const eq = getEquipped(s, it.slot);
@@ -490,19 +532,22 @@ function tipHTML(it) {
     body += '<div class="tt-note">Only one exotic weapon can be equipped.</div>';
   }
   const inf = infuseInfo(s, it);
-  const foot = equipped
+  const foot = side === 'vault' ? '<div class="tt-foot"><span>Click: Move to character</span></div>'
+    : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span><span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span><i class="tt-hold"><em></em></i></div>`
+    : equipped
     ? '<div class="tt-foot">Equipped</div>'
     : `<div class="tt-foot"><span>Click: Equip</span><span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
   return `<div class="tt-head r-${it.rarity}" style="--rc:${rar.color}"><div class="tt-name">${esc(it.name)}</div><div class="tt-type">${rar.name} ${typeLine(it)}</div></div><div class="tt-body">${body}</div>${foot}`;
 }
 
 function showTip(tile) {
-  const it = getItem(G.save, tile.dataset.id);
+  const side = tile.closest('.vault-col')?.dataset.side; // 'char' or 'vault' inside the vault
+  const it = side === 'vault' ? G.save.vault.find((i) => i.id === tile.dataset.id) : getItem(G.save, tile.dataset.id);
   if (!it) return;
-  hoverId = it.id;
+  hoverId = side === 'vault' ? null : it.id; // vaulted items can't be dismantled from here
   if (it.isNew && !tile.closest('.cs-slot')) { it.isNew = false; writeSave(G.save); tile.querySelector('.t-new')?.remove(); }
   const tip = $('#cs-tip');
-  tip.innerHTML = tipHTML(it);
+  tip.innerHTML = tipHTML(it, side);
   tip.classList.remove('hidden');
   const r = tile.getBoundingClientRect(), host = $('.cs').getBoundingClientRect();
   const tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -593,7 +638,7 @@ function openSubclass() {
 addEventListener('keydown', (e) => {
   if (G.state !== 'orbit' || orbitTab !== 'character') return;
   if (e.code === 'KeyF' && !e.repeat) startDismantle();
-  if (e.code === 'Escape') { closeFly(); $('#cs-panel')?.classList.add('hidden'); }
+  if (e.code === 'Escape') { closeFly(); closeVault(); $('#cs-panel')?.classList.add('hidden'); }
 });
 addEventListener('keyup', (e) => { if (e.code === 'KeyF') cancelDismantle(); });
 
