@@ -11,6 +11,7 @@ import { damagePlayer, spawnBossAdds } from './game.js';
 import * as ui from './ui.js';
 import { pickTarget, allPlayers, damageRemote, announceShot } from './coop.js';
 import { BOSS_MODELS } from './bosses.js';
+import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const shotGeo = new THREE.IcosahedronGeometry(1, 0);
@@ -339,6 +340,7 @@ export class Enemy {
     this.dmgMult = o.dmgMult;
     this.zone = o.zone;
     this.alive = true; this.dieT = 0; this.spawnT = 0;
+    this.status = new StatusSet(ENEMY_STATUS); // debuffs: weaken, slow, suppress, burn, poison, jolt
     this.fireT = rand(0.8, 2.0);
     this.burstLeft = 0; this.burstT = 0;
     this.strafe = Math.random() < 0.5 ? -1 : 1; this.strafeT = rand(1, 3);
@@ -409,6 +411,7 @@ export class Enemy {
       m.group.position.copy(this.pos);
       return true;
     }
+    this.status.tick(dt);
     if (this.remote) { this.remoteStep(dt); return true; }
     // target the nearest living fireteam member (just the local player when solo)
     this.tgtT = (this.tgtT ?? 0) - dt;
@@ -470,12 +473,11 @@ export class Enemy {
     const staggered = this.staggerT > 0;
     if (staggered) { mx = 0; mz = 0; }
     const ml = Math.hypot(mx, mz);
-    this.weakenT = Math.max(0, (this.weakenT || 0) - dt);
-    this.slowT = Math.max(0, (this.slowT || 0) - dt);
-    this.suppressT = Math.max(0, (this.suppressT || 0) - dt);
-    if (this.suppressT > 0 && Math.random() < 0.2) sparks(this.headPos(_v), 0x7a4ab0, 1, 1.5, 0.06, 0.3);
-    if (this.weakenT > 0 && Math.random() < 0.15) sparks(this.center(_v), 0x7a4ab0, 1, 1, 0.08, 0.4);
-    const speed = def.speed * (this.burstLeft > 0 && !this.isBoss ? 0.4 : 1) * (this.slowT > 0 ? 0.35 : 1);
+    const suppressed = this.status.has('suppress');
+    if (suppressed && Math.random() < 0.2) sparks(this.headPos(_v), 0x7a4ab0, 1, 1.5, 0.06, 0.3);
+    if (this.status.has('weaken') && Math.random() < 0.15) sparks(this.center(_v), 0x7a4ab0, 1, 1, 0.08, 0.4);
+    if (this.status.has('jolt') && Math.random() < 0.2) sparks(this.center(_v), 0x5fd3ff, 1, 2, 0.05, 0.25);
+    const speed = def.speed * (this.burstLeft > 0 && !this.isBoss ? 0.4 : 1) * (this.status.has('slow') ? SLOW_MULT : 1);
     if (ml > 0) { mx /= ml; mz /= ml; }
     this.pos.x += (mx * speed + this.knock.x) * dt;
     this.pos.z += (mz * speed + this.knock.z) * dt;
@@ -507,7 +509,7 @@ export class Enemy {
     m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
 
     // ---- attacks ---- (suppressed enemies cannot attack)
-    if (!P.dead && !(this.suppressT > 0) && !staggered) {
+    if (!P.dead && !suppressed && !staggered) {
       if (def.melee) {
         // wind up, then lunge ~3m; the hit lands if the player is in reach during the lunge
         this.meleeT -= dt;

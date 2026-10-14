@@ -17,6 +17,19 @@ export const STATUS = {
   heart: { name: 'Inmost Light', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   dunemarchers: { name: 'Static Charge', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity },
   nighthawk: { name: 'Celestial Nighthawk', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity },
+  // aspects and fragments (Paths of Light)
+  sunspot: { name: 'Sunspot', group: 'general', glyph: '☀', color: '#ffb547' },
+  roaring: { name: 'Roaring Flames', group: 'general', glyph: '▲', color: '#ff8b2b', t: 10, maxStacks: 3 },
+  knockout: { name: 'Knockout', group: 'general', glyph: '✊', color: '#5fd3ff', t: 5 },
+  juggernaut: { name: 'Juggernaut', group: 'general', glyph: '⬢', color: '#5fd3ff', t: Infinity },
+  rally: { name: 'Rally', group: 'general', glyph: '↻', color: '#ffb36b', t: 6 },
+  onyourmark: { name: 'On Your Mark', group: 'general', glyph: '↻', color: '#ffb547', t: 6, maxStacks: 3 },
+  gunpowder: { name: 'Gunpowder Gamble', group: 'general', glyph: '✹', color: '#ffb547', t: Infinity },
+  flowstate: { name: 'Flow State', group: 'general', glyph: '»', color: '#5fd3ff', t: 6 },
+  devour: { name: 'Devour', group: 'general', glyph: '◉', color: '#b07cff', t: 8 },
+  radiant: { name: 'Radiant', group: 'general', glyph: '✦', color: '#ffb547', t: 6 },
+  frequency: { name: 'Frequency', group: 'general', glyph: '↻', color: '#5fd3ff', t: 5 },
+  volatile: { name: 'Volatile Rounds', group: 'weapon', glyph: '✹', color: '#b07cff', t: 6 },
   // weapon
   rampage: { name: 'Rampage', group: 'weapon', glyph: '▲', color: '#ff7a6b', t: 5, maxStacks: 3 },
   outlaw: { name: 'Outlaw', group: 'weapon', glyph: '↻', color: '#ffd27a', t: 6 },
@@ -30,6 +43,20 @@ export const STATUS = {
   merciless: { name: 'Merciless', group: 'weapon', glyph: '◆', color: '#f4c542', t: 4, exotic: true },
   conductor: { name: 'Arc Conductor', group: 'weapon', glyph: '◆', color: '#f4c542', t: 6, exotic: true },
 };
+
+// Debuffs on enemies. Applied through dealDamage by whoever owns the enemy; the plate shows them.
+// weaken: +30% damage taken. slow: 35% speed. suppress: cannot attack. burn/poison: marks a
+// damage-over-time (the ticks come from the attacker). jolt: the next hits arc into nearby enemies.
+export const ENEMY_STATUS = {
+  weaken: { name: 'Weakened', glyph: '▼', color: '#b07cff' },
+  slow: { name: 'Slowed', glyph: '≈', color: '#9fb4ff' },
+  suppress: { name: 'Suppressed', glyph: '⊘', color: '#c9a6ff' },
+  burn: { name: 'Scorched', glyph: '♨', color: '#ff8b2b' },
+  poison: { name: 'Poisoned', glyph: '☣', color: '#6dff8e' },
+  jolt: { name: 'Jolted', glyph: 'ϟ', color: '#5fd3ff' },
+};
+export const WEAKEN_MULT = 1.3;
+export const SLOW_MULT = 0.35;
 
 const keyOf = (id, scope) => (scope == null ? id : `${id}@${scope}`);
 

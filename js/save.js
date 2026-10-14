@@ -1,4 +1,5 @@
-import { SLOTS, LOCATIONS, RARITIES, CLASSES, classKit } from './data.js';
+import { SLOTS, LOCATIONS, RARITIES, CLASSES } from './data.js';
+import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP } from './progression.js';
 import { randInt } from './util.js';
@@ -8,14 +9,17 @@ const KEY = 'afterlight_save_v2';
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
 
 // MIGRATIONS[n] upgrades a version n save to version n + 1, in place.
 // Add one whenever the save shape changes, and bump SAVE_VERSION.
-const MIGRATIONS = {};
+const MIGRATIONS = {
+  // Paths of Light (v1.3): per-subclass loadouts (grenade, class ability, aspects, fragments). Missing = defaults.
+  2: (s) => { s.loadout = s.loadout && typeof s.loadout === 'object' ? s.loadout : {}; },
+};
 
 let store = (() => { try { return globalThis.localStorage; } catch { return null; } })();
 /** Swap the storage backend (tests use an in-memory one). */
@@ -79,7 +83,7 @@ export function resetSave() {
 export function createSave(classId) {
   const gear = starterGear();
   const s = {
-    version: SAVE_VERSION, classId, glimmer: 250, inventory: gear, vault: [], equipped: {}, cleared: {}, subclass: {},
+    version: SAVE_VERSION, classId, glimmer: 250, inventory: gear, vault: [], equipped: {}, cleared: {}, subclass: {}, loadout: {},
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
   };
@@ -129,10 +133,24 @@ export function claimLevelReward(s, level) {
   return { item };
 }
 
-/** The player's class + chosen subclass. */
+/** The player's class + chosen subclass, with that subclass's loadout applied. */
 export function activeKit(s) {
   const sub = s.subclass?.[s.classId];
-  return classKit(s.classId, sub && CLASSES[s.classId].subclasses[sub] && isSubclassUnlocked(s, s.classId, sub) ? sub : undefined);
+  const ids = Object.keys(CLASSES[s.classId].subclasses);
+  const sid = sub && CLASSES[s.classId].subclasses[sub] && isSubclassUnlocked(s, s.classId, sub) ? sub : ids[0];
+  return resolveKit(s.classId, sid, s.loadout?.[s.classId]?.[sid], playerLevel(s));
+}
+
+/** The valid loadout for a subclass right now (defaults fill anything missing or locked). */
+export const getLoadout = (s, classId, subId) => sanitizeLoadout(classId, subId, s.loadout?.[classId]?.[subId], playerLevel(s));
+
+/** Changes part of a subclass loadout ({ grenade, class, aspects, fragments }), keeps it valid, and saves. */
+export function setLoadout(s, classId, subId, patch) {
+  const next = sanitizeLoadout(classId, subId, { ...getLoadout(s, classId, subId), ...patch }, playerLevel(s));
+  s.loadout = s.loadout || {};
+  s.loadout[classId] = { ...(s.loadout[classId] || {}), [subId]: next };
+  writeSave(s);
+  return next;
 }
 
 export const getItem = (s, id) => s.inventory.find((i) => i.id === id);

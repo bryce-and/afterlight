@@ -4,6 +4,19 @@
 
 export const RELEASES = [
   {
+    version: '1.3', name: 'Paths of Light', date: '2026-10-13', accent: '#ff8b2b', glyph: '❖',
+    summary: 'Your Light, your way. Every subclass opens up: choose your grenade and class ability, then shape it with aspects and fragments.',
+    notes: [
+      'A new subclass screen: pick your grenade, class ability, two aspects and the fragments they open',
+      'Grenades are shared by element: any Solar, Arc or Void subclass can throw any grenade of its element',
+      'Twenty-seven aspects, each unique to its subclass, and fourteen fragments shared by element',
+      'Sentinel, Arcstrider and Stormcaller earn their final aspect on the reward track, and two new fragments wait further along it',
+      'Enemies now show what afflicts them: weakened, slowed, suppressed, scorched, poisoned and the new Arc debuff, jolted',
+      'Hunters can jump twice in the air',
+      'Dawnblade is now Sunsinger, and Phoenix Dive becomes one of its aspects',
+    ],
+  },
+  {
     version: '1.2', name: 'Clear Sight', date: '2026-10-13', accent: '#7fd8ff', glyph: '◎',
     summary: 'Read the battlefield at a glance. Every blessing on your Light now ticks down where you can see it, every foe has a name, and every shot lands with weight.',
     notes: [
@@ -45,11 +58,6 @@ export const RELEASES = [
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
 export const ROADMAP = [
-  {
-    name: 'Paths of Light', status: 'On the Horizon', accent: '#ff8b2b', glyph: '❖',
-    teaser: 'Your Light, your way. Every subclass is about to open up.',
-    themes: ['Subclass customization'],
-  },
   {
     name: 'The Last City', status: 'Future Transmission', accent: '#e9eef5', glyph: '⌂',
     teaser: 'The lights of the Tower are coming back on. Somewhere to rest, somewhere to gather, somewhere to call home.',

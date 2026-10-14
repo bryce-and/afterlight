@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { ELEMENTS } from './data.js';
-import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, ringFx, lightning, beam, explosionFx } from './effects.js';
+import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, ringFx, lightning, beam, explosionFx, ember } from './effects.js';
 import { dealDamage, enemiesNear, addTicker } from './game.js';
 import { sendFx } from './coop.js';
 import { STORM_GRENADE } from './combat.js';
@@ -54,7 +54,10 @@ export function abilityFx(kind, o, local) {
       shockwave(ground, 4.5, col, 0.6);
       pillar(ground, 1.4, 7, col, 3.2, 0.25);
       const zone = zoneMesh(p, 4.5, col, true);
-      let n = 6, t = 0.5;
+      let n = o.n || 6, t = 0.5;
+      // Touch of Flame scorches, Spark of Shock jolts (upgrades are decided by the caster)
+      const hitO = { element: o.el, source: 'ability', jolt: o.jolt || 0 };
+      const scorch = (e) => { if (o.scorch && G.player?.ignite) G.player.ignite(e, 24, 2); };
       addTicker({
         update(dt) {
           t -= dt; zone.rotation.y += dt * 2;
@@ -65,13 +68,13 @@ export function abilityFx(kind, o, local) {
             shockwave(ground, 4.5, col, 0.45);
             glowBurst(p, col, 10, 5, 0.1, 0.5, 3, 0.6);
             sfx.explosion(2);
-            if (local) for (const e of enemiesNear(p, 4.5)) dealDamage(e, 45, { element: o.el, source: 'ability' });
+            if (local) for (const e of enemiesNear(p, 4.5)) { dealDamage(e, 45, hitO); scorch(e); }
           }
           return n > 0;
         },
         dispose() { G.scene?.remove(zone); },
       });
-      if (local) for (const e of enemiesNear(p, 3.5)) dealDamage(e, 60, { element: o.el, source: 'ability' });
+      if (local) for (const e of enemiesNear(p, 3.5)) { dealDamage(e, 60, hitO); scorch(e); }
       break;
     }
     case 'burst': { // Swarm Grenade / Axion Bolt detonation (seekers are synced as projectiles)
@@ -84,24 +87,25 @@ export function abilityFx(kind, o, local) {
     }
     case 'vortex': {
       const p = V(o.p), col = hex('void');
-      const zone = zoneMesh(p, 5.5, col, true);
-      shockwave(p.clone().setY(0.05), 5.5, col, 0.7);
+      const R = o.big ? 7.5 : 5.5; // Chaos Accelerant
+      const zone = zoneMesh(p, R, col, true);
+      shockwave(p.clone().setY(0.05), R, col, 0.7);
       flare(p, 0xe6d0ff, 2.5, 0.3);
-      let life = 4, tick = 0;
+      let life = o.big ? 5.5 : 4, tick = 0;
       addTicker({
         update(dt) {
           life -= dt; tick -= dt;
           zone.rotation.y += dt * 4;
           zone.children[0].scale.setScalar(1 + Math.sin(G.time * 10) * 0.12);
-          for (let i = 0; i < 4; i++) swirl(p, 5.5, i % 2 ? col : 0xe6d0ff, 0.7, true, 0.09, 2.4);
+          for (let i = 0; i < 4; i++) swirl(p, R, i % 2 ? col : 0xe6d0ff, 0.7, true, 0.09, 2.4);
           if (local) {
             const c = new THREE.Vector3();
-            for (const e of enemiesNear(p, 6.5)) if (!e.isBoss && !e.remote) { const d = c.copy(p).sub(e.pos).setY(0); if (d.length() > 0.5) e.knock.addScaledVector(d.normalize(), dt * 14); }
-            if (tick <= 0) { tick = 0.25; for (const e of enemiesNear(p, 5.5)) dealDamage(e, 22, { element: 'void', source: 'ability', slow: 0.3 }); }
+            for (const e of enemiesNear(p, R + 1)) if (!e.isBoss && !e.remote) { const d = c.copy(p).sub(e.pos).setY(0); if (d.length() > 0.5) e.knock.addScaledVector(d.normalize(), dt * 14); }
+            if (tick <= 0) { tick = 0.25; for (const e of enemiesNear(p, R)) dealDamage(e, 22, { element: 'void', source: 'ability', slow: 0.3, weaken: o.weaken || 0 }); }
           }
           return life > 0;
         },
-        dispose() { G.scene?.remove(zone); explosionFx(p, 4, col); if (local) for (const e of enemiesNear(p, 4)) dealDamage(e, 80, { element: 'void', source: 'ability' }); },
+        dispose() { G.scene?.remove(zone); explosionFx(p, 4, col); if (local) for (const e of enemiesNear(p, 4)) dealDamage(e, 80, { element: 'void', source: 'ability', weaken: o.weaken || 0 }); },
       });
       sfx.ability();
       break;
@@ -113,7 +117,7 @@ export function abilityFx(kind, o, local) {
       for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(1 + Math.random() * 0.8, 0), cm); b.position.set((Math.random() - 0.5) * 4, Math.random() * 0.8, (Math.random() - 0.5) * 4); cloud.add(b); }
       cloud.position.set(p.x, 6, p.z);
       G.scene.add(cloud);
-      let life = 3, tick = 0;
+      let life = o.life || 3, tick = 0;
       addTicker({
         update(dt) {
           life -= dt; tick -= dt; cloud.rotation.y += dt;
@@ -126,7 +130,7 @@ export function abilityFx(kind, o, local) {
             for (const tgt of targets) {
               const to = tgt.center(new THREE.Vector3());
               bolt(to);
-              if (local) dealDamage(tgt, STORM_GRENADE.dmg, { element: 'arc', source: 'ability', pos: to });
+              if (local) dealDamage(tgt, STORM_GRENADE.dmg, { element: 'arc', source: 'ability', pos: to, jolt: o.jolt || 0 });
             }
             sfx.zap();
           }
@@ -185,7 +189,8 @@ export function abilityFx(kind, o, local) {
     // ---------------- class abilities ----------------
     case 'barricade': {
       const p = V(o.p), col = 0xff8b2b, alongX = o.alongX;
-      const w = alongX ? 5 : 0.6, d = alongX ? 0.6 : 5, h = 2.2;
+      const len = o.small ? 2.6 : 5, h = o.small ? 1.3 : 2.2; // Rally Barricade is short and low
+      const w = alongX ? len : 0.6, d = alongX ? 0.6 : len;
       const geo = new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0);
       const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: 0xff6a10, emissiveIntensity: 0.7, transparent: true, opacity: 0.5, flatShading: true }));
       mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xffd27a, transparent: true, blending: THREE.AdditiveBlending })));
@@ -197,7 +202,7 @@ export function abilityFx(kind, o, local) {
       G.colliders.push(box);
       shockwave(p.clone().setY(0.05), 4, col, 0.5);
       for (let i = 0; i < 16; i++) glowBurst(p.clone().add(new THREE.Vector3(alongX ? (Math.random() - 0.5) * w : 0, 0.1, alongX ? 0 : (Math.random() - 0.5) * d)), i % 2 ? col : 0xffd27a, 1, 3, 0.1, 0.7, 4, 1);
-      let life = 12, age = 0;
+      let life = o.small ? 7 : 12, age = 0;
       const scene = G.scene;
       addTicker({
         update(dt) {
@@ -251,7 +256,7 @@ export function abilityFx(kind, o, local) {
       glowBurst(p, 0xffe0a0, 24, 7, 0.1, 0.7, 2, 0.4);
       pillar(p, 1.2, 6, col, 0.8, 0.4);
       const P = G.player;
-      if (P && !P.dead && P.pos.distanceTo(p) < o.r) { P.heal(40); P.restore(6); ui.feed('Restoration', '#ffb547'); }
+      if (P && !P.dead && P.pos.distanceTo(p) < o.r) { P.heal(o.big ? 70 : 40); P.restore(o.big ? 9 : 6); ui.feed('Restoration', '#ffb547'); }
       sfx.heal();
       break;
     }
@@ -307,6 +312,61 @@ export function abilityFx(kind, o, local) {
       const p = V(o.p), col = hex(o.el);
       shockwave(p, 1.8, col, 0.4);
       glowBurst(p, col, 12, 5, 0.08, 0.5, -2, -0.8);
+      break;
+    }
+
+    case 'sunspot': { // Sol Invictus: whoever stands in it heals and recharges abilities faster (on their own screen)
+      const p = V(o.p), col = hex('solar');
+      const zone = zoneMesh(p, 2.5, col);
+      pillar(p.clone().setY(0), 2.3, 1.2, col, 6, 0.15);
+      let life = 6;
+      addTicker({
+        update(dt) {
+          life -= dt; zone.rotation.y += dt * 1.5;
+          if (Math.random() < 0.4) ember(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 4, 0.2, (Math.random() - 0.5) * 4)), 0xffb547, 0.05, 0.9, 1.2);
+          const P = G.player;
+          if (P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 2.7 && Math.abs(P.pos.y - p.y) < 3) { P.status.apply('sunspot', { t: 0.25 }); P.restore(0.3); }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(zone); },
+      });
+      break;
+    }
+    case 'companion': { // Child of the Old Gods (drains + weakens, heals the caster) / Arc Soul (lightning)
+      const child = o.kind === 'child', col = hex(child ? 'void' : 'arc');
+      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(child ? 0.32 : 0.24, 1), new THREE.MeshBasicMaterial({ color: col }));
+      const halo = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.5, 20), new THREE.MeshBasicMaterial({ color: child ? 0xe6d0ff : 0xe0f6ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      orb.add(halo);
+      const home = V(o.p);
+      orb.position.copy(home).setY(home.y + 2.2);
+      G.scene.add(orb);
+      let life = o.life || 8, tick = 0.5;
+      const at = new THREE.Vector3();
+      addTicker({
+        update(dt) {
+          life -= dt; tick -= dt;
+          // follows the caster on the caster's screen; replays hover where it was summoned
+          const anchor = local && G.player && !G.player.dead ? G.player.pos : home;
+          at.set(anchor.x + Math.cos(G.time * 1.3) * 1.1, anchor.y + 2.3 + Math.sin(G.time * 3) * 0.15, anchor.z + Math.sin(G.time * 1.3) * 1.1);
+          orb.position.lerp(at, Math.min(1, dt * 5));
+          halo.rotation.y += dt * 3; orb.rotation.x += dt;
+          if (tick <= 0) {
+            tick = child ? 0.5 : 0.4;
+            const tgt = enemiesNear(orb.position, 14, 1)[0];
+            if (tgt) {
+              const c = tgt.center(new THREE.Vector3());
+              if (child) beam(orb.position, c, col, 0.05, 0.2); else lightning(orb.position, c, col, 0.04);
+              flare(c, col, 0.6, 0.15);
+              if (local) {
+                dealDamage(tgt, child ? 24 : 34, { element: child ? 'void' : 'arc', source: 'ability', pos: c, weaken: child ? 1 : 0 });
+                if (child) G.player.heal(5);
+              }
+            }
+          }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(orb); explosionFx(orb.position.clone(), 1.2, col); },
+      });
       break;
     }
 

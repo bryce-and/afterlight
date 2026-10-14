@@ -186,30 +186,27 @@ export const CLASSES = {
     subclasses: {
       sunbreaker: {
         name: 'Sunbreaker', element: 'solar', color: '#ff8b2b', tagline: 'Walls, hammers, and fire.',
+        defaults: { grenade: 'solar', class: 'barricade', aspects: [] },
         abilities: {
-          grenade: { id: 'pulse', name: 'Solar Grenade', cd: 22, desc: 'Lands and pulses solar fire six times.' },
           melee: { id: 'hammerthrow', name: 'Throwing Hammer', cd: 10, desc: 'Hurl a solar hammer. Walk over it after it lands to pick it up: your melee recharges instantly and you heal.' },
-          class: { id: 'barricade', name: 'Towering Barricade', cd: 26, desc: 'Raise a wall that blocks enemy fire for the whole fireteam and reloads your weapons.' },
-          super: { id: 'hammers', name: 'Hammer of Sol', desc: 'For 15s hurl explosive solar hammers and take 40% less damage.' },
+          super: { id: 'hammers', camera: 'third', name: 'Hammer of Sol', desc: 'For 15s hurl explosive solar hammers and take 40% less damage.' },
         },
       },
       striker: {
         name: 'Striker', element: 'arc', color: '#5fd3ff', tagline: 'Charge in and hit like lightning.',
+        defaults: { grenade: 'pulse', class: 'barricade', aspects: [] },
         abilities: {
-          grenade: { id: 'pulse', name: 'Pulse Grenade', cd: 20, desc: 'Lands and pulses arc damage six times.' },
           melee: { id: 'charge', name: 'Shoulder Charge', cd: 9, desc: 'Sprint-tackle forward, slamming the first enemy you hit.' },
-          class: { id: 'barricade', name: 'Towering Barricade', cd: 26, desc: 'Raise a wall that blocks enemy fire for the whole fireteam and reloads your weapons.' },
-          super: { id: 'fists', name: 'Fists of Havoc', desc: 'For 14s, each click is a lunging arc slam. Take 50% less damage and move faster.' },
+          super: { id: 'fists', camera: 'third', name: 'Fists of Havoc', desc: 'For 14s, each click is a lunging arc slam. Take 50% less damage and move faster.' },
         },
       },
       sentinel: {
         name: 'Sentinel', unlockLevel: 10, element: 'void', color: '#b07cff', tagline: 'A shield for the fireteam. Overshields and suppression.',
-        passive: 'Void abilities grant you an overshield.',
+        passive: 'Grenades, melees and your class ability grant you an overshield.',
+        defaults: { grenade: 'suppressor', class: 'barricade', aspects: ['bastion'] },
         abilities: {
-          grenade: { id: 'suppressor', name: 'Suppressor Grenade', cd: 22, desc: 'Explodes and suppresses enemies: they cannot attack for 4s and take extra damage.' },
           melee: { id: 'shieldthrow', name: 'Shield Throw', cd: 11, desc: 'Throw your shield to ricochet through up to 3 enemies. Grants an overshield.' },
-          class: { id: 'ward', name: 'Bastion Ward', cd: 34, desc: 'Raise a dome for 8s that destroys enemy shots and refreshes the overshield of everyone inside.' },
-          super: { id: 'sentinel', name: 'Sentinel Shield', desc: 'For 15s: click to throw a shield that ricochets through enemies and returns, hold right-click to guard, F to bash.' },
+          super: { id: 'sentinel', camera: 'third', name: 'Sentinel Shield', desc: 'For 15s: click to throw a shield that ricochets through enemies and returns, hold right-click to guard, F to bash.' },
         },
       },
     },
@@ -220,30 +217,27 @@ export const CLASSES = {
     subclasses: {
       gunslinger: {
         name: 'Gunslinger', element: 'solar', color: '#ffb547', tagline: 'Dodges, knives, and the Golden Gun.',
+        defaults: { grenade: 'swarm', class: 'marksman', aspects: [] },
         abilities: {
-          grenade: { id: 'swarm', name: 'Swarm Grenade', cd: 20, desc: 'Detonates and sends seekers into up to 4 nearby enemies.' },
           melee: { id: 'knife', name: 'Knife Trick', cd: 9, desc: 'Throw a flaming knife. Precision hits deal double damage.' },
-          class: { id: 'dodge', name: "Gambler's Dodge", cd: 10, desc: 'Dash in your movement direction and instantly reload.' },
-          super: { id: 'revolver', name: 'Golden Gun', desc: 'Six devastating solar shots that burn nearby enemies.' },
+          super: { id: 'revolver', camera: 'first', name: 'Golden Gun', desc: 'Six devastating solar shots that burn nearby enemies.' },
         },
       },
       nightstalker: {
         name: 'Nightstalker', element: 'void', color: '#b07cff', tagline: 'Smoke, invisibility, and tethers.',
+        defaults: { grenade: 'axion', class: 'marksman', aspects: ['vanishing'] },
         abilities: {
-          grenade: { id: 'axion', name: 'Axion Bolt', cd: 20, desc: 'Releases two void bolts that hunt down enemies.' },
           melee: { id: 'snare', name: 'Snare Bomb', cd: 10, desc: 'Throw a smoke bomb that sticks, then bursts into a cloud that slows and weakens enemies.' },
-          class: { id: 'vanish', name: 'Vanishing Step', cd: 12, desc: 'Dodge, reload, and turn invisible for 4s. Enemies lose track of you.' },
-          super: { id: 'tether', name: 'Shadowshot', desc: 'Three void arrows that tether enemies: pulled, slowed, weakened, and burned.' },
+          super: { id: 'tether', camera: 'first', name: 'Shadowshot', desc: 'Three void arrows that tether enemies: pulled, slowed, weakened, and burned.' },
         },
       },
       arcstrider: {
         name: 'Arcstrider', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Up close and never still. Dodge, strike, repeat.',
         passive: 'Dodging recharges your melee; melee kills fully heal you.',
+        defaults: { grenade: 'flux', class: 'gambler', aspects: ['lethal'] },
         abilities: {
-          grenade: { id: 'flux', name: 'Flux Grenade', cd: 20, desc: 'Sticks to the first enemy it hits and detonates, jolting lightning into two more.' },
           melee: { id: 'combo', name: 'Combination Blow', cd: 9, desc: 'Lunging arc strike. A kill fully heals you and refunds half the melee.' },
-          class: { id: 'gambler', name: "Gambler's Dodge", cd: 9, desc: 'Dodge and fully recharge your melee. Your next melee within 4s hits twice as hard and chains.' },
-          super: { id: 'staff', name: 'Arc Staff', desc: 'For 14s, wield a staff: three-hit combos with a shockwave finisher, dodge freely with C, and take 55% less damage.' },
+          super: { id: 'staff', camera: 'third', name: 'Arc Staff', desc: 'For 14s, wield a staff: three-hit combos with a shockwave finisher, dodge freely with C, and take 55% less damage.' },
         },
       },
     },
@@ -254,30 +248,28 @@ export const CLASSES = {
     subclasses: {
       voidwalker: {
         name: 'Voidwalker', element: 'void', color: '#b07cff', tagline: 'Heal, drain, and annihilate.',
+        defaults: { grenade: 'vortex', class: 'rift', aspects: [] },
         abilities: {
-          grenade: { id: 'vortex', name: 'Vortex Grenade', cd: 24, desc: 'Creates a void singularity that pulls and shreds enemies.' },
           melee: { id: 'siphon', name: 'Energy Drain', cd: 11, desc: 'Ranged void strike that restores health and shields.' },
-          class: { id: 'rift', name: 'Healing Rift', cd: 32, desc: 'Conjure a well that heals everyone inside and speeds reloads.' },
-          super: { id: 'nova', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits.' },
+          super: { id: 'nova', camera: 'first', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits.' },
         },
       },
       stormcaller: {
         name: 'Stormcaller', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Call down the storm.',
+        defaults: { grenade: 'storm', class: 'empower', aspects: [] },
         abilities: {
-          grenade: { id: 'storm', name: 'Storm Grenade', cd: 22, desc: 'Summons a storm cloud that strikes every enemy below with lightning.' },
           melee: { id: 'chainl', name: 'Chain Lightning', cd: 10, desc: 'Ranged arc strike that jumps to three more enemies.' },
-          class: { id: 'empower', name: 'Empowering Rift', cd: 32, desc: 'Conjure a well that gives everyone inside +25% weapon damage.' },
-          super: { id: 'stormtrance', name: 'Stormtrance', desc: 'For 12s, hold fire to pour chain lightning from your hands.' },
+          super: { id: 'stormtrance', camera: 'third', name: 'Stormtrance', desc: 'For 12s, hold fire to pour chain lightning from your hands.' },
         },
       },
-      dawnblade: {
-        name: 'Dawnblade', element: 'solar', color: '#ffb547', tagline: 'Fire that heals. Abilities that never stop.',
-        passive: 'Your abilities grant Restoration: health and shields regenerate for a few seconds.',
+      dawnblade: { // shown as Sunsinger; the id stays 'dawnblade' so saves and fireteam messages keep working
+        name: 'Sunsinger', element: 'solar', color: '#ffb547', tagline: 'Fire that heals. Abilities that never stop.',
+        passive: 'Your abilities grant Restoration: health and shields regenerate for a few seconds. Grenades recharge 45% faster, and during Song of Flame they have no cooldown.',
+        grenadeCdMult: 0.55,
+        defaults: { grenade: 'solar', class: 'rift', aspects: ['phoenix'] },
         abilities: {
-          grenade: { id: 'pulse', name: 'Solar Grenade', cd: 12, desc: 'A lingering ball of solar fire that burns everything near it. During Song of Flame it has no cooldown: throw as many as you like and they all burn at once.' },
           melee: { id: 'snap', name: 'Incinerator Snap', cd: 9, desc: 'Snap your fingers: three explosions burst down a line ahead and set enemies burning.' },
-          class: { id: 'phoenix', name: 'Phoenix Dive', cd: 16, desc: 'In the air, dive to the ground in a solar burst. Always heals you and grants Restoration.' },
-          super: { id: 'songflame', name: 'Song of Flame', desc: 'For 10s keep your guns: grenades and melees recharge 4x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
+          super: { id: 'songflame', camera: 'first', name: 'Song of Flame', desc: 'For 10s keep your guns: grenades and melees recharge 4x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
         },
       },
     },

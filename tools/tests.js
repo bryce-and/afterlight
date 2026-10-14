@@ -8,6 +8,9 @@ import { mulberry32 } from '../js/util.js';
 import { RELEASES, ROADMAP, ROADMAP_STATUSES } from '../js/releases.js';
 import { StatusSet, STATUS } from '../js/status.js';
 import * as C from '../js/combat.js';
+import * as SC from '../js/subclass.js';
+import { ENEMY_STATUS, WEAKEN_MULT } from '../js/status.js';
+import { abilityIcon } from '../js/ability-icons.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -76,7 +79,7 @@ test('mission Light rises every mission and stays under the cap', () => {
 });
 
 // ---------- save ----------
-test('new save: version 2, level 1, every slot equipped, one of each weapon type', () => {
+test('new save: current version, level 1, every slot equipped, one of each weapon type', () => {
   fresh();
   const s = S.createSave('vanguard');
   eq(s.version, S.SAVE_VERSION);
@@ -161,7 +164,8 @@ test('every exotic weapon uses a real archetype', () => {
   for (const e of EXOTIC_WEAPONS) ok(ARCHETYPES[e.arch], e.name);
 });
 test('every subclass has a super, grenade, melee and class ability', () => {
-  for (const c of Object.values(CLASSES)) for (const [id, sc] of Object.entries(c.subclasses)) for (const k of ['super', 'grenade', 'melee', 'class']) ok(sc.abilities[k]?.id, `${id}.${k}`);
+  // grenade and class ability come from the loadout (js/subclass.js); melee and super from the subclass
+  for (const [cid, c] of Object.entries(CLASSES)) for (const id of Object.keys(c.subclasses)) { const a = SC.resolveKit(cid, id, undefined, 1).abilities; for (const k of ['super', 'grenade', 'melee', 'class']) ok(a[k]?.id && a[k].name, `${id}.${k}`); }
 });
 test('XP is defined for every enemy type', () => {
   for (const t of ['grunt', 'rusher', 'captain', 'heavy', 'boss']) ok(XP.kill[t] > 0, t);
@@ -259,6 +263,111 @@ test('damage numbers drift mostly sideways, on alternating sides', () => {
   ok(Math.abs(b.x - a.x) > Math.abs(b.y - a.y), `dx ${b.x - a.x} dy ${b.y - a.y}`);
   ok(b.y > a.y, 'eases down');
   ok(c.x < 0 && b.x > 0, 'sides');
+});
+
+// ---------- subclasses: registry, loadouts, gating (Paths of Light) ----------
+const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasses).map((sid) => [c, sid]));
+test('registry: 3 grenades per element, 2 class abilities per class, 3 aspects per subclass, 14 fragments', () => {
+  for (const el of ['solar', 'arc', 'void']) eq(SC.grenadesFor(el).length, 3, el);
+  for (const c of Object.keys(CLASSES)) eq(SC.classAbilitiesFor(c).length, 2, c);
+  for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, 3, sid);
+  eq(Object.keys(SC.ASPECTS).length, 27);
+  eq([SC.fragmentsFor('solar').length, SC.fragmentsFor('arc').length, SC.fragmentsFor('void').length], [4, 5, 5]);
+  for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 1 || a.slots === 2, a.name);
+});
+test('every default loadout is valid and resolves to the v1.2 abilities', () => {
+  const v12 = { // grenade, grenade cd, class ability, class cd
+    sunbreaker: ['solar', 22, 'barricade', 26], striker: ['pulse', 20, 'barricade', 26], sentinel: ['suppressor', 22, 'ward', 34],
+    gunslinger: ['swarm', 20, 'marksman', 10], nightstalker: ['axion', 20, 'marksman', 12], arcstrider: ['flux', 20, 'gambler', 9],
+    voidwalker: ['vortex', 24, 'rift', 32], stormcaller: ['storm', 22, 'empower', 32], dawnblade: ['solar', 12, 'rift', 32],
+  };
+  for (const [c, sid] of SUBS) {
+    const d = SC.defaultLoadout(c, sid);
+    eq(SC.sanitizeLoadout(c, sid, d, SC.aspectLevel(SC.aspectsFor(c, sid)[0])), d, `${sid} default is valid at its unlock level`);
+    const k = SC.resolveKit(c, sid, undefined, 40), a = k.abilities;
+    eq([a.grenade.id, a.grenade.cd, a.class.id, a.class.cd], v12[sid], sid);
+    eq(a.grenade.element, CLASSES[c].subclasses[sid].element, `${sid} grenade element`);
+  }
+});
+test('loadout rules: element, class and subclass must match; locked and unknown entries fall back', () => {
+  const lo = SC.sanitizeLoadout('vanguard', 'sunbreaker', { grenade: 'vortex', class: 'rift', aspects: ['knockout', 'roaring', 'nope'], fragments: ['shock', 'torches'] }, 40);
+  eq(lo.grenade, 'solar'); eq(lo.class, 'barricade'); eq(lo.aspects, ['roaring']); eq(lo.fragments, ['torches']);
+  // fragments never exceed the slots the aspects open, and duplicates are dropped
+  const two = SC.sanitizeLoadout('arcanist', 'voidwalker', { aspects: ['chaos', 'childgods'], fragments: ['expulsion', 'expulsion', 'persistence', 'starvation'] }, 40);
+  eq(two.fragments, ['expulsion', 'persistence']);
+  eq(SC.fragmentSlots(['feedvoid', 'chaos']), 3);
+  // only two aspects
+  eq(SC.sanitizeLoadout('stalker', 'arcstrider', { aspects: ['lethal', 'flowstate', 'ascension'] }, 40).aspects, ['lethal', 'flowstate']);
+});
+test('reward-track gating: last aspect of each level 10 subclass and two new fragments', () => {
+  eq([SC.aspectLevel('bulwark'), SC.aspectLevel('ascension'), SC.aspectLevel('surge')], [13, 16, 19]);
+  eq([SC.fragmentLevel('ions'), SC.fragmentLevel('instability')], [22, 25]);
+  eq(SC.aspectLevel('demolition'), 10, 'other level 10 aspects come with the subclass');
+  eq(SC.aspectLevel('roaring'), 1, 'starter aspects are open from the start');
+  for (const L of [13, 16, 19, 22, 25]) eq(rewardAt(L), null, `level ${L} has no item reward`);
+  eq(SC.buildUnlocksAt(13, 'vanguard').map((x) => x.id), ['bulwark']);
+  eq(SC.buildUnlocksAt(13, 'stalker'), []);
+  eq(SC.buildUnlocksAt(22, 'stalker').map((x) => x.id), ['ions']);
+  eq(SC.sanitizeLoadout('stalker', 'arcstrider', { aspects: ['ascension'] }, 15).aspects, [], 'locked below 16');
+  eq(SC.sanitizeLoadout('stalker', 'arcstrider', { aspects: ['ascension'] }, 16).aspects, ['ascension']);
+  eq(SC.sanitizeLoadout('vanguard', 'striker', { aspects: ['knockout'], fragments: ['ions', 'shock'] }, 21).fragments, ['shock']);
+});
+test('aspect cooldown multipliers; recharge boosts are capped', () => {
+  eq(SC.cooldownMults(['bastion']).class, 1.3);
+  eq(SC.cooldownMults([]), { grenade: 1, melee: 1, class: 1 });
+  eq(SC.regenMult([]), 1);
+  ok(Math.abs(SC.regenMult([1.5, 1.2]) - 1.8) < 1e-9, 'boosts multiply');
+  eq(SC.regenMult([1.5, 1.5, 1.5, 1.2]), SC.REGEN_CAP);
+});
+test('save v2 upgrades to v3: subclass choice kept, loadout defaults, nothing else touched', () => {
+  const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
+  const st = fresh({ afterlight_save_v2: JSON.stringify(v2) });
+  const s = S.loadSave();
+  eq(s.version, 3); eq(S.SAVE_VERSION, 3);
+  eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 3, 'written back');
+  const k = S.activeKit(s);
+  eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing']]);
+});
+test('setLoadout saves a valid loadout per subclass; activeKit uses it', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  eq(s.loadout, {});
+  S.setLoadout(s, 'vanguard', 'sunbreaker', { grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing', 'empyrean'] });
+  eq(S.getLoadout(s, 'vanguard', 'sunbreaker'), { grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing'] });
+  const k = S.activeKit(s);
+  eq([k.abilities.grenade.name, k.abilities.class.name, k.fragments.length], ['Healing Grenade', 'Rally Barricade', 3]);
+  eq(S.getLoadout(s, 'vanguard', 'striker'), SC.defaultLoadout('vanguard', 'striker'), 'other subclasses untouched');
+  // dropping an aspect drops the fragments it opened
+  eq(S.setLoadout(s, 'vanguard', 'sunbreaker', { aspects: ['solinvictus'] }).fragments, ['torches']);
+});
+test('supers declare their camera; Dawnblade shows as Sunsinger with the same id', () => {
+  for (const [c, sid] of SUBS) ok(['first', 'third'].includes(CLASSES[c].subclasses[sid].abilities.super.camera), sid);
+  eq(CLASSES.arcanist.subclasses.dawnblade.name, 'Sunsinger');
+});
+test('enemy debuffs live on the status registry', () => {
+  const e = new StatusSet(ENEMY_STATUS);
+  for (const id of ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt']) ok(ENEMY_STATUS[id], id);
+  e.apply('weaken', { t: 2 }); e.apply('jolt', { t: 4 });
+  ok(e.has('weaken') && e.has('jolt'), 'applied');
+  e.tick(2.5);
+  ok(!e.has('weaken') && e.has('jolt'), 'weaken expired, jolt left');
+  let threw = false; try { e.apply('rampage'); } catch { threw = true; }
+  ok(threw, 'player effects are not enemy debuffs');
+  eq(WEAKEN_MULT, 1.3);
+  eq(C.JOLT.n, 3);
+});
+test('every ability, aspect and fragment icon is distinct within its slot type', () => {
+  const groups = {
+    grenade: Object.keys(SC.GRENADES), aspect: Object.keys(SC.ASPECTS), fragment: Object.keys(SC.FRAGMENTS),
+    class: Object.values(SC.CLASS_ABILITIES).flatMap(Object.keys),
+    melee: SUBS.map(([c, sid]) => CLASSES[c].subclasses[sid].abilities.melee.id), super: SUBS.map(([c, sid]) => CLASSES[c].subclasses[sid].abilities.super.id),
+  };
+  for (const [slot, ids] of Object.entries(groups)) {
+    const unique = [...new Set(ids)];
+    const svgs = new Set(unique.map((id) => abilityIcon(slot, id, '#fff')));
+    eq(svgs.size, unique.length, `${slot} icons`);
+  }
 });
 
 // ---------- Update Log / Roadmap ----------

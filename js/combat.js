@@ -64,3 +64,7 @@ export function dmgDrift(side, age) {
   const k = 1 - Math.pow(1 - Math.min(1, age / 0.8), 3);
   return { x: side * (14 + 46 * k), y: -10 + 22 * k * k };
 }
+
+// Jolt (Arc debuff): a hit on a jolted enemy arcs dmg into it and up to n enemies within r metres.
+// One discharge per enemy every cd seconds.
+export const JOLT = { dmg: 45, n: 3, r: 8, cd: 0.6 };

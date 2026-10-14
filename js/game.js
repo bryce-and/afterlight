@@ -15,7 +15,10 @@ import { playMusic, setSection } from './music.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
-import { ABILITY_POWER, weaponTierMult, staggerFor } from './combat.js';
+import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT } from './combat.js';
+import { WEAKEN_MULT } from './status.js';
+import { buildUnlocksAt } from './subclass.js';
+import { castFx } from './abilities.js';
 import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest } from './coop.js';
 
 const _c = new THREE.Vector3();
@@ -340,7 +343,9 @@ export function gainXp(n) {
     const reward = rewardAt(L);
     ui.feed(`Level ${L}${reward ? `  ·  ${reward === 'exotic' ? 'Exotic' : 'Legendary'} reward ready in Orbit` : ''}`, '#f4c542');
     const sub = subclassesUnlockedAt(L).find((x) => x.classId === G.save.classId);
+    const build = buildUnlocksAt(L, G.save.classId)[0];
     if (sub) ui.centerMessage(`${sub.name} Unlocked`, `Level ${L}  ·  Choose it from your subclass in Orbit`, 3.5);
+    else if (build) ui.centerMessage(`${build.type === 'aspect' ? 'Aspect' : 'Fragment'} Unlocked: ${build.name}`, `Level ${L}  ·  Equip it from your subclass in Orbit`, 3.5);
     else ui.centerMessage(`Level ${L}`, reward ? 'A reward awaits you in Orbit' : '', 2.2);
   }
 }
@@ -374,7 +379,10 @@ export function dealDamage(e, amount, o = {}) {
   // weapons (and their perks) keep most of the pace of enemy health across mission tiers
   if (!o.raw && (o.source === 'weapon' || o.source === 'perk')) dmg *= weaponTierMult(M.g);
   if (!o.raw) dmg *= exoticArmorMult(o);
+  if (!o.raw && G.player?.buildMult) dmg *= G.player.buildMult(o); // aspects and fragments
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
+  // debuffs go on the registry (members show them on the plate; the owner's copy is the real one)
+  for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
     sendHit(e, dmg, o);
@@ -387,11 +395,7 @@ export function dealDamage(e, amount, o = {}) {
     sfx.hit(o.crit);
     return { killed: false, dealt: dmg };
   }
-  // status effects (applied by the owner of the enemy; members' hits carry them over the network)
-  if (o.weaken) e.weakenT = Math.max(e.weakenT || 0, o.weaken);
-  if (o.slow) e.slowT = Math.max(e.slowT || 0, o.slow);
-  if (o.suppress) e.suppressT = Math.max(e.suppressT || 0, o.suppress);
-  if (e.weakenT > 0) dmg *= 1.3;
+  if (e.status.has('weaken')) dmg *= WEAKEN_MULT;
   let dealt = 0, shieldHit = false;
   if (e.shield > 0) {
     shieldHit = true;
@@ -402,6 +406,7 @@ export function dealDamage(e, amount, o = {}) {
       dmg = (sd - e.shield) / mult;
       e.shield = 0;
       e.breakShield(mult > 1);
+      if (!o.remoteHit) G.player?.onShieldBreak?.(e);
     } else {
       e.shield -= sd; dealt += sd; dmg = 0;
     }
@@ -419,8 +424,25 @@ export function dealDamage(e, amount, o = {}) {
     ui.hitmarker(!!o.crit, killed);
     sfx.hit(o.crit);
   }
+  if (dealt > 0 && !o.jolted && e.status.has('jolt') && !(e.joltAt > G.time)) { e.joltAt = G.time + JOLT.cd; joltFrom(e); }
   if (killed) killEnemy(e, o);
   return { killed, dealt };
+}
+
+const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt'];
+
+/** Jolt: a hit on a jolted enemy arcs lightning into it and up to JOLT.n enemies nearby. */
+function joltFrom(e) {
+  const c = e.center(new THREE.Vector3());
+  const pts = [c];
+  const near = enemiesNear(c, JOLT.r, JOLT.n, e);
+  for (const x of [e, ...near]) {
+    if (!x.alive) continue;
+    const xc = x.center(new THREE.Vector3());
+    if (x !== e) pts.push(xc);
+    dealDamage(x, JOLT.dmg, { element: 'arc', source: 'ability', pos: xc, jolted: true });
+  }
+  if (pts.length > 1) castFx('chain', { pts, el: 'arc', w: 0.04 });
 }
 
 export function killEnemy(e, o = {}) {
@@ -489,7 +511,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
     if (d > radius) continue;
     const f = 1 - 0.5 * (d / radius);
     const kb = c.clone().sub(pos).setY(0).normalize().multiplyScalar((6 * f) / e.def.scale);
-    dealDamage(e, dmg * f, { element, source: o.source || 'explosion', weapon: o.weapon, pos: c.clone().setY(c.y + e.height * 0.3), knock: kb });
+    dealDamage(e, dmg * f, { element, source: o.source || 'explosion', weapon: o.weapon, pos: c.clone().setY(c.y + e.height * 0.3), knock: kb, ...o.debuffs });
   }
   const P = G.player;
   const pd = P.pos.distanceTo(pos);
