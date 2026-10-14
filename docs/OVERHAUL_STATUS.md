@@ -23,8 +23,8 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R14 | Armor perk counts: Legendary 2, Rare/Uncommon 1, Common 0 | Legendary 1, others 0 | U5 | Planned |
 | R15 | New destination adds new perks | Missing (one global pool) | U5 | Planned |
 | R16 | Shaders recolor armor | Missing | U5 | Planned |
-| R17 | Subclasses with working aspects, fragments, melee, supers, grenades | Supers, grenades, melees exist; no aspects or fragments | U3 | Planned |
-| R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Partial: third person for roaming supers | U3 | Planned |
+| R17 | Subclasses with working aspects, fragments, melee, supers, grenades | Registry `js/subclass.js`: 9 grenades shared by element, 2 class abilities per class, 27 aspects, 14 fragments; behaviors in `player.js` / `abilities.js`. All 18 test loadouts (every aspect and fragment) fired in a mission with no errors | U3 | Complete and published (v1.3) |
+| R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Each super declares `camera` in `data.js`; all 9 checked in browser: camera matches and the enemy under the crosshair takes the damage. Super animations not done | U3 (camera, aim) | In progress |
 | R19 | Exotic weapons/armor: unique perk and model | Weapons: perks + models exist. Armor: perks only, no visuals | U4/U5 | Planned |
 | R20 | Legendary armor: perks, matching sets, destination tie, 3-piece set bonus, character-screen icons | Missing (generic slot SVGs) | U5 | Planned |
 | R21 | Weapon archetypes, models, diagonal D2-style icons, Arc/Solar/Void/Stasis/Strand symbols | 12 archetypes; side-profile rectangular icons; no symbols; no Stasis/Strand | U4 | Planned |
@@ -34,7 +34,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U6 | Planned |
 | R26 | Tight ADS spread | Primary ADS cones 40 to 50% tighter, specials tighter; aimed movement no longer widens the cone; hip fire unchanged | U2 | Complete and published (v1.2) |
 | R27 | Damage numbers drift from the hit to the side | Numbers pop at the hit, drift out to alternating sides and ease down (`combat.js` `dmgDrift`) | U2 | Complete and published (v1.2) |
-| R28 | Buff HUD: general effects above abilities, weapon effects below, with timers; exotic effects visible | Status registry (`js/status.js`) drives the HUD: name, timer bar, seconds, stacks; exotic effects gold-bordered. Enemy debuffs move to the registry in U3 | U2 | Complete and published (v1.2) |
+| R28 | Buff HUD: general effects above abilities, weapon effects below, with timers; exotic effects visible | Status registry (`js/status.js`) drives the HUD: name, timer bar, seconds, stacks; exotic effects gold-bordered. Enemy debuffs moved to the registry in v1.3 | U2 | Complete and published (v1.2) |
 | R29 | Visible super-charged animation; yellow bar when charged | Charging keeps the element color; when full the bar turns gold, pops, glows and sweeps | U2 | Complete and published (v1.2) |
 | R30 | Enemy health bars and names when aimed at, opacity fade | Plate above the aimed enemy's head (tracks it) with faction emblem, name, HP and shield; fades over ~1 s after looking away; bosses keep the boss bar | U2 | Complete and published (v1.2) |
 | R31 | Primary weapon / enemy HP rebalance; slight ability tune-back | Weapons scale with mission tier at 75% of enemy HP growth, primaries +10%, ability power 1.4 to 1.3. Auto Rifle on a Vandal at matched Light: 7/12/18 body shots in missions 1/9/18 before, 6/7/7 after | U2 | Complete and published (v1.2) |
@@ -43,7 +43,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R34 | Stormtrance initially hits up to 4 from the caster | Primary + 3 chains; verified in browser (4 of 5 clustered enemies per tick) | U2 | Complete and published (v1.2) |
 | R35 | Celestial Nighthawk double-buffs Golden Gun? | Cause: the splash re-hit the shot's target. Splash now skips it; verified the 6x applies once and the target takes no splash | U2 | Complete and published (v1.2) |
 | R36 | Storm Grenade hits multiple enemies; slight damage nerf OK | Every enemy under the cloud each 0.3 s tick, 40 to 30 per strike; verified 5 of 5 hit | U2 | Complete and published (v1.2) |
-| R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Panel lists fixed abilities only | U3 | Planned |
+| R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 4 fragments; option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade and class choices done; alternate supers, melees and jumps not built | U3 (part) | In progress |
 | R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U7/U9 | Planned |
 | R39 | Objectives within missions | Only travel / clear / boss | U7 | Planned |
 | R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Missing | U9 | Planned |
@@ -61,8 +61,11 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U6 | Planned |
 | R53 | Distinct faction behaviors | Missing (names and models only) | U6 | Planned |
 | R54 | Darkness supers and abilities | Missing | U12 | Planned |
-| R55 | Aspects and fragments | Missing | U3 | Planned |
+| R55 | Aspects and fragments | 3 aspects per subclass (2 slots, each opens 1 or 2 fragment slots); 4 Solar, 5 Arc, 5 Void fragments. Level 10 subclasses earn their third aspect at 13/16/19; Spark of Ions (22) and Echo of Instability (25) on the reward track | U3 | Complete and published (v1.3) |
 | R56 | Armor mods | Missing | U5 | Planned |
+| R57 | Armor stats affect ability cooldowns, Destiny-style (added by Bryce, not in V3) | Stats only affect speed/jump, shield, and regen; nothing touches cooldowns | U5 | Planned |
+| R58 | Hunter Triple Jump is the ground jump + 2 (added by Bryce) | Two air jumps, the second at 85% height. Peak 4.2 m, below Titan Catapult Lift (4.8 m) | U3 | Complete and published (v1.3) |
+| R59 | Enemy debuffs on the status registry (weaken, slow, suppress, burn, poison) | `Enemy.status` with `ENEMY_STATUS`; all applied through `dealDamage` and sent to the enemy's owner; plate shows them. Jolt added for Arc | U3 | Complete and published (v1.3) |
 
 ## Optional (nice to have)
 
@@ -80,5 +83,5 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | M1 | Title screen Update Log (released only) | U1 | Complete and published (v1.1) |
 | M2 | Title screen Roadmap (curated teasers) | U1 | Complete and published (v1.1) |
 | M3 | Requirement tracking, docs, decision log | U1 | Complete and published (v1.1) |
-| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 35 tests as of v1.2 |
+| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 45 tests as of v1.3 |
 | M5 | Versioned GitHub releases | U1 | Complete and published (v1.1) |

@@ -16,7 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
-- **3 classes, 9 subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a grenade, melee, class ability, super, and jump.
+- **3 classes, 9 subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a super, melee and jump, and on the subclass screen you choose a grenade from its element, a class ability from its class, two aspects and the fragments they open.
 - **Guardian levels 1 to 40**: XP from kills (shared by the fireteam), missions and caches. The Level tab is a reward track: a Legendary every 3 levels, Exotics at 20 and 40. Drop rarity climbs with your level.
 - **12 weapon types** (every player gets one of each) in primary / special / heavy slots, aim down sights, reloads, recoil, precision damage, elemental shields.
 - **Combat HUD**: buffs and exotic effects with timers (general above the abilities, weapon perks below), enemy name and health on aim, damage numbers that drift aside, a gold super bar when charged. Enemies flinch on heavy hits.
@@ -55,7 +55,9 @@ WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |
 | `js/progression.js` | Level curve, XP values, reward track, drop rarity by level, Light cap |
-| `js/status.js` | Status-effect registry (player buffs and exotic effects shown on the HUD) |
+| `js/status.js` | Status-effect registry (player buffs and exotic effects shown on the HUD, enemy debuffs) |
+| `js/subclass.js` | Subclass registry: shared grenades and class abilities, aspects, fragments, loadout rules |
+| `js/ability-icons.js` | Generated icons for abilities, aspects and fragments |
 | `js/combat.js` | Combat tuning and rules: super gain, spread, stagger, chain targets, weapon tier scaling |
 | `js/releases.js` | Title-screen Update Log and Roadmap content |
 | `js/ui.js` | Menus, inventory, HUD |
@@ -63,7 +65,7 @@ WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse
 
 ## Tests
 
-With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot, save and migrations, content data, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top).
+With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot, save and migrations, content data, subclass loadouts, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top).
 
 ## Releasing
 
