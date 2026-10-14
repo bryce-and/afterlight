@@ -149,7 +149,7 @@ export const ARMOR_PERKS = {
   grenadier: { name: 'Grenadier', desc: 'Grenade recharges 15% faster.' },
   brawler: { name: 'Brawler', desc: 'Powered melee recharges 15% faster.' },
   kickstart: { name: 'Utility Kickstart', desc: 'Class ability recharges 20% faster.' },
-  dynamo: { name: 'Dynamo', desc: 'Super charges 12% faster.' },
+  dynamo: { name: 'Dynamo', desc: 'Super charges 8% faster.' },
   recuperation: { name: 'Recuperation', desc: 'Kills restore 15 health.' },
   handson: { name: 'Hands-On', desc: 'Melee and ability kills give extra super energy.' },
   plating: { name: 'Resilient Plating', desc: 'Take 8% less damage.' },
@@ -158,7 +158,7 @@ export const ARMOR_PERKS = {
 
 // What each exotic armor piece does (works on any class)
 export const EXOTIC_ARMOR_PERKS = {
-  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'The first hit of your super deals 4x damage. Golden Gun becomes a single shot that deals 6x damage.' },
+  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'The first hit of your super deals 2.5x damage. Golden Gun becomes a single shot that deals 4x damage.' },
   Synthoceps: { id: 'synthoceps', name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
   'Heart of Inmost Light': { id: 'heart', name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
   'St0mp-EE5': { id: 'stomp', name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your class ability recharges 30% faster.' },

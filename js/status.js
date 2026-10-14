@@ -29,6 +29,12 @@ export const STATUS = {
   devour: { name: 'Devour', group: 'general', glyph: '◉', color: '#b07cff', t: 8 },
   radiant: { name: 'Radiant', group: 'general', glyph: '✦', color: '#ffb547', t: 6 },
   frequency: { name: 'Frequency', group: 'general', glyph: '↻', color: '#5fd3ff', t: 5 },
+  // one-off procs: a short flash in the buff HUD instead of a line in the top-right feed
+  meleeready: { name: 'Melee Ready', group: 'general', glyph: '✊', color: '#5fd3ff', t: 1.5 },
+  combo: { name: 'Combination Blow', group: 'general', glyph: '✚', color: '#5fd3ff', t: 1.5 },
+  hammer: { name: 'Hammer Recovered', group: 'general', glyph: '⚒', color: '#ffb547', t: 1.5 },
+  reloaded: { name: 'Weapons Reloaded', group: 'general', glyph: '↻', color: '#ffb36b', t: 1.5 },
+  skullfort: { name: 'Skullfort', group: 'general', glyph: '◆', color: '#f4c542', t: 1.5, exotic: true },
   volatile: { name: 'Volatile Rounds', group: 'weapon', glyph: '✹', color: '#b07cff', t: 6 },
   // weapon
   rampage: { name: 'Rampage', group: 'weapon', glyph: '▲', color: '#ff7a6b', t: 5, maxStacks: 3 },
@@ -42,6 +48,11 @@ export const STATUS = {
   wolves: { name: 'Release the Wolves', group: 'weapon', glyph: '◆', color: '#f4c542', t: 6, exotic: true },
   merciless: { name: 'Merciless', group: 'weapon', glyph: '◆', color: '#f4c542', t: 4, exotic: true },
   conductor: { name: 'Arc Conductor', group: 'weapon', glyph: '◆', color: '#f4c542', t: 6, exotic: true },
+  // weapon procs (short flash)
+  whitenail: { name: 'White Nail', group: 'weapon', glyph: '◆', color: '#f4c542', t: 1.5, exotic: true },
+  truth: { name: "Hunter's Trace", group: 'weapon', glyph: '◆', color: '#f4c542', t: 1.5, exotic: true },
+  hardlight: { name: 'Hard Light', group: 'weapon', glyph: '◆', color: '#f4c542', t: 1.5, exotic: true },
+  honed: { name: 'Honed Edge', group: 'weapon', glyph: '◆', color: '#f4c542', t: 1.5, maxStacks: 99, exotic: true },
 };
 
 // Debuffs on enemies. Applied through dealDamage by whoever owns the enemy; the plate shows them.

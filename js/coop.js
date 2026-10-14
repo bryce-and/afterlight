@@ -6,7 +6,7 @@ import { Enemy, fireEnemyShot } from './enemies.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit } from './data.js';
-import { startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp } from './game.js';
+import { startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
 import { XP } from './progression.js';
 import { playerPower } from './save.js';
 import { sfx } from './audio.js';
@@ -18,6 +18,9 @@ import * as ui from './ui.js';
 //  - Everyone rolls their own loot from kill events (client-side loot).
 
 const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss'];
+const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt']; // snapshot bit order
+/** Host: an enemy's debuffs as a bitmask. */
+const debuffBits = (en) => DEBUFF_BITS.reduce((b, k, i) => (en.status.has(k) ? b | (1 << i) : b), 0);
 const r2 = (v) => Math.round(v * 100) / 100;
 
 export const remotes = new Map(); // id -> remote player record
@@ -107,7 +110,9 @@ function revivePlayer(id, inPlace) {
 /** Per frame (fireteam only): hold E next to a downed teammate to revive them; host checks for a wipe. */
 function updateRevives(dt) {
   const P = G.player, M = G.mission;
-  if (net.isHost && G.state === 'playing' && M.phase !== 'done' && M.lives <= 0 && allPlayers().every((p) => p.dead)) {
+  // a wipe with no lives left ends the activity, unless it is already complete (boss cache, final cache)
+  const complete = ['loot', 'done', 'final'].includes(M.phase);
+  if (net.isHost && G.state === 'playing' && !complete && M.lives <= 0 && allPlayers().every((p) => p.dead)) {
     broadcast({ t: 'wipe' });
     missionFailed();
     return;
@@ -154,6 +159,8 @@ export function announceKill(e, o) {
   if (!net.isHost || !e.netId) return;
   broadcast({ t: 'kill', id: e.netId, by: o.by || net.myId, c: o.crit ? 1 : 0 });
 }
+
+export function announceBanner(ti, su, du, so) { if (net.isHost) broadcast({ t: 'bn', ti, su, du, so }); }
 
 export function announceLoot(pos) {
   if (net.isHost) broadcast({ t: 'loot', x: r2(pos.x), z: r2(pos.z) });
@@ -204,7 +211,7 @@ export function netTick(dt) {
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
-    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0]);
+    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100)]);
     const M = G.mission;
     const z = M.zones[M.current];
     const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0 };
@@ -365,13 +372,17 @@ net.on('fx', (m, from) => {
 net.on('sp', (m) => { if (inMission() && !netEnemies.has(m.id)) proxy(m.id, m.ty, m.x, m.z, m); });
 net.on('s', (m) => {
   if (!inMission()) return;
-  for (const [id, ti, x, z, yaw, hp, sh] of m.e) {
+  for (const [id, ti, x, z, yaw, hp, sh, db = 0, st = 0] of m.e) {
     const e = netEnemies.get(id) || proxy(id, TYPES[ti], x, z);
     if (!e.alive) continue;
     e.netPos.set(x, 0, z);
     e.netYaw = yaw;
     e.hp = (hp / 1000) * e.maxHp;
     e.shield = (sh / 1000) * e.maxShield;
+    // the leader's debuffs and stagger: refreshed every snapshot, so they lapse soon after the leader's do
+    DEBUFF_BITS.forEach((k, i) => { if (db & (1 << i)) e.status.apply(k, { t: 0.3 }); });
+    if (st > (e.netStag ?? 0)) e.staggerT = e.staggerMax = st / 100; // a rise means a new stagger on the leader's side
+    e.netStag = st;
   }
   const M = G.mission, ms = m.ms;
   if (M.phase !== 'loot' && M.phase !== 'done') {
@@ -407,6 +418,7 @@ net.on('kill', (m) => {
   }
   if (e.isBoss) explosionFx(e.center(new THREE.Vector3()), 6, G.mission.loc.colors.eye);
 });
+net.on('bn', (m) => { if (inMission()) { ui.centerMessage(m.ti, m.su, m.du); sfx[m.so]?.(); } });
 net.on('es', (m) => { if (inMission()) fireEnemyShot(new THREE.Vector3(...m.f), new THREE.Vector3(...m.d), m.v, m.m, m.c, m.s, m.sp, true); });
 net.on('dmg', (m) => { if (inMission() && !G.player.dead) damagePlayer(m.m, new THREE.Vector3(m.x, 0, m.z)); });
 net.on('loot', (m) => {
@@ -415,6 +427,7 @@ net.on('loot', (m) => {
   for (const z of M.zones) z.state = 'cleared';
   M.phase = 'loot';
   M.chest = spawnChest(new THREE.Vector3(m.x, 0, m.z));
+  reviveForCompletion();
   G.player.health = G.player.maxHealth; G.player.shield = G.player.maxShield;
   ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
   sfx.missionComplete();

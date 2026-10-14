@@ -15,11 +15,11 @@ import { playMusic, setSection } from './music.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
-import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT } from './combat.js';
+import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE } from './combat.js';
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
-import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest } from './coop.js';
+import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
 
 const _c = new THREE.Vector3();
 
@@ -144,6 +144,7 @@ function spawnWave(z, idx) {
   }
   G.hitDirty = true;
   if (idx > 0) { ui.feed(`${M.loc.faction} reinforcements inbound`, '#ffb36b'); sfx.alert(); }
+  return z.waves[idx].length;
 }
 
 export function spawnBossAdds(boss) {
@@ -160,8 +161,7 @@ export function spawnBossAdds(boss) {
     registerEnemy(e);
   }
   G.hitDirty = true;
-  ui.centerMessage(`${boss.name} calls for aid`, 'Shield restored', 2);
-  sfx.alert();
+  banner(`${boss.name} calls for aid`, 'Shield restored', 2, 'alert');
 }
 
 // ---------------------------------------------------------------------------
@@ -205,8 +205,8 @@ function updateMission(dt) {
         M.phase = 'combat';
         spawnWave(z, 0);
         z.waveIdx = 1;
-        if (z.isBoss) { ui.centerMessage(M.def.boss.name, `${M.loc.faction} champion`, 3); sfx.bossIntro(); }
-        else { ui.centerMessage(z.name, `${M.loc.faction} presence detected`, 2.2); sfx.alert(); }
+        if (z.isBoss) banner(M.def.boss.name, `${M.loc.faction} champion`, 3, 'bossIntro');
+        else banner(z.name, `${M.loc.faction} presence detected`, 2.2, 'alert');
       }
     } else if (z.state === 'active') {
       let alive = 0, nearest = null, nd = Infinity;
@@ -216,12 +216,13 @@ function updateMission(dt) {
         const d = e.pos.distanceTo(P.pos);
         if (d < nd) { nd = d; nearest = e; }
       }
-      if (!z.isBoss && z.waveIdx < z.waves.length && alive <= 2) { spawnWave(z, z.waveIdx); z.waveIdx++; }
+      const step = waveStep(alive, z.waveIdx, z.waves.length, z.isBoss);
+      if (step.spawn) { alive += spawnWave(z, z.waveIdx); z.waveIdx++; }
       const fighters = allPlayers().filter((p) => !p.dead).length || 1;
       M.aggro = alive / fighters;
       M.objective = z.isBoss ? `Defeat ${M.def.boss.name}` : `Clear ${z.name}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
       M.waypoint = !z.isBoss && alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
-      if (z.waveIdx >= z.waves.length && alive === 0) zoneCleared(z);
+      if (step.cleared) zoneCleared(z);
     }
   } else if (M.phase === 'loot') {
     M.objective = 'Open the cache';
@@ -237,6 +238,19 @@ function updateMission(dt) {
   }
 }
 
+/** The activity is complete: a downed player gets up where they fell, even with no lives left. Runs on every machine. */
+export function reviveForCompletion() {
+  const P = G.player;
+  if (P.dead) P.respawn(true, true);
+}
+
+/** Center banner with its sound, shown to the whole fireteam (members don't run the mission). */
+export function banner(title, sub, dur, sound) {
+  ui.centerMessage(title, sub, dur);
+  sfx[sound]?.();
+  announceBanner(title, sub, dur, sound);
+}
+
 function zoneCleared(z) {
   const M = G.mission, P = G.player;
   z.state = 'cleared';
@@ -246,12 +260,12 @@ function zoneCleared(z) {
     const pos = z.center.clone().add(dir.lengthSq() > 1 ? dir.normalize().multiplyScalar(3) : new THREE.Vector3(0, 0, 3));
     M.chest = spawnChest(pos);
     announceLoot(pos);
+    reviveForCompletion();
     ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
     sfx.missionComplete();
     P.health = P.maxHealth; P.shield = P.maxShield;
   } else {
-    ui.centerMessage('Area Secured', '', 2);
-    sfx.areaClear();
+    banner('Area Secured', '', 2, 'areaClear');
     M.current++;
     M.checkpoint = z.center.clone();
     M.phase = 'travel';
@@ -476,8 +490,7 @@ export function rollDrops(e) {
   const heavy = e.typeId === 'heavy';
   if (r < (heavy ? 0.5 : 0.1)) spawnPickup('special', pos);
   else if (r < (heavy ? 0.8 : 0.15)) spawnPickup('heavy', pos);
-  const chance = { grunt: 0.06, rusher: 0.05, captain: 0.3, heavy: 0.45, boss: 1 }[e.typeId];
-  if (Math.random() < chance) dropEngram(pos);
+  if (Math.random() < (ENGRAM_CHANCE[e.typeId] ?? 0)) dropEngram(pos);
   if (e.isBoss) {
     dropEngram(pos); dropEngram(pos);
     spawnPickup('heavy', pos); spawnPickup('special', pos);
@@ -624,7 +637,7 @@ function updateProjectiles(dt) {
       p.vel.y -= (p.gravity * dt) / steps;
       p.pos.addScaledVector(p.vel, dt / steps);
       if (p.pos.y <= 0.05) { hit = 'ground'; p.pos.y = 0.1; break; }
-      if (pointInColliders(p.pos)) { hit = 'wall'; break; }
+      if (pointInColliders(p.pos, 0, true)) { hit = 'wall'; break; }
       for (const e of G.enemies) {
         if (!e.alive) continue;
         const r = e.radius + (p.size || 0.1);
@@ -839,12 +852,13 @@ function updateActivity(dt) {
       const d = e.pos.distanceTo(P.pos);
       if (d < nd) { nd = d; nearest = e; }
     }
-    if (z.waveIdx < z.waves.length && alive <= 2) { spawnWave(z, z.waveIdx); z.waveIdx++; }
+    const step = waveStep(alive, z.waveIdx, z.waves.length);
+    if (step.spawn) { alive += spawnWave(z, z.waveIdx); z.waveIdx++; }
     const fighters = allPlayers().filter((p) => !p.dead).length || 1;
     M.aggro = alive / fighters;
     M.objective = `Wave ${M.wave}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
     M.waypoint = alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
-    if (z.waveIdx >= z.waves.length && alive === 0) activityWaveCleared();
+    if (step.cleared) activityWaveCleared();
   } else if (M.phase === 'move') {
     M.moveT -= dt;
     M.objective = `New arena in ${Math.ceil(Math.max(0, M.moveT))}s`;
@@ -896,6 +910,7 @@ export function placeActChest(pos, wave, final) {
   if (M.chest && !M.chest.opened) openActChest();
   if (M.chest) G.scene.remove(M.chest.group);
   M.chest = { ...spawnChest(pos), wave, final };
+  if (final) reviveForCompletion();
 }
 
 function updateActChest(dt) {

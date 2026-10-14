@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { CLASSES, ARCHETYPES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF } from './data.js';
 import { clamp, lerp, damp } from './util.js';
-import { moveBody, hasLOS } from './physics.js';
+import { moveBody, hasLOS, pointInColliders } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
 import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage } from './effects.js';
@@ -14,7 +14,7 @@ import { buildCharacter } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { PHOENIX_DIVE_CD, regenMult } from './subclass.js';
-import { SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH } from './combat.js';
+import { SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, restHeight } from './combat.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const ray = new THREE.Raycaster();
@@ -237,6 +237,11 @@ export class Player {
           this.respawn();
         }
       }
+      // a body downed in the air drops to the ground (teammates see it land)
+      if (!this.onGround) {
+        this.vel.x = 0; this.vel.z = 0; this.vel.y -= 24 * dt;
+        this.onGround = moveBody(this.pos, this.vel, dt, this.radius, this.height).onGround;
+      }
       this.updateCamera(dt);
       this.updateBody(dt);
       return;
@@ -437,7 +442,7 @@ export class Player {
     if (w.has('honed') && !w.honed && w.mag > 1 && w.ammo >= w.mag) {
       // Honed Edge: load the whole magazine into one shot
       w.honed = w.ammo; w.ammo = 1;
-      ui.feed(`Honed Edge x${w.honed}`, '#d8333a');
+      this.status.apply('honed', { scope: w.idx, stacks: w.honed, set: true });
       sfx.reloadDone();
       return;
     }
@@ -466,11 +471,11 @@ export class Player {
     if (w.reserve !== Infinity) w.reserve -= take;
     w.reloading = false;
     if (w.voltArm) { w.voltArm = false; this.status.apply('voltshot', { scope: w.idx }); }
-    if (w.killclipArm) { w.killclipArm = false; this.status.apply('killclip', { scope: w.idx, set: true }); ui.feed('Kill Clip active', '#ffd27a'); }
+    if (w.killclipArm) { w.killclipArm = false; this.status.apply('killclip', { scope: w.idx, set: true }); }
     if (w.has('memento')) this.status.apply('memento', { scope: w.idx, stacks: 6 });
     if (w.has('volatile')) {
       w.el = VOLATILE_CYCLE[(VOLATILE_CYCLE.indexOf(wEl(w)) + 1) % VOLATILE_CYCLE.length];
-      ui.feed(`Hard Light: ${ELEMENTS[w.el].name}`, ELEMENTS[w.el].color);
+      this.status.apply('hardlight', { scope: w.idx, set: true });
     }
     sfx.reloadDone();
   }
@@ -527,7 +532,6 @@ export class Player {
   /** Knockout: breaking a shield. */
   onShieldBreak() { if (this.asp.has('knockout')) this.knockout(); }
   knockout() {
-    if (!this.status.has('knockout')) ui.feed('Knockout', ELEMENTS.arc.color);
     this.heal(40);
     this.status.apply('knockout', { set: true });
   }
@@ -535,8 +539,10 @@ export class Player {
   /** Echo of Persistence: void buffs last 25% longer. */
   voidT(t) { return this.frag.has('persistence') ? t * 1.25 : t; }
 
-  /** Ionic Trace: a mote flies back to you and recharges every ability by frac of its cooldown. */
+  /** Ionic Trace: a mote flies back to you and recharges every ability by frac of its cooldown (one per IONIC.gap seconds). */
   ionicTrace(from, frac) {
+    if (G.time < (this.ionicAt ?? -Infinity)) return;
+    this.ionicAt = G.time + IONIC.gap;
     homingMote(from, () => this.eye.clone().add(new THREE.Vector3(0, -0.3, 0)), ELEMENTS.arc.hex, 0.5, 0.12);
     after(0.5, () => { for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * frac); });
   }
@@ -708,7 +714,7 @@ export class Player {
       // White Nail: three precision hits in a row refill 3 rounds for free
       w.wn = G.time - (w.wnT || 0) < 4 ? (w.wn || 0) + 1 : 1;
       w.wnT = G.time;
-      if (w.wn >= 3) { w.wn = 0; w.ammo = Math.min(w.mag, w.ammo + 3); ui.feed('White Nail', '#6dff8e'); sfx.engram(2); }
+      if (w.wn >= 3) { w.wn = 0; w.ammo = Math.min(w.mag, w.ammo + 3); this.status.apply('whitenail', { scope: w.idx, set: true }); sfx.engram(2); }
     } else if (!crit && w.has('whitenail')) w.wn = 0;
     if (w.has('thorn')) this.dot(e, dmg * m * 0.18, 4, 'kinetic', 0x6dff8e); // Mark of the Devourer
     if (w.has('explosive')) explode(point, 2.2, dmg * m * 0.4, w.item.element === 'kinetic' ? 'solar' : w.item.element, { source: 'perk', small: true });
@@ -767,8 +773,8 @@ export class Player {
     if ((o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + SUPER_HANDSON * this.ap.handson);
     this.buildOnKill(e, o);
     if (o.source === 'ability' || o.source === 'melee') {
-      if (this.exo.has('nezarec')) { if (!this.status.has('nezarec')) ui.feed("Nezarec's Sin: abilities surge", ELEMENTS.void.color); this.status.apply('nezarec', { t: 5 }); }
-      if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.heal(1000); ui.feed('Skullfort: melee recharged', '#ffb36b'); }
+      if (this.exo.has('nezarec')) this.status.apply('nezarec', { t: 5 });
+      if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.heal(1000); this.status.apply('skullfort', { set: true }); }
     }
     const w = o.weapon;
     if (!w) return;
@@ -779,7 +785,6 @@ export class Player {
     const c = e.center(new THREE.Vector3());
     if (w.has('firefly') && o.crit) explode(c, w.mementoShot ? 4.5 : 3, w.mementoShot ? 180 : 90, 'solar', { source: 'perk' });
     if (w.has('memento')) {
-      if (!this.status.has('memento', w.idx)) ui.feed('Memento Mori', '#ffffff');
       w.ammo = Math.max(w.ammo, w.mag); w.reloading = false; this.status.apply('memento', { scope: w.idx, stacks: 6 });
     }
     if (w.has('voidheart')) explode(c, 4, 180, w.item.element === 'kinetic' ? 'void' : w.item.element, { source: 'perk' });
@@ -805,10 +810,10 @@ export class Player {
     }
     if (w.has('thorn')) for (const x of enemiesNear(c, 7, 3)) this.dot(x, w.s.dmg * 0.3, 3, 'kinetic', 0x6dff8e);
     if (w.has('ridebull')) { w.ammo = Math.max(w.ammo, w.mag); w.spin = 1; }
-    if (w.has('wolves')) { if (!this.status.has('wolves', w.idx)) ui.feed('Release the Wolves', ELEMENTS.solar.color); this.status.apply('wolves', { scope: w.idx }); }
+    if (w.has('wolves')) this.status.apply('wolves', { scope: w.idx });
     if (w.has('merciless')) this.status.apply('merciless', { scope: w.idx });
     if (w.has('acrius')) explode(c, 7, w.s.dmg * 4, 'arc', { source: 'perk' });
-    if (w.has('truth') && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); ui.feed("Truth: Hunter's Trace", ELEMENTS.void.color); }
+    if (w.has('truth') && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); this.status.apply('truth', { scope: w.idx, set: true }); }
     if (w.has('scavenger') && w.reserve !== Infinity && Math.random() < 0.4) {
       w.reserve = Math.min(w.maxReserve, w.reserve + (w.item.slot === 'heavy' ? Math.ceil(w.brick / 2) : 1));
     }
@@ -829,18 +834,18 @@ export class Player {
     }
     if (abil && o.element === 'arc') {
       if (A.has('flowstate')) this.status.apply('flowstate', { set: true });
-      if (A.has('electrostatic')) this.ionicTrace(c, 0.15);
+      if (A.has('electrostatic') && !o.jolted) this.ionicTrace(c, IONIC.electrostatic);
     }
     if (abil && o.element === 'void' && F.has('expulsion')) explode(c, 3, 100, 'void', { source: 'perk', small: true });
     if (this.status.has('devour')) { this.heal(1000); this.status.apply('devour', { t: this.voidT(8), set: true }); }
-    else if (abil && A.has('feedvoid')) { this.heal(1000); this.status.apply('devour', { t: this.voidT(8), set: true }); ui.feed('Devour', ELEMENTS.void.color); }
+    else if (abil && A.has('feedvoid')) { this.heal(1000); this.status.apply('devour', { t: this.voidT(8), set: true }); }
     if (A.has('demolition') && (weakened || suppressed)) { explode(c, 3.5, 120, 'void', { source: 'perk' }); this.heal(20); }
-    if (A.has('executioner') && weakened) { this.status.apply('invisible', { t: this.voidT(3) }); this.heal(30); ui.feed('Stylish Executioner', ELEMENTS.void.color); }
+    if (A.has('executioner') && weakened) { this.status.apply('invisible', { t: this.voidT(3) }); this.heal(30); }
     if (F.has('starvation') && weakened) this.heal(30);
-    if (F.has('ions') && jolted) this.ionicTrace(c, 0.1);
+    if (F.has('ions') && jolted && !o.jolted) this.ionicTrace(c, IONIC.ions);
     if (o.weapon && this.status.has('volatile')) explode(c, 3, 80, 'void', { source: 'perk', small: true });
     if (F.has('instability') && weakened && o.weapon) this.status.apply('volatile', { set: true });
-    if (A.has('gunpowder') && !this.status.has('gunpowder') && ++this.gpKills >= 5) { this.gpKills = 0; this.status.apply('gunpowder'); ui.feed('Gunpowder Gamble ready [Q]', ELEMENTS.solar.color); }
+    if (A.has('gunpowder') && !this.status.has('gunpowder') && ++this.gpKills >= 5) { this.gpKills = 0; this.status.apply('gunpowder'); }
     if (A.has('heatrises') && !this.onGround) this.restore(3);
     if (A.has('knockout') && o.source === 'ability' && this.meleeT > 0) this.knockout();
   }
@@ -858,7 +863,8 @@ export class Player {
   }
 
   takeDamage(amount, from) {
-    if (this.dead || G.mission.phase === 'done') return;
+    const M = G.mission;
+    if (this.dead || M.phase === 'done' || M.phase === 'loot' || M.chest?.final) return; // the activity is complete: no more damage
     if (this.superActive) amount *= this.superActive.guard ? 0.15 : SUPER_ARMOR[this.superActive.type] ?? 1;
     if (this.over > 0) {
       const a = Math.min(this.over, amount); this.over -= a; amount -= a;
@@ -869,7 +875,7 @@ export class Player {
     if (this.status.has('juggernaut')) amount *= 0.5; // Juggernaut: frontal shield while sprinting
     if (this.status.has('contraverse')) amount *= 0.8; // Contraverse Hold
     const cw = this.weapon;
-    if (cw?.has('conductor')) { if (this.status.has('conductor', cw.idx)) amount *= 0.75; else ui.feed('Arc Conductor', ELEMENTS.arc.color); this.status.apply('conductor', { scope: cw.idx, set: true }); }
+    if (cw?.has('conductor')) { if (this.status.has('conductor', cw.idx)) amount *= 0.75; this.status.apply('conductor', { scope: cw.idx, set: true }); }
     if (this.ap.plating) amount *= Math.max(0.6, 1 - 0.08 * this.ap.plating);
     this.regenT = this.regenDelay;
     const hadShield = this.shield > 0;
@@ -905,8 +911,8 @@ export class Player {
     sfx.death();
   }
 
-  /** inPlace: revived by a teammate where we fell; otherwise back at the checkpoint. */
-  respawn(inPlace = false) {
+  /** inPlace: revived by a teammate where we fell; otherwise back at the checkpoint. quiet: no banner (the activity just ended). */
+  respawn(inPlace = false, quiet = false) {
     const M = G.mission;
     this.dead = false;
     this.health = this.maxHealth; this.shield = this.maxShield;
@@ -915,7 +921,7 @@ export class Player {
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    ui.centerMessage('Revived', M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    if (!quiet) ui.centerMessage('Revived', M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   /** Restoration (Sunsinger): health and shields regenerate for t seconds, even under fire. */
@@ -950,14 +956,14 @@ export class Player {
     this.cd.dive = Math.max(0, this.cd.dive - dt);
     if (this.asp.has('juggernaut')) {
       this.jugT = this.sprinting ? this.jugT + dt : 0;
-      if (this.jugT >= 1) { if (!this.status.has('juggernaut')) ui.feed('Juggernaut', ELEMENTS.arc.color); this.status.apply('juggernaut'); } else this.status.remove('juggernaut');
+      if (this.jugT >= 1) this.status.apply('juggernaut'); else this.status.remove('juggernaut');
     }
     this.meleeT = Math.max(0, this.meleeT - dt);
     this.updateExoticArmor(dt);
     this.meleeLock = Math.max(0, this.meleeLock - dt);
-    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * SUPER_PASSIVE * (1 + 0.12 * (this.ap.dynamo || 0)));
+    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * SUPER_PASSIVE * (1 + SUPER_DYNAMO * (this.ap.dynamo || 0)));
     const ready = this.superCharge >= 100;
-    if (ready && !this.superWasReady) { sfx.superReady(); ui.feed('Super ready [X]', ELEMENTS[this.cls.element].color); }
+    if (ready && !this.superWasReady) sfx.superReady(); // the super bar turns gold
     this.superWasReady = ready;
     const p = G.input.pressed;
     if (p.KeyQ) this.useGrenade();
@@ -994,7 +1000,7 @@ export class Player {
     }
     if (this.sprinting) {
       if (x.has('transversive')) { this.trvT += dt; if (this.trvT > 0.6 && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); this.trvT = 0; } }
-      if (x.has('dunemarchers') && this.dune < 1) { this.dune = Math.min(1, this.dune + dt / 1.5); if (this.dune >= 1) { this.status.apply('dunemarchers'); ui.feed('Dunemarchers: static charged', ELEMENTS.arc.color); } }
+      if (x.has('dunemarchers') && this.dune < 1) { this.dune = Math.min(1, this.dune + dt / 1.5); if (this.dune >= 1) this.status.apply('dunemarchers'); }
     } else this.trvT = 0;
     if (this.dune >= 1 && Math.random() < 0.3) sparks(this.pos.clone().setY(this.pos.y + 0.3), ELEMENTS.arc.hex, 1, 2, 0.04, 0.2);
   }
@@ -1199,7 +1205,7 @@ export class Player {
         onHit: (p, e) => {
           if (e && e.alive) dealDamage(e, 280, { element: 'solar', source: 'ability', pos: p.clone(), knock: fwd.clone().setY(0).normalize().multiplyScalar(6) });
           explode(p.clone(), 2.2, 60, 'solar', { source: 'ability', small: true });
-          this.dropHammer(p);
+          this.dropHammer(p, fwd);
         },
       });
       sfx.throw();
@@ -1219,7 +1225,7 @@ export class Player {
       const res = dealDamage(t, lethal ? 520 : 260, { element: 'arc', source: 'ability', pos: c, knock: dir.clone().multiplyScalar(8) });
       castFx('slam', { p: c.clone(), el: 'arc', r: lethal ? 5 : 3 });
       if (lethal) this.jolt(c.clone(), 3, 140, t);
-      if (res.killed) { this.heal(1000); this.cd.melee *= 0.5; ui.feed('Combination Blow: healed', ELEMENTS.arc.color); sfx.heal(); }
+      if (res.killed) { this.heal(1000); this.cd.melee *= 0.5; this.status.apply('combo', { set: true }); sfx.heal(); }
       this.shake = 0.2;
       return;
     }
@@ -1314,9 +1320,14 @@ export class Player {
   }
 
   /** Throwing Hammer on the ground: stand next to it to pick it up (melee recharged, small heal). */
-  dropHammer(p) {
+  dropHammer(p, fwd) {
     const at = p.clone();
-    at.y = 0.15;
+    // a wall hit lands inside the wall: step back along the throw until clear
+    const back = fwd.clone().setY(0).normalize().multiplyScalar(-0.1);
+    const solid = G.colliders.filter((c) => !c.pass); // never on a barricade
+    for (let i = 0; i < 30 && pointInColliders(at.clone().setY(restHeight(at.x, at.z, at.y, solid) + 0.15), 0.15, true); i++) at.add(back);
+    const base = restHeight(at.x, at.z, at.y, solid); // crate top or ground
+    at.y = base + 0.15;
     const mesh = projectileMesh({ kind: 'hammer', color: ELEMENTS.solar.hex, size: 0.16 });
     mesh.position.copy(at);
     mesh.rotation.set(0, Math.random() * 6, Math.PI / 2);
@@ -1326,15 +1337,15 @@ export class Player {
     addTicker({
       update(dt) {
         life -= dt;
-        mesh.position.y = 0.15 + Math.abs(Math.sin(G.time * 3)) * 0.08;
-        if (Math.random() < 0.3) ember(at.clone().setY(0.3), 0xffb547, 0.03, 0.8, 0.4);
+        mesh.position.y = at.y + Math.abs(Math.sin(G.time * 3)) * 0.08;
+        if (Math.random() < 0.3) ember(at.clone().setY(at.y + 0.15), 0xffb547, 0.03, 0.8, 0.4);
         const P = G.player;
         if (P === self && !P.dead && Math.hypot(P.pos.x - at.x, P.pos.z - at.z) < 1.6 && Math.abs(P.pos.y - at.y) < 2) {
           P.cd.melee = 0;
           P.heal(30);
-          ui.feed('Hammer recovered: melee ready', ELEMENTS.solar.color);
+          P.status.apply('hammer', { set: true });
           sfx.engram(1);
-          flare(at.clone().setY(0.6), ELEMENTS.solar.hex, 0.8, 0.2);
+          flare(at.clone().setY(at.y + 0.45), ELEMENTS.solar.hex, 0.8, 0.2);
           return false;
         }
         return life > 0;
@@ -1468,10 +1479,9 @@ export class Player {
     if (id === 'barricade' || id === 'rally') {
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
       const p = this.pos.clone().addScaledVector(fwd, id === 'rally' ? 2.4 : 3.2);
-      castFx('barricade', { p, alongX: Math.abs(fwd.z) > Math.abs(fwd.x), small: id === 'rally' });
+      castFx('barricade', { p, alongX: Math.abs(fwd.z) > Math.abs(fwd.x), small: id === 'rally', el: this.cls.element });
       for (const ww of this.weapons) this.instantReload(ww);
-      if (id === 'rally') this.status.apply('rally', { set: true });
-      ui.feed('All weapons reloaded', '#ffb36b');
+      this.status.apply(id === 'rally' ? 'rally' : 'reloaded', { set: true });
     } else if (id === 'marksman' || id === 'gambler') {
       this.dodge(id, airborne);
     } else if (id === 'ward') {
@@ -1498,9 +1508,9 @@ export class Player {
     addTicker({ update(dt) { t -= dt; afterimage(self.pos, col, 0.35); return t > 0; } });
     this.fovKick = Math.max(this.fovKick, 10);
     if (id === 'marksman') this.instantReload(this.weapon);
-    if (id === 'gambler' || this.cls.subclassId === 'arcstrider') { this.cd.melee = 0; ui.feed('Melee ready', ELEMENTS[el].color); } // Arcstrider trait: dodging recharges your melee
-    if (A.has('lethal')) { this.status.apply('lethal', { t: 4, set: true }); ui.feed('Lethal Current', ELEMENTS.arc.color); }
-    if (A.has('vanishing')) { this.status.apply('invisible', { t: this.voidT(4), set: true }); ui.feed('Invisible', ELEMENTS.void.color); }
+    if (id === 'gambler' || this.cls.subclassId === 'arcstrider') { this.cd.melee = 0; this.status.apply('meleeready', { set: true }); } // Arcstrider trait: dodging recharges your melee
+    if (A.has('lethal')) this.status.apply('lethal', { t: 4, set: true });
+    if (A.has('vanishing')) this.status.apply('invisible', { t: this.voidT(4), set: true });
     if (A.has('trapper')) castFx('snare', { p: this.pos.clone().setY(0.3) });
     if (A.has('onyourmark')) this.status.apply('onyourmark', { add: 1, set: true });
     if (A.has('knockemdown')) this.cd.melee *= 0.5;
@@ -1556,7 +1566,7 @@ export class Player {
     if (ab.id === 'songflame') { this.cd.grenade = 0; this.cd.melee = 0; }
     if (this.exo.has('nighthawk')) {
       // Celestial Nighthawk: one devastating Golden Gun shot; other supers open with a 4x hit
-      this.status.apply('nighthawk', { value: ab.id === 'revolver' ? 6 : 4 });
+      this.status.apply('nighthawk', { value: ab.id === 'revolver' ? NIGHTHAWK.goldenGun : NIGHTHAWK.other });
       if (ab.id === 'revolver') this.superActive.shots = 1;
     }
     if (ab.id === 'sentinel') this.addOvershield(OVERSHIELD_MAX, 15);

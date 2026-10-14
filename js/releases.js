@@ -4,6 +4,22 @@
 
 export const RELEASES = [
   {
+    version: '1.3.1', name: 'Hotfix', date: '2026-10-14', accent: '#9fb4ff', glyph: '✚',
+    summary: 'Fixes for fireteams and a round of tuning. Fewer engrams to sort through, and no more supers in seconds.',
+    notes: [
+      'Areas and Horde waves no longer clear while enemies are still standing',
+      'Fireteam members now see the leader\'s debuffs, staggers and every area and boss banner',
+      'Downed Guardians get back up when the boss falls or the final cache appears, even with no lives left',
+      'Guardians downed in the air fall to the ground, and Arc Soul stays with its caster on every screen',
+      'Ionic Trace, Spark of Ions, Hands-On and Dynamo toned down. Celestial Nighthawk now hits 2.5x (4x for Golden Gun)',
+      'Far fewer engrams from enemies. Bosses still drop them, and caches still pay out',
+      'The top-right feed shows drops and notices only. One-off procs flash with your other buffs',
+      'Barricades take your subclass color and Guardians walk through them. Rally Barricade is wider',
+      'Bigger health bars, enemy plates follow HUD scale, and HUD scale goes up to 200%',
+      'Thrown hammers land on top of what they hit instead of sinking into it',
+    ],
+  },
+  {
     version: '1.3', name: 'Paths of Light', date: '2026-10-13', accent: '#ff8b2b', glyph: '❖',
     summary: 'Your Light, your way. Every subclass opens up: choose your grenade and class ability, then shape it with aspects and fragments.',
     notes: [

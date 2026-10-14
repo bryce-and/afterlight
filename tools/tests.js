@@ -1,6 +1,6 @@
 // Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
-import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES } from '../js/data.js';
+import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
 import { rollItem } from '../js/loot.js';
 import * as S from '../js/save.js';
@@ -370,10 +370,49 @@ test('every ability, aspect and fragment icon is distinct within its slot type',
   }
 });
 
+// ---------- H1 hotfix (v1.3.1) ----------
+test('waves: spawning the last wave never clears the zone in the same check', () => {
+  eq(C.waveStep(0, 1, 2), { spawn: true, cleared: false }, 'all of wave 1 dead at once');
+  eq(C.waveStep(2, 1, 2), { spawn: true, cleared: false });
+  eq(C.waveStep(3, 1, 2), { spawn: false, cleared: false }, 'too many left to call the next wave');
+  eq(C.waveStep(0, 2, 2), { spawn: false, cleared: true }, 'every wave spawned and dead');
+  eq(C.waveStep(1, 2, 2), { spawn: false, cleared: false });
+  eq(C.waveStep(0, 1, 1, true), { spawn: false, cleared: true }, 'boss zone');
+  eq(C.waveStep(2, 1, 1, true).cleared, false);
+});
+test('drops: engram chances cut, bosses still drop', () => {
+  eq(C.ENGRAM_CHANCE, { grunt: 0.02, rusher: 0.02, captain: 0.05, heavy: 0.08, boss: 1 });
+});
+test('Celestial Nighthawk: Golden Gun 4x, other supers 2.5x', () => {
+  eq(C.NIGHTHAWK, { goldenGun: 4, other: 2.5 });
+});
+test('Ionic Trace and super armor perks toned down', () => {
+  ok(C.IONIC.electrostatic < 0.15 && C.IONIC.ions < 0.1 && C.IONIC.gap > 0, 'ionic');
+  ok(C.SUPER_HANDSON < 3 && C.SUPER_DYNAMO < 0.12, 'Hands-On and Dynamo');
+});
+test('thrown hammer rests on the surface it lands on', () => {
+  const crate = { min: { x: 0, y: 0, z: 0 }, max: { x: 2, y: 2, z: 2 } };
+  const wall = { min: { x: 5, y: 0, z: 0 }, max: { x: 6, y: 8, z: 2 } };
+  eq(C.restHeight(1, 1, 1.9, [crate, wall]), 2, 'landed on the crate top');
+  eq(C.restHeight(1, 1, 2.1, [crate, wall]), 2, 'just above the crate');
+  eq(C.restHeight(3, 1, 0.1, [crate, wall]), 0, 'open ground');
+  eq(C.restHeight(5.5, 1, 1, [crate, wall]), 0, 'a wall above the impact is not a floor');
+});
+test('HUD scale reaches 200%', () => { eq(C.HUD_SCALE.max, 2); ok(C.HUD_SCALE.min < 1, 'min'); });
+test('one-off procs live on the buff HUD with a short timer', () => {
+  for (const id of ['meleeready', 'combo', 'hammer', 'reloaded', 'skullfort']) eq(STATUS[id]?.group, 'general', id);
+  for (const id of ['whitenail', 'truth', 'hardlight', 'honed']) eq(STATUS[id]?.group, 'weapon', id);
+  for (const id of ['meleeready', 'combo', 'hammer', 'reloaded', 'skullfort', 'whitenail', 'truth', 'hardlight', 'honed']) ok(STATUS[id].t <= 2, `${id} is short`);
+});
+test('barricades take the subclass color: every Titan subclass element has one', () => {
+  for (const sub of Object.values(CLASSES.vanguard.subclasses)) ok(Number.isInteger(ELEMENTS[sub.element]?.hex), sub.name);
+});
+
 // ---------- Update Log / Roadmap ----------
 test('Update Log: unique versions, newest first, complete entries', () => {
   const v = RELEASES.map((r) => r.version.split('.').map(Number));
-  for (let i = 1; i < v.length; i++) ok(v[i - 1][0] > v[i][0] || (v[i - 1][0] === v[i][0] && v[i - 1][1] > v[i][1]), `order at ${i}`);
+  const newer = (a, b) => { for (let k = 0; k < 3; k++) if ((a[k] ?? 0) !== (b[k] ?? 0)) return (a[k] ?? 0) > (b[k] ?? 0); return false; };
+  for (let i = 1; i < v.length; i++) ok(newer(v[i - 1], v[i]), `order at ${i}`);
   for (const r of RELEASES) ok(r.name && r.summary && r.notes.length && r.date, r.version);
 });
 test('Roadmap: valid statuses, no dates, not duplicating a shipped name', () => {

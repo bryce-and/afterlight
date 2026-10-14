@@ -383,7 +383,6 @@ export class Enemy {
     sfx.shieldBreak();
     const c = this.center(_v);
     sparks(c, ELEMENTS[this.shieldEl].hex, 16, 7, 0.1, 0.5);
-    if (matched) ui.feed(`${ELEMENTS[this.shieldEl].name} shield broken`, ELEMENTS[this.shieldEl].color);
   }
 
   onDeath() {
@@ -598,6 +597,9 @@ export class Enemy {
     m.group.position.copy(this.pos);
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
     m.group.rotation.y = this.yaw;
+    // the leader's stagger: the same backward jolt as on the leader's screen
+    this.staggerT = Math.max(0, this.staggerT - dt);
+    m.group.rotation.x = this.staggerT > 0 ? -0.28 * Math.sin(Math.PI * (1 - this.staggerT / this.staggerMax)) : 0;
   }
 
   coverMove(dt) {
@@ -702,6 +704,7 @@ function findCover(e) {
   const b = G.level.bounds;
   let best = null, bestScore = Infinity;
   for (const c of G.colliders) {
+    if (c.pass) continue; // Guardian barricades aren't enemy cover
     const hx = (c.max.x - c.min.x) / 2, hz = (c.max.z - c.min.z) / 2, h = c.max.y - c.min.y;
     if (h < 1.0 || hx > 15 || hz > 15) continue; // too low to hide behind, or a boundary wall
     const cx = (c.min.x + c.max.x) / 2, cz = (c.min.z + c.max.z) / 2;

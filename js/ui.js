@@ -10,7 +10,7 @@ import { RELEASES, ROADMAP } from './releases.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES } from './icons.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets } from './game.js';
-import { dmgDrift } from './combat.js';
+import { dmgDrift, HUD_SCALE } from './combat.js';
 import { initAudio, setVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
@@ -1154,7 +1154,7 @@ function updateDamageNumbers(dt) {
 const aimRay = new THREE.Raycaster(), _aimFwd = new THREE.Vector3();
 let plateE = null, plateHold = 0;
 const PLATE_HOLD = 1, PLATE_FADE = 0.6;
-const PLATE_CENTER = 18 + 5 + 42; // icon + gap + half the bar: the bar, not the icon, sits over the head
+const PLATE_CENTER = 24 + 5 + 63; // icon + gap + half the bar at 100% HUD scale: the bar, not the icon, sits over the head
 function aimedEnemy() {
   const cam = G.camera;
   cam.getWorldDirection(_aimFwd);
@@ -1186,7 +1186,8 @@ function updateEnemyPlate(dt) {
   _head.project(G.camera);
   const behind = _head.z > 1;
   const x = (_head.x * 0.5 + 0.5) * innerWidth, y = (-_head.y * 0.5 + 0.5) * innerHeight;
-  hud.plate.style.transform = `translate(${(x - PLATE_CENTER).toFixed(0)}px, ${y.toFixed(0)}px) translate(0, -100%)`;
+  const ps = G.save?.settings.hudScale ?? 1; // the plate follows HUD scale (its CSS sizes use --hud-scale)
+  hud.plate.style.transform = `translate(${(x - PLATE_CENTER * ps).toFixed(0)}px, ${y.toFixed(0)}px) translate(0, -100%)`;
   setStyle(hud.plate, 'epo', 'opacity', behind ? '0' : Math.min(1, plateHold / PLATE_FADE).toFixed(2));
   setStyle(hud.plateHp, 'eph', 'width', `${(Math.max(0, plateE.hp) / plateE.maxHp * 100).toFixed(1)}%`);
   const sh = plateE.maxShield ? plateE.shield / plateE.maxShield : 0;
@@ -1260,7 +1261,7 @@ export function showPause() {
         <label>Mouse sensitivity <span id="v-sens">${s.sens.toFixed(2)}</span><input type="range" id="s-sens" min="0.2" max="3" step="0.05" value="${s.sens}"></label>
         <label>Field of view <span id="v-fov">${s.fov}</span><input type="range" id="s-fov" min="65" max="105" step="1" value="${s.fov}"></label>
         <label class="toggle-row">Full Auto <span class="hint">Hold the trigger on semi-auto weapons (fires at the weapon's own rate)</span><input type="checkbox" id="s-auto" ${s.fullAuto ? 'checked' : ''}></label>
-        <label>HUD scale <span id="v-hud">${Math.round((s.hudScale ?? 1) * 100)}%</span><input type="range" id="s-hud" min="0.7" max="1.4" step="0.05" value="${s.hudScale ?? 1}"></label>
+        <label>HUD scale <span id="v-hud">${Math.round((s.hudScale ?? 1) * 100)}%</span><input type="range" id="s-hud" min="${HUD_SCALE.min}" max="${HUD_SCALE.max}" step="${HUD_SCALE.step}" value="${s.hudScale ?? 1}"></label>
         <label>Music <span id="v-mus">${Math.round((s.musicVolume ?? 0.5) * 100)}%</span><input type="range" id="s-mus" min="0" max="1" step="0.05" value="${s.musicVolume ?? 0.5}"></label>
         <label>Volume <span id="v-vol">${Math.round(s.volume * 100)}%</span><input type="range" id="s-vol" min="0" max="1" step="0.05" value="${s.volume}"></label>
       </div>
@@ -1325,7 +1326,7 @@ function renderInventory() {
   $('#inv-close', el).addEventListener('click', resumeGame);
 }
 
-/** HUD scale setting (70%-140%), applied to every HUD panel through a CSS variable. */
+/** HUD scale setting (70%-200%), applied to every HUD panel and the enemy plate through a CSS variable. */
 export function applyHudScale() {
   document.documentElement.style.setProperty('--hud-scale', String(G.save?.settings.hudScale ?? 1));
 }

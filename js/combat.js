@@ -2,12 +2,18 @@
 
 // ---------- super energy ----------
 export const SUPER_PASSIVE = 0.5; // % per second (v1.1: 0.75)
-export const SUPER_HANDSON = 3; // % per ability/melee kill per Hands-On piece (v1.1: 4)
+export const SUPER_HANDSON = 1.5; // % per ability/melee kill per Hands-On piece (v1.3: 3, v1.1: 4)
+export const SUPER_DYNAMO = 0.08; // passive super gain per Dynamo piece (v1.3: 0.12)
 /** Super energy for one kill: 2 to 6%. (v1.1: 3 to 10%.) */
 export function superKillGain(source, crit, typeId) {
   const base = source === 'ability' || source === 'melee' ? 3 : 2;
   return base + (crit ? 1 : 0) + (typeId === 'heavy' ? 2 : typeId === 'captain' ? 1 : 0);
 }
+// Ionic Trace: share of every ability cooldown refunded per trace, and the minimum gap between
+// traces. Jolt-chain kills don't send one. (v1.3: Electrostatic Mind 0.15, Spark of Ions 0.1, no gap.)
+export const IONIC = { electrostatic: 0.08, ions: 0.05, gap: 0.5 };
+// Celestial Nighthawk: the first super hit, once. (v1.3: Golden Gun 6x, other supers 4x.)
+export const NIGHTHAWK = { goldenGun: 4, other: 2.5 };
 // super damage multiplier (v1.1: 2.2)
 export const SUPER_POWER = 2.0;
 
@@ -68,3 +74,35 @@ export function dmgDrift(side, age) {
 // Jolt (Arc debuff): a hit on a jolted enemy arcs dmg into it and up to n enemies within r metres.
 // One discharge per enemy every cd seconds.
 export const JOLT = { dmg: 45, n: 3, r: 8, cd: 0.6 };
+
+// ---------- zones and waves ----------
+/**
+ * One check of a combat zone. The next wave comes in when 2 or fewer are left; the zone is clear
+ * only when every wave has spawned and nothing is alive. Spawning a wave never clears the zone in
+ * the same check (v1.3 counted before the spawn and could clear with the new wave standing).
+ */
+export function waveStep(alive, waveIdx, waveCount, isBoss = false) {
+  const spawn = !isBoss && waveIdx < waveCount && alive <= 2;
+  return { spawn, cleared: !spawn && waveIdx >= waveCount && alive === 0 };
+}
+
+// ---------- drops ----------
+// Engram chance per kill (v1.3: grunt 0.06, rusher 0.05, captain 0.3, heavy 0.45). Bosses always drop one.
+export const ENGRAM_CHANCE = { grunt: 0.02, rusher: 0.02, captain: 0.05, heavy: 0.08, boss: 1 };
+
+// ---------- thrown hammer ----------
+/**
+ * Height a dropped hammer rests at: the highest collider top under (x, z) that is at or below
+ * the impact height (plus a small step), else the ground. Boxes are { min, max } with x/y/z.
+ */
+export function restHeight(x, z, y, boxes, step = 0.3) {
+  let top = 0;
+  for (const c of boxes) {
+    if (x < c.min.x || x > c.max.x || z < c.min.z || z > c.max.z) continue;
+    if (c.max.y <= y + step && c.max.y > top) top = c.max.y;
+  }
+  return top;
+}
+
+// ---------- HUD ----------
+export const HUD_SCALE = { min: 0.7, max: 2, step: 0.05 }; // v1.3: max 1.4

@@ -60,7 +60,7 @@ export const ASPECTS = {
   feedvoid: { cls: 'arcanist', sub: 'voidwalker', name: 'Feed the Void', slots: 2, desc: 'Ability kills grant Devour for 8s: every kill fully heals you and extends Devour.' },
   chaos: { cls: 'arcanist', sub: 'voidwalker', name: 'Chaos Accelerant', slots: 1, desc: 'Void grenades are overcharged: Vortex is bigger and lasts longer, Axion fires 3 bolts, Suppressor reaches farther.' },
   childgods: { cls: 'arcanist', sub: 'voidwalker', name: 'Child of the Old Gods', slots: 1, desc: 'Your rift summons a Child of the Old Gods for 8s. It drains the nearest enemy, weakening it and healing you.' },
-  electrostatic: { cls: 'arcanist', sub: 'stormcaller', name: 'Electrostatic Mind', slots: 1, desc: 'Arc ability kills release an Ionic Trace that returns to you and recharges every ability by 15%.' },
+  electrostatic: { cls: 'arcanist', sub: 'stormcaller', name: 'Electrostatic Mind', slots: 1, desc: 'Arc ability kills release an Ionic Trace that returns to you and recharges every ability by 8% (at most one trace every half second; not from jolt chains).' },
   arcsoul: { cls: 'arcanist', sub: 'stormcaller', name: 'Arc Soul', slots: 1, desc: 'Your rift summons an Arc Soul for 10s that fires lightning at nearby enemies.' },
   surge: { cls: 'arcanist', sub: 'stormcaller', name: 'Lightning Surge', slots: 2, unlockLevel: 19, desc: 'Powered melee while sprinting surges you forward and calls lightning down along your path.' },
   touchflame: { cls: 'arcanist', sub: 'dawnblade', name: 'Touch of Flame', slots: 1, desc: 'Solar grenades are upgraded: Solar Grenade pulses 8 times and scorches, Swarm fires 6 seekers, Healing reaches farther and heals more.' },
@@ -81,7 +81,7 @@ export const FRAGMENTS = {
   shock: { element: 'arc', name: 'Spark of Shock', desc: 'Arc grenades jolt the enemies they hit.' },
   frequency: { element: 'arc', name: 'Spark of Frequency', desc: 'Powered melee hits make you reload 40% faster for 5s.' },
   momentum: { element: 'arc', name: 'Spark of Momentum', desc: 'While sprinting, your grenade and melee recharge 20% faster.' },
-  ions: { element: 'arc', name: 'Spark of Ions', unlockLevel: 22, desc: 'Defeating a jolted enemy releases an Ionic Trace that recharges every ability by 10%.' },
+  ions: { element: 'arc', name: 'Spark of Ions', unlockLevel: 22, desc: 'Defeating a jolted enemy releases an Ionic Trace that recharges every ability by 5%.' },
   // Void: Echoes
   expulsion: { element: 'void', name: 'Echo of Expulsion', desc: 'Void ability kills make the target explode.' },
   persistence: { element: 'void', name: 'Echo of Persistence', desc: 'Your overshield, invisibility and Devour last 25% longer.' },

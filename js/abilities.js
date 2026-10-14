@@ -3,7 +3,8 @@ import { G } from './state.js';
 import { ELEMENTS } from './data.js';
 import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, ringFx, lightning, beam, explosionFx, ember } from './effects.js';
 import { dealDamage, enemiesNear, addTicker } from './game.js';
-import { sendFx } from './coop.js';
+import { sendFx, remotes } from './coop.js';
+import { net } from './net.js';
 import { STORM_GRENADE } from './combat.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
@@ -21,7 +22,7 @@ const hex = (el) => ELEMENTS[el]?.hex ?? 0xffffff;
 export function castFx(kind, o) {
   const wire = {};
   for (const [k, v] of Object.entries(o)) wire[k] = v instanceof THREE.Vector3 ? arr(v) : Array.isArray(v) && v[0] instanceof THREE.Vector3 ? v.map(arr) : v;
-  sendFx({ t: 'fx', k: 'ab', kind, o: wire });
+  sendFx({ t: 'fx', k: 'ab', kind, o: { ...wire, by: net.myId } }); // by: the caster, for effects that follow them
   return abilityFx(kind, o, true);
 }
 
@@ -188,20 +189,20 @@ export function abilityFx(kind, o, local) {
 
     // ---------------- class abilities ----------------
     case 'barricade': {
-      const p = V(o.p), col = 0xff8b2b, alongX = o.alongX;
-      const len = o.small ? 2.6 : 5, h = o.small ? 1.3 : 2.2; // Rally Barricade is short and low
+      const p = V(o.p), col = hex(o.el || 'solar'), alongX = o.alongX; // the caster's subclass color
+      const len = o.small ? 4 : 5, h = o.small ? 1.3 : 2.2; // Rally Barricade is low
       const w = alongX ? len : 0.6, d = alongX ? 0.6 : len;
       const geo = new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0);
-      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: 0xff6a10, emissiveIntensity: 0.7, transparent: true, opacity: 0.5, flatShading: true }));
-      mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xffd27a, transparent: true, blending: THREE.AdditiveBlending })));
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.7, transparent: true, opacity: 0.5, flatShading: true }));
+      mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending })));
       mesh.position.set(p.x, 0, p.z);
       mesh.scale.y = 0.01;
       G.scene.add(mesh);
-      // a real wall on every screen: blocks enemy shots and movement for the whole fireteam
-      const box = { min: new THREE.Vector3(p.x - w / 2, 0, p.z - d / 2), max: new THREE.Vector3(p.x + w / 2, h, p.z + d / 2) };
+      // a wall on every screen for enemies and their shots; Guardians (and their shots) pass through
+      const box = { min: new THREE.Vector3(p.x - w / 2, 0, p.z - d / 2), max: new THREE.Vector3(p.x + w / 2, h, p.z + d / 2), pass: true };
       G.colliders.push(box);
       shockwave(p.clone().setY(0.05), 4, col, 0.5);
-      for (let i = 0; i < 16; i++) glowBurst(p.clone().add(new THREE.Vector3(alongX ? (Math.random() - 0.5) * w : 0, 0.1, alongX ? 0 : (Math.random() - 0.5) * d)), i % 2 ? col : 0xffd27a, 1, 3, 0.1, 0.7, 4, 1);
+      for (let i = 0; i < 16; i++) glowBurst(p.clone().add(new THREE.Vector3(alongX ? (Math.random() - 0.5) * w : 0, 0.1, alongX ? 0 : (Math.random() - 0.5) * d)), i % 2 ? col : 0xffffff, 1, 3, 0.1, 0.7, 4, 1);
       let life = o.small ? 7 : 12, age = 0;
       const scene = G.scene;
       addTicker({
@@ -240,7 +241,6 @@ export function abilityFx(kind, o, local) {
           if (inside) {
             if (empower) P.status.apply('empower', { t: 0.25 });
             else { P.status.apply('rift', { t: 0.2 }); P.heal(28 * dt); P.regenT = Math.min(P.regenT, 0.5); }
-            if (!was) ui.feed(empower ? 'Empowered: +25% weapon damage' : 'Healing Rift', empower ? '#5fd3ff' : '#b07cff');
           }
           was = inside;
           return life > 0;
@@ -256,7 +256,7 @@ export function abilityFx(kind, o, local) {
       glowBurst(p, 0xffe0a0, 24, 7, 0.1, 0.7, 2, 0.4);
       pillar(p, 1.2, 6, col, 0.8, 0.4);
       const P = G.player;
-      if (P && !P.dead && P.pos.distanceTo(p) < o.r) { P.heal(o.big ? 70 : 40); P.restore(o.big ? 9 : 6); ui.feed('Restoration', '#ffb547'); }
+      if (P && !P.dead && P.pos.distanceTo(p) < o.r) { P.heal(o.big ? 70 : 40); P.restore(o.big ? 9 : 6); }
       sfx.heal();
       break;
     }
@@ -345,8 +345,9 @@ export function abilityFx(kind, o, local) {
       addTicker({
         update(dt) {
           life -= dt; tick -= dt;
-          // follows the caster on the caster's screen; replays hover where it was summoned
-          const anchor = local && G.player && !G.player.dead ? G.player.pos : home;
+          // follows the caster on every screen (teammates track the caster's avatar); parks where it was summoned while they're down
+          const caster = local ? G.player : remotes.get(o.by);
+          const anchor = caster && !caster.dead ? caster.pos : home;
           at.set(anchor.x + Math.cos(G.time * 1.3) * 1.1, anchor.y + 2.3 + Math.sin(G.time * 3) * 0.15, anchor.z + Math.sin(G.time * 1.3) * 1.1);
           orb.position.lerp(at, Math.min(1, dt * 5));
           halo.rotation.y += dt * 3; orb.rotation.x += dt;

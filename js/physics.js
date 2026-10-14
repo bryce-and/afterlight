@@ -10,7 +10,7 @@ function overlaps(p, r, h, c) {
 
 function blockedAt(p, r, h, y) {
   const q = { x: p.x, y, z: p.z };
-  return G.colliders.some((c) => overlaps(q, r, h, c));
+  return G.colliders.some((c) => !c.pass && overlaps(q, r, h, c));
 }
 
 function pushOutMin(p, r, c) {
@@ -23,14 +23,14 @@ function pushOutMin(p, r, c) {
   p[pen[0]] = pen[1];
 }
 
-/** Axis-separated AABB movement for the player. Mutates pos & vel. */
+/** Axis-separated AABB movement for the player. Mutates pos & vel. Colliders marked pass (barricades) let players through. */
 export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
   const C = G.colliders;
   const res = { onGround: false, hitWall: false };
   for (const axis of ['x', 'z']) {
     pos[axis] += vel[axis] * dt;
     for (const c of C) {
-      if (!overlaps(pos, r, h, c)) continue;
+      if (c.pass || !overlaps(pos, r, h, c)) continue;
       if (c.max.y - pos.y <= stepUp && vel.y <= 0.5 && !blockedAt(pos, r, h, c.max.y)) { pos.y = c.max.y; continue; }
       if (vel[axis] > 0) pos[axis] = c.min[axis] - r - 1e-3;
       else if (vel[axis] < 0) pos[axis] = c.max[axis] + r + 1e-3;
@@ -41,12 +41,12 @@ export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
   const prevY = pos.y;
   pos.y += vel.y * dt;
   for (const c of C) {
-    if (!overlaps(pos, r, h, c)) continue;
+    if (c.pass || !overlaps(pos, r, h, c)) continue;
     if (vel.y <= 0 && prevY >= c.max.y - 0.02) { pos.y = c.max.y; vel.y = 0; }
     else if (vel.y > 0) { pos.y = Math.max(prevY, c.min.y - h - 1e-3); vel.y = 0; }
   }
   if (pos.y <= 0) { pos.y = 0; if (vel.y < 0) vel.y = 0; }
-  res.onGround = pos.y <= 1e-3 || C.some((c) => Math.abs(pos.y - c.max.y) < 0.03 &&
+  res.onGround = pos.y <= 1e-3 || C.some((c) => !c.pass && Math.abs(pos.y - c.max.y) < 0.03 &&
     pos.x + r > c.min.x && pos.x - r < c.max.x && pos.z + r > c.min.z && pos.z - r < c.max.z);
   return res;
 }
@@ -70,8 +70,10 @@ export function pushOutCircle(pos, r, h) {
   }
 }
 
-export function pointInColliders(p, pad = 0) {
+/** players: ignore colliders Guardians pass through (barricades). */
+export function pointInColliders(p, pad = 0, players = false) {
   for (const c of G.colliders) {
+    if (players && c.pass) continue;
     if (p.x > c.min.x - pad && p.x < c.max.x + pad && p.y > c.min.y - pad && p.y < c.max.y + pad && p.z > c.min.z - pad && p.z < c.max.z + pad) return c;
   }
   return null;
