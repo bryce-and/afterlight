@@ -7,8 +7,9 @@ import { Player } from './player.js';
 import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
 import { pointInColliders } from './physics.js';
-import { rollItem, rollRarityIdx, MAX_POWER, dismantleValue } from './loot.js';
-import { addItem, writeSave, playerPower, ALL_MISSIONS } from './save.js';
+import { rollItem, dismantleValue } from './loot.js';
+import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS } from './save.js';
+import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP } from './progression.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection } from './music.js';
 import * as ui from './ui.js';
@@ -41,7 +42,7 @@ export function startMission(li, mi) {
   G.mission = {
     fireteam, coop: net.active, remote: net.isClient,
     loc, def, li, mi, g, phase: 'travel', current: 0, revives: 3, lives: livesFor(fireteam), bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
-    startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
+    xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
     zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', waves: makeWaves(i, z.isBoss, g, def, fireteam), waveIdx: 0, enemies: [] })),
@@ -292,9 +293,9 @@ function openChest() {
   const base = Math.max(M.def.power, pp);
   const rewards = [];
   for (let i = 0; i < n; i++) {
-    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarityIdx(M.g + (first ? 2 : 0)));
+    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), first ? 5 : 2));
     if (first && M.mi === 2 && i === 0) rIdx = 4;
-    rewards.push(rollItem(Math.min(MAX_POWER, base + randInt(1, 4)), rIdx));
+    rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   const glimmer = 120 + M.g * 45;
@@ -303,6 +304,7 @@ function openChest() {
   M.rewardGlimmer = glimmer;
   M.firstClear = first;
   M.rewards = rewards;
+  gainXp(XP.mission + (first ? XP.firstClear : 0));
   writeSave(G.save);
   M.phase = 'done';
   M.doneT = 3.8;
@@ -322,6 +324,25 @@ export function grantItem(item) {
   sfx.engram(rarityIndex(item.rarity));
   if (auto) ui.feed(`Inventory full: auto-dismantled ${auto.name}`, '#aaa');
   writeSave(G.save);
+}
+
+// ---------------------------------------------------------------------------
+// XP and levels
+// ---------------------------------------------------------------------------
+/** Adds XP to this player's save and announces any levels gained. */
+export function gainXp(n) {
+  if (!n) return;
+  if (G.mission) G.mission.xp = (G.mission.xp || 0) + n;
+  const up = addXp(G.save, n);
+  if (!up) return;
+  sfx.engram(3);
+  for (let L = up.from + 1; L <= up.to; L++) {
+    const reward = rewardAt(L);
+    ui.feed(`Level ${L}${reward ? `  ·  ${reward === 'exotic' ? 'Exotic' : 'Legendary'} reward ready in Orbit` : ''}`, '#f4c542');
+    const sub = subclassesUnlockedAt(L).find((x) => x.classId === G.save.classId);
+    if (sub) ui.centerMessage(`${sub.name} Unlocked`, `Level ${L}  ·  Choose it from your subclass in Orbit`, 3.5);
+    else ui.centerMessage(`Level ${L}`, reward ? 'A reward awaits you in Orbit' : '', 2.2);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +431,7 @@ export function killEnemy(e, o = {}) {
     if (o.crit) M.crits++;
     G.player.onKill(e, o);
   }
+  gainXp(XP.kill[e.typeId] ?? 0); // the whole fireteam shares kill XP
   sfx.kill();
   rollDrops(e);
   if (e.isBoss) {
@@ -441,8 +463,8 @@ export function getEnemyByNetId(id) {
 function dropEngram(pos) {
   const M = G.mission;
   const pp = playerPower(G.save);
-  const rIdx = rollRarityIdx(M.g * 0.5);
-  const power = clamp(Math.max(pp, M.def.power - 3) + randInt(-1, 2), 1, MAX_POWER);
+  const rIdx = rollRarity(playerLevel(G.save));
+  const power = clamp(Math.max(pp, M.def.power - 3) + randInt(-1, 2), 1, LIGHT_CAP);
   spawnPickup('engram', pos, rollItem(power, rIdx));
 }
 
@@ -869,15 +891,16 @@ function openActChest() {
   const n = c.final ? 3 : 2;
   const rewards = [];
   for (let i = 0; i < n; i++) {
-    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarityIdx(M.g + Math.floor(c.wave / 5)));
+    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), 2 + Math.floor(c.wave / 5)));
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
     if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
-    rewards.push(rollItem(Math.min(MAX_POWER, pp + randInt(1, 4)), rIdx));
+    rewards.push(rollItem(Math.min(LIGHT_CAP, pp + randInt(1, 4)), rIdx));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   const glimmer = 60 + c.wave * 12;
   G.save.glimmer += glimmer;
   M.rewardGlimmer += glimmer;
+  gainXp(XP.actCache);
   writeSave(G.save);
   if (c.final) { M.phase = 'done'; M.doneT = 3.8; }
 }

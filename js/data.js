@@ -14,7 +14,6 @@ export const RARITIES = [
   { id: 'legendary', name: 'Legendary', color: '#a066ea', hex: 0xa066ea, perks: 3, mult: 1.13, armorPts: 13 },
   { id: 'exotic', name: 'Exotic', color: '#f4c542', hex: 0xf4c542, perks: 2, mult: 1.3, armorPts: 17 },
 ];
-export const RARITY_WEIGHTS = [44, 30, 17, 7.5, 1.5];
 export const rarityIndex = (id) => RARITIES.findIndex((r) => r.id === id);
 
 // ---------- Slots ----------
@@ -204,7 +203,7 @@ export const CLASSES = {
         },
       },
       sentinel: {
-        name: 'Sentinel', element: 'void', color: '#b07cff', tagline: 'A shield for the fireteam. Overshields and suppression.',
+        name: 'Sentinel', unlockLevel: 10, element: 'void', color: '#b07cff', tagline: 'A shield for the fireteam. Overshields and suppression.',
         passive: 'Void abilities grant you an overshield.',
         abilities: {
           grenade: { id: 'suppressor', name: 'Suppressor Grenade', cd: 22, desc: 'Explodes and suppresses enemies: they cannot attack for 4s and take extra damage.' },
@@ -238,7 +237,7 @@ export const CLASSES = {
         },
       },
       arcstrider: {
-        name: 'Arcstrider', element: 'arc', color: '#5fd3ff', tagline: 'Up close and never still. Dodge, strike, repeat.',
+        name: 'Arcstrider', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Up close and never still. Dodge, strike, repeat.',
         passive: 'Dodging recharges your melee; melee kills fully heal you.',
         abilities: {
           grenade: { id: 'flux', name: 'Flux Grenade', cd: 20, desc: 'Sticks to the first enemy it hits and detonates, jolting lightning into two more.' },
@@ -263,7 +262,7 @@ export const CLASSES = {
         },
       },
       stormcaller: {
-        name: 'Stormcaller', element: 'arc', color: '#5fd3ff', tagline: 'Call down the storm.',
+        name: 'Stormcaller', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Call down the storm.',
         abilities: {
           grenade: { id: 'storm', name: 'Storm Grenade', cd: 22, desc: 'Summons a storm cloud that strikes enemies below with lightning.' },
           melee: { id: 'chainl', name: 'Chain Lightning', cd: 10, desc: 'Ranged arc strike that jumps to three more enemies.' },
@@ -316,8 +315,8 @@ export const LOCATIONS = [
     zoneNames: ['The Steppes', 'Skywatch', 'The Divide', 'Forgotten Shore', 'Rocketyard', 'Mothyards'],
     missions: [
       { id: 'e1', mood: 'dawn', name: 'A Guardian Rises', power: 10, zones: 3, boss: { name: 'Riksis, Devil Archon', element: 'arc' , model: 'archon' }, desc: 'Your Ghost has brought you back. Fight through the Fallen and get to the Wall.' },
-      { id: 'e2', mood: 'day', name: 'The Last Array', power: 18, zones: 3, boss: { name: 'Sepiks Prime', element: 'solar' , model: 'servitor' }, desc: 'Restore the old Rasputin array and reach out to the stars.' },
-      { id: 'e3', mood: 'dusk', name: "The Devils' Lair", power: 26, zones: 4, boss: { name: 'Draksis, Winter Kell', element: 'void' , model: 'kell' }, desc: 'Strike at the heart of the House of Devils and bring down their Kell.' },
+      { id: 'e2', mood: 'day', name: 'The Last Array', power: 20, zones: 3, boss: { name: 'Sepiks Prime', element: 'solar' , model: 'servitor' }, desc: 'Restore the old Rasputin array and reach out to the stars.' },
+      { id: 'e3', mood: 'dusk', name: "The Devils' Lair", power: 30, zones: 4, boss: { name: 'Draksis, Winter Kell', element: 'void' , model: 'kell' }, desc: 'Strike at the heart of the House of Devils and bring down their Kell.' },
     ],
   },
   {
@@ -330,9 +329,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
     zoneNames: ["Archer's Line", 'Anchor of Light', 'Hellmouth', 'Temple of Crota', 'Gatehouse', "World's Grave"],
     missions: [
-      { id: 'm1', mood: 'night', name: 'The Dark Beyond', power: 35, zones: 3, boss: { name: 'Sardok, Eye of Oryx', element: 'void' , model: 'knight' }, desc: 'Follow the trail of a lost Guardian into the Hive tunnels.' },
-      { id: 'm2', mood: 'night', name: 'Chamber of Night', power: 44, zones: 4, boss: { name: 'Omnigul, Will of Crota', element: 'arc' , model: 'wizard' }, desc: 'Silence the wizard whose screams carry Crota\'s will across the Moon.' },
-      { id: 'm3', mood: 'storm', name: "Crota's End", power: 53, zones: 4, boss: { name: 'Crota, Son of Oryx', element: 'solar' , model: 'crota' }, desc: 'Descend into the Hellmouth and end the god-prince of the Hive.' },
+      { id: 'm1', mood: 'night', name: 'The Dark Beyond', power: 40, zones: 3, boss: { name: 'Sardok, Eye of Oryx', element: 'void' , model: 'knight' }, desc: 'Follow the trail of a lost Guardian into the Hive tunnels.' },
+      { id: 'm2', mood: 'night', name: 'Chamber of Night', power: 50, zones: 4, boss: { name: 'Omnigul, Will of Crota', element: 'arc' , model: 'wizard' }, desc: 'Silence the wizard whose screams carry Crota\'s will across the Moon.' },
+      { id: 'm3', mood: 'storm', name: "Crota's End", power: 60, zones: 4, boss: { name: 'Crota, Son of Oryx', element: 'solar' , model: 'crota' }, desc: 'Descend into the Hellmouth and end the god-prince of the Hive.' },
     ],
   },
   {
@@ -345,9 +344,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Legionary', rusher: 'War Beast', captain: 'Centurion', heavy: 'Colossus' },
     zoneNames: ['The Barrens', 'Scablands', 'The Buried City', 'Dust Palace', 'Valley of Kings', 'Hollows'],
     missions: [
-      { id: 'r1', mood: 'day', name: 'The Buried City', power: 62, zones: 4, boss: { name: 'Valus Ta\'aurc', element: 'solar' , model: 'valus' }, desc: 'Push through the Cabal lines into the ruins buried under the sand.' },
-      { id: 'r2', mood: 'dusk', name: 'Dust Palace', power: 72, zones: 4, boss: { name: 'Bracus Zahn', element: 'void' , model: 'bracus' }, desc: 'Storm the Cabal command post and bring down the Bracus who holds it.' },
-      { id: 'r3', mood: 'storm', name: 'The Red War', power: 82, zones: 5, boss: { name: 'Dominus Ghaul', element: 'arc' , model: 'ghaul' }, desc: 'The Red Legion\'s commander has come for the Light. Send him back to the dark.' },
+      { id: 'r1', mood: 'day', name: 'The Buried City', power: 70, zones: 4, boss: { name: 'Valus Ta\'aurc', element: 'solar' , model: 'valus' }, desc: 'Push through the Cabal lines into the ruins buried under the sand.' },
+      { id: 'r2', mood: 'dusk', name: 'Dust Palace', power: 80, zones: 4, boss: { name: 'Bracus Zahn', element: 'void' , model: 'bracus' }, desc: 'Storm the Cabal command post and bring down the Bracus who holds it.' },
+      { id: 'r3', mood: 'storm', name: 'The Red War', power: 90, zones: 5, boss: { name: 'Dominus Ghaul', element: 'arc' , model: 'ghaul' }, desc: 'The Red Legion\'s commander has come for the Light. Send him back to the dark.' },
     ],
   },
   {
@@ -360,9 +359,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
     zoneNames: ['The Rig', "Siren's Watch", 'The Solarium', 'Arcology Interior', 'The Methane Sea', 'Spine of Keres'],
     missions: [
-      { id: 't1', mood: 'storm', name: 'Hope', power: 88, zones: 4, boss: { name: 'Kathok, Swordbearer', element: 'arc' , model: 'swordbearer' }, desc: 'Find the Guardians holed up in the Arcology and break the Hive siege on the rigs.' },
-      { id: 't2', mood: 'day', name: 'The Sunken Labs', power: 92, zones: 4, boss: { name: 'Ir Halak, Brood Wizard', element: 'void' , model: 'broodwizard' }, desc: 'Push into the flooded labs where the Hive are growing something in the dark.' },
-      { id: 't3', mood: 'dusk', name: "Savathûn's Song", power: 96, zones: 5, boss: { name: "Sedrak, Song of Savathûn", element: 'solar' , model: 'shrieker' }, desc: 'Silence the Hive choir singing Savathûn\'s song beneath the Arcology.' },
+      { id: 't1', mood: 'storm', name: 'Hope', power: 100, zones: 4, boss: { name: 'Kathok, Swordbearer', element: 'arc' , model: 'swordbearer' }, desc: 'Find the Guardians holed up in the Arcology and break the Hive siege on the rigs.' },
+      { id: 't2', mood: 'day', name: 'The Sunken Labs', power: 110, zones: 4, boss: { name: 'Ir Halak, Brood Wizard', element: 'void' , model: 'broodwizard' }, desc: 'Push into the flooded labs where the Hive are growing something in the dark.' },
+      { id: 't3', mood: 'dusk', name: "Savathûn's Song", power: 120, zones: 5, boss: { name: "Sedrak, Song of Savathûn", element: 'solar' , model: 'shrieker' }, desc: 'Silence the Hive choir singing Savathûn\'s song beneath the Arcology.' },
     ],
   },
   {
@@ -375,9 +374,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Baron\'s Captain', heavy: 'Fallen Brig' },
     zoneNames: ["Thieves' Landing", 'The Rift', 'Four-Holed Cove', "Trapper's Cave", 'Jetsam of Saturn', 'Spider\'s Market'],
     missions: [
-      { id: 'ts1', mood: 'dusk', name: 'The Trickster', power: 100, zones: 3, boss: { name: 'Araskes, the Trickster', element: 'arc' , model: 'baron' }, desc: 'Chase one of Uldren\'s Barons through the scrap alleys of Thieves\' Landing. Mind the mines.' },
-      { id: 'ts2', mood: 'night', name: 'The Mindbender', power: 105, zones: 4, boss: { name: 'Reksis Vahn, the Mindbender', element: 'void' , model: 'mindbender' }, desc: 'Follow the Mindbender\'s Hive-tainted crew down through the Rift to his ritual cavern.' },
-      { id: 'ts3', mood: 'storm', name: 'Scorned', power: 110, zones: 4, boss: { name: 'Fikrul, the Fanatic', element: 'solar' , model: 'fanatic' }, desc: 'Cross the wreck fields of Jetsam of Saturn and end the Fanatic who raises the Scorn.' },
+      { id: 'ts1', mood: 'dusk', name: 'The Trickster', power: 130, zones: 3, boss: { name: 'Araskes, the Trickster', element: 'arc' , model: 'baron' }, desc: 'Chase one of Uldren\'s Barons through the scrap alleys of Thieves\' Landing. Mind the mines.' },
+      { id: 'ts2', mood: 'night', name: 'The Mindbender', power: 140, zones: 4, boss: { name: 'Reksis Vahn, the Mindbender', element: 'void' , model: 'mindbender' }, desc: 'Follow the Mindbender\'s Hive-tainted crew down through the Rift to his ritual cavern.' },
+      { id: 'ts3', mood: 'storm', name: 'Scorned', power: 150, zones: 4, boss: { name: 'Fikrul, the Fanatic', element: 'solar' , model: 'fanatic' }, desc: 'Cross the wreck fields of Jetsam of Saturn and end the Fanatic who raises the Scorn.' },
     ],
   },
   {
@@ -390,9 +389,9 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Legionary', rusher: 'War Beast', captain: 'Centurion', heavy: 'Colossus' },
     zoneNames: ['Lost Oasis', "Giant's Scar", 'The Rupture', 'Terrabase Charon', 'Echo Mesa', 'Excavation Site XII', 'Aphix Conduit', 'The Pyramidion'],
     missions: [
-      { id: 'io1', mood: 'dawn', name: 'Sacred Ground', power: 115, zones: 3, boss: { name: 'Malok-Ra, Taken Captain', element: 'void', model: 'takencaptain' }, desc: 'Cross the Lost Oasis and Giant\'s Scar to the Rupture, where the Taken have gathered at the Traveler\'s last touch.' },
-      { id: 'io2', mood: 'day', name: 'Echo Mesa', power: 120, zones: 4, boss: { name: 'The Psion Flayers', element: 'solar', model: 'psionflayer' }, desc: 'Break the Red Legion lines from Terrabase Charon to the great drill and silence the Psions running it.' },
-      { id: 'io3', mood: 'night', name: 'The Pyramidion', power: 125, zones: 4, boss: { name: 'Protheon, Modular Mind', element: 'arc', model: 'vexmind' }, desc: 'Descend past Excavation Site XII into the Vex Pyramidion and take apart the Mind that guards it.' },
+      { id: 'io1', mood: 'dawn', name: 'Sacred Ground', power: 160, zones: 3, boss: { name: 'Malok-Ra, Taken Captain', element: 'void', model: 'takencaptain' }, desc: 'Cross the Lost Oasis and Giant\'s Scar to the Rupture, where the Taken have gathered at the Traveler\'s last touch.' },
+      { id: 'io2', mood: 'day', name: 'Echo Mesa', power: 170, zones: 4, boss: { name: 'The Psion Flayers', element: 'solar', model: 'psionflayer' }, desc: 'Break the Red Legion lines from Terrabase Charon to the great drill and silence the Psions running it.' },
+      { id: 'io3', mood: 'night', name: 'The Pyramidion', power: 180, zones: 4, boss: { name: 'Protheon, Modular Mind', element: 'arc', model: 'vexmind' }, desc: 'Descend past Excavation Site XII into the Vex Pyramidion and take apart the Mind that guards it.' },
     ],
   },
 ];

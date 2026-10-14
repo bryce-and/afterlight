@@ -11,39 +11,41 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=20261013111145" />
+<link rel="stylesheet" href="style.css?v=20261013222231" />
 <script type="importmap">
 {
  "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "./js/abilities.js": "./js/abilities.js?v=20261013111145",
-  "./js/audio.js": "./js/audio.js?v=20261013111145",
-  "./js/bosses.js": "./js/bosses.js?v=20261013111145",
-  "./js/characters.js": "./js/characters.js?v=20261013111145",
-  "./js/coop.js": "./js/coop.js?v=20261013111145",
-  "./js/data.js": "./js/data.js?v=20261013111145",
-  "./js/effects.js": "./js/effects.js?v=20261013111145",
-  "./js/enemies.js": "./js/enemies.js?v=20261013111145",
-  "./js/game.js": "./js/game.js?v=20261013111145",
-  "./js/icons.js": "./js/icons.js?v=20261013111145",
-  "./js/level-earth.js": "./js/level-earth.js?v=20261013111145",
-  "./js/level-io.js": "./js/level-io.js?v=20261013111145",
-  "./js/level-mars.js": "./js/level-mars.js?v=20261013111145",
-  "./js/level-moon.js": "./js/level-moon.js?v=20261013111145",
-  "./js/level-tangled.js": "./js/level-tangled.js?v=20261013111145",
-  "./js/level-titan.js": "./js/level-titan.js?v=20261013111145",
-  "./js/loot.js": "./js/loot.js?v=20261013111145",
-  "./js/main.js": "./js/main.js?v=20261013111145",
-  "./js/models.js": "./js/models.js?v=20261013111145",
-  "./js/music.js": "./js/music.js?v=20261013111145",
-  "./js/net.js": "./js/net.js?v=20261013111145",
-  "./js/physics.js": "./js/physics.js?v=20261013111145",
-  "./js/player.js": "./js/player.js?v=20261013111145",
-  "./js/save.js": "./js/save.js?v=20261013111145",
-  "./js/state.js": "./js/state.js?v=20261013111145",
-  "./js/ui.js": "./js/ui.js?v=20261013111145",
-  "./js/util.js": "./js/util.js?v=20261013111145",
-  "./js/world.js": "./js/world.js?v=20261013111145"
+  "./js/abilities.js": "./js/abilities.js?v=20261013222231",
+  "./js/audio.js": "./js/audio.js?v=20261013222231",
+  "./js/bosses.js": "./js/bosses.js?v=20261013222231",
+  "./js/characters.js": "./js/characters.js?v=20261013222231",
+  "./js/coop.js": "./js/coop.js?v=20261013222231",
+  "./js/data.js": "./js/data.js?v=20261013222231",
+  "./js/effects.js": "./js/effects.js?v=20261013222231",
+  "./js/enemies.js": "./js/enemies.js?v=20261013222231",
+  "./js/game.js": "./js/game.js?v=20261013222231",
+  "./js/icons.js": "./js/icons.js?v=20261013222231",
+  "./js/level-earth.js": "./js/level-earth.js?v=20261013222231",
+  "./js/level-io.js": "./js/level-io.js?v=20261013222231",
+  "./js/level-mars.js": "./js/level-mars.js?v=20261013222231",
+  "./js/level-moon.js": "./js/level-moon.js?v=20261013222231",
+  "./js/level-tangled.js": "./js/level-tangled.js?v=20261013222231",
+  "./js/level-titan.js": "./js/level-titan.js?v=20261013222231",
+  "./js/loot.js": "./js/loot.js?v=20261013222231",
+  "./js/main.js": "./js/main.js?v=20261013222231",
+  "./js/models.js": "./js/models.js?v=20261013222231",
+  "./js/music.js": "./js/music.js?v=20261013222231",
+  "./js/net.js": "./js/net.js?v=20261013222231",
+  "./js/physics.js": "./js/physics.js?v=20261013222231",
+  "./js/player.js": "./js/player.js?v=20261013222231",
+  "./js/progression.js": "./js/progression.js?v=20261013222231",
+  "./js/releases.js": "./js/releases.js?v=20261013222231",
+  "./js/save.js": "./js/save.js?v=20261013222231",
+  "./js/state.js": "./js/state.js?v=20261013222231",
+  "./js/ui.js": "./js/ui.js?v=20261013222231",
+  "./js/util.js": "./js/util.js?v=20261013222231",
+  "./js/world.js": "./js/world.js?v=20261013222231"
  }
 }
 </script>
@@ -73,6 +75,7 @@
   </div>
   <div id="bossbar" class="hidden"><div class="boss-name"></div><div class="boss-track"><div class="boss-hp"></div><div class="boss-shield"></div></div></div>
 
+  <div id="xpbar"><span class="xp-lvl"></span><div class="xp-track"><div class="xp-fill"></div></div></div>
   <div id="abilities">
     <div id="super"><div class="super-top"><span class="super-name"></span><span class="super-label"></span><kbd>X</kbd></div><div class="super-track"><div class="super-fill"></div></div></div>
     <div class="ab-row">
@@ -96,7 +99,10 @@
     <div class="tagline">A low-poly looter shooter</div>
     <div class="t-hint">Click to begin</div>
     <div class="t-foot">Best with a mouse and keyboard. Headphones recommended.</div>
+    <div class="t-links" id="t-links"><button class="btn" id="t-log">Update Log</button><button class="btn" id="t-road">Roadmap</button></div>
   </div>
+  <div class="t-notice hidden" id="t-notice"></div>
+  <div class="t-panel hidden" id="t-panel"></div>
 </div>
 <div id="classes" class="screen hidden"></div>
 <div id="orbit" class="screen hidden"></div>

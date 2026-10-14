@@ -6,7 +6,8 @@ import { Enemy, fireEnemyShot } from './enemies.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit } from './data.js';
-import { startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId } from './game.js';
+import { startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp } from './game.js';
+import { XP } from './progression.js';
 import { playerPower } from './save.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
@@ -396,6 +397,7 @@ net.on('kill', (m) => {
   e.onDeath();
   sfx.kill();
   rollDrops(e); // every player rolls their own loot
+  gainXp(XP.kill[e.typeId] ?? 0); // the whole fireteam shares kill XP
   if (m.by === net.myId) {
     G.mission.kills++;
     if (m.c) G.mission.crits++;

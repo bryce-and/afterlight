@@ -1,7 +1,6 @@
-import { ARCHETYPES, RARITIES, RARITY_WEIGHTS, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ARMOR_PERKS, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
-import { pick, randInt, rand, weightedIndex } from './util.js';
-
-export const MAX_POWER = 100;
+import { ARCHETYPES, RARITIES, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ARMOR_PERKS, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { pick, randInt, rand } from './util.js';
+import { LIGHT_CAP } from './progression.js';
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
 const NOUN = ['Oath', 'Promise', 'Requiem', 'Verdict', 'Covenant', 'Lament', 'Sentinel', 'Herald', 'Reckoning', 'Psalm', 'Edict', 'Tide', 'Mercy', 'Vow', 'Witness', 'Ruin', 'Hymn', 'Answer', 'Warden', 'Dirge'];
@@ -34,12 +33,6 @@ export function newId() {
   return Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 9);
 }
 
-/** bonus 0..12 shifts weight toward higher rarities. */
-export function rollRarityIdx(bonus = 0) {
-  const w = RARITY_WEIGHTS.map((x, i) => (i === 0 ? Math.max(4, x - bonus * 3) : x * (1 + bonus * 0.12 * i)));
-  return weightedIndex(w);
-}
-
 function weaponName(rIdx, arch) {
   if (rIdx === 0) return `${pick(FOUNDRY)} ${CODE[arch]}-${randInt(2, 9)}`;
   if (rIdx === 3) return pick(LEGENDARY[arch]);
@@ -47,7 +40,7 @@ function weaponName(rIdx, arch) {
   return `${pick(ADJ)} ${pick(NOUN)}`;
 }
 
-const clampPower = (p) => Math.max(1, Math.min(MAX_POWER, Math.round(p)));
+const clampPower = (p) => Math.max(1, Math.min(LIGHT_CAP, Math.round(p)));
 
 const MOD_REPLACE = ['mode', 'burst', 'burstDelay', 'pellets', 'charge'];
 
@@ -149,16 +142,6 @@ export function heavyVersion(item) {
   item.reserve = HEAVY_VERSION.reserve;
   item.brick = HEAVY_VERSION.brick;
   return item;
-}
-
-/** Renames gear from older saves to the Destiny names (keeps stats and perks). */
-export function modernizeItem(it) {
-  if (it.kind === 'armor') { if (it.rarity === 'exotic' && !EXOTIC_ARMOR[it.slot].includes(it.name)) it.name = EXOTIC_ARMOR[it.slot][0]; return; }
-  if (it.rarity === 'exotic') {
-    const tpl = EXOTIC_WEAPONS.find((e) => e.arch === it.arch);
-    if (tpl) Object.assign(it, { name: tpl.name, element: tpl.element, exotic: tpl.perks[0], flavor: tpl.flavor });
-  } else if (it.rarity === 'legendary') it.name = pick(LEGENDARY[it.arch]);
-  else if (it.rarity === 'common') it.name = `${pick(FOUNDRY)} ${CODE[it.arch]}-${randInt(2, 9)}`;
 }
 
 export function dismantleValue(it) {

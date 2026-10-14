@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
 import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS, ARMOR_PERKS } from './data.js';
-import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault } from './save.js';
+import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice } from './save.js';
+import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt } from './progression.js';
+import { RELEASES, ROADMAP } from './releases.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission } from './game.js';
@@ -28,6 +30,42 @@ export function initUI() {
     sfx.ui();
     if (G.save) showOrbit(); else showClassSelect();
   });
+  // Update Log / Roadmap: clicks inside them must not start the game
+  for (const el of [$('#t-links'), $('#t-panel'), $('#t-notice')]) el.addEventListener('click', (e) => e.stopPropagation());
+  $('#t-log').addEventListener('click', () => { sfx.ui(); openTitlePanel('log'); });
+  $('#t-road').addEventListener('click', () => { sfx.ui(); openTitlePanel('roadmap'); });
+  addEventListener('keydown', (e) => { if (e.code === 'Escape' && G.state === 'title') closeTitlePanel(); });
+}
+
+function openTitlePanel(kind) {
+  const p = $('#t-panel');
+  const log = kind === 'log';
+  const body = log
+    ? RELEASES.map((r) => `
+      <article class="tp-entry" style="--ac:${r.accent}">
+        <div class="tp-glyph">${r.glyph}</div>
+        <div><div class="tp-meta">Version ${esc(r.version)}  ·  ${esc(r.date)}</div><h2>${esc(r.name)}</h2><p>${esc(r.summary)}</p>
+        <ul>${r.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>
+      </article>`).join('')
+    : ROADMAP.map((r) => `
+      <article class="tp-entry" style="--ac:${r.accent}">
+        <div class="tp-glyph">${r.glyph}</div>
+        <div><div class="tp-meta"><span class="tp-status">${esc(r.status)}</span></div><h2>${esc(r.name)}</h2><p>${esc(r.teaser)}</p>
+        <div class="tp-themes">${r.themes.map((t) => `<span>${esc(t)}</span>`).join('')}</div></div>
+      </article>`).join('');
+  p.innerHTML = `
+    <div class="tp-head"><div><div class="eyebrow">Afterlight</div><h1 class="screen-title">${log ? 'Update Log' : 'Roadmap'}</h1>
+      <p class="desc">${log ? 'Everything that has arrived so far.' : 'A glimpse of what lies ahead. Nothing here is final.'}</p></div>
+      <button class="btn" id="tp-back">Back</button></div>
+    <div class="tp-list">${body}</div>`;
+  p.classList.remove('hidden');
+  $('#title .title-wrap').classList.add('hidden');
+  $('#tp-back').addEventListener('click', () => { sfx.ui(); closeTitlePanel(); });
+}
+
+function closeTitlePanel() {
+  $('#t-panel').classList.add('hidden');
+  $('#title .title-wrap').classList.remove('hidden');
 }
 
 // ---------------------------------------------------------------------------
@@ -40,6 +78,12 @@ export function showTitle() {
   G.menu.setLocation(LOCATIONS[0]);
   G.menu.setOffset(4.4);
   $('#title .t-hint').textContent = G.save ? 'Click to continue' : 'Click to begin';
+  closeTitlePanel();
+  if (takeLegacyNotice()) {
+    const n = $('#t-notice');
+    n.textContent = 'Afterlight has been reborn. Every Guardian begins anew in First Light. Your settings carry over.';
+    n.classList.remove('hidden');
+  }
 }
 
 export function showClassSelect(fromOrbit = false) {
@@ -58,7 +102,7 @@ export function showClassSelect(fromOrbit = false) {
             <div class="cls-el">${Object.values(c.subclasses).map((sc) => `<span style="color:${sc.color}">${sc.name}</span>`).join('  ·  ')}</div>
             <div class="cls-name">${c.name}</div>
             <ul class="cls-abs">
-              ${Object.values(c.subclasses).map((sc) => `<li><b style="color:${sc.color}">${sc.name} (${ELEMENTS[sc.element].name})</b><span>${sc.tagline} Super: ${sc.abilities.super.name}.</span></li>`).join('')}
+              ${Object.values(c.subclasses).map((sc) => `<li><b style="color:${sc.color}">${sc.name} (${ELEMENTS[sc.element].name})${sc.unlockLevel ? `<em class="cls-lock">Level ${sc.unlockLevel}</em>` : ''}</b><span>${sc.tagline} Super: ${sc.abilities.super.name}.</span></li>`).join('')}
               <li><b>${c.jumpName}</b><span>Movement ability</span></li>
             </ul>
             <div class="cls-pick">Select</div>
@@ -83,7 +127,7 @@ let orbitTab = 'director', selLoc = null, selMission = null, selAct = 0;
 export function showOrbit(tab) {
   G.state = 'orbit';
   if (tab) orbitTab = tab;
-  if (orbitTab !== 'director' && orbitTab !== 'activities') orbitTab = 'character';
+  if (!['director', 'activities', 'level'].includes(orbitTab)) orbitTab = 'character';
   showOnly('orbit');
   setVolume(G.save.settings.volume);
   setMusicVolume(G.save.settings.musicVolume ?? 0.5);
@@ -100,16 +144,19 @@ function renderOrbit() {
   const s = G.save;
   const cls = activeKit(s);
   const newCount = s.inventory.filter((i) => i.isNew).length;
+  let readyRewards = 0;
+  for (let L = 1; L <= LEVEL_CAP; L++) if (rewardState(s, L) === 'ready') readyRewards++;
   $('#orbit').innerHTML = `
     <header class="topbar">
       <div class="brand">AFTERLIGHT</div>
       <nav class="tabs">
-        ${['director', 'activities', 'character'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}</button>`).join('')}
+        ${['director', 'activities', 'character', 'level'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}${t === 'level' && readyRewards ? `<span class="badge">${readyRewards}</span>` : ''}</button>`).join('')}
       </nav>
       <button class="btn install-app hidden" id="install-app" title="Install Afterlight as an app">Install App</button>
       <div class="pstats">
         <span class="cls-chip" style="--cc:${cls.color}">${cls.name}</span>
-        <span class="power">◆ ${playerPower(s)}</span>
+        <span class="lvl-chip" title="Guardian level">Lv ${playerLevel(s)}</span>
+        <span class="power" title="Light">◆ ${playerPower(s)}</span>
         <span class="glimmer" title="Glimmer">⬡ ${s.glimmer.toLocaleString()}</span>
       </div>
     </header>
@@ -127,6 +174,7 @@ function renderOrbit() {
   const main = $('#orbit-main');
   if (orbitTab === 'director') renderDirector(main);
   else if (orbitTab === 'activities') renderActivities(main);
+  else if (orbitTab === 'level') renderLevel(main);
   else renderCharScreen(main);
 }
 
@@ -173,7 +221,7 @@ function renderDirector(main) {
           }).join('')}
         </div>
         <div class="launch-row">
-          <div class="power-cmp">Your Power <b>◆ ${pp}</b>${m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
+          <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
           <button id="launch" class="btn primary" ${m && !net.isClient ? '' : 'disabled'}>${net.isClient ? 'Leader launches' : net.isHost ? 'Launch Fireteam' : 'Launch'}</button>
         </div>
       </section>
@@ -212,13 +260,13 @@ function renderActivities(main) {
         <p class="desc">${a.desc}</p>
         <div class="missions">
           <div class="mission sel"><div class="m-top"><span class="m-name">How it works</span><span class="m-power">◆ ${playerPower(s)}</span></div>
-            <div class="m-desc">Fights take place in the boss arenas of every destination, in a random order. Wave ${a.arenaEvery}, ${a.arenaEvery * 2} and ${a.arenaEvery * 3} bring that arena's boss. Each new arena sends denser waves. Enemies scale to your Power and get tougher every wave.</div>
+            <div class="m-desc">Fights take place in the boss arenas of every destination, in a random order. Wave ${a.arenaEvery}, ${a.arenaEvery * 2} and ${a.arenaEvery * 3} bring that arena's boss. Each new arena sends denser waves. Enemies scale to your Light and get tougher every wave.</div>
             <div class="m-foot"><span class="tag">Cache every ${a.chestEvery} waves</span><span class="tag">New arena every ${a.arenaEvery} waves</span>${a.waves === Infinity ? '' : '<span class="tag exo">Guaranteed exotic at the end</span>'}</div></div>
           <div class="mission"><div class="m-top"><span class="m-name">Fireteam lives</span></div>
             <div class="m-desc">Solo: 3 revives. Two players share 3 lives, three players share 5. Hold E next to a downed teammate to revive them for free; after ${18} seconds a life brings them back. If everyone goes down with no lives left, the run ends.</div></div>
         </div>
         <div class="launch-row">
-          <div class="power-cmp">Your Power <b>◆ ${playerPower(s)}</b><span class="ok">Scales to you</span></div>
+          <div class="power-cmp">Your Light <b>◆ ${playerPower(s)}</b><span class="ok">Scales to you</span></div>
           <button id="launch" class="btn primary" ${net.isClient ? 'disabled' : ''}>${net.isClient ? 'Leader launches' : net.isHost ? 'Launch Fireteam' : 'Launch'}</button>
         </div>
       </section>
@@ -320,6 +368,53 @@ function tileHTML(it, equipped = false) {
   </button>`;
 }
 
+// ---------------------------------------------------------------------------
+// Level: XP progress and the reward track
+// ---------------------------------------------------------------------------
+function renderLevel(main) {
+  const s = G.save;
+  G.menu.setMode('planet');
+  const info = levelInfo(s.progression.xp);
+  const node = (L) => {
+    const kind = rewardAt(L), state = rewardState(s, L);
+    const sub = subclassesUnlockedAt(L).find((x) => x.classId === s.classId);
+    const reached = info.level >= L;
+    let icon = '', label = '';
+    if (kind === 'exotic') { icon = '<i class="lt-engram exo"></i>'; label = 'Exotic'; }
+    else if (kind === 'legendary') { icon = '<i class="lt-engram leg"></i>'; label = 'Legendary'; }
+    else if (sub) { icon = subclassIcon(CLASSES[s.classId].subclasses[sub.subId].color); label = sub.name; }
+    const cls = ['lt-node', reached ? 'reached' : '', L === info.level ? 'current' : '', state ? `r-${state}` : '', kind || sub ? 'has' : ''].join(' ');
+    const action = state === 'ready' ? `<button class="btn primary lt-claim" data-l="${L}">Claim</button>`
+      : state === 'claimed' ? '<span class="lt-done">Claimed</span>'
+      : sub && reached ? '<span class="lt-done">Unlocked</span>' : '';
+    return `<div class="${cls}"><div class="lt-l">${L}</div><div class="lt-r">${icon}</div><div class="lt-label">${label}</div>${action}</div>`;
+  };
+  const third = Object.keys(CLASSES[s.classId].subclasses).map((id) => subclassLevel(s.classId, id)).reduce((a, b) => Math.max(a, b), 1);
+  main.innerHTML = `
+    <div class="lvl">
+      <div class="lvl-head">
+        <div><div class="eyebrow">Guardian Level</div><div class="lvl-big">${info.level}<small>/ ${LEVEL_CAP}</small></div></div>
+        <div class="lvl-xp">${info.max ? '<b>Max level</b>' : `<div class="xp-track big"><div class="xp-fill" style="width:${((info.into / info.need) * 100).toFixed(1)}%"></div></div>
+          <div class="lvl-xp-t">${info.into.toLocaleString()} / ${info.need.toLocaleString()} XP to level ${info.level + 1}</div>`}</div>
+        <p class="desc">Earn XP from every kill, mission and cache. A Legendary every three levels, Exotics at 20 and 40, and your third subclass at level ${third}. Rewards wait here until you claim them.</p>
+      </div>
+      <div class="lt-track" id="lt-track">${Array.from({ length: LEVEL_CAP }, (_, i) => node(i + 1)).join('')}</div>
+    </div>`;
+  const track = $('#lt-track', main);
+  const cur = track.querySelector('.lt-node.current');
+  if (cur) track.scrollLeft = cur.offsetLeft - track.clientWidth / 2 + cur.clientWidth / 2;
+  track.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { track.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  $$('.lt-claim', main).forEach((b) => b.addEventListener('click', () => {
+    const res = claimLevelReward(s, +b.dataset.l);
+    if (res.error) { sfx.denied(); orbitNotice(res.error); return; }
+    sfx.engram(rarityIndex(res.item.rarity));
+    orbitNotice(`Acquired ${res.item.name}  ·  ${RARITIES[rarityIndex(res.item.rarity)].name}`);
+    const left = track.scrollLeft;
+    renderOrbit();
+    $('#lt-track').scrollLeft = left;
+  }));
+}
+
 function renderCharScreen(main) {
   const s = G.save;
   const cls = activeKit(s);
@@ -337,7 +432,7 @@ function renderCharScreen(main) {
         <div class="cs-class" style="color:${cls.color}">${cls.name}</div>
         <div class="cs-sub">${cls.subclass}  ·  ${el.name}</div>
       </div>
-      <div class="cs-power"><span class="pw">◆</span>${playerPower(s)}<small>Power</small></div>
+      <div class="cs-power"><span class="pw">◆</span>${playerPower(s)}<small>Light</small></div>
       <div class="cs-col left">
         <div class="cs-slot"><div class="cs-label">Subclass</div><button class="tile subclass" id="cs-sub" style="--rc:${el.color}" aria-label="Subclass">${subclassIcon(el.color)}</button></div>
         ${WEAPON_SLOTS.map(slot).join('')}
@@ -611,7 +706,10 @@ function openSubclass() {
   const subs = CLASSES[s.classId].subclasses;
   p.innerHTML = `
     <div class="sp-head" style="--ec:${el.color}"><div><div class="eyebrow">${cls.className}  ·  ${el.name}</div><div class="sp-title">${cls.subclass}</div><div class="sp-tag">${cls.tagline}</div></div><button class="sp-x" id="sp-close" aria-label="Close">✕</button></div>
-    <div class="sp-pick">${Object.entries(subs).map(([id, sc]) => `<button class="sp-sub${id === cls.subclassId ? ' on' : ''}" data-sub="${id}" style="--ec:${sc.color}"><b>${sc.name}</b><span>${ELEMENTS[sc.element].name}</span></button>`).join('')}</div>
+    <div class="sp-pick">${Object.entries(subs).map(([id, sc]) => {
+      const open = isSubclassUnlocked(s, s.classId, id);
+      return `<button class="sp-sub${id === cls.subclassId ? ' on' : ''}${open ? '' : ' locked'}" data-sub="${id}" style="--ec:${sc.color}" ${open ? '' : 'disabled'}><b>${sc.name}</b><span>${open ? ELEMENTS[sc.element].name : `Unlocks at level ${subclassLevel(s.classId, id)}`}</span></button>`;
+    }).join('')}</div>
     <div class="abil-list">
       ${[['super', 'X'], ['grenade', 'Q'], ['melee', 'F'], ['class', 'C']].map(([k, key]) => `<div class="abil-row" style="--ec:${el.color}"><kbd>${key}</kbd><div><b>${cls.abilities[k].name}</b><span>${cls.abilities[k].desc}${cls.abilities[k].cd ? `  ·  ${cls.abilities[k].cd}s cooldown` : ''}</span></div></div>`).join('')}
       ${cls.passive ? `<div class="abil-row" style="--ec:${el.color}"><kbd>★</kbd><div><b>Subclass trait</b><span>${cls.passive}</span></div></div>` : ''}
@@ -666,6 +764,7 @@ export function enterMission() {
   hud.boss = $('#bossbar'); hud.bossName = $('#bossbar .boss-name'); hud.bossHp = $('#bossbar .boss-hp'); hud.bossSh = $('#bossbar .boss-shield');
   hud.wp = $('#waypoint'); hud.wpDist = $('#waypoint .wp-dist');
   hud.cross = $('#crosshair'); hud.vig = $('#vignette'); hud.crit = $('#crit-vignette'); hud.reload = $('#reload-hint');
+  hud.xpLvl = $('#xpbar .xp-lvl'); hud.xpFill = $('#xpbar .xp-fill');
   hud.superFill = $('#super .super-fill'); hud.superLbl = $('#super .super-label'); hud.superBox = $('#super');
   hud.ab = {};
   const ab = P.cls.abilities;
@@ -729,6 +828,10 @@ export function updateHUD(dt) {
   const frac = P.health / P.maxHealth;
   const crit = P.dead ? 1 : frac < 0.4 ? (0.4 - frac) / 0.4 : 0;
   setStyle(hud.crit, 'crit', '--k', crit.toFixed(2));
+  // level and XP
+  const li = levelInfo(G.save.progression.xp);
+  setText(hud.xpLvl, 'xpl', `Lv ${li.level}`);
+  setStyle(hud.xpFill, 'xpf', 'width', li.max ? '100%' : `${((li.into / li.need) * 100).toFixed(1)}%`);
   // abilities
   for (const k of ['grenade', 'melee', 'class']) {
     const a = hud.ab[k];
@@ -1047,7 +1150,9 @@ export function showComplete(M) {
         <div><b>${M.crits}</b><span>Precision kills</span></div>
         <div><b>${M.deaths}</b><span>Deaths</span></div>
         <div><b>⬡ ${M.rewardGlimmer ?? 0}</b><span>Glimmer</span></div>
-        <div><b>◆ ${playerPower(G.save)}</b><span>Power</span></div>
+        <div><b>+${(M.xp || 0).toLocaleString()}</b><span>XP</span></div>
+        <div><b>${playerLevel(G.save)}</b><span>Level</span></div>
+        <div><b>◆ ${playerPower(G.save)}</b><span>Light</span></div>
       </div>
       <div class="eyebrow">Rewards  ·  ${loot.length} item${loot.length === 1 ? '' : 's'}</div>
       <div class="grid rewards">${loot.map((it) => itemCard(it)).join('')}</div>
@@ -1072,7 +1177,7 @@ export function showFailed(M) {
       <div class="eyebrow">${M.loc.name}</div>
       <h1 class="screen-title red">${M.act ? `${esc(M.act.name)} Over` : 'Mission Failed'}</h1>
       <p class="desc">${M.act ? `You cleared ${cleared} wave${cleared === 1 ? '' : 's'}${M.act.id === 'endless' && cleared > 0 && cleared >= (G.save.records?.endless || 0) ? ', a new record' : ''}.` : `You ran out of ${M.coop ? 'lives' : 'revives'} in ${esc(M.def.name)}.`} Loot you picked up along the way is yours to keep.</p>
-      <div class="summary">${M.act ? `<div><b>${cleared}</b><span>Waves cleared</span></div>` : ''}<div><b>${M.kills}</b><span>Kills</span></div><div><b>${M.loot.length}</b><span>Items found</span></div><div><b>◆ ${playerPower(G.save)}</b><span>Power</span></div></div>
+      <div class="summary">${M.act ? `<div><b>${cleared}</b><span>Waves cleared</span></div>` : ''}<div><b>${M.kills}</b><span>Kills</span></div><div><b>${M.loot.length}</b><span>Items found</span></div><div><b>+${(M.xp || 0).toLocaleString()}</b><span>XP</span></div><div><b>◆ ${playerPower(G.save)}</b><span>Light</span></div></div>
       <div class="row-btns">
         <button class="btn primary" id="f-retry">Retry</button>
         <button class="btn" id="f-orbit">Return to Orbit</button>

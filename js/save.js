@@ -1,44 +1,67 @@
-import { SLOTS, LOCATIONS, RARITIES, classKit } from './data.js';
-import { starterGear, dismantleValue, armoryGear, modernizeItem, heavyVersion, makeExotic, rollArmorPerk } from './loot.js';
-import { EXOTIC_WEAPONS } from './data.js';
+import { SLOTS, LOCATIONS, RARITIES, CLASSES, classKit } from './data.js';
+import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
+import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP } from './progression.js';
+import { randInt } from './util.js';
 
-const KEY = 'afterlight_save_v1';
+const KEY = 'afterlight_save_v2';
+// First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
+// to BACKUP_KEY once, then cleared. Only its settings carry over.
+const LEGACY_KEY = 'afterlight_save_v1';
+export const BACKUP_KEY = 'afterlight_backup_v1';
+export const SAVE_VERSION = 2;
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
+const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
+
+// MIGRATIONS[n] upgrades a version n save to version n + 1, in place.
+// Add one whenever the save shape changes, and bump SAVE_VERSION.
+const MIGRATIONS = {};
+
+let store = (() => { try { return globalThis.localStorage; } catch { return null; } })();
+/** Swap the storage backend (tests use an in-memory one). */
+export function useStorage(st) { store = st; }
+
+let legacyArchived = false;
+/** True once, right after an old save was archived (the title screen tells the player). */
+export function takeLegacyNotice() { const v = legacyArchived; legacyArchived = false; return v; }
+
+function archiveLegacy() {
+  const raw = store.getItem(LEGACY_KEY);
+  if (raw == null) return;
+  if (store.getItem(BACKUP_KEY) == null) store.setItem(BACKUP_KEY, raw);
+  store.removeItem(LEGACY_KEY);
+  legacyArchived = true;
+}
+
+/** Settings from the archived pre-overhaul save, if there is one. */
+function backupSettings() {
+  try { return JSON.parse(store.getItem(BACKUP_KEY))?.settings ?? {}; } catch { return {}; }
+}
 
 export function loadSave() {
+  if (!store) { console.error('localStorage unavailable; progress will not be saved.'); return null; }
   let raw;
-  try { raw = localStorage.getItem(KEY); } catch (e) { console.error('localStorage unavailable:', e); return null; }
+  try {
+    archiveLegacy();
+    raw = store.getItem(KEY);
+  } catch (e) { console.error('localStorage unavailable:', e); return null; }
   if (!raw) return null;
   try {
     const s = JSON.parse(raw);
-    if (s && s.version === 1 && Array.isArray(s.inventory) && s.equipped && s.classId) {
-      s.settings = { sens: 1, fov: 80, volume: 0.6, ...(s.settings || {}) };
-      if (!Array.isArray(s.vault)) s.vault = [];
-      grantArmory(s);
-      if (!s.namesV3) { s.inventory.forEach(modernizeItem); s.namesV3 = true; writeSave(s); }
-      if (!s.heavyExoticsV4) { migrateHeavyExotics(s); s.heavyExoticsV4 = true; writeSave(s); }
-      const exoticsFresh = !s.exoticsV5; // regenerated from current stats, so already balanced
-      if (!s.exoticsV5) { upgradeExotics(s); s.exoticsV5 = true; writeSave(s); }
-      if (!s.balanceV6) { rebalanceWeapons(s, exoticsFresh); s.balanceV6 = true; writeSave(s); }
-      if (!s.exoticsV9) { upgradeExotics(s); s.exoticsV9 = true; writeSave(s); } // exotic signature perks, damage and handling
-      if (!s.armorV7) {
-        // Legendary armor gains a rolled perk; only one exotic armor piece may be equipped
-        for (const it of s.inventory) if (it.kind === 'armor' && it.rarity === 'legendary' && !it.perk) it.perk = rollArmorPerk();
-        const exo = ['helmet', 'arms', 'chest', 'legs'].map((sl) => getEquipped(s, sl)).filter((it) => it?.rarity === 'exotic');
-        for (const it of exo.slice(1)) unequipExotic(s, it);
-        s.armorV7 = true; writeSave(s);
-      }
-      if (!s.weaponsV10) {
-        // fusion rifles got tighter spread; only one exotic weapon may be equipped
-        for (const it of s.inventory) if (it.kind === 'weapon' && it.arch === 'fusion') it.stats.spread *= 0.026 / 0.035;
-        const exo = ['primary', 'special', 'heavy'].map((sl) => getEquipped(s, sl)).filter((it) => it?.rarity === 'exotic');
-        for (const it of exo.slice(1)) { const r = bestNonExotic(s, it); if (r) s.equipped[it.slot] = r.id; }
-        s.weaponsV10 = true; writeSave(s);
-      }
-      return s;
+    if (!s || !Number.isInteger(s.version) || !Array.isArray(s.inventory) || !s.equipped || !s.classId) {
+      console.error('Save file has an unexpected shape; ignoring it.', s);
+      return null;
     }
-    console.error('Save file has an unexpected shape; ignoring it.', s);
+    if (s.version > SAVE_VERSION) { console.error(`Save is from a newer version (${s.version}); ignoring it.`); return null; }
+    while (s.version < SAVE_VERSION) {
+      const step = MIGRATIONS[s.version];
+      if (!step) throw new Error(`No save migration from version ${s.version}`);
+      step(s);
+      s.version++;
+      writeSave(s);
+    }
+    s.settings = { ...DEFAULT_SETTINGS, ...(s.settings || {}) };
+    return s;
   } catch (e) {
     console.error('Save file is corrupt; ignoring it.', e);
   }
@@ -46,80 +69,71 @@ export function loadSave() {
 }
 
 export function writeSave(s) {
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { console.error('Failed to write save:', e); }
+  try { store.setItem(KEY, JSON.stringify(s)); } catch (e) { console.error('Failed to write save:', e); }
 }
 
 export function resetSave() {
-  try { localStorage.removeItem(KEY); } catch (e) { console.error('Failed to clear save:', e); }
+  try { store.removeItem(KEY); } catch (e) { console.error('Failed to clear save:', e); }
 }
 
 export function createSave(classId) {
   const gear = starterGear();
-  const s = { version: 1, classId, glimmer: 250, inventory: gear, vault: [], equipped: {}, cleared: {}, settings: { sens: 1, fov: 80, volume: 0.6 } };
+  const s = {
+    version: SAVE_VERSION, classId, glimmer: 250, inventory: gear, vault: [], equipped: {}, cleared: {}, subclass: {},
+    progression: { xp: 0, claimed: [] },
+    settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
+  };
   for (const it of gear) s.equipped[it.slot] = it.id;
-  grantArmory(s);
-  s.namesV3 = true;
-  s.balanceV6 = true;
-  s.armorV7 = true;
-  s.weaponsV10 = true;
+  // one common weapon of every other type, so every archetype is there to try
+  const owned = new Set(gear.filter((i) => i.kind === 'weapon').map((i) => i.arch));
+  s.inventory.push(...armoryGear(owned, 10));
   writeSave(s);
   return s;
 }
 
-/** Rebuild owned exotics with their signature perks and handling (keeps id, power, slot equip). */
-// Weapon balance pass: damage is rolled into each item when it drops, so owned
-// weapons are rescaled by how much their archetype's base damage changed.
-const BALANCE_V6 = { shotgun: 23 / 16, sniper: 360 / 260, fusion: 52 / 38, rocket: 900 / 560, glauncher: 380 / 260, mg: 32 / 26 };
-function rebalanceWeapons(s, skipExotics) {
-  for (const it of s.inventory) {
-    if (it.kind !== 'weapon' || (skipExotics && it.rarity === 'exotic')) continue;
-    let k = BALANCE_V6[it.arch] ?? 1;
-    if (it.slot === 'heavy' && it.reserve != null) k *= 1.4 / 1.7; // heavy versions of special exotics (multiplier 1.7 -> 1.4)
-    it.stats.dmg = +(it.stats.dmg * k).toFixed(1);
-  }
-}
+// ---------------------------------------------------------------------------
+// Progression
+// ---------------------------------------------------------------------------
+export const playerLevel = (s) => levelInfo(s.progression.xp).level;
 
-function upgradeExotics(s) {
-  for (let i = 0; i < s.inventory.length; i++) {
-    const it = s.inventory[i];
-    if (it.kind !== 'weapon' || it.rarity !== 'exotic') continue;
-    const fresh = makeExotic(it.name, it.power);
-    if (!fresh) continue;
-    const wasEquipped = s.equipped[it.slot] === it.id;
-    s.inventory[i] = { ...fresh, id: it.id, power: it.power, isNew: it.isNew };
-    if (wasEquipped && fresh.slot !== it.slot) {
-      const next = s.inventory.filter((x) => x.slot === it.slot && x.id !== it.id).sort((a, b) => b.power - a.power)[0];
-      if (next) s.equipped[it.slot] = next.id; else delete s.equipped[it.slot];
-    }
-  }
-}
-
-/** Legend of Acrius and Whisper of the Worm moved to the Heavy slot. */
-function migrateHeavyExotics(s) {
-  const heavyNames = new Set(EXOTIC_WEAPONS.filter((e) => e.slot === 'heavy').map((e) => e.name));
-  for (const it of s.inventory) {
-    if (it.kind !== 'weapon' || it.slot !== 'special' || !heavyNames.has(it.name)) continue;
-    const wasEquipped = s.equipped.special === it.id;
-    heavyVersion(it);
-    if (wasEquipped) {
-      const next = s.inventory.filter((i) => i.slot === 'special').sort((a, b) => b.power - a.power)[0];
-      if (next) s.equipped.special = next.id; else delete s.equipped.special;
-    }
-  }
-}
-
-/** Every save gets one of each weapon type exactly once (v2 armory). */
-function grantArmory(s) {
-  if (s.armoryV2) return;
-  const owned = new Set(s.inventory.filter((i) => i.kind === 'weapon').map((i) => i.arch));
-  const power = Math.max(10, playerPower(s));
-  s.inventory.push(...armoryGear(owned, power));
-  s.armoryV2 = true;
+/** Adds XP. Returns { from, to } when the level went up (and saves), otherwise null. */
+export function addXp(s, n) {
+  const from = playerLevel(s);
+  s.progression.xp += Math.max(0, Math.round(n));
+  const to = playerLevel(s);
+  if (to === from) return null;
   writeSave(s);
+  return { from, to };
+}
+
+export const isSubclassUnlocked = (s, classId, subId) => playerLevel(s) >= subclassLevel(classId, subId);
+
+/** 'claimed' | 'ready' | 'locked' | null (no item reward at that level). */
+export function rewardState(s, level) {
+  if (!rewardAt(level)) return null;
+  if (s.progression.claimed.includes(level)) return 'claimed';
+  return playerLevel(s) >= level ? 'ready' : 'locked';
+}
+
+/** Claims a level reward. Returns { item } or { error }. */
+export function claimLevelReward(s, level) {
+  const state = rewardState(s, level);
+  if (state === 'claimed') return { error: 'Already claimed.' };
+  if (state !== 'ready') return { error: state === 'locked' ? `Reach level ${level} first.` : 'No reward at this level.' };
+  if (s.inventory.length >= INVENTORY_CAP) return { error: `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.` };
+  const power = Math.min(LIGHT_CAP, playerPower(s) + randInt(2, 5));
+  const item = rollItem(power, rewardAt(level) === 'exotic' ? 4 : 3);
+  s.inventory.push(item);
+  s.progression.claimed.push(level);
+  writeSave(s);
+  return { item };
 }
 
 /** The player's class + chosen subclass. */
-export const activeKit = (s) => classKit(s.classId, s.subclass?.[s.classId]);
+export function activeKit(s) {
+  const sub = s.subclass?.[s.classId];
+  return classKit(s.classId, sub && CLASSES[s.classId].subclasses[sub] && isSubclassUnlocked(s, s.classId, sub) ? sub : undefined);
+}
 
 export const getItem = (s, id) => s.inventory.find((i) => i.id === id);
 export const getEquipped = (s, slot) => getItem(s, s.equipped[slot]);
@@ -147,17 +161,6 @@ export function equipItem(s, id) {
   it.isNew = false;
   writeSave(s);
   return null;
-}
-
-/** Highest-power non-exotic weapon for the same slot as `it`. */
-function bestNonExotic(s, it) {
-  return s.inventory.filter((x) => x.kind === 'weapon' && x.slot === it.slot && x.rarity !== 'exotic').sort((a, b) => b.power - a.power)[0];
-}
-
-/** Swap an equipped exotic armor piece for the best non-exotic in its slot (or leave the slot empty). */
-function unequipExotic(s, it) {
-  const best = s.inventory.filter((x) => x.kind === 'armor' && x.slot === it.slot && x.rarity !== 'exotic').sort((a, b) => b.power - a.power)[0];
-  if (best) s.equipped[it.slot] = best.id; else delete s.equipped[it.slot];
 }
 
 /** Moves an unequipped item into the vault. Returns null on success, or why it couldn't. */
