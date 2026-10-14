@@ -31,4 +31,4 @@
 | 2026-10-14 | Interpretation to confirm in the U7 proposal: "8 fragments and 4 aspects" means 4 aspects per subclass and 8 fragments per element. | Claude (V4 triage) |
 | 2026-10-14 | Every update session ends with a co-op connection check; a full co-op QA only when Bryce asks. | Bryce (V4) |
 | 2026-10-14 | At the start of a session, ask whether several updates are being applied. If so, title-screen artwork is made only for the last one, and handoff prompts are written to chain the updates. | Bryce (V4) |
-
+| 2026-10-14 | Mobile work (U20) applies only on phones. The desktop HUD, menus, AI and hitboxes stay as they are. | Bryce |

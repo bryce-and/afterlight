@@ -120,5 +120,5 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V28 | More class jumps, including Blink | U7 | Planned |
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U16 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
-| V31 | Mobile: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes) | U20 (optional) | Planned |
+| V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U20 (optional) | Planned |
 | V32 | Subclass traits for the 6 subclasses without one | H2 | Planned |

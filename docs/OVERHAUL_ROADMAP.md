@@ -26,7 +26,7 @@ Every update needs Bryce's explicit approval before work starts.
 | U17 | | The Emperor's Shadow *(working)* | Leviathan dungeon, Calus | U9, U11, U14 | Planned |
 | U18 | | *(optional)* Roguelike Horde | Boons, run inventory | U2, U4 | Planned |
 | U19 | | *(optional)* Crucible | PvP maps, Control, Duel, AI Guardians | U9, U3 | Planned |
-| U20 | | *(optional)* Mobile | Touch controls; HUD and menus for mobile; "Mobile mode" with calmer AI strafing and bigger enemy hitboxes | U2 | Planned |
+| U20 | | *(optional)* Mobile | Phones only: touch controls; HUD and menus for mobile; "Mobile mode" with calmer AI strafing and bigger enemy hitboxes. Desktop HUD, menus, AI and hitboxes stay exactly as they are | U2 | Planned |
 
 V4 (2026-10-14) superseded V3's armor perks with mods (U5), split armor into Armor 2.0 and Style, and added Light Ascendant, Resonance, New Factions and Mobile. Later updates were renumbered.
 
