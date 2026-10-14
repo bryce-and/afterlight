@@ -8,27 +8,37 @@ Every update needs Bryce's explicit approval before work starts.
 | U1 | v1.1 | **First Light** | Save v2 + full reset with backup; levels 1 to 40; reward track; rarity by level; starter subclasses + level 10 unlock; Light cap 200; title Update Log + Roadmap; test page | none | Released |
 | U2 | v1.2 | **Clear Sight** | Status-effect registry; buff HUD with timers; yellow super bar; enemy health bars and names; side-floating damage numbers; ADS spread; stagger; balance pass (weapon tier scaling, super gain, Song of Flame, Stormtrance 4, Storm Grenade, Nighthawk) | U1 | Released |
 | U3 | v1.3 | **Paths of Light** | Ability registry; elemental grenades shared per element; class ability choice; class-unique aspects; fragments; reward-track gating for the level 10 subclasses' last aspect and two new fragments; D2-style subclass screen; enemy debuffs (plus jolt) on the status registry; super camera/aim check; Hunter Triple Jump; Dawnblade shown as Sunsinger; save v3 | U2 | Released |
+| H1 | v1.3.1 | Hotfix | Co-op health-check bugs (zone/wave clears early with enemies alive; members don't see host debuffs, stagger, boss banner). V4 bugs and tuning: Ionic Trace super regen (investigate; tune super-related armor perks), Celestial Nighthawk nerf (Nova Bomb / Golden Gun), far fewer drops and 2 to 3 items per cache, top-right feed shows item drops only, thrown hammer clipping into the ground, Rally Barricade wider and passable by players (not enemies), bigger enemy and player health bars tied to HUD scale (up to 200%). Co-op: auto-revive downed players when an activity ends, downed bodies fall to the ground, Arc Soul tracking | U3 | Next (ready to propose) |
+| H2 | v1.3.2 | Hotfix | Traits for the 6 subclasses missing one; thrown hammer glows and explodes after 7s if not picked up; Hammer of Sol leaves Sunspots (enemies inside burn); Healing Grenade places a white orb (heal + Restoration on touch); new downed screen (skull, "You Died", "Reviving in X"); co-op downed Ghost glowing over the body with "REVIVE"; topbar "AFTERLIGHT" returns to title; title shows the current update name, version and its artwork | H1 | Planned |
 | U4 | | Arsenal | Diagonal weapon icons with element symbols; archetype pass; Stasis/Strand weapon elements; particle seekers | U2 | Planned |
-| U5 | | Armor and Style | Visible armor; destination sets; perk counts by rarity; 3-piece set bonus; shaders; armor icons; mods; armor stats that affect ability cooldowns (Destiny-style Discipline / Strength / Intellect) | U1, U3 | Planned |
-| U6 | | Hostile Intent | Enemy navigation with verticality; faction behaviors; shields and grenades; boss push/hold | U2 | Planned |
-| U7 | | The Ghost's Story | Objective system; Ghost dialogue; Calus story; planet Director with gating; lighting, collision, verticality | U6, U1 | Planned |
-| U8 | | The Last City *(working)* | Tower social space, Postmaster, hangout, shooting range | U7 | Planned |
-| U9 | | Open Frontier | Patrol space, beacons, public events with heroics, sparrow | U6, U7 | Planned |
-| U10 | | Legend and Ultimate | Legendary/Ultimate campaign, Light 300/350, multi-exotic switch, activity and fireteam Light scaling | U7 | Planned |
-| U11 | | Exotic Missions | Timed exotic mission framework, first at level 30 | U7, U4 | Planned |
-| U12 | | Darkness | Stasis and Strand subclasses, Darkness enemy abilities | U3, U6 | Planned |
-| U13 | | The Emperor's Shadow *(working)* | Leviathan dungeon, Calus | U6, U7, U10 | Planned |
-| U14 | | *(optional)* Roguelike Horde | Boons, run inventory | U2, U4 | Planned |
-| U15 | | *(optional)* Crucible | PvP maps, Control, Duel, AI Guardians | U6, U3 | Planned |
+| U5 | | Armor 2.0 | Perks replaced by mods: 4 sockets per piece, 10 energy, slot 1 stat mods only, a mod set per armor slot (existing perks become mods, Destiny 2 style, no raid mods). Six stats (Destiny's newer names) including ones that drive ability cooldowns. Mods screen: an arrow on the character screen's right edge slides to your character and 4 armor pieces with sockets, energy and hover-to-pick | U3 | Planned |
+| U6 | | Style | Visible armor on the character; destination armor sets; 3-piece set bonus; shaders; armor icons | U5 | Planned |
+| U7 | | Light Ascendant | Every Light subclass to 4 aspects and 8 fragments per element; missing Destiny 2 Light supers (selectable); more class jumps including Blink | U3 | Planned |
+| U8 | | Resonance | Audio overhaul: ambient, tense and orchestral music in place of lo-fi; weightier gun and ability SFX; restrained enemy sounds (Destiny 2 as reference) | none | Planned |
+| U9 | | Hostile Intent | Enemy navigation with verticality; faction behaviors; every non-melee unit melees at very close range, with an animation; suicide units (Cursed Thrall, Explosive Shanks); temporary shields and grenades; boss push/hold; 3-player difficulty retune | U2 | Planned |
+| U10 | | New Factions | Taken and Scorn as real factions: unique models, units, abilities and behaviors | U9 | Planned |
+| U11 | | The Ghost's Story | Objective system; Ghost dialogue; Calus story; planet Director with gating; lighting, collision, verticality | U9, U1 | Planned |
+| U12 | | The Last City *(working)* | Tower social space, Postmaster, hangout, shooting range | U11 | Planned |
+| U13 | | Open Frontier | Patrol space, beacons, public events with heroics, sparrow | U9, U11 | Planned |
+| U14 | | Legend and Ultimate | Legendary/Ultimate campaign, Light 300/350, multi-exotic switch, activity and fireteam Light scaling | U11 | Planned |
+| U15 | | Exotic Missions | Timed exotic mission framework, first at level 30 | U11, U4 | Planned |
+| U16 | | Darkness | Stasis and Strand subclasses for every class, each with two supers (its Destiny 2 super plus a new original one: a burst super if the D2 one roams, a roaming super if it's burst); Darkness enemy abilities | U7, U9 | Planned |
+| U17 | | The Emperor's Shadow *(working)* | Leviathan dungeon, Calus | U9, U11, U14 | Planned |
+| U18 | | *(optional)* Roguelike Horde | Boons, run inventory | U2, U4 | Planned |
+| U19 | | *(optional)* Crucible | PvP maps, Control, Duel, AI Guardians | U9, U3 | Planned |
+| U20 | | *(optional)* Mobile | Touch controls; HUD and menus for mobile; "Mobile mode" with calmer AI strafing and bigger enemy hitboxes | U2 | Planned |
+
+V4 (2026-10-14) superseded V3's armor perks with mods (U5), split armor into Armor 2.0 and Style, and added Light Ascendant, Resonance, New Factions and Mobile. Later updates were renumbered.
 
 ## Release checklist
 
 1. Work on `update/<n>-<slug>`. Keep the diff to the approved scope.
 2. Run `tools/tests.html` in the preview browser: all tests pass.
-3. Play-check in the preview browser: no console errors; a mission start to finish (`tools/leveltest.js` plus opening the cache); every touched screen.
-4. Save check: a pre-update save loads correctly (or, for a reset, is backed up), and a new save starts correctly.
-5. **Title screen:** open the Update Log (the new entry is on top, with version, name, date and notes) and the Roadmap (the shipped update is removed, the remaining teasers are accurate and undated). Back and Esc return to the title. Check at 1280×720 and at phone width.
-6. Update `OVERHAUL_STATUS.md`, this table, `DECISIONS.md` and the README.
-7. Run `python3 tools/stamp_version.py`, then review the full diff.
-8. Merge to `main`, push, tag `vX.Y`, and create a GitHub release named after the update.
-9. Verify that `origin/main` has the commit and that the GitHub Pages site serves the new version (check the import map tag in the live `index.html`).
+3. Co-op connection check: two `?localtest` tabs connect, launch together and see each other (a full co-op QA run only when Bryce asks).
+4. Play-check in the preview browser: no console errors; a mission start to finish (`tools/leveltest.js` plus opening the cache); every touched screen.
+5. Save check: a pre-update save loads correctly (or, for a reset, is backed up), and a new save starts correctly.
+6. **Title screen:** open the Update Log (the new entry is on top, with version, name, date and notes) and the Roadmap (the shipped update is removed, the remaining teasers are accurate and undated). Back and Esc return to the title. Check at 1280×720 and at phone width.
+7. Update `OVERHAUL_STATUS.md`, this table, `DECISIONS.md` and the README.
+8. Run `python3 tools/stamp_version.py`, then review the full diff.
+9. Merge to `main`, push, tag `vX.Y`, and create a GitHub release named after the update.
+10. Verify that `origin/main` has the commit and that the GitHub Pages site serves the new version (check the import map tag in the live `index.html`).

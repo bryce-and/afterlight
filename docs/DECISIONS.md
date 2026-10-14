@@ -26,3 +26,9 @@
 | 2026-10-13 | Default loadouts reproduce v1.2 except where an ability became an aspect: Sunsinger's C on the ground is now Healing Rift and Phoenix Dive is an aspect on its own 16 s timer in the air; Gambler's Dodge recharges the melee but no longer reloads (Marksman's Dodge reloads). Sentinel's overshield moved from the Suppressor Grenade to the Sentinel trait (any grenade or class ability). | Claude (U3) |
 | 2026-10-13 | Aspect and fragment recharge boosts multiply but are capped at 2x per ability (`REGEN_CAP`); Song of Flame and exotic armor sit outside the cap as before. | Claude (U3) |
 | 2026-10-13 | Debuffs all go through `dealDamage` (so fireteam hits carry them). Burn and poison ticks still come from the attacker; the debuff marks the enemy. Jolt: 45 arc damage to the target and up to 3 enemies within 8 m, once per enemy every 0.6 s. | Claude (U3) |
+| 2026-10-14 | V4 spec added alongside V3. Armor perks are replaced by mods (V3's "Legendary 2 perks" is superseded). Armor split into U5 Armor 2.0 and U6 Style; new updates Light Ascendant, Resonance, New Factions, Mobile (optional); later updates renumbered. | Bryce (V4) |
+| 2026-10-14 | V4 quick fixes ship early as hotfixes H1 (v1.3.1: bugs and tuning, with the pending co-op fixes) and H2 (v1.3.2: small features and polish). | Claude (V4 triage) |
+| 2026-10-14 | Interpretation to confirm in the U7 proposal: "8 fragments and 4 aspects" means 4 aspects per subclass and 8 fragments per element. | Claude (V4 triage) |
+| 2026-10-14 | Every update session ends with a co-op connection check; a full co-op QA only when Bryce asks. | Bryce (V4) |
+| 2026-10-14 | At the start of a session, ask whether several updates are being applied. If so, title-screen artwork is made only for the last one, and handoff prompts are written to chain the updates. | Bryce (V4) |
+

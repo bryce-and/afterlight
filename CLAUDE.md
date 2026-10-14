@@ -1,13 +1,14 @@
 # Afterlight: working rules
 
 Low-poly Destiny-inspired browser FPS. Three.js 0.160, plain ES modules, no build step. Run: `python3 -m http.server 8123` (launch config `afterlight`).
-Overhaul spec: "Afterlight Update V3". The plan, status and decisions live in `docs/`. Read those instead of re-auditing the code.
+Overhaul specs: "Afterlight Update V3" and "V4". The plan, status and decisions live in `docs/`. Read those instead of re-auditing the code.
 
 ## Process (every update)
+0. **At session start, ask Bryce whether he's applying several updates this session.** If yes, chain them: make title-screen artwork only for the last one, and write any handoff prompt for the whole chain.
 1. **Propose before building.** Give a Gate B proposal: objective, scope, exclusions, dependencies, risks, test plan, acceptance criteria. Then stop until Bryce explicitly approves *that* update. Approving the roadmap or an earlier update is not approval.
 2. **Build only the approved scope** on `update/<n>-<slug>`. Pause and ask before any major replacement, destructive save change, or scope change.
 3. **Verify for real:** `tools/tests.html` passes, the game runs in the preview browser with no console errors, touched screens and a mission are checked. Never call something tested, done or published without evidence; say plainly what wasn't checked.
-4. **Release:** follow the release checklist in `docs/OVERHAUL_ROADMAP.md`. That includes updating the in-game Update Log and Roadmap (`js/releases.js`), the docs, `tools/stamp_version.py`, merging to `main` (pushing to main is the release, live on GitHub Pages), tagging `vX.Y` and creating a GitHub release. Verify the push and the Pages build.
+4. **Release:** follow the release checklist in `docs/OVERHAUL_ROADMAP.md`. That includes updating the in-game Update Log and Roadmap (`js/releases.js`), the docs, `tools/stamp_version.py`, merging to `main` (pushing to main is the release, live on GitHub Pages), tagging `vX.Y` and creating a GitHub release. Verify the push and the Pages build. Before ending the session, check that co-op still connects (two `?localtest` tabs join and launch together). Run a full co-op QA only when Bryce asks; otherwise he reports co-op bugs himself.
 5. **Report and stop:** end every update with the short report below, then wait for approval.
 
 ## End-of-update report (always include, keep it this short)
@@ -28,4 +29,6 @@ Use 4 to 7 bullets, one line each, plain language. Only claim what was verified.
 - Prefer data-driven, reusable systems: new weapons, enemies, abilities and missions should plug into shared systems.
 - Never force-push, overwrite Bryce's uncommitted work, or expose secrets.
 - The in-game Roadmap is curated and undated; never copy the internal plan into it.
+- The title screen shows the current update's name, "Version X.Y" and its own artwork; refresh them on every release.
+- Specs: "Afterlight Update V3" plus "V4" (2026-10-14). Where they conflict, V4 wins (for example, armor mods replace armor perks).
 - Keep Destiny names. Versions: v1.0 baseline, +0.1 per update.
