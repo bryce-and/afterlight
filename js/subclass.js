@@ -9,7 +9,7 @@ import { CLASSES, classKit } from './data.js';
 export const GRENADES = {
   solar: { name: 'Solar Grenade', element: 'solar', kind: 'pulse', cd: 22, desc: 'Lands and pulses solar fire six times.' },
   swarm: { name: 'Swarm Grenade', element: 'solar', kind: 'swarm', cd: 20, desc: 'Detonates and sends seekers into up to 4 nearby enemies.' },
-  healing: { name: 'Healing Grenade', element: 'solar', kind: 'healing', cd: 22, desc: 'Bursts in solar fire. Every Guardian caught in it is healed and gains Restoration.' },
+  healing: { name: 'Healing Grenade', element: 'solar', kind: 'healing', cd: 22, desc: 'Bursts in white light and leaves a healing orb for 10s. Every Guardian who touches it is healed and gains Restoration.' },
   pulse: { name: 'Pulse Grenade', element: 'arc', kind: 'pulse', cd: 20, desc: 'Lands and pulses arc damage six times.' },
   storm: { name: 'Storm Grenade', element: 'arc', kind: 'storm', cd: 22, desc: 'Summons a storm cloud that strikes every enemy below with lightning.' },
   flux: { name: 'Flux Grenade', element: 'arc', kind: 'flux', cd: 20, desc: 'Sticks to the first enemy it hits and detonates, jolting lightning into two more.' },
@@ -63,12 +63,29 @@ export const ASPECTS = {
   electrostatic: { cls: 'arcanist', sub: 'stormcaller', name: 'Electrostatic Mind', slots: 1, desc: 'Arc ability kills release an Ionic Trace that returns to you and recharges every ability by 8% (at most one trace every half second; not from jolt chains).' },
   arcsoul: { cls: 'arcanist', sub: 'stormcaller', name: 'Arc Soul', slots: 1, desc: 'Your rift summons an Arc Soul for 10s that fires lightning at nearby enemies.' },
   surge: { cls: 'arcanist', sub: 'stormcaller', name: 'Lightning Surge', slots: 2, unlockLevel: 19, desc: 'Powered melee while sprinting surges you forward and calls lightning down along your path.' },
-  touchflame: { cls: 'arcanist', sub: 'dawnblade', name: 'Touch of Flame', slots: 1, desc: 'Solar grenades are upgraded: Solar Grenade pulses 8 times and scorches, Swarm fires 6 seekers, Healing reaches farther and heals more.' },
+  touchflame: { cls: 'arcanist', sub: 'dawnblade', name: 'Touch of Flame', slots: 1, desc: 'Solar grenades are upgraded: Solar Grenade pulses 8 times and scorches, Swarm fires 6 seekers, Healing leaves a stronger orb.' },
   heatrises: { cls: 'arcanist', sub: 'dawnblade', name: 'Heat Rises', slots: 2, desc: 'While airborne your grenade and melee recharge 50% faster, and kills in the air grant Restoration.' },
   phoenix: { cls: 'arcanist', sub: 'dawnblade', name: 'Phoenix Dive', slots: 1, desc: 'In the air, C dives to the ground in a solar burst on its own 16s timer. Always heals you and grants Restoration.' },
 };
 
 export const PHOENIX_DIVE_CD = 16;
+
+// Subclass traits (Arsenal): the six subclasses that had none. Sentinel, Arcstrider and Sunsinger keep theirs.
+export const TRAITS = {
+  sunbreaker: { burnTick: 18, burnTicks: 3 }, // Solar grenade and melee hits set enemies burning
+  striker: { amplified: 6, speed: 1.1, reload: 1.25 }, // Arc ability kills: Amplified
+  gunslinger: { melee: 0.15 }, // weapon precision kills give melee energy
+  nightstalker: { weaken: 4 }, // grenade and melee hits weaken
+  voidwalker: { radius: 3, dmg: 80 }, // Void ability kills detonate the target
+  stormcaller: { jolt: 4 }, // melee and grenade hits jolt
+};
+
+// Sunspots (Sol Invictus and Hammer of Sol): enemies inside burn; the caster's copy deals the damage.
+export const SUNSPOT = { r: 2.7, life: 6, tick: 0.5, dmg: 22 };
+// Healing Grenade orb: lasts `life` seconds; every Guardian can pick it up once (on their own screen).
+export const HEAL_ORB = { life: 10, r: 1.4, heal: 40, healBig: 70, restore: 6, restoreBig: 9 };
+// Throwing Hammer left on the ground glows brighter, then explodes after `fuse` seconds.
+export const HAMMER_FUSE = { fuse: 7, r: 4, dmg: 220 };
 
 export const FRAGMENTS = {
   // Solar: Embers

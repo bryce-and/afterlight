@@ -8,13 +8,14 @@ import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem,
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt } from './progression.js';
 import { RELEASES, ROADMAP } from './releases.js';
 import { dismantleValue } from './loot.js';
-import { weaponIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES } from './icons.js';
+import { weaponIcon, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES } from './icons.js';
+import { frameDef, weaponHandling } from './frames.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets } from './game.js';
 import { dmgDrift, HUD_SCALE } from './combat.js';
 import { initAudio, setVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
-import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, MAX_FIRETEAM } from './net.js';
+import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
 import { profile, launchFireteam, launchActivity } from './coop.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -29,6 +30,13 @@ function showOnly(...ids) {
 
 export function initUI() {
   net.onLobby = () => { if (G.state === 'orbit') renderOrbit(); };
+  // Ready Up: the last member to ready launches the leader's pick for the whole fireteam
+  net.onAllReady = (sel) => {
+    if (G.state !== 'orbit') return;
+    initAudio();
+    if (sel.li === -1) launchActivity(ACTIVITIES[sel.mi].id); else launchFireteam(sel.li, sel.mi);
+    lockPointer(); // works when the leader's own click was the last ready; otherwise the next click captures the mouse
+  };
   $('#title').addEventListener('click', () => {
     initAudio();
     sfx.ui();
@@ -82,6 +90,9 @@ export function showTitle() {
   G.menu.setLocation(LOCATIONS[0]);
   G.menu.setOffset(4.4);
   $('#title .t-hint').textContent = G.save ? 'Click to continue' : 'Click to begin';
+  // the current update: its artwork, name and version
+  const cur = RELEASES[0];
+  $('#t-update').innerHTML = `<div class="tu-art">${cur.art || ''}</div><div class="tu-info"><span>Version ${esc(cur.version)}</span><b style="color:${cur.accent}">${esc(cur.name)}</b></div>`;
   closeTitlePanel();
   if (takeLegacyNotice()) {
     const n = $('#t-notice');
@@ -152,7 +163,7 @@ function renderOrbit() {
   for (let L = 1; L <= LEVEL_CAP; L++) if (rewardState(s, L) === 'ready') readyRewards++;
   $('#orbit').innerHTML = `
     <header class="topbar">
-      <div class="brand">AFTERLIGHT</div>
+      <button class="brand" id="brand" title="Back to the title screen">AFTERLIGHT</button>
       <nav class="tabs">
         ${['director', 'activities', 'character', 'level'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}${t === 'level' && readyRewards ? `<span class="badge">${readyRewards}</span>` : ''}</button>`).join('')}
       </nav>
@@ -166,6 +177,12 @@ function renderOrbit() {
     </header>
     <main id="orbit-main" class="tab-${orbitTab}"></main>`;
   $$('.tab').forEach((b) => b.addEventListener('click', () => { sfx.ui(); orbitTab = b.dataset.tab; renderOrbit(); }));
+  $('#brand').addEventListener('click', () => {
+    if (net.active && !confirm('Return to the title screen? You will leave your fireteam.')) return;
+    sfx.ui();
+    if (net.active) leaveFireteam();
+    showTitle();
+  });
   $('#install-app').addEventListener('click', async () => {
     const p = G.installPrompt;
     if (!p) return;
@@ -196,6 +213,8 @@ function renderDirector(main) {
   const pp = playerPower(s);
   const m = missions[selMission];
   const diff = m ? pp - m.power : 0;
+  // the leader's pick (set before drawing, so the Ready Up bar shows it)
+  if (net.isHost && m && (net.sel?.li !== selLoc || net.sel?.mi !== selMission)) setSelection(selLoc, selMission);
   main.innerHTML = `
     <div class="director">
       <aside class="loc-list">
@@ -226,7 +245,7 @@ function renderDirector(main) {
         </div>
         <div class="launch-row">
           <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
-          <button id="launch" class="btn primary" ${m && !net.isClient ? '' : 'disabled'}>${net.isClient ? 'Leader launches' : net.isHost ? 'Launch Fireteam' : 'Launch'}</button>
+          ${net.active ? readyBarHTML() : `<button id="launch" class="btn primary" ${m ? '' : 'disabled'}>Launch</button>`}
         </div>
       </section>
     </div>`;
@@ -235,10 +254,8 @@ function renderDirector(main) {
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
     lockPointer();
-    if (net.isHost) launchFireteam(selLoc, selMission);
-    else startMission(selLoc, selMission);
+    startMission(selLoc, selMission);
   });
-  if (net.isHost && m && (net.sel?.li !== selLoc || net.sel?.mi !== selMission)) setSelection(selLoc, selMission);
   wireFireteam(main);
 }
 
@@ -249,6 +266,7 @@ function renderActivities(main) {
   G.menu.setOffset(4.4);
   const a = ACTIVITIES[selAct];
   const best = s.records?.endless || 0;
+  if (net.isHost && (net.sel?.li !== -1 || net.sel?.mi !== selAct)) setSelection(-1, selAct);
   main.innerHTML = `
     <div class="director">
       <aside class="loc-list">
@@ -271,7 +289,7 @@ function renderActivities(main) {
         </div>
         <div class="launch-row">
           <div class="power-cmp">Your Light <b>◆ ${playerPower(s)}</b><span class="ok">Scales to you</span></div>
-          <button id="launch" class="btn primary" ${net.isClient ? 'disabled' : ''}>${net.isClient ? 'Leader launches' : net.isHost ? 'Launch Fireteam' : 'Launch'}</button>
+          ${net.active ? readyBarHTML() : '<button id="launch" class="btn primary">Launch</button>'}
         </div>
       </section>
     </div>`;
@@ -279,11 +297,21 @@ function renderActivities(main) {
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
     lockPointer();
-    if (net.isHost) launchActivity(a.id);
-    else startActivity(a.id, newSeed());
+    startActivity(a.id, newSeed());
   });
-  if (net.isHost && (net.sel?.li !== -1 || net.sel?.mi !== selAct)) setSelection(-1, selAct);
   wireFireteam(main);
+}
+
+/** Fireteam launch: one segment per Guardian; when the last one readies up, the leader's pick launches. */
+function readyBarHTML() {
+  const st = readyState(net.members, net.ready, net.sel);
+  const me = net.ready.includes(net.myId);
+  const pick = !net.sel ? null : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
+  return `<div class="ready-bar">
+    <div class="rb-head"><span>${pick ? `Ready Up  ·  ${esc(pick.name)}` : 'Waiting for the leader to pick'}</span><b>${st.count}/${st.total}</b></div>
+    <div class="rb-segs">${net.members.map((mm) => `<span class="rb-seg${net.ready.includes(mm.id) ? ' on' : ''}" style="--nc:${CLASSES[mm.cls]?.color || '#fff'}"><b>${esc(mm.name)}</b><i>${net.ready.includes(mm.id) ? 'Ready' : 'Not ready'}</i></span>`).join('')}</div>
+    <button id="ready" class="btn ${me ? '' : 'primary'}" ${net.sel ? '' : 'disabled'}>${me ? 'Cancel' : 'Ready Up'}</button>
+  </div>`;
 }
 
 function fireteamHTML() {
@@ -303,12 +331,13 @@ function fireteamHTML() {
     <div class="eyebrow">Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}</div>
     <button class="ft-code" id="ft-copy" title="Copy the code">${net.code}<span>Copy</span></button>
     <div class="ft-members">${net.members.map((mm) => `<div class="ft-m"><span class="ft-dot" style="background:${CLASSES[mm.cls]?.color || '#fff'}"></span><b>${esc(mm.name)}</b><span>${CLASSES[mm.cls]?.name || ''}  ◆${mm.power}</span>${mm.leader ? '<i>Leader</i>' : ''}</div>`).join('')}</div>
-    ${net.isClient ? `<div class="ft-status">${sel ? `Leader picked: ${esc(sel.name)}` : 'Waiting for the leader to pick a mission'}</div>` : '<div class="ft-status">You lead. Pick a mission and launch.</div>'}
+    ${net.isClient ? `<div class="ft-status">${sel ? `Leader picked: ${esc(sel.name)}` : 'Waiting for the leader to pick a mission'}</div>` : '<div class="ft-status">You lead. Pick a mission; it launches when everyone is ready.</div>'}
     <button class="btn ghost" id="ft-leave">Leave Fireteam</button>
   </div>`;
 }
 
 function wireFireteam(main) {
+  $('#ready', main)?.addEventListener('click', () => { initAudio(); sfx.ui(); setReady(!net.ready.includes(net.myId)); });
   const nameIn = $('#ft-name', main);
   nameIn?.addEventListener('change', () => { G.save.settings.name = nameIn.value.trim().slice(0, 16) || profile().name; writeSave(G.save); });
   const errText = (e) => (e && e.message) || String(e);
@@ -342,7 +371,7 @@ function itemCard(it, { equipped = false, selected = false, compact = false } = 
   const rar = RARITIES[rarityIndex(it.rarity)];
   const el = it.kind === 'weapon' ? ELEMENTS[it.element] : null;
   return `<div class="item r-${it.rarity} ${selected ? 'sel' : ''} ${compact ? 'compact' : ''}" data-id="${it.id}" style="--rc:${rar.color}">
-    <div class="it-top">${el ? `<span class="el" style="background:${el.color}" title="${el.name}"></span>` : ''}<span class="it-name">${esc(it.name)}</span></div>
+    <div class="it-top">${el ? elementIcon(it.element) : ''}<span class="it-name">${esc(it.name)}</span></div>
     <div class="it-sub">${rar.name} ${typeLine(it)}</div>
     <div class="it-power">◆ ${it.power}${it.kind === 'weapon' ? `<span class="ammo-ico" style="--ac:${AMMO[it.slot].color}" title="${AMMO[it.slot].name} ammo"></span>` : ''}</div>
     ${it.isNew ? '<span class="new-dot">New</span>' : ''}${equipped ? '<span class="eq">Equipped</span>' : ''}
@@ -367,7 +396,7 @@ function tileHTML(it, equipped = false) {
   const art = weapon ? `<img src="${weaponIcon(it)}" alt="" draggable="false">` : armorIcon(it.slot);
   return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
     ${art}
-    ${weapon ? `<span class="t-el el" style="background:${ELEMENTS[it.element].color}"></span><span class="t-ammo ammo-ico" style="--ac:${AMMO[it.slot].color}"></span>` : ''}
+    ${weapon ? `${elementIcon(it.element, 'el-ico t-el')}<span class="t-ammo ammo-ico" style="--ac:${AMMO[it.slot].color}"></span>` : ''}
     <span class="t-power">${it.power}</span>${it.isNew ? '<i class="t-new"></i>' : ''}
   </button>`;
 }
@@ -602,17 +631,19 @@ function tipHTML(it, side) {
   };
   let body = '';
   if (it.kind === 'weapon') {
-    const A = ARCHETYPES[it.arch], st = it.stats, el = ELEMENTS[it.element], am = AMMO[it.slot];
+    const A = weaponHandling(it), st = it.stats, el = ELEMENTS[it.element], am = AMMO[it.slot], fr = frameDef(it);
     const cs = cmp && cmp.arch === it.arch ? cmp.stats : null;
     const row = (label, v, max, txt, cv, inv) => `<div class="tt-stat"><span>${label}</span><i><em style="width:${clamp((v / max) * 100, 3, 100)}%"></em></i><b>${txt}${cs ? delta(v, cv, inv) : ''}</b></div>`;
-    body += `<div class="tt-top"><div class="tt-pow">${it.power}${cmp ? delta(it.power, cmp.power) : ''}</div><div class="tt-tags"><span style="color:${el.color}">◆ ${el.name}</span><span class="ammo-chip" style="--ac:${am.color}"><span class="ammo-ico"></span>${am.name}</span></div></div>`;
+    body += `<div class="tt-top"><div class="tt-pow">${it.power}${cmp ? delta(it.power, cmp.power) : ''}</div><div class="tt-tags"><span class="tt-el" style="color:${el.color}">${elementIcon(it.element)}${el.name}</span><span class="ammo-chip" style="--ac:${am.color}"><span class="ammo-ico"></span>${am.name}</span></div></div>`;
     body += '<div class="tt-stats">';
-    body += row('Impact', st.dmg * (A.pellets || 1), A.dmg * (A.pellets || 1) * 1.6, Math.round(st.dmg) + (A.pellets ? `×${A.pellets}` : ''), cs && cs.dmg * (A.pellets || 1));
-    body += row('Rate of Fire', st.rpm, A.rpm * 1.6, `${st.rpm}`, cs && cs.rpm);
-    body += row('Magazine', st.mag, A.mag * 1.6, st.mag, cs && cs.mag);
-    body += row('Reload', 1 / st.reload, (1 / A.reload) * 1.6, `${st.reload.toFixed(1)}s`, cs && 1 / cs.reload);
-    body += row('Range', st.range, A.range * 1.6, `${st.range}m`, cs && cs.range);
+    const B = ARCHETYPES[it.arch], bp = B.pellets || 1, pel = A.pellets || 1; // bars scale to the family, not the archetype
+    body += row('Impact', st.dmg * pel, B.dmg * bp * 1.6, Math.round(st.dmg) + (pel > 1 ? `×${pel}` : ''), cs && cs.dmg * (weaponHandling(cmp).pellets || 1));
+    body += row('Rate of Fire', st.rpm, B.rpm * 1.6, `${st.rpm}`, cs && cs.rpm);
+    body += row('Magazine', st.mag, B.mag * 1.6, st.mag, cs && cs.mag);
+    body += row('Reload', 1 / st.reload, (1 / B.reload) * 1.6, `${st.reload.toFixed(1)}s`, cs && 1 / cs.reload);
+    body += row('Range', st.range, B.range * 1.6, `${st.range}m`, cs && cs.range);
     body += '</div>';
+    if (fr) body += `<div class="tt-frame"><span>Archetype</span><b>${fr.name}</b><em>${fr.desc}</em></div>`;
     const perks = [];
     for (const xp of it.exoticPerks || (it.exotic ? [it.exotic] : [])) {
       const d = EXOTIC_PERKS[xp] || PERKS[xp];
@@ -925,8 +956,8 @@ export function renderWeaponRows() {
     const rar = RARITIES[rarityIndex(w.item.rarity)];
     const ammo = AMMO[w.item.slot];
     return `<div class="wrow" data-i="${i}" style="--rc:${rar.color};--ec:${ELEMENTS[w.item.element].color};--ac:${ammo.color}">
-      <div class="w-key">${i + 1}</div>
-      <div class="w-info"><div class="w-name"><span class="el" title="${ELEMENTS[w.item.element].name}"></span>${esc(w.item.name)}</div><div class="w-type">${ARCHETYPES[w.item.arch].name}</div></div>
+      <div class="w-key">${i + 1}</div><img class="w-ico" src="${weaponIcon(w.item)}" alt="">
+      <div class="w-info"><div class="w-name">${elementIcon(w.item.element)}${esc(w.item.name)}</div><div class="w-type">${ARCHETYPES[w.item.arch].name}</div></div>
       <div class="w-ammo"><span class="ammo-ico" title="${ammo.name} ammo"></span><span class="w-mag"></span><span class="w-res"></span></div>
     </div>`;
   }).join('');
@@ -1305,7 +1336,7 @@ function renderInventory() {
           <div class="inv-list">${items.map((it) => {
             const on = P.weapons[i].item.id === it.id, rar = RARITIES[rarityIndex(it.rarity)], el = ELEMENTS[it.element];
             return `<button class="inv-pick ${on ? 'on' : ''}" data-slot="${i}" data-id="${it.id}" style="--rc:${rar.color}">
-              <span class="el" style="background:${el.color}" title="${el.name}"></span>
+              ${elementIcon(it.element)}
               <span class="inv-n">${esc(it.name)}<small>${rar.name} ${ARCHETYPES[it.arch].name}</small></span>
               <span class="inv-p">${on ? '<em>Equipped</em>' : ''}◆ ${it.power}</span></button>`;
           }).join('')}</div></div>`;

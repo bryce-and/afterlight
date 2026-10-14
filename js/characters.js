@@ -151,7 +151,8 @@ function warlock(root, el) {
   return b;
 }
 
-function ghost() {
+/** The Ghost model (also hovers over downed teammates in a fireteam). */
+export function ghost() {
   const g = new THREE.Group();
   const shell = M(0xd8dde4, { metalness: 0.4, roughness: 0.4 });
   const dark = M(0x2a2d33);

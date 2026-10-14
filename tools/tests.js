@@ -11,6 +11,9 @@ import * as C from '../js/combat.js';
 import * as SC from '../js/subclass.js';
 import { ENEMY_STATUS, WEAKEN_MULT } from '../js/status.js';
 import { abilityIcon } from '../js/ability-icons.js';
+import { FRAMES, LEGENDARY_WEAPONS, framesFor, weaponStats, weaponHandling, frameFor } from '../js/frames.js';
+import { ENERGY, SHIELD_ELEMENTS } from '../js/data.js';
+import { readyState } from '../js/net.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -319,13 +322,13 @@ test('aspect cooldown multipliers; recharge boosts are capped', () => {
   ok(Math.abs(SC.regenMult([1.5, 1.2]) - 1.8) < 1e-9, 'boosts multiply');
   eq(SC.regenMult([1.5, 1.5, 1.5, 1.2]), SC.REGEN_CAP);
 });
-test('save v2 upgrades to v3: subclass choice kept, loadout defaults, nothing else touched', () => {
+test('save v2 upgrades to the current version: subclass choice kept, loadout defaults, nothing else touched', () => {
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = fresh({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, 3); eq(S.SAVE_VERSION, 3);
+  eq(s.version, 4); eq(S.SAVE_VERSION, 4);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 3, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 4, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing']]);
 });
@@ -422,6 +425,118 @@ test('Roadmap: valid statuses, no dates, not duplicating a shipped name', () => 
     ok(!('date' in r), `${r.name} has a date`);
     ok(!shipped.has(r.name), `${r.name} already shipped`);
   }
+});
+
+// ---------- Arsenal (v1.4) ----------
+test('archetypes: every weapon family has Destiny frames with a name and description', () => {
+  for (const id of Object.keys(ARCHETYPES)) {
+    ok(framesFor(id).length >= 2, `${id} has frames`);
+    for (const f of Object.values(FRAMES[id])) ok(/Frame$/.test(f.name) && f.desc, `${id} ${f.name}`);
+  }
+  eq(Object.keys(FRAMES).sort(), Object.keys(ARCHETYPES).sort());
+});
+test('named legendaries: valid family, archetype and element; unique names; Corrective Measure is an Adaptive Void MG', () => {
+  const names = new Set();
+  for (const l of LEGENDARY_WEAPONS) {
+    ok(ARCHETYPES[l.arch] && FRAMES[l.arch][l.frame] && ELEMENTS[l.element], l.name);
+    ok(!names.has(l.name), `duplicate ${l.name}`); names.add(l.name);
+  }
+  for (const id of Object.keys(ARCHETYPES)) ok(LEGENDARY_WEAPONS.filter((l) => l.arch === id).length >= 4, `${id} legendaries`);
+  const cm = LEGENDARY_WEAPONS.find((l) => l.name === 'Corrective Measure');
+  eq([cm.arch, cm.frame, cm.element], ['mg', 'adaptive', 'void']);
+  ok(LEGENDARY_WEAPONS.some((l) => l.element === 'stasis') && LEGENDARY_WEAPONS.some((l) => l.element === 'strand'), 'Stasis and Strand legendaries');
+});
+test('every drop of a legendary has the same archetype, element and stats; only perks roll', () => {
+  const seen = new Map();
+  for (let i = 0; i < 600; i++) {
+    const it = rollItem(100, 3, ['primary', 'special', 'heavy'][i % 3]);
+    const leg = LEGENDARY_WEAPONS.find((l) => l.name === it.name && l.arch === it.arch);
+    ok(leg, `${it.name} is a named legendary`);
+    eq([it.frame, it.element], [leg.frame, leg.element], it.name);
+    const key = `${it.name}|${it.slot}`;
+    if (seen.has(key)) eq(it.stats, seen.get(key), it.name); else seen.set(key, it.stats);
+  }
+});
+test('lower rarities roll an archetype once and their stats follow it exactly', () => {
+  for (let i = 0; i < 300; i++) {
+    const it = rollItem(50, i % 3, ['primary', 'special', 'heavy'][i % 3]);
+    ok(FRAMES[it.arch][it.frame], `${it.name} frame`);
+    eq(it.stats, weaponStats(it), it.name);
+  }
+});
+test('archetypes keep damage per second within 15% of each other in a family (Compressed Wave excepted)', () => {
+  const dps = (item) => {
+    const A = weaponHandling(item), s = weaponStats(item), shot = s.dmg * (A.pellets || 1) * (A.chargeBurst || 1);
+    const cycle = A.mode === 'burst' ? ((A.burst - 1) * 60 / s.rpm + A.burstDelay) / A.burst : A.mode === 'charge' ? A.charge + 60 / s.rpm : 60 / s.rpm;
+    return shot / cycle;
+  };
+  for (const arch of Object.keys(ARCHETYPES)) {
+    const vals = framesFor(arch).filter((f) => f !== 'wave').map((f) => [f, dps({ arch, frame: f, rarity: 'legendary', slot: ARCHETYPES[arch].slot })]);
+    const mid = vals.reduce((a, [, v]) => a + v, 0) / vals.length;
+    for (const [f, v] of vals) ok(Math.abs(v / mid - 1) <= 0.15, `${arch} ${f}: ${(v / mid).toFixed(2)}x the family average`);
+  }
+});
+test('frame behaviors: slug fires one pellet, wave and tracking flags, lightweight moves faster, aggressive linear bursts', () => {
+  eq(weaponHandling({ arch: 'shotgun', frame: 'slug' }).pellets, 1);
+  ok(weaponHandling({ arch: 'glauncher', frame: 'wave' }).wave > 0, 'wave');
+  eq(weaponHandling({ arch: 'glauncher', frame: 'wave' }).projectile.gravity, 0);
+  ok(weaponHandling({ arch: 'rocket', frame: 'precision' }).tracking, 'tracking');
+  ok(weaponHandling({ arch: 'smg', frame: 'lightweight' }).move > 1, 'move');
+  eq(weaponHandling({ arch: 'linear', frame: 'aggressive' }).chargeBurst, 3);
+  eq(weaponHandling({ arch: 'pulse', frame: 'aggressive' }).burst, 4);
+  eq(ARCHETYPES.rocket.projectile.radius, 6.5, 'family data untouched');
+});
+test('save v3 upgrades to v4: weapons gain archetypes and fixed stats; perks, power, element and name kept', () => {
+  const inv = [
+    { id: 'w1', kind: 'weapon', slot: 'heavy', arch: 'mg', element: 'arc', rarity: 'legendary', name: 'Corrective Measure', power: 90, stats: { dmg: 1, rpm: 1, mag: 1, reload: 1, spread: 1, range: 1 }, perks: ['rampage'] },
+    { id: 'w2', kind: 'weapon', slot: 'primary', arch: 'auto', element: 'kinetic', rarity: 'rare', name: 'Ashen Oath', power: 40, stats: { dmg: 1, rpm: 1, mag: 1, reload: 1, spread: 1, range: 1 }, perks: ['outlaw', 'leech'] },
+    { id: 'w3', kind: 'weapon', slot: 'heavy', arch: 'shotgun', element: 'arc', rarity: 'exotic', name: 'Legend of Acrius', power: 70, stats: { dmg: 1, rpm: 1, mag: 1, reload: 1, spread: 1, range: 1 }, perks: [], exotic: 'acrius', reserve: 10, brick: 3 },
+    { id: 'a1', kind: 'armor', slot: 'helmet', rarity: 'common', name: 'Field Helm', power: 10, stats: { mob: 2, res: 2, rec: 2 } },
+  ];
+  const v3 = { version: 3, classId: 'vanguard', glimmer: 5, inventory: inv, vault: [{ ...inv[1], id: 'w4' }], equipped: { heavy: 'w1' }, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
+  fresh({ afterlight_save_v2: JSON.stringify(v3) });
+  const s = S.loadSave();
+  eq(s.version, 4);
+  const [w1, w2, w3, a1] = s.inventory;
+  eq([w1.frame, w1.element, w1.perks, w1.power, w1.name], ['adaptive', 'arc', ['rampage'], 90, 'Corrective Measure'], 'owned items keep their element');
+  eq(w1.stats, weaponStats(w1));
+  ok(w1.stats.dmg > 1, 'heavy MG stats recalculated');
+  eq(w2.frame, frameFor(w2)); eq(w2.perks, ['outlaw', 'leech']); eq(w2.stats, weaponStats(w2));
+  eq(w3.frame, undefined, 'exotics keep their own handling'); eq(w3.stats, weaponStats(w3));
+  eq(a1.stats, { mob: 2, res: 2, rec: 2 }, 'armor untouched');
+  eq(s.vault[0].frame, frameFor(s.vault[0]), 'vault too');
+});
+test('elements: six with distinct symbols; Stasis and Strand roll on weapons; enemy shields stay Light', () => {
+  eq(Object.keys(ELEMENTS), ['kinetic', 'solar', 'arc', 'void', 'stasis', 'strand']);
+  eq(new Set(Object.values(ELEMENTS).map((e) => e.symbol)).size, 6);
+  eq(new Set(Object.values(ELEMENTS).map((e) => e.color)).size, 6);
+  ok(ENERGY.includes('stasis') && ENERGY.includes('strand'), 'energy pool');
+  eq(SHIELD_ELEMENTS, ['solar', 'arc', 'void']);
+  const els = new Set();
+  for (let i = 0; i < 400; i++) els.add(rollItem(50, 1, 'special').element);
+  ok(els.has('stasis') && els.has('strand'), 'rolled');
+});
+test('every subclass has a trait; the six new ones have tuning', () => {
+  for (const c of Object.values(CLASSES)) for (const [id, sc] of Object.entries(c.subclasses)) ok(sc.passive, `${id} trait`);
+  eq(Object.keys(SC.TRAITS).sort(), ['gunslinger', 'nightstalker', 'stormcaller', 'striker', 'sunbreaker', 'voidwalker']);
+  ok(STATUS.amplified, 'Amplified on the buff HUD');
+});
+test('hammer fuse, Sunspot burn and the Healing Grenade orb', () => {
+  eq(SC.HAMMER_FUSE.fuse, 7);
+  ok(SC.SUNSPOT.dmg > 0 && SC.SUNSPOT.life === 6, 'sunspot');
+  ok(SC.HEAL_ORB.life > 0 && SC.HEAL_ORB.heal > 0 && SC.HEAL_ORB.restore > 0, 'orb');
+});
+test('Ready Up: launches only with a pick and every current member ready', () => {
+  const m = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  eq(readyState(m, ['a', 'b'], { li: 0, mi: 0 }), { count: 2, total: 3, all: false });
+  eq(readyState(m, ['a', 'b', 'c'], { li: 0, mi: 0 }).all, true);
+  eq(readyState(m, ['a', 'b', 'c'], null).all, false, 'no pick');
+  eq(readyState(m.slice(0, 2), ['a', 'b', 'x'], { li: -1, mi: 0 }), { count: 2, total: 2, all: true });
+  eq(readyState([{ id: 'a' }, { id: 'd' }], ['a', 'b'], { li: 0, mi: 1 }).all, false, 'someone new joined');
+});
+test('title shows the newest update: name, version and artwork', () => {
+  const r = RELEASES[0];
+  ok(r.name && r.version && /^<svg[\s\S]*<\/svg>$/.test(r.art), 'art');
 });
 
 // ---------- runner ----------

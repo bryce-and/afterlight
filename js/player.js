@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G } from './state.js';
-import { CLASSES, ARCHETYPES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF } from './data.js';
+import { CLASSES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF } from './data.js';
 import { clamp, lerp, damp } from './util.js';
 import { moveBody, hasLOS, pointInColliders } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
@@ -13,7 +13,8 @@ import { castFx } from './abilities.js';
 import { buildCharacter } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
-import { PHOENIX_DIVE_CD, regenMult } from './subclass.js';
+import { PHOENIX_DIVE_CD, regenMult, TRAITS, HAMMER_FUSE } from './subclass.js';
+import { weaponHandling } from './frames.js';
 import { SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, restHeight } from './combat.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
@@ -33,11 +34,12 @@ function applySpread(dir, spread) {
 const wEl = (w) => w.el || w.item.element;
 const after = (sec, fn) => { let t = sec; addTicker({ update(dt) { t -= dt; if (t <= 0) { fn(); return false; } return true; } }); };
 const VOLATILE_CYCLE = ['arc', 'solar', 'void'];
+const WAVE_STEP = 1.5, WAVE_RADIUS = 2.4; // Compressed Wave Frame bursts
 
 function makeWeapon(item) {
   if (!item) throw new Error('Player: an equipped weapon is missing from the save.');
-  // exotics can change the archetype's handling (burst size, pellets, fire mode...)
-  const A = { ...ARCHETYPES[item.arch], ...(item.mods || {}) };
+  // the weapon's archetype (frame) and exotic overrides shape its handling (burst size, pellets, charge...)
+  const A = weaponHandling(item);
   const perks = new Set([...(item.perks || []), ...(item.exoticPerks || [item.exotic])].filter(Boolean));
   const mag = Math.max(1, Math.round(item.stats.mag * (perks.has('extmag') ? 1.3 : 1)));
   const primary = item.slot === 'primary';
@@ -228,10 +230,10 @@ export class Player {
         this.downT -= dt;
         if (this.downT <= 0 && !this.lifeAsked && M.lives > 0) { this.lifeAsked = true; requestLife(); }
         ui.updateDeath(M.lives <= 0 ? 'No lives left: a teammate must revive you'
-          : this.downT > 0 ? `Revive in ${Math.ceil(this.downT)}s using a life (${M.lives} left)` : 'Using a life…');
+          : this.downT > 0 ? `Reviving in ${Math.ceil(this.downT)}  ·  uses a life (${M.lives} left)` : 'Reviving…');
       } else {
         this.respawnT -= dt;
-        ui.updateDeath(this.respawnT > 0 ? `Reviving in ${this.respawnT.toFixed(1)}s` : '');
+        ui.updateDeath(this.respawnT > 0 ? (M.failing ? `Mission failed in ${Math.ceil(this.respawnT)}` : `Reviving in ${Math.ceil(this.respawnT)}`) : '');
         if (this.respawnT <= 0) {
           if (M.failing) { missionFailed(); return; }
           this.respawn();
@@ -283,6 +285,8 @@ export class Player {
     this.sprinting = !!k.ShiftLeft && iz < 0 && this.adsT < 0.3 && G.time - this.lastFire > 0.35 && !this.weapon.reloading;
     this.sprintT = damp(this.sprintT, this.sprinting ? 1 : 0, 10, dt);
     let speed = this.speed * (this.status.has('wind') ? 1.15 : 1) * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
+    if (!this.superActive && this.weapon.A.move) speed *= this.weapon.A.move; // Lightweight Frame
+    if (this.status.has('amplified')) speed *= TRAITS.striker.speed; // Striker trait
     if (this.superActive?.type === 'hammers') speed *= 1.1;
     if (this.superActive?.type === 'fists') speed *= 1.3;
     const accel = this.onGround ? 14 : 2.5;
@@ -392,7 +396,7 @@ export class Player {
 
     if (inp.pressed.KeyR) this.startReload(w);
     if (w.reloading) {
-      w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1);
+      w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1) * (this.status.has('amplified') ? TRAITS.striker.reload : 1);
       if (w.reloadT <= 0) this.finishReload(w);
     }
     const wantAds = inp.mouse.right && !w.reloading && this.punchT <= 0;
@@ -406,7 +410,12 @@ export class Player {
     const held = inp.mouse.left, pressed = inp.mouse.leftPressed;
     if (pressed) w.queued = 0.18;
     if (w.reloading && pressed && w.ammo > 0) w.reloading = false;
-    if (w.reloading || this.punchT > 0) { w.charge = 0; return; }
+    if (w.reloading || this.punchT > 0) { w.charge = 0; w.cburst = 0; return; }
+    // Aggressive Frame linear fusions: the rest of the burst follows the first bolt on the same round
+    if (w.cburst > 0) {
+      if (w.fireCd <= 0) { w.cburst--; w.ammo++; this.fire(w, true); }
+      return;
+    }
     if (w.ammo <= 0) {
       w.charge = 0; w.burstLeft = 0;
       if (pressed) sfx.empty();
@@ -547,7 +556,7 @@ export class Player {
     after(0.5, () => { for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * frac); });
   }
 
-  fire(w) {
+  fire(w, burstBolt = false) {
     // Opening Shot: the first shot after a pause
     w.openShot = w.has('opening') && G.time - (w.lastShotT ?? -99) > 2;
     w.lastShotT = G.time;
@@ -565,6 +574,10 @@ export class Player {
       w.fireCd = (w.burstLeft > 0 ? 60 / s.rpm : A.burstDelay) / spinMul;
       if (w.ammo <= 0) w.burstLeft = 0;
     } else w.fireCd = 60 / s.rpm / spinMul;
+    if (A.chargeBurst) {
+      if (!burstBolt) w.cburst = A.chargeBurst - 1;
+      if (w.cburst > 0) w.fireCd = 0.07;
+    }
     if (this.status.has('wolves', w.idx)) w.fireCd /= 2;
     const eye = this.eye;
     const fwd = this.getForward(_fwd);
@@ -573,11 +586,12 @@ export class Player {
     const el = ELEMENTS[wEl(w)];
     if (A.projectile) {
       const dir = applySpread(fwd.clone(), spread);
+      const flat = dir.clone().setY(0).normalize();
       const start = eye.clone().addScaledVector(dir, 0.7).add(new THREE.Vector3(0, -0.15, 0));
       spawnPlayerProjectile({
         kind: A.id, pos: start, vel: dir.multiplyScalar(A.projectile.speed), gravity: A.projectile.gravity,
-        size: A.projectile.size, color: el.hex, life: 6, tracking: w.has('tracking'),
-        onHit: (p, enemy) => this.weaponExplosion(w, p, enemy),
+        size: A.projectile.size, color: el.hex, life: 6, tracking: w.has('tracking') || !!A.tracking,
+        onHit: (p, enemy) => this.weaponExplosion(w, p, enemy, flat),
       });
     } else {
       const pellets = A.pellets || 1;
@@ -682,12 +696,8 @@ export class Player {
     if (crit && w.has('siva')) {
       // Parasitic Nanites: a swarm that seeks nearby enemies
       for (const other of enemiesNear(e.pos, 12, 2, e)) {
-        const from = point.clone();
-        after(0.35, () => {
-          const c = other.alive ? other.center(new THREE.Vector3()) : other.pos.clone().setY(1);
-          lightning(from, c, 0xd8333a, 0.025);
-          explode(c, 2, dmg * m * 0.5, 'kinetic', { source: 'perk', small: true });
-        });
+        const d = dmg * m * 0.5;
+        this.seekerSwarm(point, other, 0xd8333a, 0.06, (p) => explode(p, 2, d, 'kinetic', { source: 'perk', small: true }));
       }
     }
     if (w.has('telesto')) {
@@ -736,11 +746,18 @@ export class Player {
     addTicker({ update(dt) { t -= dt; if (t <= 0) { t = 1; n--; if (e.alive) { dealDamage(e, tick, { element, source: 'perk', [mark]: n > 0 ? 1.1 : 0.1 }); sparks(e.center(new THREE.Vector3()), color, 3, 2, 0.06, 0.3); } } return n > 0 && e.alive; } });
   }
 
-  weaponExplosion(w, p, enemy) {
+  weaponExplosion(w, p, enemy, dir = null) {
     const m = this.weaponDmgMult(w, false);
     const dmg = w.s.dmg * m;
     if (enemy && enemy.alive) dealDamage(enemy, dmg * 0.3, { element: w.item.element, weapon: w, source: 'weapon' });
-    explode(p, w.A.projectile.radius, dmg, w.item.element, { weapon: w, source: 'weapon' });
+    if (w.A.wave && dir) {
+      // Compressed Wave Frame: the blast rolls forward along the ground in a line of bursts
+      const at = p.clone().setY(Math.max(0.3, restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass)) + 0.3));
+      for (let i = 0; i < w.A.wave; i++) {
+        const q = at.clone().addScaledVector(dir, i * WAVE_STEP);
+        after(i * 0.07, () => explode(q, WAVE_RADIUS, dmg, w.item.element, { weapon: w, source: 'weapon', small: i % 2 === 1 }));
+      }
+    } else explode(p, w.A.projectile.radius, dmg, w.item.element, { weapon: w, source: 'weapon' });
     if (w.has('cluster')) {
       for (let i = 0; i < 4; i++) {
         const off = new THREE.Vector3(Math.cos(i * 1.57) * 3, 0.5, Math.sin(i * 1.57) * 3).add(p);
@@ -753,12 +770,8 @@ export class Player {
       const prey = enemiesNear(p, 18, 4);
       for (let i = 0; i < 4; i++) {
         const target = prey.length ? prey[i % prey.length] : null;
-        const fallback = new THREE.Vector3(Math.cos(i * 1.57) * 3, 0.5, Math.sin(i * 1.57) * 3).add(p);
-        after(0.25 + i * 0.1, () => {
-          const c = target?.alive ? target.center(new THREE.Vector3()) : fallback;
-          lightning(p, c, ELEMENTS[w.item.element].hex, 0.04);
-          explode(c, 2.5, dmg * 0.35, w.item.element, { source: 'perk' });
-        });
+        const from = p.clone().add(new THREE.Vector3(0, 0.6, 0));
+        after(0.1 + i * 0.08, () => this.seekerSwarm(from, target, ELEMENTS[w.item.element].hex, 0.08, (q) => explode(q, 2.5, dmg * 0.35, w.item.element, { source: 'perk' })));
       }
     }
   }
@@ -772,6 +785,7 @@ export class Player {
     if (this.ap.recuperation) this.heal(15 * this.ap.recuperation);
     if ((o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + SUPER_HANDSON * this.ap.handson);
     this.buildOnKill(e, o);
+    this.traitOnKill(e, o);
     if (o.source === 'ability' || o.source === 'melee') {
       if (this.exo.has('nezarec')) this.status.apply('nezarec', { t: 5 });
       if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.heal(1000); this.status.apply('skullfort', { set: true }); }
@@ -817,6 +831,26 @@ export class Player {
     if (w.has('scavenger') && w.reserve !== Infinity && Math.random() < 0.4) {
       w.reserve = Math.min(w.maxReserve, w.reserve + (w.item.slot === 'heavy' ? Math.ceil(w.brick / 2) : 1));
     }
+  }
+
+  /** Subclass traits that react to a kill (Striker, Gunslinger, Voidwalker). */
+  traitOnKill(e, o) {
+    const sub = this.cls.subclassId, abil = o.source === 'ability' || o.source === 'melee';
+    if (sub === 'striker' && abil && o.element === 'arc') this.status.apply('amplified', { t: TRAITS.striker.amplified });
+    if (sub === 'gunslinger' && o.source === 'weapon' && o.crit) this.cd.melee = Math.max(0, this.cd.melee - this.cdMax.melee * TRAITS.gunslinger.melee);
+    if (sub === 'voidwalker' && abil && o.element === 'void') explode(e.center(new THREE.Vector3()), TRAITS.voidwalker.radius, TRAITS.voidwalker.dmg, 'void', { source: 'perk', small: true });
+  }
+
+  /** Subclass traits on this player's own grenade and melee hits (Sunbreaker, Nightstalker, Stormcaller). Returns extra debuffs for the hit. */
+  traitHitOpts(e, o) {
+    const sub = this.cls.subclassId;
+    if (sub === 'nightstalker') return { weaken: Math.max(o.weaken || 0, TRAITS.nightstalker.weaken) };
+    if (sub === 'stormcaller') return { jolt: Math.max(o.jolt || 0, TRAITS.stormcaller.jolt) };
+    if (sub === 'sunbreaker' && o.element === 'solar' && !(e.traitBurnAt > G.time)) {
+      e.traitBurnAt = G.time + TRAITS.sunbreaker.burnTicks;
+      this.dot(e, TRAITS.sunbreaker.burnTick, TRAITS.sunbreaker.burnTicks, 'solar', ELEMENTS.solar.hex);
+    }
+    return null;
   }
 
   /** Aspect and fragment reactions to a kill this player made. */
@@ -901,12 +935,12 @@ export class Player {
     M.deaths++;
     if (M.coop) {
       this.downT = DOWN_TIME; this.lifeAsked = false;
-      ui.showDeath('Downed', 'Hold on: a teammate can revive you');
+      ui.showDeath('You Died', 'A teammate can revive you');
     } else {
       M.revives--;
       if (M.revives < 0) { M.failing = true; this.respawnT = 2.5; }
       else this.respawnT = 5;
-      ui.showDeath('You Have Fallen', M.revives < 0 ? 'No revives remaining' : `Revives remaining: ${M.revives}`);
+      ui.showDeath('You Died', M.revives < 0 ? 'No revives remaining' : `Revives remaining: ${M.revives}`);
     }
     sfx.death();
   }
@@ -1109,7 +1143,7 @@ export class Player {
         const tgt = targets[i % Math.max(1, targets.length)] || null;
         const a = (i / n) * Math.PI * 2 + Math.random() * 0.5;
         spawnPlayerProjectile({
-          kind: 'seeker', pos: pt.clone().add(new THREE.Vector3(0, 0.4, 0)), vel: new THREE.Vector3(Math.cos(a) * 8, 9, Math.sin(a) * 8),
+          kind: 'swarm', pos: pt.clone().add(new THREE.Vector3(0, 0.4, 0)), vel: new THREE.Vector3(Math.cos(a) * 8, 9, Math.sin(a) * 8),
           gravity: tgt ? 0 : 14, size: id === 'axion' ? 0.1 : 0.07, color: ELEMENTS[el].hex, life: 2.5, target: tgt, turn: 4,
           onHit: (p, e) => {
             if (e && e.alive) dealDamage(e, dmg, { element: el, source: 'ability', pos: p.clone(), weaken: id === 'axion' ? Math.max(2, weaken) : 0 });
@@ -1319,7 +1353,7 @@ export class Player {
     sfx.zap();
   }
 
-  /** Throwing Hammer on the ground: stand next to it to pick it up (melee recharged, small heal). */
+  /** Throwing Hammer on the ground: stand next to it to pick it up (melee recharged, small heal). Left alone, it glows brighter and explodes. */
   dropHammer(p, fwd) {
     const at = p.clone();
     // a wall hit lands inside the wall: step back along the throw until clear
@@ -1333,12 +1367,19 @@ export class Player {
     mesh.rotation.set(0, Math.random() * 6, Math.PI / 2);
     G.scene.add(mesh);
     const self = this;
-    let life = 14;
+    let life = HAMMER_FUSE.fuse;
     addTicker({
       update(dt) {
         life -= dt;
-        mesh.position.y = at.y + Math.abs(Math.sin(G.time * 3)) * 0.08;
-        if (Math.random() < 0.3) ember(at.clone().setY(at.y + 0.15), 0xffb547, 0.03, 0.8, 0.4);
+        const heat = 1 - life / HAMMER_FUSE.fuse; // 0 when it lands, 1 when it blows
+        mesh.position.y = at.y + Math.abs(Math.sin(G.time * (3 + heat * 9))) * 0.08;
+        mesh.scale.setScalar(1 + heat * 0.35 + (heat > 0.7 ? Math.sin(G.time * 30) * 0.08 : 0));
+        if (Math.random() < 0.3 + heat * 0.7) ember(at.clone().setY(at.y + 0.15), heat > 0.6 ? 0xffe0a0 : 0xffb547, 0.03 + heat * 0.06, 0.8, 0.4 + heat);
+        if (life <= 0) {
+          explode(at.clone(), HAMMER_FUSE.r, HAMMER_FUSE.dmg, 'solar', { source: 'ability' });
+          castFx('blast', { p: at.clone(), el: 'solar', r: HAMMER_FUSE.r });
+          return false;
+        }
         const P = G.player;
         if (P === self && !P.dead && Math.hypot(P.pos.x - at.x, P.pos.z - at.z) < 1.6 && Math.abs(P.pos.y - at.y) < 2) {
           P.cd.melee = 0;
@@ -1351,6 +1392,16 @@ export class Player {
         return life > 0;
       },
       dispose() { G.scene?.remove(mesh); },
+    });
+  }
+
+  /** A tracking round (SIVA, Wolfpack): a particle swarm that flies to the target and bursts where it lands. */
+  seekerSwarm(from, target, color, size, onArrive) {
+    const a = Math.random() * Math.PI * 2;
+    spawnPlayerProjectile({
+      kind: 'swarm', pos: from.clone(), vel: new THREE.Vector3(Math.cos(a) * 6, 7, Math.sin(a) * 6),
+      gravity: target ? 0 : 14, size, color, life: 2, target, turn: 5,
+      onHit: (p) => onArrive(p),
     });
   }
 
@@ -1587,7 +1638,11 @@ export class Player {
         spawnPlayerProjectile({
           kind: 'hammer', pos: this.eye.clone().addScaledVector(fwd, 0.8), vel: fwd.clone().multiplyScalar(40).add(new THREE.Vector3(0, 3, 0)),
           gravity: 9, size: 0.2, color: ELEMENTS.solar.hex, life: 4,
-          onHit: (p) => { explode(p, 4.5, superDmg(420), 'solar', { source: 'super' }); castFx('blast', { p, el: 'solar', r: 4.5 }); },
+          onHit: (p) => {
+            explode(p, 4.5, superDmg(420), 'solar', { source: 'super' });
+            castFx('blast', { p, el: 'solar', r: 4.5 });
+            castFx('sunspot', { p: p.clone().setY(restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass))) }); // Hammer of Sol leaves a Sunspot
+          },
         });
         this.kick = 1; flash.visible = true;
         this.throwFist(0.25);

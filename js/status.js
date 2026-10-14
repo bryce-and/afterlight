@@ -29,6 +29,7 @@ export const STATUS = {
   devour: { name: 'Devour', group: 'general', glyph: '◉', color: '#b07cff', t: 8 },
   radiant: { name: 'Radiant', group: 'general', glyph: '✦', color: '#ffb547', t: 6 },
   frequency: { name: 'Frequency', group: 'general', glyph: '↻', color: '#5fd3ff', t: 5 },
+  amplified: { name: 'Amplified', group: 'general', glyph: 'ϟ', color: '#5fd3ff', t: 6 }, // Striker trait
   // one-off procs: a short flash in the buff HUD instead of a line in the top-right feed
   meleeready: { name: 'Melee Ready', group: 'general', glyph: '✊', color: '#5fd3ff', t: 1.5 },
   combo: { name: 'Combination Blow', group: 'general', glyph: '✚', color: '#5fd3ff', t: 1.5 },

@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { buildGunModel } from './models.js';
+import { ELEMENTS } from './data.js';
 
 // Weapon icons are rendered from the real viewmodel meshes into a small
 // offscreen canvas, then cached as data URLs. Armour uses simple SVG icons.
 
 let rr = null, scene = null, cam = null;
 const cache = new Map();
-const W = 192, H = 112;
+const W = 160, H = 160; // square, Destiny 2 style
+const DIAGONAL = 0.52; // muzzle tilted up and to the right
 
 function init() {
   rr = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -30,22 +32,32 @@ export function weaponIcon(item) {
   model.traverse((o) => { if (o.userData.hand) o.visible = false; });
   model.userData.flash.visible = false;
   model.rotation.set(0.08, -Math.PI / 2, 0); // side profile, muzzle to the right
-  scene.add(model);
-  model.updateMatrixWorld(true);
+  const tilt = new THREE.Group();
+  tilt.add(model);
+  tilt.rotation.z = DIAGONAL;
+  scene.add(tilt);
+  tilt.updateMatrixWorld(true);
   const bb = new THREE.Box3();
   model.traverse((o) => { if (o.isMesh && o.visible && !o.material.transparent) bb.expandByObject(o); });
   const c = bb.getCenter(new THREE.Vector3()), s = bb.getSize(new THREE.Vector3());
-  const half = Math.max(s.x / 2 / (W / H), s.y / 2) * 1.12;
-  Object.assign(cam, { left: -half * (W / H), right: half * (W / H), top: half, bottom: -half });
+  const half = Math.max(s.x, s.y) / 2 * 1.1;
+  Object.assign(cam, { left: -half, right: half, top: half, bottom: -half });
   cam.position.set(c.x, c.y, 5);
   cam.lookAt(c.x, c.y, 0);
   cam.updateProjectionMatrix();
   rr.render(scene, cam);
   const url = rr.domElement.toDataURL('image/png');
-  scene.remove(model);
+  scene.remove(tilt);
   model.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
   cache.set(key, url);
   return url;
+}
+
+/** Element symbol (Kinetic, Solar, Arc, Void, Stasis, Strand) in the element's color. */
+export function elementIcon(id, cls = 'el-ico') {
+  const el = ELEMENTS[id];
+  if (!el) throw new Error(`No element "${id}"`);
+  return `<svg viewBox="0 0 64 64" class="${cls}" style="color:${el.color}" role="img" aria-label="${el.name}"><title>${el.name}</title><g fill="currentColor">${el.symbol}</g></svg>`;
 }
 
 const ARMOR_SVG = {

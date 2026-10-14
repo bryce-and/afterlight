@@ -6,6 +6,7 @@ import { dealDamage, enemiesNear, addTicker } from './game.js';
 import { sendFx, remotes } from './coop.js';
 import { net } from './net.js';
 import { STORM_GRENADE } from './combat.js';
+import { SUNSPOT, HEAL_ORB } from './subclass.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
 
@@ -250,13 +251,35 @@ export function abilityFx(kind, o, local) {
       sfx.heal();
       break;
     }
-    case 'healburst': { // Healing Grenade: Restoration for every player caught in it (each applies it to themselves)
-      const p = V(o.p), col = hex('solar');
-      shockwave(p.clone().setY(0.05), o.r, col, 0.6);
-      glowBurst(p, 0xffe0a0, 24, 7, 0.1, 0.7, 2, 0.4);
-      pillar(p, 1.2, 6, col, 0.8, 0.4);
-      const P = G.player;
-      if (P && !P.dead && P.pos.distanceTo(p) < o.r) { P.heal(o.big ? 70 : 40); P.restore(o.big ? 9 : 6); }
+    case 'healburst': { // Healing Grenade: a white burst, then a white orb. Every Guardian can pick it up once on their own screen.
+      const p = V(o.p);
+      shockwave(p.clone().setY(0.05), o.r, 0xffffff, 0.6);
+      glowBurst(p, 0xffffff, 28, 7, 0.1, 0.7, 2, 0.4);
+      pillar(p, 1.2, 6, 0xfff4dd, 0.8, 0.4);
+      const at = p.clone().setY(Math.max(0, p.y) + 1);
+      const orb = new THREE.Group();
+      orb.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 1), new THREE.MeshBasicMaterial({ color: 0xffffff })));
+      orb.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), new THREE.MeshBasicMaterial({ color: 0xfff4dd, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })));
+      orb.position.copy(at);
+      G.scene.add(orb);
+      let life = HEAL_ORB.life;
+      addTicker({
+        update(dt) {
+          life -= dt;
+          orb.position.y = at.y + Math.sin(G.time * 3) * 0.12;
+          orb.children[1].scale.setScalar(1 + Math.sin(G.time * 6) * 0.15);
+          if (Math.random() < 0.25) ember(orb.position.clone(), 0xffffff, 0.05, 0.6, 0.5);
+          const P = G.player;
+          if (P && !P.dead && Math.hypot(P.pos.x - at.x, P.pos.z - at.z) < HEAL_ORB.r && Math.abs(P.pos.y + 1 - at.y) < 2) {
+            P.heal(o.big ? HEAL_ORB.healBig : HEAL_ORB.heal); P.restore(o.big ? HEAL_ORB.restoreBig : HEAL_ORB.restore);
+            glowBurst(orb.position.clone(), 0xffffff, 14, 4, 0.08, 0.5, 2, 0.3);
+            sfx.heal();
+            return false;
+          }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(orb); },
+      });
       sfx.heal();
       break;
     }
@@ -315,14 +338,21 @@ export function abilityFx(kind, o, local) {
       break;
     }
 
-    case 'sunspot': { // Sol Invictus: whoever stands in it heals and recharges abilities faster (on their own screen)
+    case 'sunspot': { // Sol Invictus / Hammer of Sol: whoever stands in it heals and recharges faster (on their own screen); enemies inside burn (caster's copy)
       const p = V(o.p), col = hex('solar');
       const zone = zoneMesh(p, 2.5, col);
       pillar(p.clone().setY(0), 2.3, 1.2, col, 6, 0.15);
-      let life = 6;
+      let life = SUNSPOT.life, tick = 0;
       addTicker({
         update(dt) {
           life -= dt; zone.rotation.y += dt * 1.5;
+          if (local && (tick -= dt) <= 0) {
+            tick = SUNSPOT.tick;
+            for (const e of enemiesNear(p, SUNSPOT.r + 0.5)) {
+              if (Math.hypot(e.pos.x - p.x, e.pos.z - p.z) - e.radius > SUNSPOT.r || Math.abs(e.pos.y - p.y) > 3) continue;
+              dealDamage(e, SUNSPOT.dmg, { element: 'solar', source: 'ability', burn: 1.1, pos: e.center(new THREE.Vector3()) });
+            }
+          }
           if (Math.random() < 0.4) ember(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 4, 0.2, (Math.random() - 0.5) * 4)), 0xffb547, 0.05, 0.9, 1.2);
           const P = G.player;
           if (P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 2.7 && Math.abs(P.pos.y - p.y) < 3) { P.status.apply('sunspot', { t: 0.25 }); P.restore(0.3); }

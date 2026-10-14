@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G, unlockPointer } from './state.js';
-import { LOCATIONS, ELEMENTS, ENERGY, RARITIES, rarityIndex, ACTIVITIES } from './data.js';
+import { LOCATIONS, ELEMENTS, SHIELD_ELEMENTS, RARITIES, rarityIndex, ACTIVITIES } from './data.js';
 import { buildLevel, mat } from './world.js';
 import { Enemy, updateEnemyShots } from './enemies.js';
 import { Player } from './player.js';
@@ -104,7 +104,7 @@ function finishMission() {
 function makeWaves(zi, isBoss, g, def, fireteam = 1) {
   // each extra fireteam member adds ~50% more enemies
   const more = 1 + 0.5 * (fireteam - 1);
-  const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type, element: type === 'captain' ? pick(ENERGY) : undefined }));
+  const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type, element: type === 'captain' ? pick(SHIELD_ELEMENTS) : undefined }));
   if (isBoss) {
     return [[{ type: 'boss', name: def.boss.name, element: def.boss.element, model: def.boss.model }, ...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4))]];
   }
@@ -155,7 +155,7 @@ export function spawnBossAdds(boss) {
   for (const [t, n] of [['grunt', 3], ['rusher', 2], ['captain', M.g >= 2 ? 1 : 0]]) for (let i = 0; i < Math.round(n * more); i++) specs.push(t);
   for (const type of specs) {
     const pos = findSpawn(boss.pos, rand(0, Math.PI * 2), Math.PI, 5, 14);
-    const e = new Enemy(type, pos, { zone: z, hpMult: M.hpMult, dmgMult: M.dmgMult, element: type === 'captain' ? pick(ENERGY) : undefined });
+    const e = new Enemy(type, pos, { zone: z, hpMult: M.hpMult, dmgMult: M.dmgMult, element: type === 'captain' ? pick(SHIELD_ELEMENTS) : undefined });
     G.enemies.push(e);
     z.enemies.push(e);
     registerEnemy(e);
@@ -395,6 +395,8 @@ export function dealDamage(e, amount, o = {}) {
   if (!o.raw) dmg *= exoticArmorMult(o);
   if (!o.raw && G.player?.buildMult) dmg *= G.player.buildMult(o); // aspects and fragments
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
+  // subclass traits on this player's own grenade and melee hits (never on relayed hits or jolt chains)
+  if (!o.raw && !o.jolted && (o.source === 'ability' || o.source === 'melee') && G.player?.traitHitOpts) Object.assign(o, G.player.traitHitOpts(e, o));
   // debuffs go on the registry (members show them on the plate; the owner's copy is the real one)
   for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
   if (e.remote) {
@@ -586,6 +588,13 @@ export function projectileMesh(o) {
     const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), basicMat(o.color, true));
     glow.position.z = 0.08; glow.scale.set(0.6, 0.6, 2.2);
     g.add(blade, tip, edge, guard, handle, wrap, glow);
+  } else if (o.kind === 'swarm') {
+    // tracking rounds (Swarm, Axion Bolt, SIVA, Wolfpack): a cluster of particles, not one solid shape
+    for (let i = 0; i < 6; i++) {
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(o.size * (i ? 0.45 : 0.6), 0), basicMat(i ? o.color : 0xffffff, !!i));
+      m.position.set((Math.random() - 0.5) * o.size * 3, (Math.random() - 0.5) * o.size * 3, (Math.random() - 0.5) * o.size * 3);
+      g.add(m);
+    }
   } else if (o.kind === 'seeker' || o.kind === 'drain') {
     g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size, 0), basicMat(0xffffff)));
     g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 2.2, 0), basicMat(o.color, true)));
@@ -660,6 +669,12 @@ function updateProjectiles(dt) {
     else if (p.kind === 'grenade' || p.kind === 'glauncher') ember(p.pos, p.color, 0.07, 0.3);
     else if (p.kind === 'knife') { ember(p.pos, p.color, 0.06, 0.25, 0.3); if (Math.random() < 0.5) ember(p.pos, 0xffffff, 0.03, 0.15, 0.2); }
     else if (p.kind === 'seeker' || p.kind === 'drain') { ember(p.pos, p.color, 0.08, 0.3, 0.4); }
+    else if (p.kind === 'swarm') {
+      p.mesh.rotation.set(p.age * 17, p.age * 23, p.age * 11);
+      for (const c of p.mesh.children) c.position.multiplyScalar(0.92).add(tmp.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(p.size * 1.2));
+      ember(p.pos, p.color, p.size * 0.7, 0.35, 0.3);
+      if (Math.random() < 0.5) ember(p.pos, 0xffffff, p.size * 0.35, 0.2, 0.2);
+    }
     else if (p.kind === 'hammer') { for (let i = 0; i < 2; i++) ember(p.pos, i ? 0xffd27a : p.color, 0.14, 0.4, 1.2); }
     else if (p.kind === 'nova') { for (let i = 0; i < 3; i++) swirl(p.pos, 1.4, i ? p.color : 0xe6d0ff, 0.45, true, 0.12, 0.8); ember(p.pos, p.color, 0.2, 0.5, 1); }
   }
@@ -799,7 +814,7 @@ function loadArena(i, first = false) {
 function activityWave(n) {
   const M = G.mission;
   const more = (1 + 0.5 * (M.fireteam - 1)) * (1 + 0.3 * M.arenaIdx);
-  const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type, element: type === 'captain' ? pick(ENERGY) : undefined }));
+  const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type, element: type === 'captain' ? pick(SHIELD_ELEMENTS) : undefined }));
   const k = Math.min(n, 20);
   if (n % M.act.arenaEvery === 0) {
     const b = M.arenaDef.boss;

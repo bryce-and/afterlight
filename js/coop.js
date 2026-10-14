@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { net, send, broadcast, sendTo } from './net.js';
-import { buildCharacter } from './characters.js';
+import { buildCharacter, ghost } from './characters.js';
 import { Enemy, fireEnemyShot } from './enemies.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
@@ -254,7 +254,24 @@ function ensureRemote(st) {
   return r;
 }
 
+/** Downed teammate: their Ghost hovers over the body, glowing, until they're back up. */
+function setReviveGhost(r, on) {
+  if (!on) { if (r.reviveGhost) { r.reviveGhost.parent?.remove(r.reviveGhost); r.reviveGhost = null; } return; }
+  if (r.reviveGhost) return;
+  const g = new THREE.Group();
+  const model = ghost();
+  model.scale.setScalar(3.2);
+  const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), new THREE.MeshBasicMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const beamM = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.18, 1.2, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  beamM.position.y = -0.65;
+  g.add(model, glow, beamM);
+  g.userData = { model, glow };
+  G.scene.add(g);
+  r.reviveGhost = g;
+}
+
 function removeAvatar(r) {
+  setReviveGhost(r, false);
   if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; r.gunKey = undefined; r.prop = undefined; r.wasInv = false; }
   r.plate?.remove(); r.plate = null;
 }
@@ -276,6 +293,13 @@ function updateAvatars(dt) {
     g.position.copy(r.pos);
     g.rotation.y = r.yaw + Math.PI;
     g.rotation.x = r.dead ? -1.4 : 0;
+    setReviveGhost(r, r.dead);
+    if (r.reviveGhost) {
+      const gh = r.reviveGhost;
+      gh.position.set(r.pos.x, r.pos.y + 1.3 + Math.sin(G.time * 2.4) * 0.08, r.pos.z);
+      gh.userData.model.lookAt(G.camera.position);
+      gh.userData.glow.scale.setScalar(1 + Math.sin(G.time * 5) * 0.18);
+    }
     const st = r.state || {};
     const gunKey = st.w ?? '';
     if (r.gunKey !== gunKey) {
@@ -294,7 +318,7 @@ function updateAvatars(dt) {
       r.avatar.group.traverse((o) => { if (o.material && !o.userData.gunPart) { o.material.transparent = r.inv; o.material.opacity = r.inv ? 0.18 : 1; } });
       if (r.avatar.gun) r.avatar.gun.visible = !r.inv;
     }
-    _p.set(r.pos.x, r.pos.y + 2.35, r.pos.z).project(G.camera);
+    _p.set(r.pos.x, r.pos.y + (r.dead ? 1.85 : 2.35), r.pos.z).project(G.camera);
     if (r.plate) {
       const vis = _p.z < 1;
       r.plate.style.display = vis ? 'block' : 'none';

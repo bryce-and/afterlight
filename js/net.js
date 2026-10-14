@@ -17,6 +17,8 @@ export const net = {
   code: null,
   members: [], // [{ id, name, cls, power }]
   sel: null, // host's selected mission { li, mi }
+  ready: [], // member ids that readied up for the selected mission (host decides, members mirror)
+  onAllReady: null, // host UI hook: every member is ready, launch the selection
   status: '',
   handlers: {},
   onLobby: null, // UI hook
@@ -102,9 +104,38 @@ function openPeer(id) {
   });
 }
 
+const lobbyMsg = () => ({ t: 'lobby', members: net.members, sel: net.sel, ready: net.ready });
 function lobbyChanged() {
-  if (net.isHost) broadcast({ t: 'lobby', members: net.members, sel: net.sel });
+  if (net.isHost) broadcast(lobbyMsg());
   net.onLobby?.();
+}
+
+/** Ready Up rule: launch only with a selection and every current member ready. */
+export function readyState(members, ready, sel) {
+  const ids = members.map((m) => m.id);
+  const count = ids.filter((id) => ready.includes(id)).length;
+  return { count, total: ids.length, all: !!sel && ids.length > 0 && count === ids.length };
+}
+
+/** Host: a member (or the host) readied up or cancelled. The last one to ready launches the selection. */
+function hostSetReady(id, on) {
+  if (!net.sel || !net.members.some((m) => m.id === id)) return;
+  net.ready = on ? [...new Set([...net.ready, id])] : net.ready.filter((x) => x !== id);
+  const st = readyState(net.members, net.ready, net.sel);
+  if (st.all) {
+    const sel = net.sel;
+    net.ready = [];
+    lobbyChanged();
+    net.onAllReady?.(sel);
+    return;
+  }
+  lobbyChanged();
+}
+
+/** Ready Up (or cancel) for the leader's selected mission or activity. */
+export function setReady(on) {
+  if (net.isHost) hostSetReady(net.myId, on);
+  else if (net.isClient) send({ t: 'ready', on: !!on });
 }
 
 function dispatch(msg, fromId) {
@@ -137,10 +168,12 @@ export async function createFireteam(profile) {
     conn.on('data', (msg) => {
       if (msg.t === 'hello') {
         if (!net.members.some((m) => m.id === conn.peer)) net.members.push({ id: conn.peer, name: msg.name, cls: msg.cls, power: msg.power });
+        net.ready = []; // the roster changed: everyone readies again
         lobbyChanged();
         dispatch({ t: 'joined', id: conn.peer }, conn.peer);
         return;
       }
+      if (msg.t === 'ready') { hostSetReady(conn.peer, msg.on); return; }
       dispatch(msg, conn.peer);
     });
     conn.on('close', () => dropMember(conn.peer));
@@ -155,13 +188,15 @@ function dropMember(id) {
   net.conns.delete(id);
   const m = net.members.find((x) => x.id === id);
   net.members = net.members.filter((x) => x.id !== id);
+  net.ready = []; // the roster changed: everyone readies again
   dispatch({ t: 'left', id, name: m?.name }, id);
   lobbyChanged();
 }
 
 export function setSelection(li, mi) {
+  if (net.sel?.li !== li || net.sel?.mi !== mi) net.ready = []; // a new pick: everyone readies again
   net.sel = { li, mi };
-  if (net.isHost) broadcast({ t: 'lobby', members: net.members, sel: net.sel });
+  if (net.isHost) broadcast(lobbyMsg());
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +221,7 @@ export async function joinFireteam(code, profile) {
   net.code = code;
   net.status = '';
   conn.on('data', (msg) => {
-    if (msg.t === 'lobby') { net.members = msg.members; net.sel = msg.sel; net.onLobby?.(); return; }
+    if (msg.t === 'lobby') { net.members = msg.members; net.sel = msg.sel; net.ready = msg.ready || []; net.onLobby?.(); return; }
     if (msg.t === 'full') { leaveFireteam('That fireteam is full (3 players).'); return; }
     dispatch(msg, conn.peer);
   });
@@ -198,7 +233,7 @@ export async function joinFireteam(code, profile) {
 export function leaveFireteam(reason = '') {
   const wasActive = net.active;
   try { net.peer?.destroy(); } catch (e) { console.warn(e); }
-  Object.assign(net, { role: 'solo', peer: null, hostConn: null, myId: null, code: null, members: [], sel: null, status: reason });
+  Object.assign(net, { role: 'solo', peer: null, hostConn: null, myId: null, code: null, members: [], sel: null, ready: [], status: reason });
   net.conns = new Map();
   if (wasActive) dispatch({ t: 'disbanded', reason });
   net.onLobby?.();

@@ -3,13 +3,14 @@ import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP } from './progression.js';
 import { randInt } from './util.js';
+import { frameFor, weaponStats } from './frames.js';
 
 const KEY = 'afterlight_save_v2';
 // First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
@@ -19,6 +20,14 @@ const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
 const MIGRATIONS = {
   // Paths of Light (v1.3): per-subclass loadouts (grenade, class ability, aspects, fragments). Missing = defaults.
   2: (s) => { s.loadout = s.loadout && typeof s.loadout === 'object' ? s.loadout : {}; },
+  // Arsenal (v1.4): every weapon gets an archetype and archetype-fixed stats. Perks, power, element, rarity and name are kept.
+  3: (s) => {
+    for (const it of [...(s.inventory || []), ...(s.vault || [])]) {
+      if (it.kind !== 'weapon') continue;
+      if (it.rarity !== 'exotic' && !it.frame) it.frame = frameFor(it);
+      it.stats = weaponStats(it);
+    }
+  },
 };
 
 let store = (() => { try { return globalThis.localStorage; } catch { return null; } })();

@@ -1,26 +1,13 @@
 import { ARCHETYPES, RARITIES, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ARMOR_PERKS, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
-import { pick, randInt, rand } from './util.js';
+import { pick, randInt } from './util.js';
 import { LIGHT_CAP } from './progression.js';
+import { framesFor, legendariesFor, weaponStats } from './frames.js';
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
 const NOUN = ['Oath', 'Promise', 'Requiem', 'Verdict', 'Covenant', 'Lament', 'Sentinel', 'Herald', 'Reckoning', 'Psalm', 'Edict', 'Tide', 'Mercy', 'Vow', 'Witness', 'Ruin', 'Hymn', 'Answer', 'Warden', 'Dirge'];
 const PLACE = ['the Deep', 'Dawn', 'the Ninth Sun', 'the Pale Moon', 'the Ash Wastes', 'Quiet Stars', 'the Long Night'];
 const FOUNDRY = ['Häkke', 'Omolon', 'SUROS', 'VEIST', 'Daito', 'Tex Mechanica', 'Field Forged'];
 const CODE = { auto: 'AR', hand: 'HC', pulse: 'PR', scout: 'SR', smg: 'SMG', shotgun: 'SG', sniper: 'SN', fusion: 'FR', linear: 'LFR', rocket: 'RL', mg: 'MG', glauncher: 'GL' };
-const LEGENDARY = {
-  auto: ['Shadow Price', 'Doctrine of Passing', "Uriel's Gift", 'Gnawing Hunger', 'Age-Old Bond', 'Chattering Bone'],
-  hand: ['Fatebringer', 'Palindrome', 'Midnight Coup', 'Igneous Hammer', 'Not Forgotten', "Luna's Howl"],
-  pulse: ['Bygones', 'Blast Furnace', 'Messenger', 'Vouchsafe', 'Inaugural Address', 'Outlast'],
-  scout: ['Nameless Midnight', "Shepherd's Watch", 'Vision of Confluence', 'Night Watch', 'Hung Jury SR4', 'Randy\'s Throwing Knife'],
-  smg: ['Recluse', 'Multimach CCX', 'Funnelweb', "Shayura's Wrath", 'IKELOS_SMG_v1.0.3', 'The Title'],
-  shotgun: ["Felwinter's Lie", 'The Comedian', "Mindbender's Ambition", 'Matador 64', 'Astral Horizon', 'Heritage'],
-  sniper: ['Beloved', '1000 Yard Stare', 'Supremacy', 'Revoker', 'Eye of Sol', "Praedyth's Revenge"],
-  fusion: ['Main Ingredient', 'Plug One.1', 'Glacioclasm', 'Exalted Truth', 'Pre Astyanax IV', 'Loaded Question'],
-  linear: ['Taipan-4fr', 'Stormchaser', "Briar's Contempt", 'Cataclysmic', "Reed's Regret", 'Fire and Forget'],
-  rocket: ['Hezen Vengeance', "Tomorrow's Answer", 'Hothead', 'Bad Omens', 'Apex Predator', 'Crowning Duologue'],
-  mg: ['Hammerhead', 'Fixed Odds', "Qullim's Terminus", "Archon's Thunder", 'Corrective Measure', 'Commemoration'],
-  glauncher: ['Wendigo GL3', 'Ignition Code', 'Tarnation', 'Edge Transit', 'Hullabaloo', 'Regnant'],
-};
 const MAKERS = ['Field', 'Scout', 'Patrol', 'Trooper', 'Ranger'];
 const ARMOR_NOUN = {
   helmet: ['Helm', 'Mask', 'Visor', 'Hood', 'Cowl'],
@@ -35,7 +22,6 @@ export function newId() {
 
 function weaponName(rIdx, arch) {
   if (rIdx === 0) return `${pick(FOUNDRY)} ${CODE[arch]}-${randInt(2, 9)}`;
-  if (rIdx === 3) return pick(LEGENDARY[arch]);
   if (rIdx === 2 && Math.random() < 0.3) return `${pick(NOUN)} of ${pick(PLACE)}`;
   return `${pick(ADJ)} ${pick(NOUN)}`;
 }
@@ -46,36 +32,30 @@ const MOD_REPLACE = ['mode', 'burst', 'burstDelay', 'pellets', 'charge'];
 
 export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
   const rar = RARITIES[rIdx];
-  let arch, element, name, exotic = null, flavor = '', tpl = null;
+  let arch, element, name, frame = null, exotic = null, flavor = '', tpl = null;
   if (rar.id === 'exotic') {
     const pool = EXOTIC_WEAPONS.filter((e) => (e.slot || ARCHETYPES[e.arch].slot) === slot);
     tpl = (exoticName && EXOTIC_WEAPONS.find((e) => e.name === exoticName)) || pick(pool);
     arch = tpl.arch; element = tpl.element; name = tpl.name; exotic = tpl.perks[0]; flavor = tpl.flavor;
   } else {
     arch = archOverride || pick(Object.values(ARCHETYPES).filter((a) => a.slot === slot)).id;
-    element = slot === 'primary' ? (Math.random() < 0.6 ? 'kinetic' : pick(ENERGY)) : pick(ENERGY);
-    name = weaponName(rIdx, arch);
+    if (rar.id === 'legendary') {
+      // named legendaries always have the same archetype and element
+      const leg = pick(legendariesFor(arch));
+      ({ name, frame, element } = leg);
+    } else {
+      element = slot === 'primary' ? (Math.random() < 0.6 ? 'kinetic' : pick(ENERGY)) : pick(ENERGY);
+      name = weaponName(rIdx, arch);
+      frame = pick(framesFor(arch)); // rolled once, then part of the weapon for good
+    }
   }
   const A = ARCHETYPES[arch];
-  const roll = (lo, hi) => rand(lo, hi);
-  const stats = {
-    dmg: +(A.dmg * rar.mult * roll(0.94, 1.06)).toFixed(1),
-    rpm: Math.round(A.rpm * roll(0.95, 1.05)),
-    mag: Math.max(1, Math.round(A.mag * roll(0.9, 1.15))),
-    reload: +(A.reload * roll(0.88, 1.08)).toFixed(2),
-    spread: A.spread * roll(0.9, 1.1),
-    range: Math.round(A.range * roll(0.9, 1.12)),
-  };
-  if (A.mag === 1) stats.mag = 1;
   const perks = [];
   let mods = null;
   if (tpl) {
     // exotics: fixed signature perks and their own handling
     mods = {};
-    for (const [k, v] of Object.entries(tpl.mods || {})) {
-      if (MOD_REPLACE.includes(k)) mods[k] = v;
-      else if (k in stats) stats[k] = k === 'mag' || k === 'rpm' ? Math.max(1, Math.round(stats[k] * v)) : +(stats[k] * v).toFixed(k === 'spread' ? 4 : 1);
-    }
+    for (const [k, v] of Object.entries(tpl.mods || {})) if (MOD_REPLACE.includes(k)) mods[k] = v;
   } else {
     const pool = PERK_POOL[slot].filter((p) => !(p === 'extmag' && A.mag === 1));
     while (perks.length < rar.perks && perks.length < pool.length) {
@@ -83,8 +63,9 @@ export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
       if (!perks.includes(p)) perks.push(p);
     }
   }
-  const item = { id: newId(), kind: 'weapon', slot: tpl?.slot || slot, arch, element, rarity: rar.id, name, power: clampPower(power), stats, perks, exotic, flavor, isNew: true };
+  const item = { id: newId(), kind: 'weapon', slot: tpl?.slot || slot, arch, frame, element, rarity: rar.id, name, power: clampPower(power), stats: null, perks, exotic, flavor, isNew: true };
   if (tpl) { item.exoticPerks = [...tpl.perks]; item.mods = mods; }
+  item.stats = weaponStats(item); // includes the heavy-slot damage bonus
   if (item.slot !== A.slot) heavyVersion(item);
   return item;
 }
@@ -137,8 +118,7 @@ export function armoryGear(owned, power) {
 /** A special weapon type living in the Heavy slot: more damage, less ammo. */
 export function heavyVersion(item) {
   if (item.reserve) return item; // already converted
-  item.slot = 'heavy';
-  item.stats.dmg = +(item.stats.dmg * HEAVY_VERSION.dmg).toFixed(1);
+  item.slot = 'heavy'; // damage: weaponStats applies HEAVY_VERSION.dmg for the heavy slot
   item.reserve = HEAVY_VERSION.reserve;
   item.brick = HEAVY_VERSION.brick;
   return item;

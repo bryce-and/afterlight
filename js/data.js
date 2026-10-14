@@ -1,11 +1,17 @@
 // ---------- Elements & rarity ----------
+// `symbol`: inner SVG markup (viewBox 0 0 64 64, filled with currentColor) for icons and the HUD.
 export const ELEMENTS = {
-  kinetic: { id: 'kinetic', name: 'Kinetic', color: '#dfe6ee', hex: 0xdfe6ee },
-  solar: { id: 'solar', name: 'Solar', color: '#ff8b2b', hex: 0xff8b2b },
-  arc: { id: 'arc', name: 'Arc', color: '#5fd3ff', hex: 0x5fd3ff },
-  void: { id: 'void', name: 'Void', color: '#b07cff', hex: 0xb07cff },
+  kinetic: { id: 'kinetic', name: 'Kinetic', color: '#dfe6ee', hex: 0xdfe6ee, symbol: '<path d="M32 6 54 28 32 58 10 28z" fill-opacity="0.25"/><path d="M32 6 54 28 32 58 10 28zm0 10L18 29l14 19 14-19z"/>' },
+  solar: { id: 'solar', name: 'Solar', color: '#ff8b2b', hex: 0xff8b2b, symbol: '<circle cx="32" cy="32" r="11"/><path d="M32 2l4 13h-8zM32 62l-4-13h8zM2 32l13-4v8zM62 32l-13 4v-8zM11 11l12 6-6 6zM53 53l-12-6 6-6zM53 11l-6 12-6-6zM11 53l6-12 6 6z"/>' },
+  arc: { id: 'arc', name: 'Arc', color: '#5fd3ff', hex: 0x5fd3ff, symbol: '<path d="M38 2 12 36h16l-6 26 30-36H36z"/>' },
+  void: { id: 'void', name: 'Void', color: '#b07cff', hex: 0xb07cff, symbol: '<path d="M32 4a28 28 0 1 0 0.1 0zm0 8a20 20 0 1 1-0.1 0z"/><path d="M32 18 46 42H18z"/>' },
+  stasis: { id: 'stasis', name: 'Stasis', color: '#4d88ff', hex: 0x4d88ff, symbol: '<path d="M32 2 40 20 32 30 24 20zM32 62 24 44 32 34 40 44zM6 17l19 3 5 11-12-1zM58 47l-19-3-5-11 12 1zM6 47l11-15h12l-8 10zM58 17 47 32H35l8-10z"/>' },
+  strand: { id: 'strand', name: 'Strand', color: '#35e366', hex: 0x35e366, symbol: '<path d="M32 4c10 8 10 20 0 28-10-8-10-20 0-28zm0 6c-4 6-4 12 0 16 4-4 4-10 0-16z"/><path d="M8 50c3-12 14-18 24-18-2 12-12 20-24 18zm6-4c8 0 13-4 15-10-6 1-12 4-15 10z"/><path d="M56 50c-12 2-22-6-24-18 10 0 21 6 24 18zm-6-4c-3-6-9-9-15-10 2 6 7 10 15 10z"/>' },
 };
-export const ENERGY = ['solar', 'arc', 'void'];
+// Energy elements a non-exotic weapon can roll (Kinetic is primary-only). Stasis and Strand have no verbs yet (U16).
+export const ENERGY = ['solar', 'arc', 'void', 'stasis', 'strand'];
+// Enemy shields stay Light elements until Darkness (U16).
+export const SHIELD_ELEMENTS = ['solar', 'arc', 'void'];
 
 export const RARITIES = [
   { id: 'common', name: 'Common', color: '#c9ced4', hex: 0xc9ced4, perks: 0, mult: 1.0, armorPts: 6 },
@@ -186,6 +192,7 @@ export const CLASSES = {
     subclasses: {
       sunbreaker: {
         name: 'Sunbreaker', element: 'solar', color: '#ff8b2b', tagline: 'Walls, hammers, and fire.',
+        passive: 'Your Solar grenades and melees set enemies burning for 3 seconds.',
         defaults: { grenade: 'solar', class: 'barricade', aspects: [] },
         abilities: {
           melee: { id: 'hammerthrow', name: 'Throwing Hammer', cd: 10, desc: 'Hurl a solar hammer. Walk over it after it lands to pick it up: your melee recharges instantly and you heal.' },
@@ -194,6 +201,7 @@ export const CLASSES = {
       },
       striker: {
         name: 'Striker', element: 'arc', color: '#5fd3ff', tagline: 'Charge in and hit like lightning.',
+        passive: 'Arc ability kills make you Amplified for 6 seconds: you move faster and reload faster.',
         defaults: { grenade: 'pulse', class: 'barricade', aspects: [] },
         abilities: {
           melee: { id: 'charge', name: 'Shoulder Charge', cd: 9, desc: 'Sprint-tackle forward, slamming the first enemy you hit.' },
@@ -217,6 +225,7 @@ export const CLASSES = {
     subclasses: {
       gunslinger: {
         name: 'Gunslinger', element: 'solar', color: '#ffb547', tagline: 'Dodges, knives, and the Golden Gun.',
+        passive: 'Weapon precision kills give you 15% melee energy.',
         defaults: { grenade: 'swarm', class: 'marksman', aspects: [] },
         abilities: {
           melee: { id: 'knife', name: 'Knife Trick', cd: 9, desc: 'Throw a flaming knife. Precision hits deal double damage.' },
@@ -225,6 +234,7 @@ export const CLASSES = {
       },
       nightstalker: {
         name: 'Nightstalker', element: 'void', color: '#b07cff', tagline: 'Smoke, invisibility, and tethers.',
+        passive: 'Your grenades and melees weaken every enemy they hit for 4 seconds.',
         defaults: { grenade: 'axion', class: 'marksman', aspects: ['vanishing'] },
         abilities: {
           melee: { id: 'snare', name: 'Snare Bomb', cd: 10, desc: 'Throw a smoke bomb that sticks, then bursts into a cloud that slows and weakens enemies.' },
@@ -248,6 +258,7 @@ export const CLASSES = {
     subclasses: {
       voidwalker: {
         name: 'Voidwalker', element: 'void', color: '#b07cff', tagline: 'Heal, drain, and annihilate.',
+        passive: 'Enemies you defeat with Void abilities detonate in a small void blast.',
         defaults: { grenade: 'vortex', class: 'rift', aspects: [] },
         abilities: {
           melee: { id: 'siphon', name: 'Energy Drain', cd: 11, desc: 'Ranged void strike that restores health and shields.' },
@@ -256,6 +267,7 @@ export const CLASSES = {
       },
       stormcaller: {
         name: 'Stormcaller', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Call down the storm.',
+        passive: 'Your melees and grenades jolt the enemies they hit.',
         defaults: { grenade: 'storm', class: 'empower', aspects: [] },
         abilities: {
           melee: { id: 'chainl', name: 'Chain Lightning', cd: 10, desc: 'Ranged arc strike that jumps to three more enemies.' },
