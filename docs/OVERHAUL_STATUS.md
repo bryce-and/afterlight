@@ -19,14 +19,14 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R10 | Starters: Titan Sunbreaker+Fists of Havoc, Warlock Nova+Dawnblade, Hunter Golden Gun+Shadowshot | Gated in class select and the subclass panel; unit-tested | U1 | Complete and published (v1.1) |
 | R11 | Drop quality scales with level; legendary rare at 15, near-exclusive at 40 | `RARITY_CURVE` by level (legendary ~5% at 15, ~90% at 40); unit-tested over 10k rolls | U1 | Complete and published (v1.1) |
 | R12 | Leveling screen: reward track, legendary every 3 levels, exotic at 20 and 40 | Level tab: 40-node track, claim once, refuses when inventory is full | U1 | Complete and published (v1.1) |
-| R13 | Modeled armor; unique exotic looks; destination sets that drop in all levels | Missing (armor not shown on model) | U6 | Planned |
+| R13 | Modeled armor; unique exotic looks; destination sets that drop in all levels | Armor shows on the Guardian (Character screen, third-person body, fireteam avatars) from each piece's look (`js/style.js`, `js/characters.js`). Six destination sets drop as that destination's legendary armor. Exotics share one gold exotic look (Bryce: no per-exotic models) | U6 | Complete and published (v1.6) |
 | R14 | Armor perk counts by rarity (superseded by V4: perks become mods) | Superseded: no perks. Four sockets on every piece, energy by rarity (4/6/8/10/10) | U5 | Complete and published (v1.5) |
-| R15 | New destination adds new perks | Missing (one global pool) | U6 | Planned |
-| R16 | Shaders recolor armor | Missing | U6 | Planned |
+| R15 | New destination adds new perks | Each destination's set brings its own 3-piece bonus (armor mods stay one pool) | U6 | Complete and published (v1.6) |
+| R16 | Shaders recolor armor | 10 shaders, dropped from mission caches (never duplicates); one per class recolors all armor | U6 | Complete and published (v1.6) |
 | R17 | Subclasses with working aspects, fragments, melee, supers, grenades | Registry `js/subclass.js`: 9 grenades shared by element, 2 class abilities per class, 27 aspects, 14 fragments; behaviors in `player.js` / `abilities.js`. All 18 test loadouts (every aspect and fragment) fired in a mission with no errors | U3 | Complete and published (v1.3) |
 | R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Each super declares `camera` in `data.js`; all 9 checked in browser: camera matches and the enemy under the crosshair takes the damage. Super animations not done | U3 (camera, aim) | In progress |
-| R19 | Exotic weapons/armor: unique perk and model | Weapons: perks + models exist. Armor: perks only, no visuals | U4/U6 | Planned |
-| R20 | Legendary armor: perks, matching sets, destination tie, 3-piece set bonus, character-screen icons | Missing (generic slot SVGs) | U6 | Planned |
+| R19 | Exotic weapons/armor: unique perk and model | Weapons: perks + models. Armor: class exotics (4 per class) with Destiny perks, one shared exotic look | U4/U6 | Complete and published (v1.6) |
+| R20 | Legendary armor: perks, matching sets, destination tie, 3-piece set bonus, character-screen icons | Destination sets with any-3-of-4 bonuses; armor icons rendered from the piece in the current shader | U6 | Complete and published (v1.6) |
 | R21 | Weapon archetypes, models, diagonal D2-style icons, Arc/Solar/Void/Stasis/Strand symbols | `js/frames.js`: Destiny archetypes (frames) for all 12 families, stats fixed by archetype; 74 named legendaries with fixed archetype and element (Destinypedia-sourced); diagonal square icons; a symbol per element; Stasis and Strand weapon elements (no verbs yet). Legendary model variety not done | U4 | Complete and published (v1.4) |
 | R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U9 | Planned |
 | R23 | Stagger when shot | Non-boss enemies flinch 0.15 to 0.35 s on hits above a share of max HP (lower for crits, higher for captains and heavies), with a cooldown; `combat.js` `staggerFor` | U2 | Complete and published (v1.2) |
@@ -83,7 +83,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | M1 | Title screen Update Log (released only) | U1 | Complete and published (v1.1) |
 | M2 | Title screen Roadmap (curated teasers) | U1 | Complete and published (v1.1) |
 | M3 | Requirement tracking, docs, decision log | U1 | Complete and published (v1.1) |
-| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 75 tests as of v1.5 |
+| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 84 tests as of v1.6 |
 | M5 | Versioned GitHub releases | U1 | Complete and published (v1.1) |
 
 ## V4 additions (2026-10-14)
@@ -128,3 +128,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V36 | Orbs of Power and armor charge (added by Bryce for U5) | U5 | Complete and published (v1.5): shared orbs claimed by the first Guardian to touch one (verified across two `?localtest` tabs); charge on the buff HUD |
 | V37 | Nerf Arc Soul (too much super, too much damage) and jolt (added by Bryce for U5) | U5 | Complete and published (v1.5). Measured, 4 clustered enemies, 10 s: Arc Soul damage 3,791 to 533 (73% of the old total was jolt chains from a trait bug: companion hits counted as grenade or melee hits and jolted). An Arc Soul kill gave 7.5% super with 3 Hands-On, now 2%. Jolt chains on a jolted group 4,586 to 892 (a crowd no longer multiplies it), single target 1,147 to 892 |
 | V38 | Health bar and lives stay on top (added by Bryce during U5) | U5 | Complete and published (v1.5): a v1.0 rule moved them to the bottom under 900 px wide |
+| V39 | Character select screen and character switch on the Character screen (added by Bryce during U6) | U6 | Complete and published (v1.6) |
+| V40 | Separate inventories per Guardian, Destiny-style: own gear, inventory and Light; vault, level, glimmer and shaders shared; armor class-bound (added by Bryce during U6) | U6 | Complete and published (v1.6) |
+| V41 | Exotic armor per class with Destiny-accurate perks (added by Bryce during U6) | U6 | Complete and published (v1.6): Liar's Handshake, Raiden Flux and Starfire Protocol added; Actium War Rig, Armamentarium and Ophidian Aspect retired; Nighthawk Golden Gun only, Nezarec's and Contraverse Void only |
+| V42 | Stats shown only on the Mods screen (added by Bryce during U6) | U6 | Complete and published (v1.6): the Mods screen opens at any level as a stats view |

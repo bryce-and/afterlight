@@ -16,12 +16,14 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
-- **3 classes, 9 subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a super, melee and jump, and on the subclass screen you choose a grenade from its element, a class ability from its class, two aspects and the fragments they open.
+- **3 Guardians, 9 subclasses**: play a Titan, a Hunter and a Warlock on one account. Each has its own gear, inventory and Light; your level, glimmer, shaders and vault are shared, and gear moves between Guardians through the vault.
+- **Subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a super, melee and jump, and on the subclass screen you choose a grenade from its element, a class ability from its class, two aspects and the fragments they open.
 - **Guardian levels 1 to 40**: XP from kills (shared by the fireteam), missions and caches. The Level tab is a reward track: a Legendary every 3 levels, Exotics at 20 and 40. Drop rarity climbs with your level.
 - **12 weapon types** (every player gets one of each) in primary / special / heavy slots, each with Destiny's archetypes (Adaptive, Rapid-Fire, High-Impact, Precision...) that fix its stats. Named legendaries always have the same archetype and element. Kinetic, Solar, Arc, Void, Stasis and Strand weapons; aim down sights, reloads, recoil, precision damage, elemental shields.
 - **Combat HUD**: buffs and exotic effects with timers (general above the abilities, weapon perks below), enemy name and health on aim, damage numbers that drift aside, a gold super bar when charged. Enemies flinch on heavy hits.
 - **6 destinations, 18 missions**: the Cosmodrome, the Moon, Mars, Titan, the Tangled Shore and Io, each mission ending in a boss. Horde and Endless activities.
-- **Character screen** in the style of Destiny: 3D class model, weapons left, armor right, flyouts to swap gear, item cards, hold F to dismantle.
+- **Character screen** in the style of Destiny: 3D class model wearing your armor, weapons left, armor right, flyouts to swap gear, item cards, hold F to dismantle. Stats and mods live on the Mods screen.
+- **Armor and style**: armor shows on your Guardian. Six destination armor sets with 3-piece bonuses, four class exotics per class, and 10 shaders from mission caches that recolor all of your armor.
 - **Loot**: engrams drop from enemies, boss caches give rare-or-better gear, five rarities up to Exotic, random perks, Light (up to 200), infusion, dismantling for Glimmer.
 - Progress saves to the browser's localStorage (`afterlight_save_v2`). The pre-overhaul save, if any, is kept untouched in `afterlight_backup_v1`.
 - The title screen has an **Update Log** (shipped updates) and a **Roadmap** (teasers), both from `js/releases.js`.
@@ -55,7 +57,9 @@ WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |
 | `js/armor.js` | Armor 2.0: six stats and tiers, mods (57), energy, sockets, orbs of power and armor charge tuning, v4 to v5 stat migration |
-| `js/mods-ui.js` | The Mods screen that slides in from the character screen |
+| `js/mods-ui.js` | The Mods screen (stats and mods) that slides in from the character screen |
+| `js/style.js` | Armor looks, destination sets and set bonuses, shaders, appearance (what fireteams see) |
+| `js/characters.js` | Guardian models built from the worn armor's looks and shader |
 | `js/frames.js` | Weapon archetypes (Destiny frames), named legendaries, archetype-fixed stats and handling |
 | `js/progression.js` | Level curve, XP values, reward track, drop rarity by level, Light cap |
 | `js/status.js` | Status-effect registry (player buffs and exotic effects shown on the HUD, enemy debuffs) |
@@ -68,7 +72,7 @@ WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse
 
 ## Tests
 
-With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot and weapon archetypes, armor stats and mods, save and migrations, content data, subclass loadouts, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top).
+With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot and weapon archetypes, armor stats and mods, sets and shaders, characters, save and migrations, content data, subclass loadouts, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top).
 
 ## Releasing
 

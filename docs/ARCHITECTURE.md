@@ -3,7 +3,7 @@
 The module map is in the README. These notes cover systems added during the overhaul and the rules for extending them.
 
 ## Save (`js/save.js`)
-- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 5: v3 added loadouts, v4 weapon archetypes, v5 armor stats and mods).
+- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 6: v3 added loadouts, v4 weapon archetypes, v5 armor stats and mods, v6 sets, shaders and characters).
 - Changing the save shape means: add `MIGRATIONS[n]` (upgrades version n to n + 1 in place), bump `SAVE_VERSION`, and add a fixture test in `tools/tests.js`. `loadSave` runs the steps in order and refuses saves from a newer version without touching them.
 - Pre-overhaul saves (`afterlight_save_v1`) are copied once to `afterlight_backup_v1`, then removed. A new Guardian takes only its settings.
 - Storage is swappable (`useStorage`) so tests never touch the real save.
@@ -23,6 +23,19 @@ The module map is in the README. These notes cover systems added during the over
 - Kill mods go through `Player.modsOnKill` and hit mods through `Player.modOnHit`. They match grenade, melee and class ability use by time windows (`grenadeWin`, `meleeWin`, `classWin`). Anything with `companion: true` or `jolted: true` is a chain: no orbs, no Hands-On, no traces, weapon-kill super.
 - Enemy melee and splash damage go through `damagePlayer(amount, from, 'melee' | 'splash')` so the resistance mods apply.
 - The Mods screen (`mods-ui.js`) is a `.cs-mods` overlay inside the character screen; hovering a socket shows the list (CSS), clicking pins it.
+
+## Characters (`js/save.js`)
+- One Guardian per class. The active one's gear is `s.inventory` / `s.equipped`; the others wait in `s.chars[classId] = { inventory, equipped }`. `switchCharacter` swaps them (a first-time class gets `starterKit`). Everything that reads the inventory keeps working on the active Guardian.
+- Shared: XP/level, glimmer, `s.shaders.owned`, `s.vault`, `s.cleared`. Per Guardian: Light (`playerPower` / `charPower`), subclass and loadouts (already keyed by class), applied shader.
+- Armor carries `classId` (exotics too). `usableBy(it, classId)` is the rule: `equipItem` refuses other-class armor and `fromVault` won't hand it out. Drops pass the class being played to `rollItem` / `makeArmor`.
+- Exotic armor: `EXOTIC_ARMOR[classId][slot]` (`data.js`), perks in `EXOTIC_ARMOR_PERKS` with ids the Player checks in `this.exo`.
+
+## Style: looks, sets, shaders (`js/style.js`, `js/characters.js`)
+- `style.js` is pure data and rules. `LOOKS` (palette or null for class colors, plus a variant per slot: visor, crest, cuff, plate, shoulder, knee, shin), `SETS` (one per destination id: piece names, bonus text, look), `SET_TUNE`, `SHADERS`, `lookOf(item)`, `activeSets(items)` (any `SET_PIECES` of one set, exotics never count), `rollShader`, `shaderFor`, `appearance` / `encodeAppearance` / `decodeAppearance`.
+- `buildCharacter(classId, elementId, appearance)` builds the class silhouette and each slot from its look; the shader replaces the colors, glows keep the subclass color. Armor meshes carry `userData.slot`. The skeleton exposes `hip.userData.knee` and `shoulder.userData.elbow`.
+- Appearance reaches fireteams as `lk` in the player state (`"helmet,arms,chest,legs|shader"`); a change rebuilds the avatar.
+- Armor icons (`icons.js` `armorIconURL`) render the slot's meshes of the item's class in the current shader (`setArmorIconContext`), cached.
+- A new set: add a `SETS` entry keyed by a location id, a look, a bonus, and its check in the Player (`sets.has(id)`). A new look variant: handle it in `body` / `helmet` in `characters.js`.
 
 ## Status effects (`js/status.js`)
 - `STATUS` defines every player-visible timed effect once: name, HUD group (`general` above the abilities, `weapon` below), glyph, color, default duration, max stacks. `StatusSet` (on `Player.status`) holds the live ones: `apply`, `has`, `remaining`, `stacks`, `consume`, `remove`, `clearScope`, `tick`, `list`.
