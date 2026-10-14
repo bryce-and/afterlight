@@ -32,3 +32,10 @@
 | 2026-10-14 | Every update session ends with a co-op connection check; a full co-op QA only when Bryce asks. | Bryce (V4) |
 | 2026-10-14 | At the start of a session, ask whether several updates are being applied. If so, title-screen artwork is made only for the last one, and handoff prompts are written to chain the updates. | Bryce (V4) |
 | 2026-10-14 | Mobile work (U20) applies only on phones. The desktop HUD, menus, AI and hitboxes stay as they are. | Bryce |
+| 2026-10-14 | H1 single update this session (no chaining). Public name "Hotfix", v1.3.1. | Bryce |
+| 2026-10-14 | Top-right feed: drops, level up, Underpowered, arena moving, co-op notices, reinforcements and ammo stay. Effects already on the buff HUD lose their feed line; one-off procs become 1.5 s buff HUD entries (general above the abilities, weapon below). The gold super bar stays; only the "Super ready" feed line went. | Bryce |
+| 2026-10-14 | A co-op wipe with no lives fails the activity only before it is complete. On boss defeat or the final activity cache, everyone downed is revived in place, and players take no more damage. | Bryce (rule), Claude (no damage after completion) |
+| 2026-10-14 | Bosses keep their engrams. Kill engrams: captain 5%, heavy 8% (Bryce); grunt and rusher 2% (Claude, accepted). | Bryce |
+| 2026-10-14 | Both barricades: Guardians and their shots pass through; enemies and enemy shots don't. Both take the subclass color. | Bryce |
+| 2026-10-14 | Celestial Nighthawk: Golden Gun 4x, other supers 2.5x. Ionic Trace: Electrostatic 8%, Spark of Ions 5%, one trace per 0.5 s, none from jolt chains. Hands-On 1.5%/piece, Dynamo 8%. | Bryce (Nighthawk), Claude (Ionic, perks) |
+| 2026-10-14 | Members now see the leader's stagger tilt (reverses the U2 note). The snapshot carries a debuff bitmask and stagger time per enemy. | Claude (H1) |

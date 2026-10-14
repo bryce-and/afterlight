@@ -33,12 +33,23 @@ The module map is in the README. These notes cover systems added during the over
 - Pure tuning and rules shared by the game and the tests: super gain, Song of Flame, weapon tier scaling (`weaponTierMult`), primary boost, ability power, ADS spread (`spreadFor`), chain targets, Storm Grenade, stagger thresholds (`staggerFor`), damage-number drift.
 - `dealDamage` applies weapon tier scaling to `weapon` and `perk` sources and decides stagger on the owner's side.
 
+## Feed vs buff HUD (`ui.feed`, `js/status.js`)
+- The top-right feed is for drops and notices only (items, level up, Underpowered, arena moving, co-op notices, reinforcements, ammo). An effect with a duration goes on the status registry only. A one-off proc (White Nail, Skullfort, hammer recovered...) is a `STATUS` entry with `t: 1.5`.
+
+## Colliders that Guardians pass
+- A collider with `pass: true` (barricades) blocks enemies (`pushOutCircle`) and enemy shots (`pointInColliders`), but `moveBody` skips it and player projectiles use `pointInColliders(p, 0, true)`. Enemy cover search skips it.
+
+## Zones and waves (`combat.js` `waveStep`)
+- Missions and activities ask `waveStep(alive, waveIdx, waveCount, isBoss)` each check: it spawns the next wave at 2 or fewer alive and only clears when every wave has spawned and none are alive, never on the check that spawned a wave.
+
 ## Update Log / Roadmap (`js/releases.js`)
 - `RELEASES` holds shipped updates only, newest first. `ROADMAP` holds curated teasers with a status from `ROADMAP_STATUSES` and no dates. The title screen renders both; adding an entry needs no UI change. Tests check ordering, statuses and the absence of dates.
 
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
-- Companions (Child of the Old Gods, Arc Soul) follow the caster on the caster's screen; fireteam members see them where they were summoned. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
-- Celestial Nighthawk's 4× applies to the first super hit while the super is active. Nova Bomb's projectile can land after the 0.8 s super ends, losing the 4× (unchanged from v1.1).
+- Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
+- Co-op sync: the host snapshot (15/s) carries each enemy's debuff bitmask and stagger time; members refresh debuffs for 0.3 s per snapshot. Zone, area-cleared and boss banners go out as `bn` messages.
+- HUD scale reaches 200%. At 200% on a 1280×720 screen the ability block and weapon list grow large enough to crowd the center of the screen.
+- Celestial Nighthawk's 2.5× (4× for Golden Gun) applies to the first super hit while the super is active. Nova Bomb's projectile can land after the 0.8 s super ends, losing the 4× (unchanged from v1.1).
 - `afterlight.html` (an older single-file entry) is stale and not maintained. `index.html` is the game.
 - After a deploy, a browser can briefly pair a cached `index.html` with new modules. `tools/stamp_version.py` cache-busts every release; run it before each push.

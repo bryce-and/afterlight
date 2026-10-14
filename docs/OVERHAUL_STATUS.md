@@ -83,23 +83,24 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | M1 | Title screen Update Log (released only) | U1 | Complete and published (v1.1) |
 | M2 | Title screen Roadmap (curated teasers) | U1 | Complete and published (v1.1) |
 | M3 | Requirement tracking, docs, decision log | U1 | Complete and published (v1.1) |
-| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 45 tests as of v1.3 |
+| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 53 tests as of v1.3.1 |
 | M5 | Versioned GitHub releases | U1 | Complete and published (v1.1) |
 
 ## V4 additions (2026-10-14)
 
 | ID | Requirement | Update | Status |
 |---|---|---|---|
-| V01 | Ionic Trace refunds super too fast: investigate, nerf; tune super-related armor perks | H1 | Planned |
-| V02 | Nerf Celestial Nighthawk (Nova Bomb, Golden Gun) | H1 | Planned |
-| V03 | Far fewer drops; caches give 2 to 3 items | H1 | Planned |
-| V04 | Top-right feed shows item drops only | H1 | Planned |
-| V05 | Thrown hammer clips into the ground | H1 | Planned |
-| V06 | Rally Barricade wider; players pass through, enemies don't | H1 | Planned |
-| V07 | Bigger enemy and player health bars; enemy bars follow HUD scale; HUD scale up to 200% | H1 | Planned |
-| V08 | Co-op: auto-revive downed players when an activity ends, even with no lives | H1 | Planned |
-| V09 | Co-op: a player downed mid-jump drops to the ground | H1 | Planned |
-| V10 | Co-op: Arc Soul tracks correctly | H1 | Planned |
+| V01 | Ionic Trace refunds super too fast: investigate, nerf; tune super-related armor perks | H1 | Complete and published (v1.3.1): cause was a loop (uncapped Ionic Trace cooldown refunds on every Arc ability kill, jolt chains included, feeding Hands-On super per kill). Electrostatic 15 to 8%, Spark of Ions 10 to 5%, one trace per 0.5 s, none from jolt chains, Hands-On 3 to 1.5%/piece, Dynamo 12 to 8%. Scripted loop, empty to full super: Electrostatic + 3 Hands-On 5.8 s to 34.3 s; with Spark of Ions 1.1 s to 34.3 s; plain 77.8 s unchanged |
+| V02 | Nerf Celestial Nighthawk (Nova Bomb, Golden Gun) | H1 | Complete and published (v1.3.1): Golden Gun 6x to 4x, other supers 4x to 2.5x (`combat.js` `NIGHTHAWK`) |
+| V03 | Far fewer drops; caches give 2 to 3 items | H1 | Complete and published (v1.3.1): kill engrams grunt 2%, rusher 2%, captain 5%, heavy 8% (were 6/5/30/45%); bosses still drop 3; caches already gave 2 to 3 (unchanged) |
+| V04 | Top-right feed shows item drops only | H1 | Complete and published (v1.3.1): feed keeps drops, auto-dismantle, inventory full, level up, Underpowered, arena moving, co-op notices, reinforcements, ammo. Buff duplicates removed; one-off procs are 1.5 s buff HUD entries |
+| V05 | Thrown hammer clips into the ground | H1 | Complete and published (v1.3.1): rests on the surface it hits (`restHeight`); wall hits step back along the throw |
+| V06 | Rally Barricade wider; players pass through, enemies don't | H1 | Complete and published (v1.3.1): Rally 2.6 to 4 m; both barricades are `pass` colliders (players and their shots pass; enemies and enemy shots blocked) and take the subclass color |
+| V07 | Bigger enemy and player health bars; enemy bars follow HUD scale; HUD scale up to 200% | H1 | Complete and published (v1.3.1): plates and player bars about 1.5x; plate sizes use `--hud-scale`; slider 70 to 200% |
+| V08 | Co-op: auto-revive downed players when an activity ends, even with no lives | H1 | Complete and published (v1.3.1): revived in place on boss defeat and on the final activity cache; no damage after completion; a wipe before completion still fails |
+| V09 | Co-op: a player downed mid-jump drops to the ground | H1 | Complete and published (v1.3.1) |
+| V33 | Co-op health check: zone/wave cleared with enemies alive; members missing host debuffs, stagger, zone and boss banners | H1 | Complete and published (v1.3.1): `waveStep` never clears on the check that spawns a wave (solo too); snapshot carries debuff bits and stagger; banners broadcast |
+| V10 | Co-op: Arc Soul tracks correctly | H1 | Complete and published (v1.3.1): companion replays follow the caster's avatar (caster id on ability fx) |
 | V11 | Thrown hammer glows and explodes after 7s if not picked up | H2 | Planned |
 | V12 | Hammer of Sol creates Sunspots; enemies inside burn | H2 | Planned |
 | V13 | Healing Grenade places a white orb: heal + Restoration on touch | H2 | Planned |

@@ -34,7 +34,7 @@ On the Director screen, **Create Fireteam** to get a 6-character code, or type a
 - The leader's browser runs enemies and the mission; members send their hits to the leader.
 - Each player gets their own loot: every kill rolls separate drops for each player, and everyone opens their own boss cache.
 - Each extra player adds about 50% more enemies; bosses get more health and call more adds.
-- No friendly fire. No mission failure in co-op: you respawn after 6 seconds.
+- No friendly fire. A downed player can be revived by a teammate (hold E) or spends a pooled life (3 lives for two players, 5 for three). If everyone is down with no lives left before the activity is complete, it fails. When the boss falls or the final cache appears, everyone downed gets back up.
 - Some strict school, work, or mobile networks block direct connections; there's no relay server to fall back on.
 - `?localtest` in the URL connects tabs of the same browser locally, for testing co-op on one computer.
 - Co-op doesn't work inside the Claude artifact viewer, which blocks WebRTC. Use the GitHub Pages link.
