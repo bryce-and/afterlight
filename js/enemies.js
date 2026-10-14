@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { ENEMY_TYPES, ELEMENTS } from './data.js';
+import { STAGGER } from './combat.js';
 import { mat } from './world.js';
 import { rand, clamp } from './util.js';
 import { hasLOS, pushOutCircle, pointInColliders } from './physics.js';
@@ -344,6 +345,7 @@ export class Enemy {
     this.losT = Math.random() * 0.3; this.los = false;
     this.meleeT = 0.5; this.windup = 0; this.lunge = 0; this.lungeHit = false; this.lungeDir = new THREE.Vector3(); this.flash = 0; this.walk = Math.random() * 6; this.yaw = 0;
     this.knock = new THREE.Vector3();
+    this.staggerT = 0; this.staggerMax = 0; this.staggerCd = 0; // flinch when hit hard (see combat.js STAGGER)
     this.seed = Math.random() * 100;
     this.specialT = rand(4, 6);
     this.thresholds = this.isBoss ? [0.66, 0.33] : [];
@@ -351,10 +353,12 @@ export class Enemy {
     this.usesCover = typeId === 'grunt' || typeId === 'captain';
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0 };
     const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
+    this.faction = faction;
     this.model = buildModel(this, M.loc.colors, faction);
     this.height = this.model.height * def.scale;
     this.hitMeshes = this.model.hit;
     this.model.group.position.copy(this.pos);
+    this.model.group.rotation.order = 'YXZ'; // pitch (stagger, death) tilts about the enemy's own right axis
     G.scene.add(this.model.group);
     ringFx(this.pos, 2 * def.scale, M.loc.colors.eye, 0.6);
     sparks(_v.copy(this.pos).setY(1), M.loc.colors.eye, 8, 5, 0.1, 0.5);
@@ -362,6 +366,15 @@ export class Enemy {
 
   center(out) { return out.set(this.pos.x, this.pos.y + this.height * 0.5, this.pos.z); }
   headPos(out) { return out.set(this.pos.x, this.pos.y + this.height * 0.95, this.pos.z); }
+
+  /** Flinch: stop moving and attacking for t seconds; a cooldown follows so it can't chain. */
+  stagger(t) {
+    this.staggerT = this.staggerMax = t;
+    this.staggerCd = t + STAGGER.cooldown;
+    this.windup = 0; this.lunge = 0;
+    const torso = this.model.torso;
+    if (torso?.userData.rx !== undefined) torso.rotation.x = torso.userData.rx;
+  }
 
   breakShield(matched) {
     if (this.model.shield) this.model.shield.visible = false;
@@ -399,7 +412,7 @@ export class Enemy {
     if (this.remote) { this.remoteStep(dt); return true; }
     // target the nearest living fireteam member (just the local player when solo)
     this.tgtT = (this.tgtT ?? 0) - dt;
-    if (this.tgtT <= 0 || !this.tgt || this.tgt.dead || this.tgt.invisT > 0 || this.tgt.inv) { this.tgtT = 0.5; this.tgt = pickTarget(this); }
+    if (this.tgtT <= 0 || !this.tgt || this.tgt.dead || this.tgt.status?.has('invisible') || this.tgt.inv) { this.tgtT = 0.5; this.tgt = pickTarget(this); }
     // nobody to target (everyone invisible or down): hold position
     const P = this.tgt || { pos: this.pos.clone().add(new THREE.Vector3(0, 0, 0.01)), eye: this.pos, vel: new THREE.Vector3(), dead: true };
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z;
@@ -452,6 +465,10 @@ export class Enemy {
         }
       }
     }
+    this.staggerT = Math.max(0, this.staggerT - dt);
+    this.staggerCd = Math.max(0, this.staggerCd - dt);
+    const staggered = this.staggerT > 0;
+    if (staggered) { mx = 0; mz = 0; }
     const ml = Math.hypot(mx, mz);
     this.weakenT = Math.max(0, (this.weakenT || 0) - dt);
     this.slowT = Math.max(0, (this.slowT || 0) - dt);
@@ -490,7 +507,7 @@ export class Enemy {
     m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
 
     // ---- attacks ---- (suppressed enemies cannot attack)
-    if (!P.dead && !(this.suppressT > 0)) {
+    if (!P.dead && !(this.suppressT > 0) && !staggered) {
       if (def.melee) {
         // wind up, then lunge ~3m; the hit lands if the player is in reach during the lunge
         this.meleeT -= dt;
@@ -551,6 +568,8 @@ export class Enemy {
     m.group.position.copy(this.pos);
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
     m.group.rotation.y = this.yaw;
+    // stagger: a quick backward jolt that settles
+    m.group.rotation.x = staggered ? -0.28 * Math.sin(Math.PI * (1 - this.staggerT / this.staggerMax)) : 0;
     return true;
   }
 

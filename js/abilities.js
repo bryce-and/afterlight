@@ -4,6 +4,7 @@ import { ELEMENTS } from './data.js';
 import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, ringFx, lightning, beam, explosionFx } from './effects.js';
 import { dealDamage, enemiesNear, addTicker } from './game.js';
 import { sendFx } from './coop.js';
+import { STORM_GRENADE } from './combat.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
 
@@ -117,13 +118,17 @@ export function abilityFx(kind, o, local) {
         update(dt) {
           life -= dt; tick -= dt; cloud.rotation.y += dt;
           if (tick <= 0) {
-            tick = 0.3;
-            const targets = enemiesNear(new THREE.Vector3(p.x, 1, p.z), 5.5);
-            const tgt = targets[Math.floor(Math.random() * targets.length)];
-            const to = tgt ? tgt.center(new THREE.Vector3()) : new THREE.Vector3(p.x + (Math.random() - 0.5) * 8, 0.1, p.z + (Math.random() - 0.5) * 8);
-            lightning(new THREE.Vector3(p.x + (Math.random() - 0.5) * 3, 6, p.z + (Math.random() - 0.5) * 3), to, col, 0.07);
+            // every enemy under the cloud is struck each tick
+            tick = STORM_GRENADE.tick;
+            const targets = enemiesNear(new THREE.Vector3(p.x, 1, p.z), STORM_GRENADE.r);
+            const bolt = (to) => lightning(new THREE.Vector3(p.x + (Math.random() - 0.5) * 3, 6, p.z + (Math.random() - 0.5) * 3), to, col, 0.07);
+            if (!targets.length) bolt(new THREE.Vector3(p.x + (Math.random() - 0.5) * 8, 0.1, p.z + (Math.random() - 0.5) * 8));
+            for (const tgt of targets) {
+              const to = tgt.center(new THREE.Vector3());
+              bolt(to);
+              if (local) dealDamage(tgt, STORM_GRENADE.dmg, { element: 'arc', source: 'ability', pos: to });
+            }
             sfx.zap();
-            if (local && tgt) dealDamage(tgt, 40, { element: 'arc', source: 'ability', pos: to });
           }
           return life > 0;
         },
@@ -228,8 +233,8 @@ export function abilityFx(kind, o, local) {
           const P = G.player;
           const inside = P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 4.7 && Math.abs(P.pos.y - p.y) < 3;
           if (inside) {
-            if (empower) P.buffs.empower = 0.25;
-            else { P.buffs.inRift = 0.2; P.heal(28 * dt); P.regenT = Math.min(P.regenT, 0.5); }
+            if (empower) P.status.apply('empower', { t: 0.25 });
+            else { P.status.apply('rift', { t: 0.2 }); P.heal(28 * dt); P.regenT = Math.min(P.regenT, 0.5); }
             if (!was) ui.feed(empower ? 'Empowered: +25% weapon damage' : 'Healing Rift', empower ? '#5fd3ff' : '#b07cff');
           }
           was = inside;
@@ -295,7 +300,7 @@ export function abilityFx(kind, o, local) {
       const p = V(o.p);
       ringFx(p.clone().setY(0.1), 3, hex('solar'), 0.5);
       const P = G.player;
-      if (!local && P && !P.dead && P.pos.distanceTo(p) < o.r) { P.buffs.empower = Math.max(P.buffs.empower, 2.2); P.restore(2.2); }
+      if (!local && P && !P.dead && P.pos.distanceTo(p) < o.r) { P.status.apply('empower', { t: 2.2 }); P.restore(2.2); }
       break;
     }
     case 'airburst': { // Burst Glide / Triple Jump

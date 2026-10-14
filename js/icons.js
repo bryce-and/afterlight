@@ -58,6 +58,20 @@ export function armorIcon(slot) {
   return `<svg viewBox="0 0 64 64" class="armor-svg" aria-hidden="true"><g fill="currentColor">${ARMOR_SVG[slot]}</g></svg>`;
 }
 
+// Faction emblems for the enemy plate (original designs): Fallen a horned shard, Hive a crescent
+// with a watching eye, Cabal an armored crest with a visor slit.
+const FACTION_SVG = {
+  scrappers: '<path d="M32 6 40 22 58 14 46 32 58 50 40 42 32 58 24 42 6 50 18 32 6 14 24 22z"/><circle cx="32" cy="32" r="6" fill="#000" fill-opacity="0.55"/>',
+  hollow: '<path d="M44 8A26 26 0 1 0 44 56 20 20 0 1 1 44 8z"/><circle cx="40" cy="32" r="5"/><path d="M14 52 10 62 20 56zM24 58 24 64 30 58z"/>',
+  legion: '<path d="M32 4 56 14 52 44 32 60 12 44 8 14z"/><rect x="16" y="24" width="32" height="7" fill="#000" fill-opacity="0.6"/><path d="M32 34 40 46 32 52 24 46z" fill="#000" fill-opacity="0.35"/>',
+};
+export const FACTION_NAMES = { scrappers: 'Fallen', hollow: 'Hive', legion: 'Cabal' };
+export function factionIcon(faction) {
+  const body = FACTION_SVG[faction];
+  if (!body) throw new Error(`No icon for faction "${faction}"`);
+  return `<svg viewBox="0 0 64 64" class="faction-svg" aria-hidden="true"><g fill="currentColor">${body}</g></svg>`;
+}
+
 export function subclassIcon(color) {
   return `<svg viewBox="0 0 64 64" class="armor-svg" aria-hidden="true"><g fill="none" stroke="${color}" stroke-width="4"><path d="M32 4 60 32 32 60 4 32z"/><path d="M32 16 48 32 32 48 16 32z" fill="${color}" fill-opacity="0.35"/></g></svg>`;
 }

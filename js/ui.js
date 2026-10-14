@@ -5,8 +5,9 @@ import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem,
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt } from './progression.js';
 import { RELEASES, ROADMAP } from './releases.js';
 import { dismantleValue } from './loot.js';
-import { weaponIcon, armorIcon, subclassIcon } from './icons.js';
-import { startMission, startActivity, newSeed, retryMission, abandonMission } from './game.js';
+import { weaponIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES } from './icons.js';
+import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets } from './game.js';
+import { dmgDrift } from './combat.js';
 import { initAudio, setVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
@@ -766,6 +767,11 @@ export function enterMission() {
   hud.cross = $('#crosshair'); hud.vig = $('#vignette'); hud.crit = $('#crit-vignette'); hud.reload = $('#reload-hint');
   hud.xpLvl = $('#xpbar .xp-lvl'); hud.xpFill = $('#xpbar .xp-fill');
   hud.superFill = $('#super .super-fill'); hud.superLbl = $('#super .super-label'); hud.superBox = $('#super');
+  hud.plate = $('#eplate'); hud.plateIco = $('#eplate .ep-ico'); hud.plateName = $('#eplate .ep-name'); hud.plateHp = $('#eplate .ep-hp'); hud.plateSh = $('#eplate .ep-shield');
+  hud.buffs = { general: $('#buffs-gen'), weapon: $('#buffs-wpn') };
+  for (const box of Object.values(hud.buffs)) box.innerHTML = '';
+  buffChips.clear();
+  plateE = null; plateHold = 0;
   hud.ab = {};
   const ab = P.cls.abilities;
   for (const k of ['grenade', 'melee', 'class']) {
@@ -838,7 +844,7 @@ export function updateHUD(dt) {
     const pct = 1 - P.cd[k] / P.cdMax[k];
     setStyle(a.fill, 'ab' + k, 'height', `${Math.round(pct * 100)}%`);
     setClass(a.el, 'ab' + k, 'ready', pct >= 1);
-    setClass(a.el, 'hx' + k, 'empowered', P.heart[k] > 0); // Heart of Inmost Light
+    setClass(a.el, 'hx' + k, 'empowered', P.status.has('heart', k)); // Heart of Inmost Light
     if (k === 'grenade') setClass(a.el, 'gb', 'charge2', P.gBank > 0); // Armamentarium
   }
   const S = P.superActive;
@@ -884,6 +890,8 @@ export function updateHUD(dt) {
     setStyle(hud.bossSh, 'bs', 'width', `${(boss.shield / boss.maxShield) * 100}%`);
     setStyle(hud.bossSh, 'bsc', 'background', ELEMENTS[boss.shieldEl].color);
   }
+  updateEnemyPlate(dt);
+  updateBuffs();
   // waypoint
   const wp = M.waypoint;
   setClass(hud.wp, 'wp', 'hidden', !wp);
@@ -989,8 +997,10 @@ function updateDamageDirs(dt) {
   }
 }
 
-// floating damage numbers
+// floating damage numbers: they pop at the hit, then drift out to the side and ease down
+// (alternating sides so a stream of hits fans out instead of stacking)
 const dmgPool = [], dmgActive = [];
+let dmgSide = 1;
 export function damageNumber(enemy, pos, amount, o = {}) {
   let el = dmgPool.pop();
   if (!el) { el = document.createElement('div'); $('#dmg-layer').appendChild(el); }
@@ -998,9 +1008,9 @@ export function damageNumber(enemy, pos, amount, o = {}) {
   el.style.color = o.shield ? ELEMENTS[o.shield].color : '';
   el.style.display = 'block';
   el.textContent = Math.max(1, Math.round(amount));
-  // every hit gets its own number (one per pellet); jitter keeps them from stacking
-  const p = pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.2 + Math.random() * 0.35, (Math.random() - 0.5) * 0.8));
-  dmgActive.push({ el, enemy, pos: p, amount, born: G.time, life: 0.8, crit: !!o.crit });
+  dmgSide = -dmgSide;
+  const p = pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.2, (Math.random() - 0.5) * 0.3));
+  dmgActive.push({ el, enemy, pos: p, amount, born: G.time, life: 0.8, crit: !!o.crit, side: dmgSide * (0.8 + Math.random() * 0.4) });
   if (dmgActive.length > 70) { const d = dmgActive.shift(); d.el.style.display = 'none'; dmgPool.push(d.el); }
 }
 function updateDamageNumbers(dt) {
@@ -1008,14 +1018,88 @@ function updateDamageNumbers(dt) {
     const d = dmgActive[i];
     d.life -= dt;
     if (d.life <= 0) { d.el.style.display = 'none'; dmgPool.push(d.el); dmgActive.splice(i, 1); continue; }
-    d.pos.y += dt * 0.9;
     _p.copy(d.pos).project(G.camera);
     if (_p.z > 1) { d.el.style.opacity = '0'; continue; }
-    const x = (_p.x * 0.5 + 0.5) * innerWidth, y = (-_p.y * 0.5 + 0.5) * innerHeight;
+    const off = dmgDrift(d.side, 0.8 - d.life);
+    const x = (_p.x * 0.5 + 0.5) * innerWidth + off.x, y = (-_p.y * 0.5 + 0.5) * innerHeight + off.y;
     const sc = 0.85 + Math.max(0, d.life - 0.6) * 2.75; // pops in big, then settles
     d.el.style.opacity = Math.min(1, d.life * 3).toFixed(2);
     d.el.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%,-50%) scale(${sc.toFixed(2)})`;
   }
+}
+
+// enemy name + health plate above the enemy's head: shown while the crosshair is on it, fades ~1 s after looking away
+const aimRay = new THREE.Raycaster(), _aimFwd = new THREE.Vector3();
+let plateE = null, plateHold = 0;
+const PLATE_HOLD = 1, PLATE_FADE = 0.6;
+const PLATE_CENTER = 18 + 5 + 42; // icon + gap + half the bar: the bar, not the icon, sits over the head
+function aimedEnemy() {
+  const cam = G.camera;
+  cam.getWorldDirection(_aimFwd);
+  aimRay.set(cam.getWorldPosition(_p), _aimFwd);
+  aimRay.far = 120;
+  for (const h of aimRay.intersectObjects(getHitTargets(), false)) {
+    const e = h.object.userData.enemy;
+    if (!e) return null; // a wall or prop is in the way
+    if (e.alive) return e.isBoss ? null : e;
+  }
+  return null;
+}
+const _head = new THREE.Vector3();
+function updateEnemyPlate(dt) {
+  const e = G.player.dead ? null : aimedEnemy();
+  if (e) {
+    if (e !== plateE) {
+      plateE = e; setText(hud.plateName, 'epn', e.name);
+      if (cache.get('epf') !== e.faction) { cache.set('epf', e.faction); hud.plateIco.innerHTML = factionIcon(e.faction); hud.plateIco.title = FACTION_NAMES[e.faction]; }
+      setClass(hud.plate, 'epm', 'major', e.typeId === 'captain' || e.typeId === 'heavy');
+    }
+    plateHold = PLATE_HOLD;
+  } else plateHold = Math.max(0, plateHold - dt);
+  const show = !!plateE && plateHold > 0;
+  setClass(hud.plate, 'ep', 'hidden', !show);
+  if (!show) { plateE = null; return; }
+  // track the enemy: just above its head, hidden while it's behind the camera
+  _head.copy(plateE.headPos(_head)); _head.y += 0.35 + 0.15 * plateE.def.scale;
+  _head.project(G.camera);
+  const behind = _head.z > 1;
+  const x = (_head.x * 0.5 + 0.5) * innerWidth, y = (-_head.y * 0.5 + 0.5) * innerHeight;
+  hud.plate.style.transform = `translate(${(x - PLATE_CENTER).toFixed(0)}px, ${y.toFixed(0)}px) translate(0, -100%)`;
+  setStyle(hud.plate, 'epo', 'opacity', behind ? '0' : Math.min(1, plateHold / PLATE_FADE).toFixed(2));
+  setStyle(hud.plateHp, 'eph', 'width', `${(Math.max(0, plateE.hp) / plateE.maxHp * 100).toFixed(1)}%`);
+  const sh = plateE.maxShield ? plateE.shield / plateE.maxShield : 0;
+  setStyle(hud.plateSh, 'eps', 'width', `${(sh * 100).toFixed(1)}%`);
+  if (sh > 0) setStyle(hud.plateSh, 'epsc', 'background', ELEMENTS[plateE.shieldEl].color);
+}
+
+// buff HUD: the player's status effects (js/status.js); general above the abilities, weapon effects below
+const buffChips = new Map();
+const SCOPE_LABEL = { grenade: 'Grenade', melee: 'Melee', class: 'Class' };
+function updateBuffs() {
+  const live = new Set();
+  for (const s of G.player.status.list()) {
+    const key = s.scope == null ? s.id : `${s.id}@${s.scope}`;
+    live.add(key);
+    let c = buffChips.get(key);
+    if (!c) {
+      const el = document.createElement('div');
+      el.className = 'buff' + (s.def.exotic ? ' exo' : '');
+      el.style.setProperty('--bc', s.def.color);
+      const label = s.def.name + (SCOPE_LABEL[s.scope] ? `: ${SCOPE_LABEL[s.scope]}` : '');
+      el.innerHTML = `<span class="b-ico">${s.def.glyph}</span><span class="b-name">${esc(label)}</span><span class="b-st"></span><span class="b-t"></span><i class="b-bar"></i>`;
+      hud.buffs[s.def.group].appendChild(el);
+      c = { el, st: el.querySelector('.b-st'), t: el.querySelector('.b-t'), bar: el.querySelector('.b-bar'), v: {} };
+      buffChips.set(key, c);
+    }
+    const timed = s.t !== Infinity;
+    const st = s.stacks > 1 ? `x${s.stacks}` : '';
+    const t = timed ? (s.t < 3 ? s.t.toFixed(1) : String(Math.ceil(s.t))) : '';
+    const w = timed && s.max > 0 ? `${Math.max(0, (s.t / s.max) * 100).toFixed(0)}%` : '0%';
+    if (c.v.st !== st) { c.v.st = st; c.st.textContent = st; }
+    if (c.v.t !== t) { c.v.t = t; c.t.textContent = t; }
+    if (c.v.w !== w) { c.v.w = w; c.bar.style.width = w; }
+  }
+  for (const [key, c] of buffChips) if (!live.has(key)) { c.el.remove(); buffChips.delete(key); }
 }
 
 // death

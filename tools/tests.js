@@ -1,4 +1,4 @@
-// Afterlight unit tests: pure logic only (progression, loot, save, data, releases).
+// Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
 import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
@@ -6,6 +6,8 @@ import { rollItem } from '../js/loot.js';
 import * as S from '../js/save.js';
 import { mulberry32 } from '../js/util.js';
 import { RELEASES, ROADMAP, ROADMAP_STATUSES } from '../js/releases.js';
+import { StatusSet, STATUS } from '../js/status.js';
+import * as C from '../js/combat.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -163,6 +165,100 @@ test('every subclass has a super, grenade, melee and class ability', () => {
 });
 test('XP is defined for every enemy type', () => {
   for (const t of ['grunt', 'rusher', 'captain', 'heavy', 'boss']) ok(XP.kill[t] > 0, t);
+});
+
+// ---------- status effects ----------
+test('status: apply, expire, and the timer never shrinks unless set', () => {
+  const st = new StatusSet();
+  st.apply('outlaw');
+  eq(st.remaining('outlaw'), STATUS.outlaw.t);
+  st.apply('outlaw', { t: 2 });
+  eq(st.remaining('outlaw'), 6, 'shorter re-apply keeps the longer timer');
+  st.apply('outlaw', { t: 2, set: true });
+  eq(st.remaining('outlaw'), 2, 'set replaces');
+  st.tick(1.5); ok(st.has('outlaw'), 'still active');
+  st.tick(0.6); ok(!st.has('outlaw'), 'expired');
+});
+test('status: stacks cap, consume, and untimed effects', () => {
+  const st = new StatusSet();
+  for (let i = 0; i < 5; i++) st.apply('rampage', { add: 1, set: true });
+  eq(st.stacks('rampage'), 3, 'Rampage caps at 3');
+  st.apply('memento', { scope: 0, stacks: 6 });
+  st.tick(100); ok(st.has('memento', 0), 'untimed survives ticks');
+  for (let i = 0; i < 5; i++) st.consume('memento', 0);
+  eq(st.stacks('memento', 0), 1);
+  st.consume('memento', 0); ok(!st.has('memento', 0), 'last round ends it');
+});
+test('status: weapon scopes are separate and clear with their weapon', () => {
+  const st = new StatusSet();
+  st.apply('killclip', { scope: 0 }); st.apply('killclip', { scope: 2 }); st.apply('heart', { scope: 'melee', t: 8 });
+  ok(st.has('killclip', 0) && st.has('killclip', 2) && !st.has('killclip', 1), 'per slot');
+  st.clearScope(0);
+  ok(!st.has('killclip', 0) && st.has('killclip', 2) && st.has('heart', 'melee'), 'only slot 0 cleared');
+  eq(st.list('weapon').length, 1); eq(st.list('general').length, 1);
+});
+test('status: unknown effects are refused; every effect has a HUD group, name and glyph', () => {
+  let threw = false; try { new StatusSet().apply('nope'); } catch { threw = true; }
+  ok(threw, 'unknown id throws');
+  for (const [id, d] of Object.entries(STATUS)) ok(['general', 'weapon'].includes(d.group) && d.name && d.glyph && d.color, id);
+});
+
+// ---------- combat rules (U2) ----------
+test('super energy: kills give 2 to 6%, passive charge takes about 200 s', () => {
+  const all = [];
+  for (const src of ['weapon', 'ability', 'melee']) for (const crit of [false, true]) for (const t of ['grunt', 'rusher', 'captain', 'heavy']) all.push(C.superKillGain(src, crit, t));
+  eq(Math.min(...all), 2); eq(Math.max(...all), 6);
+  const sec = 100 / C.SUPER_PASSIVE;
+  ok(sec >= 190 && sec <= 210, `passive ${sec}s`);
+});
+test('Song of Flame: modeled super uptime is lower than v1.1', () => {
+  // uptime = duration / (duration + recharge); recharge with passive gain plus one weapon kill every 2 s
+  const up = (dur, passive, perKill) => dur / (dur + 100 / (passive + perKill / 2));
+  const before = up(12, 0.75, 3), after = up(C.SONG.duration, C.SUPER_PASSIVE, C.superKillGain('weapon', false, 'grunt'));
+  ok(after < before * 0.8, `before ${(before * 100).toFixed(1)}%, after ${(after * 100).toFixed(1)}%`);
+  ok(C.SONG.abilityRegen < 8, 'ability regen during Song toned down');
+});
+test('chains skip the primary target: Stormtrance hits 4, Golden Gun splash never re-hits', () => {
+  const a = { n: 'a' }, b = { n: 'b' }, c = { n: 'c' }, d = { n: 'd' }, e = { n: 'e' };
+  eq(C.chainTargets(a, [a, b, c, d, e], C.STORMTRANCE_CHAIN).map((x) => x.n), ['b', 'c', 'd']);
+  eq(1 + C.STORMTRANCE_CHAIN, 4);
+  eq(C.chainTargets(b, [a, b, c], C.GOLDEN_GUN_SPLASH).map((x) => x.n), ['a', 'c']);
+  eq(C.chainTargets(null, [a, b, c], 2).map((x) => x.n), ['a', 'b'], 'no primary: nearest');
+});
+test('ADS spread: primaries at least 40% tighter than v1.1, nothing wider', () => {
+  const V11 = { auto: 0.007, hand: 0.002, pulse: 0.004, scout: 0.001, smg: 0.016, shotgun: 0.06, sniper: 0, fusion: 0.016, linear: 0, rocket: 0, mg: 0.012, glauncher: 0.004 };
+  for (const [id, old] of Object.entries(V11)) {
+    const A = ARCHETYPES[id];
+    ok(A.ads <= old, `${id} wider`);
+    if (A.slot === 'primary') ok(A.ads <= old * 0.6, `${id} ADS ${A.ads} vs ${old}`);
+  }
+  // standing still, fully aimed: the cone is the ADS value; hip fire is unchanged
+  const near = (a, b) => Math.abs(a - b) < 1e-12;
+  ok(near(C.spreadFor({ hip: 0.03, ads: 0.004, adsT: 1, moving: false, air: false, steady: false, bloom: 0 }), 0.004), 'aimed = ADS value');
+  ok(near(C.spreadFor({ hip: 0.03, ads: 0.004, adsT: 0, moving: false, air: false, steady: false, bloom: 0 }), 0.03), 'hip unchanged');
+  ok(C.spreadFor({ hip: 0.03, ads: 0.004, adsT: 1, moving: true, air: false, steady: false, bloom: 0 }) <= 0.004 + 1e-9, 'aimed moving no wider');
+});
+test('primaries: late-mission time to kill is within 1.3x of mission 1 (was 2.7x)', () => {
+  const g = LOCATIONS.length * 3 - 1;
+  const hp = (1 + g * 0.1), dmg = C.weaponTierMult(g);
+  ok(hp / dmg <= 1.3, `ratio ${(hp / dmg).toFixed(2)}`);
+  eq(C.weaponTierMult(0), 1);
+  ok(C.PRIMARY_BOOST > 1 && C.ABILITY_POWER < 1.4, 'primary up, abilities toned down');
+});
+test('stagger: threshold by type, crits stagger easier, cooldown and bosses refuse', () => {
+  eq(C.staggerFor('grunt', 5, 100, false, true), 0, 'small hit');
+  ok(C.staggerFor('grunt', 12, 100, false, true) >= C.STAGGER.min, 'at threshold');
+  ok(C.staggerFor('grunt', 9, 100, true, true) > 0 && C.staggerFor('grunt', 9, 100, false, true) === 0, 'crit threshold lower');
+  eq(C.staggerFor('grunt', 80, 100, false, false), 0, 'on cooldown');
+  ok(C.staggerFor('grunt', 100, 100, false, true) <= C.STAGGER.max, 'capped');
+  eq(C.staggerFor('heavy', 25, 100, false, true), 0, 'heavies need bigger hits');
+  eq(C.staggerFor('boss', 5000, 100, true, true), 0, 'bosses never stagger');
+});
+test('damage numbers drift mostly sideways, on alternating sides', () => {
+  const a = C.dmgDrift(1, 0), b = C.dmgDrift(1, 0.8), c = C.dmgDrift(-1, 0.8);
+  ok(Math.abs(b.x - a.x) > Math.abs(b.y - a.y), `dx ${b.x - a.x} dy ${b.y - a.y}`);
+  ok(b.y > a.y, 'eases down');
+  ok(c.x < 0 && b.x > 0, 'sides');
 });
 
 // ---------- Update Log / Roadmap ----------

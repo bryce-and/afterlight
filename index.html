@@ -11,41 +11,43 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=20261013222231" />
+<link rel="stylesheet" href="style.css?v=20261013224717" />
 <script type="importmap">
 {
  "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "./js/abilities.js": "./js/abilities.js?v=20261013222231",
-  "./js/audio.js": "./js/audio.js?v=20261013222231",
-  "./js/bosses.js": "./js/bosses.js?v=20261013222231",
-  "./js/characters.js": "./js/characters.js?v=20261013222231",
-  "./js/coop.js": "./js/coop.js?v=20261013222231",
-  "./js/data.js": "./js/data.js?v=20261013222231",
-  "./js/effects.js": "./js/effects.js?v=20261013222231",
-  "./js/enemies.js": "./js/enemies.js?v=20261013222231",
-  "./js/game.js": "./js/game.js?v=20261013222231",
-  "./js/icons.js": "./js/icons.js?v=20261013222231",
-  "./js/level-earth.js": "./js/level-earth.js?v=20261013222231",
-  "./js/level-io.js": "./js/level-io.js?v=20261013222231",
-  "./js/level-mars.js": "./js/level-mars.js?v=20261013222231",
-  "./js/level-moon.js": "./js/level-moon.js?v=20261013222231",
-  "./js/level-tangled.js": "./js/level-tangled.js?v=20261013222231",
-  "./js/level-titan.js": "./js/level-titan.js?v=20261013222231",
-  "./js/loot.js": "./js/loot.js?v=20261013222231",
-  "./js/main.js": "./js/main.js?v=20261013222231",
-  "./js/models.js": "./js/models.js?v=20261013222231",
-  "./js/music.js": "./js/music.js?v=20261013222231",
-  "./js/net.js": "./js/net.js?v=20261013222231",
-  "./js/physics.js": "./js/physics.js?v=20261013222231",
-  "./js/player.js": "./js/player.js?v=20261013222231",
-  "./js/progression.js": "./js/progression.js?v=20261013222231",
-  "./js/releases.js": "./js/releases.js?v=20261013222231",
-  "./js/save.js": "./js/save.js?v=20261013222231",
-  "./js/state.js": "./js/state.js?v=20261013222231",
-  "./js/ui.js": "./js/ui.js?v=20261013222231",
-  "./js/util.js": "./js/util.js?v=20261013222231",
-  "./js/world.js": "./js/world.js?v=20261013222231"
+  "./js/abilities.js": "./js/abilities.js?v=20261013224717",
+  "./js/audio.js": "./js/audio.js?v=20261013224717",
+  "./js/bosses.js": "./js/bosses.js?v=20261013224717",
+  "./js/characters.js": "./js/characters.js?v=20261013224717",
+  "./js/combat.js": "./js/combat.js?v=20261013224717",
+  "./js/coop.js": "./js/coop.js?v=20261013224717",
+  "./js/data.js": "./js/data.js?v=20261013224717",
+  "./js/effects.js": "./js/effects.js?v=20261013224717",
+  "./js/enemies.js": "./js/enemies.js?v=20261013224717",
+  "./js/game.js": "./js/game.js?v=20261013224717",
+  "./js/icons.js": "./js/icons.js?v=20261013224717",
+  "./js/level-earth.js": "./js/level-earth.js?v=20261013224717",
+  "./js/level-io.js": "./js/level-io.js?v=20261013224717",
+  "./js/level-mars.js": "./js/level-mars.js?v=20261013224717",
+  "./js/level-moon.js": "./js/level-moon.js?v=20261013224717",
+  "./js/level-tangled.js": "./js/level-tangled.js?v=20261013224717",
+  "./js/level-titan.js": "./js/level-titan.js?v=20261013224717",
+  "./js/loot.js": "./js/loot.js?v=20261013224717",
+  "./js/main.js": "./js/main.js?v=20261013224717",
+  "./js/models.js": "./js/models.js?v=20261013224717",
+  "./js/music.js": "./js/music.js?v=20261013224717",
+  "./js/net.js": "./js/net.js?v=20261013224717",
+  "./js/physics.js": "./js/physics.js?v=20261013224717",
+  "./js/player.js": "./js/player.js?v=20261013224717",
+  "./js/progression.js": "./js/progression.js?v=20261013224717",
+  "./js/releases.js": "./js/releases.js?v=20261013224717",
+  "./js/save.js": "./js/save.js?v=20261013224717",
+  "./js/state.js": "./js/state.js?v=20261013224717",
+  "./js/status.js": "./js/status.js?v=20261013224717",
+  "./js/ui.js": "./js/ui.js?v=20261013224717",
+  "./js/util.js": "./js/util.js?v=20261013224717",
+  "./js/world.js": "./js/world.js?v=20261013224717"
  }
 }
 </script>
@@ -74,15 +76,18 @@
     <div id="revives"></div>
   </div>
   <div id="bossbar" class="hidden"><div class="boss-name"></div><div class="boss-track"><div class="boss-hp"></div><div class="boss-shield"></div></div></div>
+  <div id="eplate" class="hidden"><div class="ep-ico"></div><div class="ep-body"><div class="ep-name"></div><div class="ep-track"><div class="ep-hp"></div></div><div class="ep-shield"></div></div></div>
 
   <div id="xpbar"><span class="xp-lvl"></span><div class="xp-track"><div class="xp-fill"></div></div></div>
   <div id="abilities">
+    <div id="buffs-gen" class="buffs"></div>
     <div id="super"><div class="super-top"><span class="super-name"></span><span class="super-label"></span><kbd>X</kbd></div><div class="super-track"><div class="super-fill"></div></div></div>
     <div class="ab-row">
       <div class="ab" data-ab="grenade"><div class="ab-fill"></div><div class="ab-icon">◆</div><span class="ab-name"></span><kbd>Q</kbd></div>
       <div class="ab" data-ab="melee"><div class="ab-fill"></div><div class="ab-icon">✶</div><span class="ab-name"></span><kbd>F</kbd></div>
       <div class="ab" data-ab="class"><div class="ab-fill"></div><div class="ab-icon">▲</div><span class="ab-name"></span><kbd>C</kbd></div>
     </div>
+    <div id="buffs-wpn" class="buffs"></div>
   </div>
   <div id="weapons"></div>
   <div id="reload-hint">RELOAD [R]</div>

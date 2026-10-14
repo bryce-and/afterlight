@@ -4,6 +4,20 @@
 
 export const RELEASES = [
   {
+    version: '1.2', name: 'Clear Sight', date: '2026-10-13', accent: '#7fd8ff', glyph: '◎',
+    summary: 'Read the battlefield at a glance. Every blessing on your Light now ticks down where you can see it, every foe has a name, and every shot lands with weight.',
+    notes: [
+      'Your buffs and exotic effects appear above your abilities, weapon perks below, each with its own timer',
+      'Aim at an enemy to see its name, faction and health above its head',
+      'Damage numbers peel away to the side instead of piling up',
+      'A charged super now burns gold',
+      'Enemies flinch when you hit them hard',
+      'Tighter aim down sights, and primaries hit harder, especially in later missions',
+      'Supers charge more slowly and Song of Flame burns shorter',
+      'Stormtrance now chains to four, Storm Grenade strikes everything beneath it, and Golden Gun no longer strikes its target twice',
+    ],
+  },
+  {
     version: '1.1', name: 'First Light', date: '2026-10-13', accent: '#f4c542', glyph: '✦',
     summary: 'A new journey begins. Every Guardian starts fresh: earn your levels, climb the reward track, and reach for the Light beyond.',
     notes: [
@@ -31,11 +45,6 @@ export const RELEASES = [
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
 export const ROADMAP = [
-  {
-    name: 'Clear Sight', status: 'On the Horizon', accent: '#7fd8ff', glyph: '◎',
-    teaser: 'Read the battlefield at a glance. Know your enemy by name, watch every blessing on your Light tick down, and feel each shot land.',
-    themes: ['Combat clarity', 'A sharper sandbox'],
-  },
   {
     name: 'Paths of Light', status: 'On the Horizon', accent: '#ff8b2b', glyph: '❖',
     teaser: 'Your Light, your way. Every subclass is about to open up.',

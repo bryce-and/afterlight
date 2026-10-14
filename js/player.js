@@ -12,6 +12,8 @@ import { fxTracer, requestLife, DOWN_TIME } from './coop.js';
 import { castFx } from './abilities.js';
 import { buildCharacter } from './characters.js';
 import * as ui from './ui.js';
+import { StatusSet } from './status.js';
+import { SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH } from './combat.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
 const ray = new THREE.Raycaster();
@@ -41,15 +43,14 @@ function makeWeapon(item) {
   const reserveBase = item.reserve ?? A.reserve, brick = item.brick ?? A.brick;
   return {
     item, A, s: item.stats, has: (p) => perks.has(p), mag, ammo: mag,
-    reserve: primary ? Infinity : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : Math.round(reserveBase * 1.5), brick, memento: 0,
+    reserve: primary ? Infinity : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : Math.round(reserveBase * 1.5), brick,
     fireCd: 0, reloading: false, reloadT: 0, reloadMax: 1, burstLeft: 0, charge: 0, queued: 0, bloom: 0,
-    hitCount: 0, precHits: 0, perkT: 0, honed: 0, el: null, feedWin: 0, voltWin: 0, voltArm: false, volt: false, reconT: 0, killclipWindow: 0, killclipT: 0, killclipArm: false, model: null,
+    hitCount: 0, precHits: 0, honed: 0, el: null, voltWin: 0, voltArm: false, reconT: 0, killclipWindow: 0, killclipArm: false, model: null,
   };
 }
 
 // Supers hit hard and keep pace with the mission: their damage scales with the same
 // multiplier as enemy health, so a super feels as strong in the last mission as the first.
-const SUPER_POWER = 2.2;
 const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
 // damage taken while each super is active
 const SUPER_ARMOR = { hammers: 0.45, fists: 0.35, stormtrance: 0.5, revolver: 0.6, tether: 0.6, staff: 0.45, sentinel: 0.5, songflame: 0.6 };
@@ -93,16 +94,15 @@ export class Player {
     this.cdMax.melee *= Math.max(0.4, 1 - 0.15 * ap('brawler'));
     this.cdMax.class *= Math.max(0.4, 1 - 0.2 * ap('kickstart'));
     if (this.exo.has('stomp')) { this.cdMax.class *= 0.7; this.jumpV *= 1.3; this.speed *= 1.08; }
-    this.heart = { grenade: 0, melee: 0, class: 0 }; // Heart of Inmost Light: timers on the empowered abilities
     this.meleeT = 0; // recent melee use (Synthoceps)
     this.meleeLock = 0;
     this.superCharge = 0; this.superActive = null; this.superWasReady = false;
     this.air = { fuel: 1, usedDouble: false };
     this.dash = 0; this.dashDir = new THREE.Vector3();
-    this.buffs = { rampage: 0, rampageT: 0, outlaw: 0, inRift: 0, empower: 0, wind: 0 };
+    this.status = new StatusSet(); // every timed effect the player can see (buff HUD)
     this.fightT = 0;
-    this.invisT = 0; this.dashSpeed = 20; this.charge = null;
-    this.over = 0; this.overT = 0; this.restoreT = 0; this.lethalT = 0; // overshield, Restoration, Lethal Current
+    this.dashSpeed = 20; this.charge = null;
+    this.over = 0; // overshield amount (its hold timer is the 'overshield' status)
     this.dead = false; this.respawnT = 0;
     this.adsT = 0; this.shake = 0; this.bobT = 0; this.kick = 0; this.punchT = 0; this.punchMax = 0.3; this.punchIsPunch = false; this.landDip = 0; this.sprintT = 0; this.fovKick = 0;
     this.sway = { x: 0, y: 0 };
@@ -122,7 +122,7 @@ export class Player {
     this.fist.add(glove, knuckle, arm);
     this.fist.visible = false;
     G.camera.add(this.fist);
-    this.weapons = WEAPON_SLOTS.map((slot) => makeWeapon(getEquipped(save, slot)));
+    this.weapons = WEAPON_SLOTS.map((slot, i) => Object.assign(makeWeapon(getEquipped(save, slot)), { idx: i }));
     for (const w of this.weapons) { w.model = buildGunModel(w.item); w.model.visible = false; this.viewmodel.add(w.model); }
     if (this.ap.reserves) for (const w of this.weapons) if (w.reserve !== Infinity) { const k = 1 + 0.2 * this.ap.reserves; w.reserve = Math.round(w.reserve * k); w.maxReserve = Math.round(w.maxReserve * k); }
     this.superModel = buildSuperModel(ab.super.id);
@@ -130,8 +130,8 @@ export class Player {
     this.viewmodel.add(this.superModel);
     this.cur = 0; this.switchT = 0; this.switchMax = this.exo.has('ophidian') ? 0.2 : 0.4;
     this.lungeMul = this.exo.has('ophidian') ? 1.5 : 1;
-    // exotic armor state: Nezarec's Sin, Contraverse Hold, Actium, Armamentarium, Transversive Steps, Dunemarchers
-    this.nezT = 0; this.contraT = 0; this.actT = 0; this.gBank = 0; this.gBankT = 0; this.trvT = 0; this.dune = 0;
+    // exotic armor state: Actium, Armamentarium, Transversive Steps, Dunemarchers (timed effects are statuses)
+    this.actT = 0; this.gBank = 0; this.gBankT = 0; this.trvT = 0; this.dune = 0;
     this.showModel();
   }
 
@@ -141,6 +141,8 @@ export class Player {
   swapWeapon(i, item) {
     const old = this.weapons[i];
     const w = makeWeapon(item);
+    w.idx = i;
+    this.status.clearScope(i);
     if (old.reserve !== Infinity) {
       const total = old.ammo + old.reserve;
       w.ammo = Math.min(w.mag, total);
@@ -235,6 +237,7 @@ export class Player {
       this.updateBody(dt);
       return;
     }
+    this.status.tick(dt);
     const zoom = this.currentZoom();
     const sensMul = 1 / (1 + (zoom - 1) * this.adsT * 0.85);
     this.yaw -= inp.mouse.dx * this.sens * sensMul;
@@ -270,7 +273,7 @@ export class Player {
     this.moveDir = { x: wx, z: wz, len };
     this.sprinting = !!k.ShiftLeft && iz < 0 && this.adsT < 0.3 && G.time - this.lastFire > 0.35 && !this.weapon.reloading;
     this.sprintT = damp(this.sprintT, this.sprinting ? 1 : 0, 10, dt);
-    let speed = this.speed * (this.buffs.wind > 0 ? 1.15 : 1) * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
+    let speed = this.speed * (this.status.has('wind') ? 1.15 : 1) * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
     if (this.superActive?.type === 'hammers') speed *= 1.1;
     if (this.superActive?.type === 'fists') speed *= 1.3;
     const accel = this.onGround ? 14 : 2.5;
@@ -356,22 +359,13 @@ export class Player {
     for (const ww of this.weapons) {
       ww.fireCd = Math.max(0, ww.fireCd - dt);
       ww.killclipWindow = Math.max(0, ww.killclipWindow - dt);
-      ww.killclipT = Math.max(0, ww.killclipT - dt);
-      ww.perkT = Math.max(0, ww.perkT - dt);
-      ww.feedWin = Math.max(0, ww.feedWin - dt);
       ww.voltWin = Math.max(0, ww.voltWin - dt);
       ww.bloom = Math.max(0, ww.bloom - dt * 0.06);
       if (G.time - this.lastFire > 0.5) ww.spin = Math.max(0, (ww.spin || 0) - dt * 2);
       ww.queued = Math.max(0, ww.queued - dt);
     }
-    this.buffs.rampageT -= dt;
-    if (this.buffs.rampageT <= 0) this.buffs.rampage = 0;
-    this.buffs.outlaw = Math.max(0, this.buffs.outlaw - dt);
-    this.buffs.inRift = Math.max(0, this.buffs.inRift - dt);
-    this.buffs.empower = Math.max(0, this.buffs.empower - dt);
-    this.buffs.wind = Math.max(0, this.buffs.wind - dt);
     this.fightT = G.time - this.lastFire < 3 ? this.fightT + dt : 0; // Frenzy
-    this.invisT = Math.max(0, this.invisT - dt);
+    for (const ww of this.weapons) if (ww.has('frenzy')) { if (this.fightT >= 6) this.status.apply('frenzy', { scope: ww.idx }); else this.status.remove('frenzy', ww.idx); }
     this.kick = damp(this.kick, 0, 14, dt);
     this.punchT = Math.max(0, this.punchT - dt);
     w.model.userData.flash.visible = false;
@@ -388,7 +382,7 @@ export class Player {
 
     if (inp.pressed.KeyR) this.startReload(w);
     if (w.reloading) {
-      w.reloadT -= dt * (this.buffs.inRift > 0 ? 1.6 : 1);
+      w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1);
       if (w.reloadT <= 0) this.finishReload(w);
     }
     const wantAds = inp.mouse.right && !w.reloading && this.punchT <= 0;
@@ -418,7 +412,7 @@ export class Player {
     else if (A.mode === 'charge') {
       if (held && w.fireCd <= 0) {
         if (w.charge === 0) sfx.charge();
-        w.charge += dt * (1 + (w.has('spinup') ? (w.spin || 0) : 0)) * (w.has('merciless') && w.perkT > 0 ? 6 : 1);
+        w.charge += dt * (1 + (w.has('spinup') ? (w.spin || 0) : 0)) * (this.status.has('merciless', w.idx) ? 6 : 1);
         if (w.charge >= A.charge) { this.fire(w); w.charge = 0; }
       } else w.charge = 0;
     }
@@ -445,11 +439,11 @@ export class Player {
     if (w.reloading || w.ammo >= w.mag || w.reserve <= 0) return;
     w.reloading = true;
     let t = w.s.reload;
-    if (this.buffs.outlaw > 0) t *= 0.55;
+    if (this.status.has('outlaw')) t *= 0.55;
     if (w.has('hotswap')) t *= 0.85;
     if (this.exo.has('ophidian')) t *= 0.65;
-    if (w.has('feeding') && w.feedWin > 0) t *= 0.55;
-    if (w.has('frenzy') && this.fightT >= 6) t *= 0.7;
+    if (this.status.has('feeding', w.idx)) t *= 0.55;
+    if (this.status.has('frenzy', w.idx)) t *= 0.7;
     w.reloadT = w.reloadMax = t;
     if (w.killclipWindow > 0) w.killclipArm = true;
     if (w.voltWin > 0) w.voltArm = true;
@@ -462,9 +456,9 @@ export class Player {
     w.ammo += take;
     if (w.reserve !== Infinity) w.reserve -= take;
     w.reloading = false;
-    if (w.voltArm) { w.voltArm = false; w.volt = true; }
-    if (w.killclipArm) { w.killclipArm = false; w.killclipT = 5; ui.feed('Kill Clip active', '#ffd27a'); }
-    if (w.has('memento')) w.memento = 6;
+    if (w.voltArm) { w.voltArm = false; this.status.apply('voltshot', { scope: w.idx }); }
+    if (w.killclipArm) { w.killclipArm = false; this.status.apply('killclip', { scope: w.idx, set: true }); ui.feed('Kill Clip active', '#ffd27a'); }
+    if (w.has('memento')) this.status.apply('memento', { scope: w.idx, stacks: 6 });
     if (w.has('volatile')) {
       w.el = VOLATILE_CYCLE[(VOLATILE_CYCLE.indexOf(wEl(w)) + 1) % VOLATILE_CYCLE.length];
       ui.feed(`Hard Light: ${ELEMENTS[w.el].name}`, ELEMENTS[w.el].color);
@@ -480,12 +474,7 @@ export class Player {
   }
 
   getSpread(w) {
-    let s = lerp(w.s.spread, w.A.ads, this.adsT);
-    const moving = Math.hypot(this.vel.x, this.vel.z) > 1;
-    if (moving) s *= lerp(1.3, 1.05, this.adsT);
-    if (!this.onGround) s *= 1.8;
-    if (w.has('steady')) s *= 0.65;
-    return s + w.bloom * (1 - this.adsT * 0.6);
+    return spreadFor({ hip: w.s.spread, ads: w.A.ads, adsT: this.adsT, moving: Math.hypot(this.vel.x, this.vel.z) > 1, air: !this.onGround, steady: w.has('steady'), bloom: w.bloom });
   }
 
   muzzlePos(out) {
@@ -500,19 +489,20 @@ export class Player {
 
   weaponDmgMult(w, crit) {
     let m = 1;
-    if (w.has('rampage')) m *= 1 + 0.12 * this.buffs.rampage;
-    if (w.killclipT > 0) m *= 1.3;
+    if (w.item.slot === 'primary') m *= PRIMARY_BOOST;
+    if (w.has('rampage')) m *= 1 + 0.12 * this.status.stacks('rampage');
+    if (this.status.has('killclip', w.idx)) m *= 1.3;
     if (w.has('highcal')) m *= 1.1;
     if (crit && w.has('precise')) m *= 1.2;
-    if (this.buffs.empower > 0) m *= 1.25;
+    if (this.status.has('empower')) m *= 1.25;
     if (this.keepsGuns) m *= 1.3; // Song of Flame
-    if (w.memento > 0) m *= 1.5;
+    if (w.mementoShot) m *= 1.5;
     if (w.honed) m *= w.honed;
     if (w.has('regime') && w.ammo < w.mag / 2) m *= 1.25;
-    if (w.has('wolves') && w.perkT > 0) m *= 1.25;
+    if (this.status.has('wolves', w.idx)) m *= 1.25;
     if (w.has('surrounded') && enemiesNear(this.pos, 8, 3).length >= 3) m *= 1.25;
     if (w.openShot) m *= 1.25;
-    if (w.has('frenzy') && this.fightT >= 6) m *= 1.2;
+    if (this.status.has('frenzy', w.idx)) m *= 1.2;
     return m;
   }
 
@@ -525,8 +515,8 @@ export class Player {
     const spinMul = w.has('spinup') ? 1 + 0.7 * (w.spin || 0) : 1;
     const A = w.A, s = w.s;
     w.ammo--;
-    w.mementoShot = w.memento > 0; // Ace of Spades: Memento rounds fire a white tracer and a bigger Firefly
-    if (w.memento > 0) w.memento--;
+    w.mementoShot = this.status.has('memento', w.idx); // Ace of Spades: Memento rounds fire a white tracer and a bigger Firefly
+    if (w.mementoShot) this.status.consume('memento', w.idx);
     this.lastFire = G.time;
     if (A.mode === 'burst') {
       if (w.burstLeft <= 0) w.burstLeft = A.burst;
@@ -534,7 +524,7 @@ export class Player {
       w.fireCd = (w.burstLeft > 0 ? 60 / s.rpm : A.burstDelay) / spinMul;
       if (w.ammo <= 0) w.burstLeft = 0;
     } else w.fireCd = 60 / s.rpm / spinMul;
-    if (w.has('wolves') && w.perkT > 0) w.fireCd /= 2;
+    if (this.status.has('wolves', w.idx)) w.fireCd /= 2;
     const eye = this.eye;
     const fwd = this.getForward(_fwd);
     const spread = this.getSpread(w) * (w.openShot ? 0.4 : 1);
@@ -582,9 +572,10 @@ export class Player {
         if (!e.alive || seen.has(e)) continue;
         seen.add(e);
         const F = w.A?.falloff || DEFAULT_FALLOFF, d = h.distance;
-        const fr = w.s.range * (this.buffs.wind > 0 ? 1.25 : 1);
+        const fr = w.s.range * (this.status.has('wind') ? 1.25 : 1);
         let fall = d <= fr ? 1 : Math.max(F.min, 1 - ((1 - F.min) * (d - fr)) / (fr * F.span));
         if (F.close && d < F.close * 2) fall *= 1 + (F.bonus - 1) * Math.min(1, (F.close * 2 - d) / F.close); // point-blank bonus
+        o.hit ??= e; // the first enemy struck (Golden Gun splash skips it)
         this.applyHit(w, e, dmg * fall, !!h.object.userData.crit, h.point, o);
         if (!(o.pierce || w.has('pierce') || w.A?.pierce)) { end = h.point; break; }
       } else {
@@ -611,16 +602,16 @@ export class Player {
     const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker') });
     if (o.isSuper) return res;
     w.hitCount++;
-    if (w.volt) {
+    if (this.status.has('voltshot', w.idx)) {
       // Voltshot: the charged hit jolts nearby enemies
-      w.volt = false;
+      this.status.remove('voltshot', w.idx);
       for (const other of enemiesNear(e.pos, 10, 3, e)) {
         const c = other.center(new THREE.Vector3());
         lightning(point, c, ELEMENTS.arc.hex, 0.04);
         dealDamage(other, w.s.dmg * (w.A.pellets || 1) * 0.6, { element: 'arc', source: 'perk', pos: c });
       }
     }
-    const conducting = w.has('conductor') && w.perkT > 0;
+    const conducting = this.status.has('conductor', w.idx);
     if (w.has('chain')) {
       for (const other of enemiesNear(e.pos, 9, conducting ? 3 : 1, e)) {
         const c = other.center(new THREE.Vector3());
@@ -733,31 +724,29 @@ export class Player {
   // Kills & damage
   // -------------------------------------------------------------------------
   onKill(e, o) {
-    const typeBonus = e.typeId === 'heavy' ? 4 : e.typeId === 'captain' ? 2 : 0;
-    const gain = (o.source === 'ability' ? 5 : 3) + (o.crit ? 1 : 0) + typeBonus;
-    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + gain);
+    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + superKillGain(o.source, o.crit, e.typeId));
     for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - 0.6);
     if (this.ap.recuperation) this.heal(15 * this.ap.recuperation);
-    if ((o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + 4 * this.ap.handson);
+    if ((o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + SUPER_HANDSON * this.ap.handson);
     if (o.source === 'ability' || o.source === 'melee') {
-      if (this.exo.has('nezarec')) { if (this.nezT <= 0) ui.feed("Nezarec's Sin: abilities surge", ELEMENTS.void.color); this.nezT = 5; }
+      if (this.exo.has('nezarec')) { if (!this.status.has('nezarec')) ui.feed("Nezarec's Sin: abilities surge", ELEMENTS.void.color); this.status.apply('nezarec', { t: 5 }); }
       if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.heal(1000); ui.feed('Skullfort: melee recharged', '#ffb36b'); }
     }
     const w = o.weapon;
     if (!w) return;
-    if (w.has('rampage')) { this.buffs.rampage = Math.min(3, this.buffs.rampage + 1); this.buffs.rampageT = 5; }
+    if (w.has('rampage')) this.status.apply('rampage', { add: 1, set: true });
     if (w.has('killclip')) w.killclipWindow = 3;
-    if (w.has('outlaw') && o.crit) this.buffs.outlaw = 6;
+    if (w.has('outlaw') && o.crit) this.status.apply('outlaw');
     if (w.has('leech')) this.heal(20);
     const c = e.center(new THREE.Vector3());
     if (w.has('firefly') && o.crit) explode(c, w.mementoShot ? 4.5 : 3, w.mementoShot ? 180 : 90, 'solar', { source: 'perk' });
     if (w.has('memento')) {
-      if (w.memento <= 0) ui.feed('Memento Mori', '#ffffff');
-      w.ammo = Math.max(w.ammo, w.mag); w.reloading = false; w.memento = 6;
+      if (!this.status.has('memento', w.idx)) ui.feed('Memento Mori', '#ffffff');
+      w.ammo = Math.max(w.ammo, w.mag); w.reloading = false; this.status.apply('memento', { scope: w.idx, stacks: 6 });
     }
     if (w.has('voidheart')) explode(c, 4, 180, w.item.element === 'kinetic' ? 'void' : w.item.element, { source: 'perk' });
     const shot = w.s.dmg * (w.A.pellets || 1); // one full shot's damage
-    if (w.has('feeding')) w.feedWin = 3.5;
+    if (w.has('feeding')) this.status.apply('feeding', { scope: w.idx });
     if (w.has('voltshot')) w.voltWin = 4;
     if (w.has('incandescent')) for (const x of enemiesNear(c, 5, 6)) this.dot(x, shot * 0.2, 3, 'solar', ELEMENTS.solar.hex);
     if (w.has('destabilizing')) {
@@ -766,7 +755,7 @@ export class Player {
     }
     if (w.has('chainreaction')) explode(c, 3.5, shot * 0.5, wEl(w) === 'kinetic' ? 'solar' : wEl(w), { source: 'perk' });
     if (w.has('demolitionist')) this.cd.grenade = Math.max(0, this.cd.grenade - 2.5);
-    if (w.has('killingwind')) this.buffs.wind = 5;
+    if (w.has('killingwind')) this.status.apply('wind');
     if (w.has('sunshot')) {
       // Sunburn: the blast leaps to nearby enemies
       explode(c, 3.5, w.s.dmg * 1.5, 'solar', { source: 'perk' });
@@ -778,8 +767,8 @@ export class Player {
     }
     if (w.has('thorn')) for (const x of enemiesNear(c, 7, 3)) this.dot(x, w.s.dmg * 0.3, 3, 'kinetic', 0x6dff8e);
     if (w.has('ridebull')) { w.ammo = Math.max(w.ammo, w.mag); w.spin = 1; }
-    if (w.has('wolves')) { if (w.perkT <= 0) ui.feed('Release the Wolves', ELEMENTS.solar.color); w.perkT = 6; }
-    if (w.has('merciless')) w.perkT = 4;
+    if (w.has('wolves')) { if (!this.status.has('wolves', w.idx)) ui.feed('Release the Wolves', ELEMENTS.solar.color); this.status.apply('wolves', { scope: w.idx }); }
+    if (w.has('merciless')) this.status.apply('merciless', { scope: w.idx });
     if (w.has('acrius')) explode(c, 7, w.s.dmg * 4, 'arc', { source: 'perk' });
     if (w.has('truth') && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); ui.feed("Truth: Hunter's Trace", ELEMENTS.void.color); }
     if (w.has('scavenger') && w.reserve !== Infinity && Math.random() < 0.4) {
@@ -802,11 +791,15 @@ export class Player {
   takeDamage(amount, from) {
     if (this.dead || G.mission.phase === 'done') return;
     if (this.superActive) amount *= this.superActive.guard ? 0.15 : SUPER_ARMOR[this.superActive.type] ?? 1;
-    if (this.over > 0) { const a = Math.min(this.over, amount); this.over -= a; amount -= a; if (amount <= 0) { sfx.hurt(); return; } }
+    if (this.over > 0) {
+      const a = Math.min(this.over, amount); this.over -= a; amount -= a;
+      if (this.over <= 0) this.status.remove('overshield');
+      if (amount <= 0) { sfx.hurt(); return; }
+    }
     if (this.dash > 0) amount *= 0.5;
-    if (this.contraT > 0) amount *= 0.8; // Contraverse Hold
+    if (this.status.has('contraverse')) amount *= 0.8; // Contraverse Hold
     const cw = this.weapon;
-    if (cw?.has('conductor')) { if (cw.perkT > 0) amount *= 0.75; else ui.feed('Arc Conductor', ELEMENTS.arc.color); cw.perkT = 6; }
+    if (cw?.has('conductor')) { if (this.status.has('conductor', cw.idx)) amount *= 0.75; else ui.feed('Arc Conductor', ELEMENTS.arc.color); this.status.apply('conductor', { scope: cw.idx, set: true }); }
     if (this.ap.plating) amount *= Math.max(0.6, 1 - 0.08 * this.ap.plating);
     this.regenT = this.regenDelay;
     const hadShield = this.shield > 0;
@@ -827,6 +820,7 @@ export class Player {
     const M = G.mission;
     this.dead = true; this.health = 0; this.shield = 0;
     this.superActive = null;
+    this.status.remove('nighthawk');
     this.viewmodel.visible = false;
     M.deaths++;
     if (M.coop) {
@@ -855,14 +849,13 @@ export class Player {
   }
 
   /** Restoration (Dawnblade): health and shields regenerate for t seconds, even under fire. */
-  restore(t) { this.restoreT = Math.max(this.restoreT, t); }
+  restore(t) { this.status.apply('restoration', { t }); }
   /** Overshield (Sentinel): extra protection on top of your shield that fades after a while. */
-  addOvershield(n, t = 8) { this.over = Math.min(OVERSHIELD_MAX, this.over + n); this.overT = t; }
+  addOvershield(n, t = 8) { this.over = Math.min(OVERSHIELD_MAX, this.over + n); this.status.apply('overshield', { t }); }
 
   updateRegen(dt) {
-    if (this.overT > 0) this.overT -= dt; else this.over = Math.max(0, this.over - dt * 15);
-    if (this.restoreT > 0) {
-      this.restoreT -= dt;
+    if (!this.status.has('overshield')) this.over = Math.max(0, this.over - dt * 15);
+    if (this.status.has('restoration')) {
       this.heal(16 * dt);
       if (Math.random() < 0.2) ember(this.pos.clone().setY(this.pos.y + 0.4 + Math.random()), 0xffb547, 0.04, 1.2, 0.5);
     }
@@ -878,17 +871,15 @@ export class Player {
   // Abilities
   // -------------------------------------------------------------------------
   updateAbilities(dt) {
-    const song = this.keepsGuns ? 8 : 1;
-    const nez = this.nezT > 0 ? 2 : 1; // Nezarec's Sin
+    const song = this.keepsGuns ? SONG.abilityRegen : 1;
+    const nez = this.status.has('nezarec') ? 2 : 1; // Nezarec's Sin
     for (const k of ['grenade', 'melee', 'class']) {
-      this.heart[k] = Math.max(0, this.heart[k] - dt);
-      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.heart[k] > 0 ? 1.6 : 1) * nez);
+      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.status.has('heart', k) ? 1.6 : 1) * nez);
     }
     this.meleeT = Math.max(0, this.meleeT - dt);
     this.updateExoticArmor(dt);
-    this.lethalT = Math.max(0, this.lethalT - dt);
     this.meleeLock = Math.max(0, this.meleeLock - dt);
-    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * 0.75 * (1 + 0.12 * (this.ap.dynamo || 0)));
+    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + dt * SUPER_PASSIVE * (1 + 0.12 * (this.ap.dynamo || 0)));
     const ready = this.superCharge >= 100;
     if (ready && !this.superWasReady) { sfx.superReady(); ui.feed('Super ready [X]', ELEMENTS[this.cls.element].color); }
     this.superWasReady = ready;
@@ -902,8 +893,6 @@ export class Player {
 
   /** Per-frame exotic armor effects. */
   updateExoticArmor(dt) {
-    this.nezT = Math.max(0, this.nezT - dt);
-    this.contraT = Math.max(0, this.contraT - dt);
     const x = this.exo;
     if (x.has('armamentarium') && this.gBank < 1) {
       // the stored second charge recharges once the first one is full
@@ -916,7 +905,7 @@ export class Player {
     }
     if (this.sprinting) {
       if (x.has('transversive')) { this.trvT += dt; if (this.trvT > 0.6 && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); this.trvT = 0; } }
-      if (x.has('dunemarchers') && this.dune < 1) { this.dune = Math.min(1, this.dune + dt / 1.5); if (this.dune >= 1) ui.feed('Dunemarchers: static charged', ELEMENTS.arc.color); }
+      if (x.has('dunemarchers') && this.dune < 1) { this.dune = Math.min(1, this.dune + dt / 1.5); if (this.dune >= 1) { this.status.apply('dunemarchers'); ui.feed('Dunemarchers: static charged', ELEMENTS.arc.color); } }
     } else this.trvT = 0;
     if (this.dune >= 1 && Math.random() < 0.3) sparks(this.pos.clone().setY(this.pos.y + 0.3), ELEMENTS.arc.hex, 1, 2, 0.04, 0.2);
   }
@@ -925,6 +914,7 @@ export class Player {
   discharge() {
     if (this.dune < 1) return;
     this.dune = 0;
+    this.status.remove('dunemarchers');
     const p = this.pos.clone().addScaledVector(this.getForward(new THREE.Vector3()).setY(0).normalize(), 2).setY(1);
     this.jolt(p, 3, 250);
     sfx.zap();
@@ -933,15 +923,15 @@ export class Player {
   /** Heart of Inmost Light: using one ability empowers the other two. */
   empowerOthers(used) {
     if (!this.exo.has('heart')) return;
-    for (const k of ['grenade', 'melee', 'class']) if (k !== used) this.heart[k] = 8;
+    for (const k of ['grenade', 'melee', 'class']) if (k !== used) this.status.apply('heart', { scope: k, t: 8, set: true });
   }
 
   useGrenade() {
     if (this.cd.grenade > 0) {
       if (this.gBank <= 0) { sfx.denied(); return; }
       this.gBank--; // Armamentarium: spend the stored second charge
-    } else this.cd.grenade = this.keepsGuns ? Math.min(3.2, this.cdMax.grenade) : this.cdMax.grenade; // Song of Flame: a 0.4s throw delay (cooldowns run 8x during the super)
-    if (this.exo.has('contraverse')) this.contraT = 3;
+    } else this.cd.grenade = this.keepsGuns ? Math.min(3.2, this.cdMax.grenade) : this.cdMax.grenade; // Song of Flame: a 0.8s throw delay (cooldowns run 4x during the super)
+    if (this.exo.has('contraverse')) this.status.apply('contraverse', { t: 3, set: true });
     this.empowerOthers('grenade');
     const id = this.cls.abilities.grenade.id;
     const el = this.cls.element;
@@ -1102,8 +1092,8 @@ export class Player {
       // Combination Blow: lunge strike; kills heal fully and refund half the melee. Lethal Current doubles it after a dodge.
       this.throwFist(0.32, true);
       const t = this.findMeleeTarget(6 * this.lungeMul, 0.65);
-      const lethal = this.lethalT > 0;
-      this.lethalT = 0;
+      const lethal = this.status.has('lethal');
+      this.status.remove('lethal');
       if (!t) { castFx('slam', { p: this.pos.clone().addScaledVector(fwd.clone().setY(0).normalize(), 2).setY(0.6), el: 'arc', r: 3 }); return; }
       t.center(c);
       const dir = c.clone().sub(this.pos).setY(0).normalize();
@@ -1347,11 +1337,11 @@ export class Player {
       let t = 0.22;
       addTicker({ update(dt) { t -= dt; afterimage(self.pos, col, 0.35); return t > 0; } });
       this.fovKick = Math.max(this.fovKick, 10);
-      if (id === 'vanish') { this.invisT = 4; ui.feed('Invisible', ELEMENTS.void.color); }
+      if (id === 'vanish') { this.status.apply('invisible', { t: 4, set: true }); ui.feed('Invisible', ELEMENTS.void.color); }
     } else if (id === 'gambler') {
       this.staffDodge();
       this.cd.melee = 0;
-      this.lethalT = 4;
+      this.status.apply('lethal', { t: 4, set: true });
       ui.feed('Melee ready  ·  Lethal Current', ELEMENTS.arc.color);
     } else if (id === 'phoenix') {
       // Phoenix Dive: from the air, slam down in a solar burst; always heals
@@ -1399,12 +1389,12 @@ export class Player {
     ui.centerMessage(ab.name, '', 1.5);
     const w = this.weapon;
     w.reloading = false; w.charge = 0;
-    const T = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: 12 }[ab.id];
+    const T = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: SONG.duration }[ab.id];
     this.superActive = { type: ab.id, t: T, max: T, cd: 0, shots: ab.id === 'revolver' ? 6 : ab.id === 'tether' ? 3 : 0, launched: false, combo: 0, comboT: 0, bashCd: 0, dodgeCd: 0, auraT: 0 };
     if (ab.id === 'songflame') { this.cd.grenade = 0; this.cd.melee = 0; }
     if (this.exo.has('nighthawk')) {
       // Celestial Nighthawk: one devastating Golden Gun shot; other supers open with a 4x hit
-      this.superActive.nighthawk = ab.id === 'revolver' ? 6 : 4;
+      this.status.apply('nighthawk', { value: ab.id === 'revolver' ? 6 : 4 });
       if (ab.id === 'revolver') this.superActive.shots = 1;
     }
     if (ab.id === 'sentinel') this.addOvershield(OVERSHIELD_MAX, 15);
@@ -1435,10 +1425,12 @@ export class Player {
     if (S.type === 'revolver' && inp.mouse.leftPressed && S.cd <= 0 && S.shots > 0) {
       S.cd = 0.35; S.shots--;
       const pseudo = { s: { range: 200 }, A: { prec: 1.5 }, item: { element: 'solar' }, has: () => false };
-      const end = this.hitscan(this.eye, fwd, pseudo, superDmg(1100), hand, { isSuper: true, element: 'solar', precMult: 1.5, range: 220, noTracer: true });
+      const shot = { isSuper: true, element: 'solar', precMult: 1.5, range: 220, noTracer: true };
+      const end = this.hitscan(this.eye, fwd, pseudo, superDmg(1100), hand, shot);
       const pts = [hand.clone(), end.clone()];
       let prev = end;
-      for (const e of enemiesNear(end, 10, 2)) {
+      // the splash never re-hits the enemy the shot struck
+      for (const e of chainTargets(shot.hit, enemiesNear(end, 10, GOLDEN_GUN_SPLASH + 1), GOLDEN_GUN_SPLASH)) {
         const c = e.center(new THREE.Vector3());
         dealDamage(e, superDmg(350), { element: 'solar', source: 'super', pos: c });
         pts.push(c);
@@ -1521,8 +1513,7 @@ export class Player {
           const bc = best.center(new THREE.Vector3());
           dealDamage(best, superDmg(26), { element: 'arc', source: 'super', pos: bc });
           pts.push(bc);
-          for (const e of enemiesNear(best.pos, 8, 3)) {
-            if (e === best) continue;
+          for (const e of chainTargets(best, enemiesNear(best.pos, 8, STORMTRANCE_CHAIN + 1), STORMTRANCE_CHAIN)) {
             const ec = e.center(new THREE.Vector3());
             dealDamage(e, superDmg(14), { element: 'arc', source: 'super', pos: ec });
             pts.push(ec);
@@ -1570,7 +1561,7 @@ export class Player {
       if (S.auraT <= 0) { S.auraT = 2; castFx('songflame', { p: this.pos.clone(), r: 15 }); }
       if (Math.random() < 0.6) ember(hand, Math.random() < 0.5 ? 0xffb547 : 0xff6a2b, 0.04, 1.2, 0.5);
     }
-    if (S.t <= 0) { this.superActive = null; this.showModel(); }
+    if (S.t <= 0) { this.superActive = null; this.status.remove('nighthawk'); this.showModel(); }
   }
 
   // -------------------------------------------------------------------------

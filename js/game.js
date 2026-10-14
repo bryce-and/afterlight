@@ -15,10 +15,10 @@ import { playMusic, setSection } from './music.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
+import { ABILITY_POWER, weaponTierMult, staggerFor } from './combat.js';
 import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest } from './coop.js';
 
 const _c = new THREE.Vector3();
-const ABILITY_POWER = 1.4;
 
 // ---------------------------------------------------------------------------
 // Mission lifecycle
@@ -371,6 +371,8 @@ export function dealDamage(e, amount, o = {}) {
   let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
   // grenades and melees hit 40% harder than their listed numbers and keep pace with enemy health
   if (!o.raw && (o.source === 'ability' || o.source === 'melee')) dmg *= ABILITY_POWER * M.hpMult;
+  // weapons (and their perks) keep most of the pace of enemy health across mission tiers
+  if (!o.raw && (o.source === 'weapon' || o.source === 'perk')) dmg *= weaponTierMult(M.g);
   if (!o.raw) dmg *= exoticArmorMult(o);
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
   if (e.remote) {
@@ -408,6 +410,10 @@ export function dealDamage(e, amount, o = {}) {
   e.flash = 0.12;
   if (o.knock && !e.isBoss) e.knock.add(o.knock);
   const killed = e.hp <= 0;
+  if (!killed && !e.isBoss && dealt > 0) {
+    const st = staggerFor(e.typeId, dealt, e.maxHp, !!o.crit, !(e.staggerCd > 0));
+    if (st > 0) e.stagger(st);
+  }
   if (!o.remoteHit) {
     ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dealt, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
     ui.hitmarker(!!o.crit, killed);
@@ -914,12 +920,13 @@ function exoticArmorMult(o) {
   if (!P?.exo?.size) return 1;
   let m = 1;
   const S = P.superActive;
-  if (o.source === 'super' && S?.nighthawk) { m *= S.nighthawk; S.nighthawk = 0; } // Celestial Nighthawk: the first super hit
+  const hawk = o.source === 'super' && P.status.get('nighthawk');
+  if (hawk) { m *= hawk.value; P.status.remove('nighthawk'); } // Celestial Nighthawk: the first super hit, once
   if (P.exo.has('synthoceps')) {
     const melee = o.source === 'melee' || (o.source === 'ability' && P.meleeT > 0) || (o.source === 'super' && MELEE_SUPERS.has(S?.type));
     if (melee && enemiesNear(P.pos, 12).length >= 3) m *= 2; // Synthoceps: surrounded
   }
-  if (P.exo.has('heart') && o.source === 'ability' && (P.heart.grenade > 0 || P.heart.melee > 0)) m *= 1.3; // Heart of Inmost Light
+  if (P.exo.has('heart') && o.source === 'ability' && (P.status.has('heart', 'grenade') || P.status.has('heart', 'melee'))) m *= 1.3; // Heart of Inmost Light
   return m;
 }
 

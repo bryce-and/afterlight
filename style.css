@@ -257,14 +257,44 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .boss-hp { position: absolute; inset: 0 auto 0 0; background: #f28b3c; transition: width 0.1s; }
 .boss-shield { position: absolute; left: 0; bottom: -6px; height: 4px; transition: width 0.1s; }
 
-#abilities { position: absolute; left: 28px; bottom: 26px; width: 300px; text-shadow: 0 1px 2px #000; }
+#abilities { position: absolute; left: 28px; bottom: 56px; width: 300px; text-shadow: 0 1px 2px #000; }
+/* buff HUD: general effects stack above the super bar; weapon effects sit side by side in the
+   space reserved under the abilities (the block is raised so it never moves when they appear) */
+.buffs { display: flex; gap: 4px; }
+#buffs-gen { flex-direction: column; align-items: flex-start; }
+#buffs-gen:not(:empty) { margin-bottom: 8px; }
+#buffs-wpn { position: absolute; left: 0; right: 0; top: 100%; margin-top: 6px; flex-wrap: wrap; }
+.buff { position: relative; display: flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px 0 5px; background: rgba(0,0,0,0.5); border: 1px solid color-mix(in srgb, var(--bc) 60%, transparent); font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; overflow: hidden; }
+.buff.exo { border-color: var(--gold); }
+.b-ico { color: var(--bc); font-size: 12px; }
+.b-st { color: var(--bc); }
+.b-t { color: rgba(255,255,255,0.75); font-variant-numeric: tabular-nums; }
+.b-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--bc); }
+/* enemy plate: floats above the aimed enemy's head (positioned every frame in ui.js) */
+#eplate { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; text-shadow: 0 1px 3px #000; pointer-events: none; will-change: transform; }
+.ep-ico { width: 18px; height: 18px; flex: none; color: #fff; filter: drop-shadow(0 1px 2px #000); }
+.ep-ico svg { width: 100%; height: 100%; display: block; }
+#eplate.major .ep-ico { color: var(--gold); }
+.ep-body { width: 84px; text-align: left; }
+.ep-name { font-weight: 700; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; white-space: nowrap; }
+.ep-track { height: 4px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.22); }
+.ep-hp { height: 100%; background: #e8584a; }
+#eplate.major .ep-name { color: var(--gold); }
+#eplate.major .ep-hp { background: var(--gold); }
+.ep-shield { height: 3px; margin-top: 2px; }
 #super { margin-bottom: 10px; }
 .super-top { display: flex; gap: 8px; align-items: center; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
 .super-label { color: rgba(255,255,255,0.65); flex: 1; }
 .super-track { height: 8px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2); }
 .super-fill { height: 100%; background: var(--ec); }
-#super.ready .super-track { box-shadow: 0 0 12px var(--ec); border-color: var(--ec); animation: pulse 1s infinite; }
-#super.ready .super-label { color: var(--ec); }
+/* charged: the bar turns gold, pops once, then glows with a light sweep running across it */
+#super.ready .super-track { position: relative; overflow: hidden; border-color: var(--gold); animation: superpop 0.45s ease-out, superglow 1.4s ease-in-out 0.45s infinite; }
+#super.ready .super-fill { background: linear-gradient(180deg, #ffe58a, var(--gold) 55%, #d9a520); }
+#super.ready .super-track::after { content: ''; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent); animation: supersweep 1.4s ease-in-out infinite; }
+#super.ready .super-label, #super.ready .super-name { color: var(--gold); }
+@keyframes superpop { 0% { transform: scaleY(1); } 40% { transform: scaleY(2); box-shadow: 0 0 26px var(--gold); } 100% { transform: scaleY(1); } }
+@keyframes superglow { 0%, 100% { box-shadow: 0 0 6px rgba(244,197,66,0.55); } 50% { box-shadow: 0 0 18px var(--gold), 0 0 4px #fff; } }
+@keyframes supersweep { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
 #super.active .super-fill { background: #fff; }
 .ab-row { display: flex; gap: 8px; }
 .ab { position: relative; flex: 1; height: 58px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2); overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -327,6 +357,8 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
   .obj-name { font-size: 18px; }
   #abilities { width: 230px; left: 14px; bottom: 14px; }
   #weapons { width: 220px; right: 14px; bottom: 14px; }
+  .buff .b-name { display: none; } /* narrow screens: icon, stacks and timer only */
+  #abilities { bottom: 42px; }
   .w-name { max-width: 110px; }
   .wrow.active .w-mag { font-size: 24px; }
 }

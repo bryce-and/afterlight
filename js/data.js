@@ -32,18 +32,18 @@ export const SLOT_NAMES = {
 
 // ---------- Weapon archetypes ----------
 export const ARCHETYPES = {
-  auto: { id: 'auto', name: 'Auto Rifle', slot: 'primary', dmg: 15, rpm: 600, mode: 'auto', mag: 34, reload: 1.9, spread: 0.028, ads: 0.007, zoom: 1.35, prec: 1.6, range: 38, recoil: 0.010, bloom: 0.003 },
-  hand: { id: 'hand', name: 'Hand Cannon', slot: 'primary', dmg: 60, rpm: 140, mode: 'semi', mag: 11, reload: 1.7, spread: 0.014, ads: 0.002, zoom: 1.45, prec: 2.0, range: 32, recoil: 0.045 },
-  pulse: { id: 'pulse', name: 'Pulse Rifle', slot: 'primary', dmg: 22, rpm: 900, mode: 'burst', burst: 3, burstDelay: 0.3, mag: 30, reload: 2.0, spread: 0.02, ads: 0.004, zoom: 1.5, prec: 1.7, range: 42, recoil: 0.012 },
-  scout: { id: 'scout', name: 'Scout Rifle', slot: 'primary', dmg: 40, rpm: 200, mode: 'semi', mag: 16, reload: 2.1, spread: 0.02, ads: 0.001, zoom: 1.7, prec: 1.8, range: 60, recoil: 0.02 },
-  smg: { id: 'smg', name: 'Submachine Gun', slot: 'primary', dmg: 10, rpm: 900, mode: 'auto', mag: 42, reload: 1.6, spread: 0.04, ads: 0.016, zoom: 1.2, prec: 1.5, range: 20, recoil: 0.006, bloom: 0.002 },
-  shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 23, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.06, zoom: 1.15, prec: 1.4, range: 12, recoil: 0.08, falloff: { close: 4, bonus: 1.3, min: 0.15, span: 1 } },
+  auto: { id: 'auto', name: 'Auto Rifle', slot: 'primary', dmg: 15, rpm: 600, mode: 'auto', mag: 34, reload: 1.9, spread: 0.028, ads: 0.0038, zoom: 1.35, prec: 1.6, range: 38, recoil: 0.010, bloom: 0.003 },
+  hand: { id: 'hand', name: 'Hand Cannon', slot: 'primary', dmg: 60, rpm: 140, mode: 'semi', mag: 11, reload: 1.7, spread: 0.014, ads: 0.001, zoom: 1.45, prec: 2.0, range: 32, recoil: 0.045 },
+  pulse: { id: 'pulse', name: 'Pulse Rifle', slot: 'primary', dmg: 22, rpm: 900, mode: 'burst', burst: 3, burstDelay: 0.3, mag: 30, reload: 2.0, spread: 0.02, ads: 0.0022, zoom: 1.5, prec: 1.7, range: 42, recoil: 0.012 },
+  scout: { id: 'scout', name: 'Scout Rifle', slot: 'primary', dmg: 40, rpm: 200, mode: 'semi', mag: 16, reload: 2.1, spread: 0.02, ads: 0.0005, zoom: 1.7, prec: 1.8, range: 60, recoil: 0.02 },
+  smg: { id: 'smg', name: 'Submachine Gun', slot: 'primary', dmg: 10, rpm: 900, mode: 'auto', mag: 42, reload: 1.6, spread: 0.04, ads: 0.009, zoom: 1.2, prec: 1.5, range: 20, recoil: 0.006, bloom: 0.002 },
+  shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 23, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.05, zoom: 1.15, prec: 1.4, range: 12, recoil: 0.08, falloff: { close: 4, bonus: 1.3, min: 0.15, span: 1 } },
   sniper: { id: 'sniper', name: 'Sniper Rifle', slot: 'special', dmg: 360, rpm: 50, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.5, spread: 0.07, ads: 0.0, zoom: 4.5, prec: 2.6, range: 150, recoil: 0.09 },
-  fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 70, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.026, ads: 0.016, falloff: { close: 8, bonus: 1.15, min: 0.3, span: 1 }, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
+  fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 70, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.026, ads: 0.011, falloff: { close: 8, bonus: 1.15, min: 0.3, span: 1 }, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
   linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 430, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 18, brick: 4, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
   rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 900, rpm: 40, mode: 'semi', mag: 1, reserve: 8, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
-  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 32, rpm: 720, mode: 'auto', mag: 70, reserve: 210, brick: 60, reload: 3.0, spread: 0.032, ads: 0.012, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
-  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 380, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.6, spread: 0.01, ads: 0.004, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
+  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 32, rpm: 720, mode: 'auto', mag: 70, reserve: 210, brick: 60, reload: 3.0, spread: 0.032, ads: 0.0072, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
+  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 380, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
 };
 
 // Damage falloff: full damage out to the weapon's range, then it drops to `min` over
@@ -264,7 +264,7 @@ export const CLASSES = {
       stormcaller: {
         name: 'Stormcaller', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Call down the storm.',
         abilities: {
-          grenade: { id: 'storm', name: 'Storm Grenade', cd: 22, desc: 'Summons a storm cloud that strikes enemies below with lightning.' },
+          grenade: { id: 'storm', name: 'Storm Grenade', cd: 22, desc: 'Summons a storm cloud that strikes every enemy below with lightning.' },
           melee: { id: 'chainl', name: 'Chain Lightning', cd: 10, desc: 'Ranged arc strike that jumps to three more enemies.' },
           class: { id: 'empower', name: 'Empowering Rift', cd: 32, desc: 'Conjure a well that gives everyone inside +25% weapon damage.' },
           super: { id: 'stormtrance', name: 'Stormtrance', desc: 'For 12s, hold fire to pour chain lightning from your hands.' },
@@ -277,7 +277,7 @@ export const CLASSES = {
           grenade: { id: 'pulse', name: 'Solar Grenade', cd: 12, desc: 'A lingering ball of solar fire that burns everything near it. During Song of Flame it has no cooldown: throw as many as you like and they all burn at once.' },
           melee: { id: 'snap', name: 'Incinerator Snap', cd: 9, desc: 'Snap your fingers: three explosions burst down a line ahead and set enemies burning.' },
           class: { id: 'phoenix', name: 'Phoenix Dive', cd: 16, desc: 'In the air, dive to the ground in a solar burst. Always heals you and grants Restoration.' },
-          super: { id: 'songflame', name: 'Song of Flame', desc: 'For 12s keep your guns: grenades and melees recharge 8x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
+          super: { id: 'songflame', name: 'Song of Flame', desc: 'For 10s keep your guns: grenades and melees recharge 4x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
         },
       },
     },
