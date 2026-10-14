@@ -15,6 +15,7 @@ import { playMusic, setSection } from './music.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
+import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
 import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE } from './combat.js';
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
@@ -358,7 +359,10 @@ export function gainXp(n) {
     ui.feed(`Level ${L}${reward ? `  ·  ${reward === 'exotic' ? 'Exotic' : 'Legendary'} reward ready in Orbit` : ''}`, '#f4c542');
     const sub = subclassesUnlockedAt(L).find((x) => x.classId === G.save.classId);
     const build = buildUnlocksAt(L, G.save.classId)[0];
-    if (sub) ui.centerMessage(`${sub.name} Unlocked`, `Level ${L}  ·  Choose it from your subclass in Orbit`, 3.5);
+    const mod = modsUnlockedAt(L)[0];
+    if (L === MODS_LEVEL) ui.centerMessage('Mods Unlocked', `Level ${L}  ·  Open Mods on the character screen in Orbit`, 3.5);
+    else if (sub) ui.centerMessage(`${sub.name} Unlocked`, `Level ${L}  ·  Choose it from your subclass in Orbit`, 3.5);
+    else if (mod) ui.centerMessage(`Mod Unlocked: ${MODS[mod].name}`, `Level ${L}  ·  Socket it from the Mods screen in Orbit`, 3.5);
     else if (build) ui.centerMessage(`${build.type === 'aspect' ? 'Aspect' : 'Fragment'} Unlocked: ${build.name}`, `Level ${L}  ·  Equip it from your subclass in Orbit`, 3.5);
     else ui.centerMessage(`Level ${L}`, reward ? 'A reward awaits you in Orbit' : '', 2.2);
   }
@@ -393,10 +397,12 @@ export function dealDamage(e, amount, o = {}) {
   // weapons (and their perks) keep most of the pace of enemy health across mission tiers
   if (!o.raw && (o.source === 'weapon' || o.source === 'perk')) dmg *= weaponTierMult(M.g);
   if (!o.raw) dmg *= exoticArmorMult(o);
+  if (!o.raw && G.player?.surgeMult) dmg *= G.player.surgeMult(o); // Surge mods while armor charged
   if (!o.raw && G.player?.buildMult) dmg *= G.player.buildMult(o); // aspects and fragments
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
   // subclass traits on this player's own grenade and melee hits (never on relayed hits or jolt chains)
-  if (!o.raw && !o.jolted && (o.source === 'ability' || o.source === 'melee') && G.player?.traitHitOpts) Object.assign(o, G.player.traitHitOpts(e, o));
+  // (companions such as Arc Soul are not grenade or melee hits, so they don't carry traits or mod procs either)
+  if (!o.raw && !o.jolted && !o.companion && (o.source === 'ability' || o.source === 'melee') && G.player?.traitHitOpts) { Object.assign(o, G.player.traitHitOpts(e, o)); G.player.modOnHit?.(o); }
   // debuffs go on the registry (members show them on the plate; the owner's copy is the real one)
   for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
   if (e.remote) {
@@ -454,6 +460,8 @@ function joltFrom(e) {
   const near = enemiesNear(c, JOLT.r, JOLT.n, e);
   for (const x of [e, ...near]) {
     if (!x.alive) continue;
+    if (x.joltHitAt > G.time) continue; // an enemy takes chain damage at most once per JOLT.cd, however many jolted neighbors trigger
+    x.joltHitAt = G.time + JOLT.cd;
     const xc = x.center(new THREE.Vector3());
     if (x !== e) pts.push(xc);
     dealDamage(x, JOLT.dmg, { element: 'arc', source: 'ability', pos: xc, jolted: true });
@@ -490,8 +498,9 @@ export function rollDrops(e) {
   const pos = e.pos.clone().setY(0.8);
   const r = Math.random();
   const heavy = e.typeId === 'heavy';
-  if (r < (heavy ? 0.5 : 0.1)) spawnPickup('special', pos);
-  else if (r < (heavy ? 0.8 : 0.15)) spawnPickup('heavy', pos);
+  const fs = G.player?.finderS ?? 0, fh = G.player?.finderH ?? 0; // Ammo Finder mods
+  if (r < (heavy ? 0.5 : 0.1) + fs) spawnPickup('special', pos);
+  else if (r < (heavy ? 0.8 : 0.15) + fs + fh) spawnPickup('heavy', pos);
   if (Math.random() < (ENGRAM_CHANCE[e.typeId] ?? 0)) dropEngram(pos);
   if (e.isBoss) {
     dropEngram(pos); dropEngram(pos);
@@ -533,8 +542,11 @@ export function explode(pos, radius, dmg, element, o = {}) {
   if (pd < radius * 3) P.shake = Math.max(P.shake, 0.4 * (1 - pd / (radius * 3)));
 }
 
-export function damagePlayer(amount, from) {
-  G.player.takeDamage(amount * G.mission.incomingMult, from);
+/** kind: 'melee' (enemy melee attacks) or 'splash' (explosion edges) for the Melee Damage Resistance and Concussive Dampener mods. */
+export function damagePlayer(amount, from, kind = null) {
+  const P = G.player;
+  const k = kind === 'melee' ? P.meleeResist : kind === 'splash' ? P.splashMult : 1;
+  P.takeDamage(amount * G.mission.incomingMult * k, from);
 }
 
 // ---------------------------------------------------------------------------

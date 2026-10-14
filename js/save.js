@@ -4,13 +4,14 @@ import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP } from './progression.js';
 import { randInt } from './util.js';
 import { frameFor, weaponStats } from './frames.js';
+import { MODS, blankMods, migrateArmorStats } from './armor.js';
 
 const KEY = 'afterlight_save_v2';
 // First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
@@ -28,7 +29,21 @@ const MIGRATIONS = {
       it.stats = weaponStats(it);
     }
   },
+  // Armor 2.0 (v1.5): six stats and four mod sockets. A legendary's perk becomes the matching mod in socket 1 when it
+  // belongs to that armor slot; otherwise it is dropped (the mod is still unlocked for the player). Names, rarity, power kept.
+  4: (s) => {
+    s.armorNote = { dropped: 0 }; // the character screen explains the change once, then clears this
+    for (const it of [...(s.inventory || []), ...(s.vault || [])]) {
+      if (it.kind !== 'armor') continue;
+      it.stats = migrateArmorStats(it, OLD_ARMOR_PTS);
+      it.mods = blankMods();
+      if (it.perk && MODS[it.perk]?.slot === it.slot) it.mods[1] = it.perk;
+      else if (it.perk) s.armorNote.dropped++;
+      delete it.perk;
+    }
+  },
 };
+const OLD_ARMOR_PTS = { common: 6, uncommon: 8, rare: 10, legendary: 13, exotic: 17 }; // v1.4 stat totals
 
 let store = (() => { try { return globalThis.localStorage; } catch { return null; } })();
 /** Swap the storage backend (tests use an in-memory one). */

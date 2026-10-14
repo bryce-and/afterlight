@@ -30,6 +30,9 @@ export const STATUS = {
   radiant: { name: 'Radiant', group: 'general', glyph: '✦', color: '#ffb547', t: 6 },
   frequency: { name: 'Frequency', group: 'general', glyph: '↻', color: '#5fd3ff', t: 5 },
   amplified: { name: 'Amplified', group: 'general', glyph: 'ϟ', color: '#5fd3ff', t: 6 }, // Striker trait
+  // armor mods (Armor 2.0)
+  charge: { name: 'Armor Charge', group: 'general', glyph: '◈', color: '#cdb6ff', t: 10, maxStacks: 9 },
+  emergency: { name: 'Emergency Reinforcement', group: 'general', glyph: '⬢', color: '#9fd0ff', t: 4 },
   // one-off procs: a short flash in the buff HUD instead of a line in the top-right feed
   meleeready: { name: 'Melee Ready', group: 'general', glyph: '✊', color: '#5fd3ff', t: 1.5 },
   combo: { name: 'Combination Blow', group: 'general', glyph: '✚', color: '#5fd3ff', t: 1.5 },

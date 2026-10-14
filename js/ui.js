@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS, ARMOR_PERKS } from './data.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
+import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, armorStats, tierOf, activeMods, energyCap, energyUsed } from './armor.js';
+import { openMods, statLine } from './mods-ui.js';
 import { getLoadout, setLoadout } from './save.js';
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
@@ -381,13 +383,11 @@ function itemCard(it, { equipped = false, selected = false, compact = false } = 
 // ---------------------------------------------------------------------------
 // Character screen (Destiny-style): model in the middle, weapons left, armour right
 // ---------------------------------------------------------------------------
-let flySlot = null, hoverId = null, dismantle = null, vaultOpen = false;
+let flySlot = null, hoverId = null, dismantle = null, vaultOpen = false, modsScreen = null;
 
 function playerStats() {
-  const s = G.save, cls = CLASSES[s.classId];
-  const st = { ...cls.base };
-  for (const sl of ARMOR_SLOTS) { const it = getEquipped(s, sl); if (it) { st.mob += it.stats.mob; st.res += it.stats.res; st.rec += it.stats.rec; } }
-  return st;
+  const s = G.save;
+  return armorStats(s.classId, ARMOR_SLOTS.map((sl) => getEquipped(s, sl)).filter(Boolean), playerLevel(s));
 }
 
 function tileHTML(it, equipped = false) {
@@ -422,7 +422,10 @@ function renderLevel(main) {
       icon = abilityIcon(build.type, build.id, color);
       label = `${build.type === 'aspect' ? 'Aspect' : 'Fragment'}: ${build.name}`;
     }
-    const unlock = sub || build;
+    const mods = L === MODS_LEVEL ? [] : modsUnlockedAt(L).map((id) => MODS[id]);
+    if (L === MODS_LEVEL) { if (!icon) { icon = abilityIcon('fragment', 'mods', '#cdb6ff'); label = 'Armor Mods'; } else label += '<br>+ Armor Mods'; }
+    else if (mods.length) { const t = mods.map((m) => m.name).join(', '); if (!icon) { icon = abilityIcon('fragment', mods[0].id, '#cdb6ff'); label = `Mod: ${t}`; } else label += `<br>+ Mod: ${t}`; }
+    const unlock = sub || build || mods.length || L === MODS_LEVEL;
     const cls = ['lt-node', reached ? 'reached' : '', L === info.level ? 'current' : '', state ? `r-${state}` : '', kind || unlock ? 'has' : ''].join(' ');
     const action = state === 'ready' ? `<button class="btn primary lt-claim" data-l="${L}">Claim</button>`
       : state === 'claimed' ? '<span class="lt-done">Claimed</span>'
@@ -480,8 +483,7 @@ function renderCharScreen(main) {
       <div class="cs-stage" id="cs-stage" title="Drag to rotate"></div>
       <div class="cs-col right">${ARMOR_SLOTS.map(slot).join('')}</div>
       <div class="cs-stats">
-        ${[['Mobility', st.mob, `+${Math.round(st.mob * 1.2)}% speed`], ['Resilience', st.res, `${Math.round(55 + st.res * 3)} shield`], ['Recovery', st.rec, `${clamp(4.6 - st.rec * 0.1, 1.6, 4.6).toFixed(1)}s regen`]]
-          .map(([n, v, d]) => `<div class="cs-stat" title="${d}"><b>${v}</b><span>${n}</span><i><em style="width:${Math.min(100, (v / 40) * 100)}%"></em></i></div>`).join('')}
+        ${STAT_KEYS.map((k) => `<div class="cs-stat" title="${esc(`${STATS[k].name} T${tierOf(st[k])}: ${statLine(k, st[k], s.classId)}`)}"><b>${st[k]}</b><span>${STATS[k].name}</span><i><em style="width:${st[k]}%"></em></i></div>`).join('')}
       </div>
       <div class="cs-foot">
         <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
@@ -491,6 +493,7 @@ function renderCharScreen(main) {
         <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
         <span class="hint">Click a slot to swap  ·  Hover for details  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
       </div>
+      <button class="cs-mods-arrow${playerLevel(s) < MODS_LEVEL ? ' locked' : ''}" id="cs-mods-btn" ${playerLevel(s) < MODS_LEVEL ? 'aria-disabled="true"' : ''} title="${playerLevel(s) < MODS_LEVEL ? `Mods unlock at level ${MODS_LEVEL}` : 'Armor mods'}"><span>Mods</span><i>❯</i>${playerLevel(s) < MODS_LEVEL ? `<small>Level ${MODS_LEVEL}</small>` : ''}</button>
       <div class="cs-fly hidden" id="cs-fly"></div>
       <div class="cs-tip hidden" id="cs-tip"></div>
       <div class="cs-panel hidden" id="cs-panel"></div>
@@ -520,6 +523,15 @@ function renderCharScreen(main) {
     }
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
   });
+  $('#cs-mods-btn', main).addEventListener('click', () => {
+    if (playerLevel(s) < MODS_LEVEL) { sfx.denied(); orbitNotice(`Mods unlock at level ${MODS_LEVEL}.`); return; }
+    sfx.ui(); closeFly(); closeVault();
+    modsScreen = openMods(root, () => { /* stats refresh when the screen closes */ }, () => { modsScreen = null; renderOrbit(); });
+  });
+  if (s.armorNote) {
+    orbitNotice(`Armor 2.0: perks are now mods and armor has six stats.${s.armorNote.dropped ? ` ${s.armorNote.dropped} perk${s.armorNote.dropped > 1 ? 's' : ''} did not fit their piece and were removed (the mods are yours to socket from level ${MODS_LEVEL}).` : ''}`);
+    delete s.armorNote; writeSave(s);
+  }
   $('#cs-vault-btn', main).addEventListener('click', () => { sfx.ui(); closeFly(); vaultOpen = true; renderVault(); });
   $$('.cs-auto-t', main).forEach((b) => b.addEventListener('click', () => {
     const set = (s.settings.autoDismantle = s.settings.autoDismantle || {});
@@ -655,14 +667,17 @@ function tipHTML(it, side) {
   } else {
     const st = it.stats, c = cmp ? cmp.stats : null;
     body += `<div class="tt-top"><div class="tt-pow">${it.power}${cmp ? delta(it.power, cmp.power) : ''}</div><div class="tt-tags"><span>${SLOT_NAMES[it.slot]}</span></div></div><div class="tt-stats">`;
-    for (const [k, n] of [['mob', 'Mobility'], ['res', 'Resilience'], ['rec', 'Recovery']]) {
-      body += `<div class="tt-stat"><span>${n}</span><i><em style="width:${clamp((st[k] / 12) * 100, 3, 100)}%"></em></i><b>${st[k]}${c ? delta(st[k], c[k]) : ''}</b></div>`;
+    for (const k of STAT_KEYS) {
+      body += `<div class="tt-stat"><span>${STATS[k].name}</span><i><em style="width:${clamp((st[k] / 20) * 100, 3, 100)}%"></em></i><b>${st[k]}${c ? delta(st[k], c[k]) : ''}</b></div>`;
     }
-    body += `<div class="tt-stat total"><span>Total</span><i></i><b>${st.mob + st.res + st.rec}</b></div></div>`;
+    const sum = (o) => STAT_KEYS.reduce((n, k) => n + (o[k] || 0), 0);
+    body += `<div class="tt-stat total"><span>Total</span><i></i><b>${sum(st)}${c ? delta(sum(st), sum(c)) : ''}</b></div></div>`;
     const xp = it.rarity === 'exotic' && EXOTIC_ARMOR_PERKS[it.name];
     if (xp) body += `<div class="tt-perks"><div class="tt-perk exo"><i></i><div><b>${xp.name}</b><span>${xp.desc}</span></div></div></div>`;
-    const ap = it.perk && ARMOR_PERKS[it.perk];
-    if (ap) body += `<div class="tt-perks"><div class="tt-perk"><i></i><div><b>${ap.name}</b><span>${ap.desc}</span></div></div></div>`;
+    const lv = playerLevel(s), live = activeMods(it, lv);
+    const socketed = (it.mods || []).filter(Boolean);
+    if (socketed.length) body += `<div class="tt-perks">${socketed.map((id) => `<div class="tt-perk${live.includes(id) ? '' : ' idle'}"><i></i><div><b>${MODS[id].name}</b><span>${live.includes(id) ? MODS[id].desc : lv < MODS_LEVEL ? `Unlocks at level ${MODS_LEVEL}.` : 'Not active (locked or over energy).'}</span></div></div>`).join('')}</div>`;
+    body += `<div class="tt-note">Mods ${energyUsed(it.mods)} / ${energyCap(it)} energy${lv < MODS_LEVEL ? `  ·  unlock at level ${MODS_LEVEL}` : ''}</div>`;
     if (it.rarity === 'exotic') body += '<div class="tt-note">Only one exotic armor piece can be equipped.</div>';
   }
   if (it.kind === 'weapon' && it.rarity === 'exotic') {

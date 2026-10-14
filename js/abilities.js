@@ -5,7 +5,8 @@ import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, rin
 import { dealDamage, enemiesNear, addTicker } from './game.js';
 import { sendFx, remotes } from './coop.js';
 import { net } from './net.js';
-import { STORM_GRENADE } from './combat.js';
+import { STORM_GRENADE, ARC_SOUL } from './combat.js';
+import { ORB } from './armor.js';
 import { SUNSPOT, HEAL_ORB } from './subclass.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
@@ -18,6 +19,7 @@ import * as ui from './ui.js';
 const V = (a) => (a instanceof THREE.Vector3 ? a.clone() : new THREE.Vector3(a[0], a[1], a[2]));
 const arr = (v) => [Math.round(v.x * 100) / 100, Math.round(v.y * 100) / 100, Math.round(v.z * 100) / 100];
 const hex = (el) => ELEMENTS[el]?.hex ?? 0xffffff;
+const orbs = new Map(); // live Orbs of Power by id, so a claim on one screen removes them everywhere
 
 /** Run an ability effect locally and tell the fireteam about it. */
 export function castFx(kind, o) {
@@ -382,14 +384,14 @@ export function abilityFx(kind, o, local) {
           orb.position.lerp(at, Math.min(1, dt * 5));
           halo.rotation.y += dt * 3; orb.rotation.x += dt;
           if (tick <= 0) {
-            tick = child ? 0.5 : 0.4;
+            tick = child ? 0.5 : ARC_SOUL.tick;
             const tgt = enemiesNear(orb.position, 14, 1)[0];
             if (tgt) {
               const c = tgt.center(new THREE.Vector3());
               if (child) beam(orb.position, c, col, 0.05, 0.2); else lightning(orb.position, c, col, 0.04);
               flare(c, col, 0.6, 0.15);
               if (local) {
-                dealDamage(tgt, child ? 24 : 34, { element: child ? 'void' : 'arc', source: 'ability', pos: c, weaken: child ? 1 : 0 });
+                dealDamage(tgt, child ? 24 : ARC_SOUL.dmg, { element: child ? 'void' : 'arc', source: 'ability', pos: c, weaken: child ? 1 : 0, companion: true });
                 if (child) G.player.heal(5);
               }
             }
@@ -400,6 +402,39 @@ export function abilityFx(kind, o, local) {
       });
       break;
     }
+
+    case 'orb': { // Orb of Power: every Guardian sees it; the first to touch it takes it (the claim is replayed as 'orbc')
+      const p = V(o.p), at = new THREE.Vector3(p.x, Math.max(p.y, 0) + 1, p.z);
+      const col = 0xcdb6ff;
+      const orb = new THREE.Group();
+      orb.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 1), new THREE.MeshBasicMaterial({ color: 0xffffff })));
+      orb.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })));
+      orb.position.copy(at);
+      G.scene.add(orb);
+      glowBurst(at.clone(), col, 10, 3, 0.08, 0.45, 1, 0.3);
+      const rec = { dead: false };
+      orbs.set(o.id, rec);
+      let life = ORB.life;
+      addTicker({
+        update(dt) {
+          life -= dt;
+          orb.position.y = at.y + Math.sin(G.time * 3 + at.x) * 0.1;
+          orb.children[1].scale.setScalar(1 + Math.sin(G.time * 6) * 0.15);
+          if (Math.random() < 0.2) ember(orb.position.clone(), col, 0.05, 0.6, 0.5);
+          const P = G.player;
+          if (!rec.dead && P && !P.dead && P.modsOn && Math.hypot(P.pos.x - at.x, P.pos.z - at.z) < ORB.r && Math.abs(P.pos.y + 1 - at.y) < 2.2) {
+            rec.dead = true;
+            P.pickupOrb();
+            glowBurst(orb.position.clone(), col, 14, 4, 0.08, 0.5, 2, 0.3);
+            castFx('orbc', { id: o.id });
+          }
+          return life > 0 && !rec.dead;
+        },
+        dispose() { G.scene?.remove(orb); orbs.delete(o.id); },
+      });
+      break;
+    }
+    case 'orbc': { const r = orbs.get(o.id); if (r) r.dead = true; break; } // another Guardian took it
 
     // ---------------- supers ----------------
     case 'superStart': {

@@ -1,6 +1,7 @@
-import { ARCHETYPES, RARITIES, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ARMOR_PERKS, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, RARITIES, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt } from './util.js';
 import { LIGHT_CAP } from './progression.js';
+import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
 import { framesFor, legendariesFor, weaponStats } from './frames.js';
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
@@ -77,21 +78,15 @@ export function makeExotic(name, power) {
   return makeWeapon(tpl.slot || ARCHETYPES[tpl.arch].slot, power, 4, null, name);
 }
 
-export const rollArmorPerk = () => pick(Object.keys(ARMOR_PERKS));
-
 export function makeArmor(slot, power, rIdx) {
   const rar = RARITIES[rIdx];
-  const total = rar.armorPts + randInt(-1, 2);
-  const a = Math.random(), b = Math.random(), c = Math.random(), s = a + b + c;
-  let mob = Math.round((a / s) * total), res = Math.round((b / s) * total);
-  let rec = Math.max(0, total - mob - res);
+  const stats = rollStats(ARMOR_TOTAL[rar.id] + randInt(-2, 2));
   let name;
   if (rar.id === 'exotic') name = pick(EXOTIC_ARMOR[slot]);
   else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(ARMOR_NOUN[slot])}`;
   else name = `${pick(ADJ)} ${pick(ARMOR_NOUN[slot])}`;
-  const item = { id: newId(), kind: 'armor', slot, rarity: rar.id, name, power: clampPower(power), stats: { mob, res, rec }, isNew: true };
-  if (rar.id === 'legendary') item.perk = rollArmorPerk();
-  return item;
+  // Armor 2.0: no perks. Four sockets for mods (the first takes stat mods), filled by the player.
+  return { id: newId(), kind: 'armor', slot, rarity: rar.id, name, power: clampPower(power), stats, mods: blankMods(), isNew: true };
 }
 
 export function rollItem(power, rIdx, slot = pick(SLOTS)) {

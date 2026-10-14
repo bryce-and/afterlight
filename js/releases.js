@@ -4,6 +4,22 @@
 
 export const RELEASES = [
   {
+    version: '1.5', name: 'Armor 2.0', date: '2026-10-14', accent: '#cdb6ff', glyph: '⬡',
+    summary: 'Build your armor your way. Perks give way to mods: four sockets on every piece, a screen to fill them, and orbs that charge your armor.',
+    notes: [
+      'Mods replace armor perks. Every piece has four sockets and an energy budget set by rarity: 4 on common up to 10 on legendary and exotic',
+      'The first socket takes stat mods. The other three take mods made for that piece: 57 in all, from Hands-On and Grenade Kickstart to Surges, Fonts and Ammo Scavengers',
+      'A new Mods screen on the character screen: open it from the arrow at the right edge, pick a piece, hover a socket to see what fits',
+      'Mods unlock at level 5. The rest arrive one by one on the reward track up to level 30',
+      'Six armor stats: Mobility, Resilience, Recovery, Discipline, Intellect and Strength. Discipline, Intellect and Strength set your grenade cooldown, super gain and melee cooldown, and each class ability follows its own stat',
+      'Orbs of Power drop from super kills, rapid weapon kills and ability-kill mods, and every Guardian can see them. Picking one up gives super energy and Armor Charge',
+      'Armor Charge shows with your buffs and powers Fonts (extra stat) and Surges (extra weapon damage of one element)',
+      'Your old saves keep every piece. Legendary perks become the matching mod when they fit the piece, and armor stats carry over to the new six',
+      'Arc Soul hits far softer and no longer pours super energy into you. Jolt hits a little softer, and a crowd of jolted enemies no longer multiplies it',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="armBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c1630"/><stop offset="0.55" stop-color="#0d1118"/><stop offset="1" stop-color="#1a1f2e"/></linearGradient><radialGradient id="armGlow" cx="0.7" cy="0.45" r="0.55"><stop offset="0" stop-color="#cdb6ff" stop-opacity="0.55"/><stop offset="1" stop-color="#cdb6ff" stop-opacity="0"/></radialGradient><linearGradient id="armPlate" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9eef5"/><stop offset="1" stop-color="#6d7686"/></linearGradient></defs><rect width="320" height="180" fill="url(#armBg)"/><rect width="320" height="180" fill="url(#armGlow)"/><g stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"><path d="M-20 200 200 -20M20 200 240 -20M60 200 280 -20M100 200 320 -20M140 200 360 -20"/></g><g stroke="#0a0d12" stroke-width="1.5"><path d="M92 30h60l16 14 14 6v36l-12 10v38l-20 26H94L74 134V96L62 86V50l14-6z" fill="url(#armPlate)"/><path d="M112 30h20l6 20h-32z" fill="#2a2f38"/><path d="M96 100h56v10H96z" fill="#2a2f38"/></g><g fill="#0b0e13" stroke="#cdb6ff" stroke-width="2.5" stroke-linejoin="round"><path d="M104 62l8-5 8 5v9l-8 5-8-5z"/><path d="M128 62l8-5 8 5v9l-8 5-8-5z"/><path d="M104 84l8-5 8 5v9l-8 5-8-5z" fill="#cdb6ff" fill-opacity="0.45"/><path d="M128 84l8-5 8 5v9l-8 5-8-5z" fill="#cdb6ff" fill-opacity="0.9"/></g><g stroke="#cdb6ff" stroke-width="1.5" stroke-opacity="0.55" fill="none"><path d="M168 74C196 62 214 64 236 78"/><path d="M168 96C196 112 220 108 244 92"/></g><circle cx="252" cy="82" r="24" fill="#cdb6ff" fill-opacity="0.18"/><circle cx="252" cy="82" r="14" fill="#cdb6ff" fill-opacity="0.4"/><circle cx="252" cy="82" r="7" fill="#ffffff"/><g fill="#ffffff" fill-opacity="0.8"><circle cx="214" cy="48" r="1.6"/><circle cx="280" cy="52" r="1.2"/><circle cx="272" cy="124" r="1.6"/><circle cx="226" cy="132" r="1.2"/><circle cx="296" cy="96" r="1.2"/></g></svg>',
+  },
+  {
     version: '1.4', name: 'Arsenal', date: '2026-10-14', accent: '#ffcf7a', glyph: '⚔',
     summary: 'Every gun has a name and a feel. Weapons now come in Destiny archetypes, Stasis and Strand arrive as weapon elements, and fireteams ready up together.',
     notes: [

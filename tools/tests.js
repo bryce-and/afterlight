@@ -14,6 +14,8 @@ import { abilityIcon } from '../js/ability-icons.js';
 import { FRAMES, LEGENDARY_WEAPONS, framesFor, weaponStats, weaponHandling, frameFor } from '../js/frames.js';
 import { ENERGY, SHIELD_ELEMENTS } from '../js/data.js';
 import { readyState } from '../js/net.js';
+import * as AR from '../js/armor.js';
+import { makeArmor } from '../js/loot.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -326,9 +328,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = fresh({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, 4); eq(S.SAVE_VERSION, 4);
+  eq(s.version, 5); eq(S.SAVE_VERSION, 5);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 4, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 5, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing']]);
 });
@@ -486,7 +488,7 @@ test('frame behaviors: slug fires one pellet, wave and tracking flags, lightweig
   eq(weaponHandling({ arch: 'pulse', frame: 'aggressive' }).burst, 4);
   eq(ARCHETYPES.rocket.projectile.radius, 6.5, 'family data untouched');
 });
-test('save v3 upgrades to v4: weapons gain archetypes and fixed stats; perks, power, element and name kept', () => {
+test('save v3 upgrades through v4: weapons gain archetypes and fixed stats; perks, power, element and name kept', () => {
   const inv = [
     { id: 'w1', kind: 'weapon', slot: 'heavy', arch: 'mg', element: 'arc', rarity: 'legendary', name: 'Corrective Measure', power: 90, stats: { dmg: 1, rpm: 1, mag: 1, reload: 1, spread: 1, range: 1 }, perks: ['rampage'] },
     { id: 'w2', kind: 'weapon', slot: 'primary', arch: 'auto', element: 'kinetic', rarity: 'rare', name: 'Ashen Oath', power: 40, stats: { dmg: 1, rpm: 1, mag: 1, reload: 1, spread: 1, range: 1 }, perks: ['outlaw', 'leech'] },
@@ -496,14 +498,14 @@ test('save v3 upgrades to v4: weapons gain archetypes and fixed stats; perks, po
   const v3 = { version: 3, classId: 'vanguard', glimmer: 5, inventory: inv, vault: [{ ...inv[1], id: 'w4' }], equipped: { heavy: 'w1' }, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
   fresh({ afterlight_save_v2: JSON.stringify(v3) });
   const s = S.loadSave();
-  eq(s.version, 4);
+  eq(s.version, 5);
   const [w1, w2, w3, a1] = s.inventory;
   eq([w1.frame, w1.element, w1.perks, w1.power, w1.name], ['adaptive', 'arc', ['rampage'], 90, 'Corrective Measure'], 'owned items keep their element');
   eq(w1.stats, weaponStats(w1));
   ok(w1.stats.dmg > 1, 'heavy MG stats recalculated');
   eq(w2.frame, frameFor(w2)); eq(w2.perks, ['outlaw', 'leech']); eq(w2.stats, weaponStats(w2));
   eq(w3.frame, undefined, 'exotics keep their own handling'); eq(w3.stats, weaponStats(w3));
-  eq(a1.stats, { mob: 2, res: 2, rec: 2 }, 'armor untouched');
+  eq(Object.keys(a1.stats), ['mob', 'res', 'rec', 'dis', 'int', 'str'], 'armor moved to six stats');
   eq(s.vault[0].frame, frameFor(s.vault[0]), 'vault too');
 });
 test('elements: six with distinct symbols; Stasis and Strand roll on weapons; enemy shields stay Light', () => {
@@ -537,6 +539,126 @@ test('Ready Up: launches only with a pick and every current member ready', () =>
 test('title shows the newest update: name, version and artwork', () => {
   const r = RELEASES[0];
   ok(r.name && r.version && /^<svg[\s\S]*<\/svg>$/.test(r.art), 'art');
+});
+
+// ---------- Armor 2.0 ----------
+test('armor stats: six stats; tier 0 / 5 / 10 give 1.3x / 1.0x / 0.65x cooldowns and 0.8x / 1.0x / 1.3x super gain', () => {
+  eq(AR.STAT_KEYS, ['mob', 'res', 'rec', 'dis', 'int', 'str']);
+  eq([AR.cooldownMult(0), AR.cooldownMult(50), AR.cooldownMult(100)], [1.3, 1, 0.65]);
+  eq([AR.superRateMult(0), AR.superRateMult(50), AR.superRateMult(100)], [0.8, 1, 1.3]);
+  eq(AR.tierOf(49), 4); eq(AR.tierOf(100), 10); eq(AR.tierOf(250), 10);
+  for (const c of Object.keys(CLASSES)) { eq(Object.keys(AR.CLASS_BASE[c]), AR.STAT_KEYS, c); ok(AR.CLASS_STAT[c], c); }
+  eq(CLASSES.vanguard.base, AR.CLASS_BASE.vanguard);
+});
+test('armor stats are calibrated to v1.4: a full legendary set (tier 5) matches the old shield, speed and regen', () => {
+  const set = [1, 2, 3, 4].map(() => ({ kind: 'armor', slot: 'helmet', rarity: 'legendary', stats: { mob: 9, res: 9, rec: 9, dis: 9, int: 9, str: 9 }, mods: AR.blankMods() }));
+  const st = AR.armorStats('arcanist', set, 20);
+  eq(st.dis, 50); eq(AR.tierOf(st.dis), 5);
+  ok(Math.abs(AR.shieldMax(st.int) - 115) <= 3, 'shield'); // v1.4: 55 + 3 x 20
+  ok(Math.abs((AR.speedMult(st.int) - 1) - 0.24) < 0.03, 'speed');
+  ok(Math.abs(AR.regenRate(st.int) - 90) <= 3, 'regen rate');
+  ok(Math.abs(AR.regenDelay(st.int) - 2.6) < 0.15, 'regen delay');
+});
+test('rolled armor: six stats with the rarity total, four empty sockets, energy by rarity, no perk', () => {
+  for (const [i, r] of ['common', 'uncommon', 'rare', 'legendary', 'exotic'].entries()) {
+    for (let n = 0; n < 40; n++) {
+      const a = makeArmor('chest', 50, i);
+      eq(Object.keys(a.stats), AR.STAT_KEYS);
+      const sum = AR.STAT_KEYS.reduce((t, k) => t + a.stats[k], 0);
+      ok(Math.abs(sum - AR.ARMOR_TOTAL[r]) <= 2, `${r} total ${sum}`);
+      eq(a.mods, [null, null, null, null]); ok(!('perk' in a), 'no perk');
+    }
+  }
+  eq(AR.MOD_ENERGY, { common: 4, uncommon: 6, rare: 8, legendary: 10, exotic: 10 });
+});
+test('mods: counts per slot, costs 1 to 4, unlock levels 5 to 30, the eight former perks are starters', () => {
+  eq(AR.statMods().length, 12);
+  eq(['helmet', 'arms', 'chest', 'legs'].map((s) => AR.modsForSlot(s).length), [10, 12, 11, 12]);
+  eq(AR.MOD_IDS.length, 57);
+  for (const id of AR.MOD_IDS) { const d = AR.MODS[id]; ok(d.cost >= 1 && d.cost <= 4, id); ok(d.unlock >= 5 && d.unlock <= 30, id); ok(d.name && d.desc, id); }
+  eq(AR.MOD_IDS.filter((id) => AR.MODS[id].unlock === AR.MODS_LEVEL).length, 34, 'starter set');
+  for (const id of AR.FORMER_PERKS) { ok(AR.MODS[id], id); eq(AR.MODS[id].unlock, AR.MODS_LEVEL); }
+  eq(AR.MODS.dis10.cost, 4); eq(AR.MODS.mob5.cost, 1);
+  eq(AR.SURGE_ELEMENTS.length, 6);
+});
+test('mod rules: socket 1 stat mods only, mods fit their slot, energy cap, unlock level, nothing works below level 5', () => {
+  const mk = (rarity, slot = 'arms') => ({ kind: 'armor', slot, rarity, mods: AR.blankMods() });
+  const a = mk('legendary');
+  ok(AR.setMod(a, 0, 'grenadier', 20), 'slot mod in the stat socket is refused');
+  ok(AR.setMod(a, 1, 'str10', 20), 'stat mod in a mod socket is refused');
+  ok(AR.setMod(a, 1, 'plating', 20), 'chest mod on arms is refused');
+  eq(AR.setMod(a, 0, 'str10', 20), null);
+  eq(AR.setMod(a, 1, 'grenadier', 20), null); // 4 + 4 = 8
+  ok(AR.setMod(a, 2, 'brawler', 20), 'energy 12 > 10'); eq(AR.energyUsed(a.mods), 8);
+  eq(AR.setMod(a, 2, 'firepower', 20), null); eq(AR.energyUsed(a.mods), 10);
+  eq(AR.setMod(a, 2, null, 20), null); eq(a.mods[2], null);
+  ok(AR.setMod(a, 3, 'fontmight', 19), 'level 20 mod at 19'); // Font of Might unlocks at 20
+  const c = mk('common'); eq(AR.setMod(c, 1, 'grenadier', 20), null); ok(AR.setMod(c, 2, 'firepower', 20), 'common has 4 energy');
+  ok(AR.setMod(mk('common'), 1, 'grenadier', 4), 'below level 5');
+  eq(AR.activeMods(a, 4), [], 'nothing works below level 5'); eq(AR.activeMods(a, 5), ['str10', 'grenadier']);
+  // a mod whose energy no longer fits (the piece was changed) is ignored, not applied
+  const over = { ...mk('common'), mods: ['str10', 'grenadier', 'firepower', null] };
+  eq(AR.activeMods(over, 20), ['str10']);
+  const st = AR.armorStats('stalker', [a], 20);
+  eq(st.str, AR.CLASS_BASE.stalker.str + 10); eq(AR.armorStats('stalker', [a], 3).str, AR.CLASS_BASE.stalker.str);
+});
+test('mod counts add up across pieces; stats cap at 100', () => {
+  const mkp = (slot, mods) => ({ kind: 'armor', slot, rarity: 'legendary', mods, stats: { mob: 40, res: 0, rec: 0, dis: 0, int: 0, str: 0 } });
+  const items = [mkp('helmet', [null, 'handson', 'handson', null]), mkp('arms', [null, 'grenadier', null, null])];
+  const c = AR.modCounts(items, 30);
+  eq([c.handson, c.grenadier], [2, 1]);
+  eq(AR.armorStats('stalker', items, 30).mob, 100);
+});
+test('orbs and charge tuning: orbs give small super, charge caps at 3 and stacks multiply gently', () => {
+  ok(AR.ORB.super <= 4 && AR.ORB.superMax === 4 && AR.ORB.life === 20);
+  eq(AR.CHARGE.max, 3); eq(AR.CHARGE.surge, [1, 1.1, 1.17, 1.22]);
+  // passive super with the best Intellect and 3 Dynamo is still slower than the best ability-kill loop, and plain play is unchanged
+  const plain = 100 / (C.SUPER_PASSIVE * AR.superRateMult(50));
+  ok(Math.abs(plain - 200) < 1, 'plain passive fill is 200 s');
+  const best = 100 / (C.SUPER_PASSIVE * AR.superRateMult(100) * (1 + C.SUPER_DYNAMO * 3));
+  ok(best > 100, `best passive fill ${best.toFixed(0)} s`);
+});
+test('save v4 upgrades to v5: stats become six, a matching perk becomes the mod, a mismatched one is dropped, items otherwise kept', () => {
+  const armor = (id, slot, rarity, perk, stats) => ({ id, kind: 'armor', slot, rarity, name: `${rarity} ${slot}`, power: 77, stats, ...(perk ? { perk } : {}) });
+  const inv = [
+    armor('h1', 'helmet', 'legendary', 'handson', { mob: 6, res: 4, rec: 3 }),
+    armor('g1', 'arms', 'legendary', 'handson', { mob: 3, res: 3, rec: 3 }),
+    armor('c1', 'chest', 'rare', null, { mob: 3, res: 4, rec: 4 }),
+    armor('l1', 'legs', 'legendary', 'kickstart', { mob: 8, res: 7, rec: 6 }),
+  ];
+  const v4 = { version: 4, classId: 'arcanist', glimmer: 9, inventory: inv, vault: [armor('v1', 'legs', 'legendary', 'plating', { mob: 5, res: 5, rec: 5 })], equipped: {}, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
+  fresh({ afterlight_save_v2: JSON.stringify(v4) });
+  const s = S.loadSave();
+  eq(s.version, 5);
+  const [h1, g1, c1, l1] = s.inventory;
+  for (const it of s.inventory) { eq(Object.keys(it.stats), AR.STAT_KEYS); eq(it.mods.length, 4); ok(!('perk' in it)); eq(it.power, 77); }
+  eq(h1.mods, [null, 'handson', null, null]); eq(l1.mods, [null, 'kickstart', null, null]);
+  eq(g1.mods, [null, null, null, null], 'handson does not fit gauntlets');
+  eq(s.armorNote, { dropped: 2 }, 'the mismatched perk and the vault chest plating');
+  ok(s.vault[0].mods.every((m) => m === null), 'vault: plating does not fit legs');
+  const total = (it) => AR.STAT_KEYS.reduce((t, k) => t + it.stats[k], 0);
+  ok(total(l1) > total(c1) || AR.ARMOR_TOTAL.legendary > AR.ARMOR_TOTAL.rare, 'rarity ordering');
+  ok(total(h1) >= AR.ARMOR_TOTAL.legendary - 2 && total(h1) <= AR.ARMOR_TOTAL.legendary + 2, 'legendary total');
+  ok(total(l1) >= total(g1), 'a high roll stays high'); // l1 rolled 21 old points, g1 rolled 9
+  // stable: migrating the same save again gives the same stats
+  fresh({ afterlight_save_v2: JSON.stringify(v4) });
+  eq(S.loadSave().inventory[0].stats, h1.stats);
+  // a pre-level-5 migrated save: mods are kept but do nothing
+  eq(AR.activeMods(h1, 4), []); eq(AR.activeMods(h1, 5), ['handson']);
+});
+test('Arc Soul and jolt nerfs: Arc Soul damage per second is within 10% of Child of the Old Gods; jolt is weaker', () => {
+  const soul = C.ARC_SOUL.dmg / C.ARC_SOUL.tick, child = 24 / 0.5;
+  ok(Math.abs(soul - child) / child <= 0.1, `${soul} vs ${child}`);
+  ok(soul < 34 / 0.4 * 0.6, 'at least 40% below v1.4'); ok(C.JOLT.dmg < 45);
+  eq(C.superKillGain('weapon', false, 'grunt'), 2);
+});
+test('level track and unlocks: nothing before level 5, mods spread over levels 6 to 30', () => {
+  eq(AR.MODS_LEVEL, 5);
+  ok(!AR.modUnlocked('grenadier', 4) && AR.modUnlocked('grenadier', 5));
+  ok(!AR.modUnlocked('fontendurance', 29) && AR.modUnlocked('fontendurance', 30));
+  eq(AR.modsUnlockedAt(6), ['targetp']);
+  let n = 0; for (let L = 6; L <= 30; L++) n += AR.modsUnlockedAt(L).length;
+  eq(n, 23);
 });
 
 // ---------- runner ----------

@@ -73,7 +73,10 @@ export function dmgDrift(side, age) {
 
 // Jolt (Arc debuff): a hit on a jolted enemy arcs dmg into it and up to n enemies within r metres.
 // One discharge per enemy every cd seconds.
-export const JOLT = { dmg: 45, n: 3, r: 8, cd: 0.6 };
+// v1.5: 35 damage (v1.4: 45), and each enemy takes chain damage at most once per `cd` however many jolted neighbors trigger.
+export const JOLT = { dmg: 35, n: 3, r: 8, cd: 0.6 };
+// Arc Soul (Stormcaller aspect): v1.5 22 damage every 0.5 s (v1.4: 34 every 0.4 s). Its kills give weapon-kill super only.
+export const ARC_SOUL = { dmg: 22, tick: 0.5, life: 10 };
 
 // ---------- zones and waves ----------
 /**

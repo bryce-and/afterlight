@@ -1,3 +1,4 @@
+import { CLASS_BASE } from './armor.js';
 // ---------- Elements & rarity ----------
 // `symbol`: inner SVG markup (viewBox 0 0 64 64, filled with currentColor) for icons and the HUD.
 export const ELEMENTS = {
@@ -14,11 +15,11 @@ export const ENERGY = ['solar', 'arc', 'void', 'stasis', 'strand'];
 export const SHIELD_ELEMENTS = ['solar', 'arc', 'void'];
 
 export const RARITIES = [
-  { id: 'common', name: 'Common', color: '#c9ced4', hex: 0xc9ced4, perks: 0, mult: 1.0, armorPts: 6 },
-  { id: 'uncommon', name: 'Uncommon', color: '#45b764', hex: 0x45b764, perks: 1, mult: 1.04, armorPts: 8 },
-  { id: 'rare', name: 'Rare', color: '#4d8fe0', hex: 0x4d8fe0, perks: 2, mult: 1.08, armorPts: 10 },
-  { id: 'legendary', name: 'Legendary', color: '#a066ea', hex: 0xa066ea, perks: 3, mult: 1.13, armorPts: 13 },
-  { id: 'exotic', name: 'Exotic', color: '#f4c542', hex: 0xf4c542, perks: 2, mult: 1.3, armorPts: 17 },
+  { id: 'common', name: 'Common', color: '#c9ced4', hex: 0xc9ced4, perks: 0, mult: 1.0 },
+  { id: 'uncommon', name: 'Uncommon', color: '#45b764', hex: 0x45b764, perks: 1, mult: 1.04 },
+  { id: 'rare', name: 'Rare', color: '#4d8fe0', hex: 0x4d8fe0, perks: 2, mult: 1.08 },
+  { id: 'legendary', name: 'Legendary', color: '#a066ea', hex: 0xa066ea, perks: 3, mult: 1.13 },
+  { id: 'exotic', name: 'Exotic', color: '#f4c542', hex: 0xf4c542, perks: 2, mult: 1.3 },
 ];
 export const rarityIndex = (id) => RARITIES.findIndex((r) => r.id === id);
 
@@ -150,18 +151,6 @@ export const EXOTIC_WEAPONS = [
 ];
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
 export const HEAVY_VERSION = { dmg: 1.4, reserve: 10, brick: 3 };
-// Rolled perk on Legendary armor (one per piece; the same perk on several pieces stacks)
-export const ARMOR_PERKS = {
-  grenadier: { name: 'Grenadier', desc: 'Grenade recharges 15% faster.' },
-  brawler: { name: 'Brawler', desc: 'Powered melee recharges 15% faster.' },
-  kickstart: { name: 'Utility Kickstart', desc: 'Class ability recharges 20% faster.' },
-  dynamo: { name: 'Dynamo', desc: 'Super charges 8% faster.' },
-  recuperation: { name: 'Recuperation', desc: 'Kills restore 15 health.' },
-  handson: { name: 'Hands-On', desc: 'Melee and ability kills give extra super energy.' },
-  plating: { name: 'Resilient Plating', desc: 'Take 8% less damage.' },
-  reserves: { name: 'Ammo Reserves', desc: '+20% reserve ammo for special and heavy weapons.' },
-};
-
 // What each exotic armor piece does (works on any class)
 export const EXOTIC_ARMOR_PERKS = {
   'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'The first hit of your super deals 2.5x damage. Golden Gun becomes a single shot that deals 4x damage.' },
@@ -188,7 +177,7 @@ export const EXOTIC_ARMOR = {
 export const CLASSES = {
   vanguard: {
     id: 'vanguard', name: 'Titan', color: '#ff8b2b',
-    base: { mob: 2, res: 7, rec: 3 }, jump: 'lift', jumpName: 'Catapult Lift (hold Space in air)',
+    base: CLASS_BASE.vanguard, jump: 'lift', jumpName: 'Catapult Lift (hold Space in air)',
     subclasses: {
       sunbreaker: {
         name: 'Sunbreaker', element: 'solar', color: '#ff8b2b', tagline: 'Walls, hammers, and fire.',
@@ -221,7 +210,7 @@ export const CLASSES = {
   },
   stalker: {
     id: 'stalker', name: 'Hunter', color: '#ffb547',
-    base: { mob: 7, res: 2, rec: 3 }, jump: 'double', jumpName: 'Triple Jump (press Space in air)',
+    base: CLASS_BASE.stalker, jump: 'double', jumpName: 'Triple Jump (press Space in air)',
     subclasses: {
       gunslinger: {
         name: 'Gunslinger', element: 'solar', color: '#ffb547', tagline: 'Dodges, knives, and the Golden Gun.',
@@ -254,7 +243,7 @@ export const CLASSES = {
   },
   arcanist: {
     id: 'arcanist', name: 'Warlock', color: '#b07cff',
-    base: { mob: 3, res: 3, rec: 7 }, jump: 'glide', jumpName: 'Burst Glide (press Space in air)',
+    base: CLASS_BASE.arcanist, jump: 'glide', jumpName: 'Burst Glide (press Space in air)',
     subclasses: {
       voidwalker: {
         name: 'Voidwalker', element: 'void', color: '#b07cff', tagline: 'Heal, drain, and annihilate.',

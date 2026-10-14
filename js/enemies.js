@@ -531,7 +531,7 @@ export class Enemy {
             sfx.melee();
             if (P.remote) damageRemote(P, def.meleeDmg * this.dmgMult, this.pos);
             else {
-              damagePlayer(def.meleeDmg * this.dmgMult, this.pos);
+              damagePlayer(def.meleeDmg * this.dmgMult, this.pos, 'melee');
               P.shake = Math.max(P.shake, 0.2);
               P.vel.x += this.lungeDir.x * 5; P.vel.z += this.lungeDir.z * 5;
             }
@@ -673,7 +673,7 @@ export class Enemy {
         const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z) || 0.01;
         if (P.dead || d >= 9 || P.pos.y >= 1.5) continue;
         if (P.remote) { damageRemote(P, 32 * this.dmgMult, this.pos); continue; }
-        damagePlayer(32 * this.dmgMult, this.pos);
+        damagePlayer(32 * this.dmgMult, this.pos, 'splash');
         P.vel.x += (P.pos.x - this.pos.x) / d * 12;
         P.vel.z += (P.pos.z - this.pos.z) / d * 12;
         P.vel.y = 6;
@@ -775,7 +775,7 @@ export function updateEnemyShots(dt) {
       if (hit === 'player') damagePlayer(s.dmg, s.origin);
       else if (s.splash && !P.dead) {
         const d = distToPlayer(s.pos);
-        if (d < s.splash) damagePlayer(s.dmg * 0.6 * (1 - d / s.splash), s.pos);
+        if (d < s.splash) damagePlayer(s.dmg * 0.6 * (1 - d / s.splash), s.pos, 'splash');
       }
       if (s.splash) explosionFx(s.pos, s.splash * 0.6, s.color);
       else if (hit !== 'expire') sparks(s.pos, s.color, 3, 3, 0.05, 0.2);
