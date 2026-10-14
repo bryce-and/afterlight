@@ -39,3 +39,4 @@
 | 2026-10-14 | Both barricades: Guardians and their shots pass through; enemies and enemy shots don't. Both take the subclass color. | Bryce |
 | 2026-10-14 | Celestial Nighthawk: Golden Gun 4x, other supers 2.5x. Ionic Trace: Electrostatic 8%, Spark of Ions 5%, one trace per 0.5 s, none from jolt chains. Hands-On 1.5%/piece, Dynamo 8%. | Bryce (Nighthawk), Claude (Ionic, perks) |
 | 2026-10-14 | Members now see the leader's stagger tilt (reverses the U2 note). The snapshot carries a debuff bitmask and stagger time per enemy. | Claude (H1) |
+| 2026-10-14 | No separate H2 hotfix. Its items move into U4 Arsenal (v1.4). | Bryce |

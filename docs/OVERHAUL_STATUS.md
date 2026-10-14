@@ -101,13 +101,13 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V09 | Co-op: a player downed mid-jump drops to the ground | H1 | Complete and published (v1.3.1) |
 | V33 | Co-op health check: zone/wave cleared with enemies alive; members missing host debuffs, stagger, zone and boss banners | H1 | Complete and published (v1.3.1): `waveStep` never clears on the check that spawns a wave (solo too); snapshot carries debuff bits and stagger; banners broadcast |
 | V10 | Co-op: Arc Soul tracks correctly | H1 | Complete and published (v1.3.1): companion replays follow the caster's avatar (caster id on ability fx) |
-| V11 | Thrown hammer glows and explodes after 7s if not picked up | H2 | Planned |
-| V12 | Hammer of Sol creates Sunspots; enemies inside burn | H2 | Planned |
-| V13 | Healing Grenade places a white orb: heal + Restoration on touch | H2 | Planned |
-| V14 | Downed screen: skull animation, "You Died", "Reviving in X" | H2 | Planned |
-| V15 | Co-op: Ghost glows over the downed body with "REVIVE" | H2 | Planned |
-| V16 | Topbar "AFTERLIGHT" returns to the title screen | H2 | Planned |
-| V17 | Title shows the current update name, "Version X.Y", and unique artwork | H2 (then every update) | Planned |
+| V11 | Thrown hammer glows and explodes after 7s if not picked up | U4 | Planned |
+| V12 | Hammer of Sol creates Sunspots; enemies inside burn | U4 | Planned |
+| V13 | Healing Grenade places a white orb: heal + Restoration on touch | U4 | Planned |
+| V14 | Downed screen: skull animation, "You Died", "Reviving in X" | U4 | Planned |
+| V15 | Co-op: Ghost glows over the downed body with "REVIVE" | U4 | Planned |
+| V16 | Topbar "AFTERLIGHT" returns to the title screen | U4 | Planned |
+| V17 | Title shows the current update name, "Version X.Y", and unique artwork | U4 (then every update) | Planned |
 | V18 | Armor mods replace perks: 4 sockets, 10 energy, slot 1 stat mods, a mod pool per armor slot, D2-style (no raid mods) | U5 | Planned |
 | V19 | Mods screen with slide-in from the character screen's right-edge arrow | U5 | Planned |
 | V20 | Six armor stats (D2 new names) incl. cooldown stats | U5 | Planned |
@@ -122,4 +122,4 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U16 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U20 (optional) | Planned |
-| V32 | Subclass traits for the 6 subclasses without one | H2 | Planned |
+| V32 | Subclass traits for the 6 subclasses without one | U4 | Planned |
