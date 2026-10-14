@@ -54,6 +54,8 @@ WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse
 | `js/world.js` | Procedural level generation and the orbit planet |
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |
+| `js/armor.js` | Armor 2.0: six stats and tiers, mods (57), energy, sockets, orbs of power and armor charge tuning, v4 to v5 stat migration |
+| `js/mods-ui.js` | The Mods screen that slides in from the character screen |
 | `js/frames.js` | Weapon archetypes (Destiny frames), named legendaries, archetype-fixed stats and handling |
 | `js/progression.js` | Level curve, XP values, reward track, drop rarity by level, Light cap |
 | `js/status.js` | Status-effect registry (player buffs and exotic effects shown on the HUD, enemy debuffs) |
@@ -66,7 +68,7 @@ WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse
 
 ## Tests
 
-With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot and weapon archetypes, save and migrations, content data, subclass loadouts, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top).
+With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot and weapon archetypes, armor stats and mods, save and migrations, content data, subclass loadouts, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top).
 
 ## Releasing
 

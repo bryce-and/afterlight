@@ -20,7 +20,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R11 | Drop quality scales with level; legendary rare at 15, near-exclusive at 40 | `RARITY_CURVE` by level (legendary ~5% at 15, ~90% at 40); unit-tested over 10k rolls | U1 | Complete and published (v1.1) |
 | R12 | Leveling screen: reward track, legendary every 3 levels, exotic at 20 and 40 | Level tab: 40-node track, claim once, refuses when inventory is full | U1 | Complete and published (v1.1) |
 | R13 | Modeled armor; unique exotic looks; destination sets that drop in all levels | Missing (armor not shown on model) | U6 | Planned |
-| R14 | Armor perk counts by rarity (superseded by V4: perks become mods) | Legendary 1, others 0 | U5 | Planned |
+| R14 | Armor perk counts by rarity (superseded by V4: perks become mods) | Superseded: no perks. Four sockets on every piece, energy by rarity (4/6/8/10/10) | U5 | Complete and published (v1.5) |
 | R15 | New destination adds new perks | Missing (one global pool) | U6 | Planned |
 | R16 | Shaders recolor armor | Missing | U6 | Planned |
 | R17 | Subclasses with working aspects, fragments, melee, supers, grenades | Registry `js/subclass.js`: 9 grenades shared by element, 2 class abilities per class, 27 aspects, 14 fragments; behaviors in `player.js` / `abilities.js`. All 18 test loadouts (every aspect and fragment) fired in a mission with no errors | U3 | Complete and published (v1.3) |
@@ -62,8 +62,8 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R53 | Distinct faction behaviors | Missing (names and models only) | U9 | Planned |
 | R54 | Darkness supers and abilities | Missing | U16 | Planned |
 | R55 | Aspects and fragments | 3 aspects per subclass (2 slots, each opens 1 or 2 fragment slots); 4 Solar, 5 Arc, 5 Void fragments. Level 10 subclasses earn their third aspect at 13/16/19; Spark of Ions (22) and Echo of Instability (25) on the reward track | U3 | Complete and published (v1.3) |
-| R56 | Armor mods | Missing | U5 | Planned |
-| R57 | Armor stats affect ability cooldowns, Destiny-style (added by Bryce, not in V3) | Stats only affect speed/jump, shield, and regen; nothing touches cooldowns | U5 | Planned |
+| R56 | Armor mods | 57 mods (12 stat, 10 helmet, 12 gauntlet, 11 chest, 12 leg) in `js/armor.js`; Mods screen in `js/mods-ui.js`; unit-tested rules; every orb and hit mod exercised in a mission | U5 | Complete and published (v1.5) |
+| R57 | Armor stats affect ability cooldowns, Destiny-style (added by Bryce, not in V3) | Discipline (grenade), Strength (melee) and each class's own stat (Titan Resilience, Hunter Mobility, Warlock Recovery) scale cooldowns 1.3x at tier 0, 1.0x at 5, 0.65x at 10; floor 0.4x. Checked in a mission: cdMax matches the formula | U5 | Complete and published (v1.5) |
 | R58 | Hunter Triple Jump is the ground jump + 2 (added by Bryce) | Two air jumps, the second at 85% height. Peak 4.2 m, below Titan Catapult Lift (4.8 m) | U3 | Complete and published (v1.3) |
 | R59 | Enemy debuffs on the status registry (weaken, slow, suppress, burn, poison) | `Enemy.status` with `ENEMY_STATUS`; all applied through `dealDamage` and sent to the enemy's owner; plate shows them. Jolt added for Arc | U3 | Complete and published (v1.3) |
 
@@ -83,7 +83,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | M1 | Title screen Update Log (released only) | U1 | Complete and published (v1.1) |
 | M2 | Title screen Roadmap (curated teasers) | U1 | Complete and published (v1.1) |
 | M3 | Requirement tracking, docs, decision log | U1 | Complete and published (v1.1) |
-| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 65 tests as of v1.4 |
+| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 75 tests as of v1.5 |
 | M5 | Versioned GitHub releases | U1 | Complete and published (v1.1) |
 
 ## V4 additions (2026-10-14)
@@ -108,9 +108,9 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V15 | Co-op: Ghost glows over the downed body with "REVIVE" | U4 | Complete and published (v1.4) |
 | V16 | Topbar "AFTERLIGHT" returns to the title screen | U4 | Complete and published (v1.4): in a fireteam it asks first, then leaves the fireteam |
 | V17 | Title shows the current update name, "Version X.Y", and unique artwork | U4 (then every update) | Complete and published (v1.4): card from the newest `RELEASES` entry (`art` SVG); refresh every update |
-| V18 | Armor mods replace perks: 4 sockets, 10 energy, slot 1 stat mods, a mod pool per armor slot, D2-style (no raid mods) | U5 | Planned |
-| V19 | Mods screen with slide-in from the character screen's right-edge arrow | U5 | Planned |
-| V20 | Six armor stats (D2 new names) incl. cooldown stats | U5 | Planned |
+| V18 | Armor mods replace perks: 4 sockets, 10 energy, slot 1 stat mods, a mod pool per armor slot, D2-style (no raid mods) | U5 | Complete and published (v1.5): energy is 4/6/8/10/10 by rarity (Bryce) |
+| V19 | Mods screen with slide-in from the character screen's right-edge arrow | U5 | Complete and published (v1.5): arrow turns into a vertical tab under 900 px; locked below level 5 |
+| V20 | Six armor stats (D2 new names) incl. cooldown stats | U5 | Complete and published (v1.5): the classic names (Bryce chose them over the new ones) |
 | V21 | Every non-melee unit can melee at very close range, with an animation | U9 | Planned |
 | V22 | Suicide units: Cursed Thrall (Hive), Explosive Shanks (Fallen) | U9 | Planned |
 | V23 | Harder with 3 players (retune) | U9 | Planned |
@@ -125,3 +125,6 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V32 | Subclass traits for the 6 subclasses without one | U4 | Complete and published (v1.4): Sunbreaker burn, Striker Amplified, Gunslinger melee energy, Nightstalker weaken, Voidwalker detonation, Stormcaller jolt (`TRAITS` in `subclass.js`) |
 | V34 | Weapon archetypes per family (D2 frames); stats fixed by archetype; named legendaries always the same archetype and element; archetype shown on the item (added by Bryce for U4) | U4 | Complete and published (v1.4) |
 | V35 | Ready Up bar in the Director for fireteams; the last Guardian to ready launches the leader's pick; solo launches directly (added by Bryce for U4) | U4 | Complete and published (v1.4) |
+| V36 | Orbs of Power and armor charge (added by Bryce for U5) | U5 | Complete and published (v1.5): shared orbs claimed by the first Guardian to touch one (verified across two `?localtest` tabs); charge on the buff HUD |
+| V37 | Nerf Arc Soul (too much super, too much damage) and jolt (added by Bryce for U5) | U5 | Complete and published (v1.5). Measured, 4 clustered enemies, 10 s: Arc Soul damage 3,791 to 533 (73% of the old total was jolt chains from a trait bug: companion hits counted as grenade or melee hits and jolted). An Arc Soul kill gave 7.5% super with 3 Hands-On, now 2%. Jolt chains on a jolted group 4,586 to 892 (a crowd no longer multiplies it), single target 1,147 to 892 |
+| V38 | Health bar and lives stay on top (added by Bryce during U5) | U5 | Complete and published (v1.5): a v1.0 rule moved them to the bottom under 900 px wide |

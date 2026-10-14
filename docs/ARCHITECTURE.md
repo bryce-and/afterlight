@@ -3,7 +3,7 @@
 The module map is in the README. These notes cover systems added during the overhaul and the rules for extending them.
 
 ## Save (`js/save.js`)
-- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 4: v3 added loadouts, v4 weapon archetypes).
+- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 5: v3 added loadouts, v4 weapon archetypes, v5 armor stats and mods).
 - Changing the save shape means: add `MIGRATIONS[n]` (upgrades version n to n + 1 in place), bump `SAVE_VERSION`, and add a fixture test in `tools/tests.js`. `loadSave` runs the steps in order and refuses saves from a newer version without touching them.
 - Pre-overhaul saves (`afterlight_save_v1`) are copied once to `afterlight_backup_v1`, then removed. A new Guardian takes only its settings.
 - Storage is swappable (`useStorage`) so tests never touch the real save.
@@ -14,6 +14,15 @@ The module map is in the README. These notes cover systems added during the over
 - Level is account-wide (shared by every class, like the shared inventory). Subclass gating reads `unlockLevel` on the subclass in `data.js`; `activeKit` falls back to a starter if the stored choice is locked.
 - XP is awarded through `gainXp` in `game.js`. Kills award it on every fireteam member's machine (host via `killEnemy`, members via the `kill` message in `coop.js`). Mission and cache XP go to whoever opens the cache.
 - Drop rarity reads the player's level. Boss caches read a few levels higher (`bonus`), and the first item keeps its rare floor.
+
+## Armor, mods and orbs (`js/armor.js`, `js/mods-ui.js`)
+- `js/armor.js` is pure data and rules. `STAT_KEYS` (six stats, 0 to 100, tier = stat / 10), `CLASS_BASE`, `CLASS_STAT`, tier functions (`cooldownMult`, `superRateMult`) and the calibrated `speedMult`, `shieldMax`, `regenDelay`, `regenRate`. `MODS` holds all 57 mods (`slot`: `any` for stat mods in socket 0, or one armor slot; `cost`; `unlock` level). `ORB`, `CHARGE`, `MODS_TUNE` hold the numbers.
+- An armor piece is `{ stats: { mob, res, rec, dis, int, str }, mods: [socket0..socket3] }`. `activeMods(item, level)` is the one rule for what works (right socket, unlocked, within energy, level 5 or above); `setMod` validates a change. `armorStats(classId, items, level)` gives the six stats and `modCounts` the mod counts that `Player.ap` reads (the former perks kept their ids, so `ap.handson`, `ap.dynamo` and the rest still work).
+- `Player.applyStats` derives speed, shield, regen and `cdMax` from the stats (plus Fonts while armor is charged); change a stat source and call it. `statBase` is the stats without charge.
+- Orbs: `Player.spawnOrb` sends an `orb` ability fx; every screen replays it (`abilities.js`), whoever touches it first calls `pickupOrb` and sends `orbc`, which removes it elsewhere. Armor charge is `armorCharge` / `armorChargeT` (not `charge`, which is the shoulder-charge state) mirrored to the `charge` status for the buff HUD.
+- Kill mods go through `Player.modsOnKill` and hit mods through `Player.modOnHit`. They match grenade, melee and class ability use by time windows (`grenadeWin`, `meleeWin`, `classWin`). Anything with `companion: true` or `jolted: true` is a chain: no orbs, no Hands-On, no traces, weapon-kill super.
+- Enemy melee and splash damage go through `damagePlayer(amount, from, 'melee' | 'splash')` so the resistance mods apply.
+- The Mods screen (`mods-ui.js`) is a `.cs-mods` overlay inside the character screen; hovering a socket shows the list (CSS), clicking pins it.
 
 ## Status effects (`js/status.js`)
 - `STATUS` defines every player-visible timed effect once: name, HUD group (`general` above the abilities, `weapon` below), glyph, color, default duration, max stacks. `StatusSet` (on `Player.status`) holds the live ones: `apply`, `has`, `remaining`, `stacks`, `consume`, `remove`, `clearScope`, `tick`, `list`.
