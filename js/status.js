@@ -33,6 +33,9 @@ export const STATUS = {
   // armor mods (Armor 2.0)
   charge: { name: 'Armor Charge', group: 'general', glyph: '◈', color: '#cdb6ff', t: 10, maxStacks: 9 },
   emergency: { name: 'Emergency Reinforcement', group: 'general', glyph: '⬢', color: '#9fd0ff', t: 4 },
+  // armor set bonuses (Fashion Is Endgame)
+  crosscounter: { name: 'Cross Counter', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: 5 },
+  outlawsedge: { name: "Outlaw's Edge", group: 'general', glyph: '✦', color: '#e2b55a', t: 6 },
   // one-off procs: a short flash in the buff HUD instead of a line in the top-right feed
   meleeready: { name: 'Melee Ready', group: 'general', glyph: '✊', color: '#5fd3ff', t: 1.5 },
   combo: { name: 'Combination Blow', group: 'general', glyph: '✚', color: '#5fd3ff', t: 1.5 },

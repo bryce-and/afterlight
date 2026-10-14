@@ -3,6 +3,7 @@ import { pick, randInt } from './util.js';
 import { LIGHT_CAP } from './progression.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
 import { framesFor, legendariesFor, weaponStats } from './frames.js';
+import { SETS, setForDrop } from './style.js';
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
 const NOUN = ['Oath', 'Promise', 'Requiem', 'Verdict', 'Covenant', 'Lament', 'Sentinel', 'Herald', 'Reckoning', 'Psalm', 'Edict', 'Tide', 'Mercy', 'Vow', 'Witness', 'Ruin', 'Hymn', 'Answer', 'Warden', 'Dirge'];
@@ -78,26 +79,30 @@ export function makeExotic(name, power) {
   return makeWeapon(tpl.slot || ARCHETYPES[tpl.arch].slot, power, 4, null, name);
 }
 
-export function makeArmor(slot, power, rIdx) {
+/** `dest`: the destination the drop comes from (a location id); legendaries are that destination's set. `classId`: who can wear it. */
+export function makeArmor(slot, power, rIdx, dest = null, classId = null) {
   const rar = RARITIES[rIdx];
   const stats = rollStats(ARMOR_TOTAL[rar.id] + randInt(-2, 2));
-  let name;
-  if (rar.id === 'exotic') name = pick(EXOTIC_ARMOR[slot]);
+  let name, set = null;
+  if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = EXOTIC_ARMOR[classId][slot]; } // exotics exist for one class
+  else if (rar.id === 'legendary') { set = setForDrop(dest); name = SETS[set].pieces[slot]; }
   else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(ARMOR_NOUN[slot])}`;
   else name = `${pick(ADJ)} ${pick(ARMOR_NOUN[slot])}`;
   // Armor 2.0: no perks. Four sockets for mods (the first takes stat mods), filled by the player.
-  return { id: newId(), kind: 'armor', slot, rarity: rar.id, name, power: clampPower(power), stats, mods: blankMods(), isNew: true };
+  const it = { id: newId(), kind: 'armor', slot, classId, rarity: rar.id, name, power: clampPower(power), stats, mods: blankMods(), isNew: true };
+  if (set) it.set = set;
+  return it;
 }
 
-export function rollItem(power, rIdx, slot = pick(SLOTS)) {
-  return WEAPON_SLOTS.includes(slot) ? makeWeapon(slot, power, rIdx) : makeArmor(slot, power, rIdx);
+export function rollItem(power, rIdx, slot = pick(SLOTS), dest = null, classId = null) {
+  return WEAPON_SLOTS.includes(slot) ? makeWeapon(slot, power, rIdx) : makeArmor(slot, power, rIdx, dest, classId);
 }
 
-export function starterGear() {
+export function starterGear(classId = null) {
   const p = makeWeapon('primary', 10, 0, 'auto'); p.name = 'Khvostov 7G-02'; p.element = 'kinetic';
   const s = makeWeapon('special', 8, 0, 'shotgun'); s.name = 'Häkke SG-3';
   const h = makeWeapon('heavy', 8, 0, 'rocket'); h.name = 'Omolon RL-2';
-  const armor = ['helmet', 'arms', 'chest', 'legs'].map((sl) => makeArmor(sl, 10, 0));
+  const armor = ['helmet', 'arms', 'chest', 'legs'].map((sl) => makeArmor(sl, 10, 0, null, classId));
   return [p, s, h, ...armor].map((it) => ({ ...it, isNew: false }));
 }
 

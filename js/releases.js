@@ -4,6 +4,24 @@
 
 export const RELEASES = [
   {
+    version: '1.6', name: 'Fashion Is Endgame', date: '2026-10-14', accent: '#f4c542', glyph: '◆',
+    summary: 'Look the part. Your armor now shows on your Guardian, every destination has its own armor set, shaders recolor your whole look, and you can play a Titan, a Hunter and a Warlock side by side.',
+    notes: [
+      'Your armor is visible: every piece changes your Guardian on the character screen, in third-person supers and on your fireteam\'s screens. Titans, Hunters and Warlocks each keep their own silhouette',
+      'Six destination armor sets: Skywatch, Hellmouth Vigil, Meridian Legion, Arcology, Reef Outlaw and Sacred Ground. Legendary armor from a mission is that destination\'s set',
+      'Wear any 3 pieces of a set for its bonus, from faster reloads to orb charge to extra super energy. The fourth slot is free for an exotic',
+      'Shaders: 10 to find, dropped from mission caches (a destination\'s final mission always gives one the first time). One shader recolors all of your armor',
+      'Armor icons now show the actual piece, in your shader',
+      'Three Guardians: pick your character after the title screen, or switch from the Characters button. Each has its own gear, inventory and Light. Your level, glimmer, shaders and vault are shared',
+      'Move gear between Guardians through the vault. Armor belongs to one class and drops for the class you play',
+      'Exotic armor belongs to its class, like Destiny: four per class. New: Liar\'s Handshake and Raiden Flux for Hunters, Starfire Protocol for Warlocks. Actium War Rig, Armamentarium and Ophidian Aspect are retired',
+      'Celestial Nighthawk now works with Golden Gun only and refunds super on a kill. Nezarec\'s Sin and Contraverse Hold now work with Void abilities',
+      'Your stats moved to the Mods screen, which opens at any level',
+      'Your saves keep everything: your current gear becomes your current class\'s, and retired exotics become that class\'s exotic for the slot',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="fieBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a1a33"/><stop offset="0.55" stop-color="#0d1118"/><stop offset="1" stop-color="#1c2a2e"/></linearGradient><radialGradient id="fieSpot" cx="0.5" cy="0.95" r="0.6"><stop offset="0" stop-color="#f4c542" stop-opacity="0.35"/><stop offset="1" stop-color="#f4c542" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#fieBg)"/><rect width="320" height="180" fill="url(#fieSpot)"/><ellipse cx="160" cy="166" rx="120" ry="9" fill="#000" fill-opacity="0.45"/><g stroke="#0a0d12" stroke-width="1.5"><path d="M58 70h44l10 6v30l-8 8v44H62v-44l-8-8V76z" fill="#b0703a"/><path d="M50 72l14-6v20l-14 2zM110 72l-14-6v20l14 2z" fill="#4a3a2a"/><rect x="68" y="44" width="24" height="24" fill="#b0703a"/><rect x="72" y="52" width="16" height="4" fill="#ff8b2b"/><path d="M70 120h20v30h-20z" fill="#8a4a24"/></g><g stroke="#0a0d12" stroke-width="1.5"><path d="M138 62h44l10 54-12 46h-40l-12-46z" fill="#6b2c8c"/><path d="M146 72h28l6 8v34l-6 6v42h-28v-42l-6-6V80z" fill="#c9a23f"/><path d="M144 30h32v30h-32z" fill="#6b2c8c"/><rect x="150" y="38" width="20" height="18" fill="#c9a23f"/><rect x="153" y="45" width="14" height="3" fill="#5fd3ff"/><path d="M144 30l-6-10 10 8zM176 30l6-10-10 8z" fill="#5a2a7a"/></g><g stroke="#0a0d12" stroke-width="1.5"><path d="M222 70h40l6 8v30l-6 6-0 2 18 46h-76l18-46v-2l-6-6V78z" fill="#8cbfd9"/><path d="M228 70h28v44h-28z" fill="#cfe6f2"/><rect x="231" y="44" width="22" height="24" fill="#cfe6f2"/><rect x="235" y="53" width="14" height="3" fill="#b07cff"/><path d="M234 44l2-10 3 10M240 44l2-13 3 13M246 44l2-10 3 10" fill="#5c8fb0"/></g><g transform="rotate(45 160 104)" stroke="#0a0d12" stroke-width="1"><rect x="152" y="96" width="16" height="16" fill="#f4c542"/></g><g fill-opacity="0.9"><path d="M30 28l7-7 7 7-7 7z" fill="#f4c542"/><path d="M276 30l6-6 6 6-6 6z" fill="#b9bccc"/><path d="M290 140l5-5 5 5-5 5z" fill="#3e8a7d"/><path d="M22 130l5-5 5 5-5 5z" fill="#9c2a2a"/></g></svg>',
+  },
+  {
     version: '1.5', name: 'Armor 2.0', date: '2026-10-14', accent: '#cdb6ff', glyph: '⬡',
     summary: 'Build your armor your way. Perks give way to mods: four sockets on every piece, a screen to fill them, and orbs that charge your armor.',
     notes: [

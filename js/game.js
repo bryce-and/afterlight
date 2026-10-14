@@ -8,6 +8,7 @@ import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight,
 import { explosionFx } from './effects.js';
 import { pointInColliders } from './physics.js';
 import { rollItem, dismantleValue } from './loot.js';
+import { rollShader, SHADERS } from './style.js';
 import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP } from './progression.js';
 import { sfx } from './audio.js';
@@ -313,9 +314,16 @@ function openChest() {
   for (let i = 0; i < n; i++) {
     let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), first ? 5 : 2));
     if (first && M.mi === 2 && i === 0) rIdx = 4;
-    rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx));
+    rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx, undefined, M.loc.id, G.save.classId));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
+  // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
+  const shader = rollShader(G.save.shaders.owned, first && M.mi === 2);
+  if (shader) {
+    G.save.shaders.owned.push(shader);
+    M.rewardShader = shader;
+    setTimeout(() => { if (G.mission === M) { ui.feed(`Shader acquired: ${SHADERS[shader].name}`, '#e9d7ff'); sfx.engram(3); } }, 300 + n * 450);
+  }
   const glimmer = 120 + M.g * 45;
   G.save.glimmer += glimmer;
   G.save.cleared[M.def.id] = true;
@@ -398,6 +406,7 @@ export function dealDamage(e, amount, o = {}) {
   if (!o.raw && (o.source === 'weapon' || o.source === 'perk')) dmg *= weaponTierMult(M.g);
   if (!o.raw) dmg *= exoticArmorMult(o);
   if (!o.raw && G.player?.surgeMult) dmg *= G.player.surgeMult(o); // Surge mods while armor charged
+  if (!o.raw && G.player?.setMult) dmg *= G.player.setMult(o); // armor set bonuses
   if (!o.raw && G.player?.buildMult) dmg *= G.player.buildMult(o); // aspects and fragments
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
   // subclass traits on this player's own grenade and melee hits (never on relayed hits or jolt chains)
@@ -517,7 +526,7 @@ function dropEngram(pos) {
   const pp = playerPower(G.save);
   const rIdx = rollRarity(playerLevel(G.save));
   const power = clamp(Math.max(pp, M.def.power - 3) + randInt(-1, 2), 1, LIGHT_CAP);
-  spawnPickup('engram', pos, rollItem(power, rIdx));
+  spawnPickup('engram', pos, rollItem(power, rIdx, undefined, M.loc.id, G.save.classId));
 }
 
 export function explode(pos, radius, dmg, element, o = {}) {
@@ -964,7 +973,7 @@ function openActChest() {
     let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), 2 + Math.floor(c.wave / 5)));
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
     if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
-    rewards.push(rollItem(Math.min(LIGHT_CAP, pp + randInt(1, 4)), rIdx));
+    rewards.push(rollItem(Math.min(LIGHT_CAP, pp + randInt(1, 4)), rIdx, undefined, null, G.save.classId));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   const glimmer = 60 + c.wave * 12;

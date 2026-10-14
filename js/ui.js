@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
 import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
-import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, armorStats, tierOf, activeMods, energyCap, energyUsed } from './armor.js';
-import { openMods, statLine } from './mods-ui.js';
-import { getLoadout, setLoadout } from './save.js';
+import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, activeMods, energyCap, energyUsed } from './armor.js';
+import { openMods } from './mods-ui.js';
+import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice } from './save.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt } from './progression.js';
 import { RELEASES, ROADMAP } from './releases.js';
 import { dismantleValue } from './loot.js';
-import { weaponIcon, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES } from './icons.js';
+import { weaponIcon, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES, setArmorIconContext } from './icons.js';
+import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './style.js';
 import { frameDef, weaponHandling } from './frames.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets } from './game.js';
 import { dmgDrift, HUD_SCALE } from './combat.js';
@@ -42,7 +43,7 @@ export function initUI() {
   $('#title').addEventListener('click', () => {
     initAudio();
     sfx.ui();
-    if (G.save) showOrbit(); else showClassSelect();
+    if (G.save) showCharacterSelect(); else showClassSelect();
   });
   // Update Log / Roadmap: clicks inside them must not start the game
   for (const el of [$('#t-links'), $('#t-panel'), $('#t-notice')]) el.addEventListener('click', (e) => e.stopPropagation());
@@ -129,11 +130,49 @@ export function showClassSelect(fromOrbit = false) {
     </div>`;
   $$('.cls-card', el).forEach((b) => b.addEventListener('click', () => {
     sfx.ui();
-    if (G.save) { G.save.classId = b.dataset.cls; writeSave(G.save); }
+    if (G.save) switchCharacter(G.save, b.dataset.cls);
     else G.save = createSave(b.dataset.cls);
     showOrbit();
   }));
   $('#cls-back', el)?.addEventListener('click', () => showOrbit());
+}
+
+/** Character select: one Guardian per class. Played ones show their Light; the others start fresh with their own armor. */
+export function showCharacterSelect(fromOrbit = false) {
+  const s = G.save;
+  G.state = 'classes';
+  showOnly('classes');
+  G.menu.setMode('planet');
+  G.menu.setOffset(0);
+  const played = playedClasses(s), lvl = playerLevel(s);
+  const card = (c) => {
+    if (!played.includes(c.id)) {
+      return `<button class="chs-card new" data-cls="${c.id}" style="--cc:${c.color}">
+        <div class="chs-emblem">+</div>
+        <div class="chs-info"><b>${c.name}</b><span>New Guardian  ·  starts with a fresh kit</span></div>
+        <div class="chs-pow"><small>Create</small></div></button>`;
+    }
+    const sc = c.subclasses[subclassFor(s, c.id)];
+    return `<button class="chs-card${c.id === s.classId ? ' cur' : ''}" data-cls="${c.id}" style="--cc:${sc.color}">
+      <div class="chs-emblem">${subclassIcon(sc.color)}</div>
+      <div class="chs-info"><b>${c.name}</b><span>${sc.name}  ·  ${ELEMENTS[sc.element].name}</span></div>
+      <div class="chs-pow"><span>◆ ${charPower(s, c.id)}</span><small>Level ${lvl}</small></div></button>`;
+  };
+  $('#classes').innerHTML = `
+    <div class="chs-wrap">
+      <div class="eyebrow">Afterlight</div>
+      <h1 class="screen-title">Choose your Guardian</h1>
+      <div class="chs-list">${Object.values(CLASSES).map(card).join('')}</div>
+      <p class="desc chs-note">Your level, glimmer, shaders and the vault are shared. Each Guardian has its own gear and Light: move items between them through the vault. Armor belongs to one class.</p>
+      ${fromOrbit ? '<button class="btn ghost" id="chs-back">Back</button>' : ''}
+    </div>`;
+  $$('.chs-card').forEach((b) => b.addEventListener('click', () => {
+    sfx.ui();
+    switchCharacter(s, b.dataset.cls);
+    flySlot = null; vaultOpen = false;
+    showOrbit();
+  }));
+  $('#chs-back')?.addEventListener('click', () => { sfx.ui(); showOrbit(); });
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +405,7 @@ function wireFireteam(main) {
 
 function typeLine(it) {
   if (it.kind === 'weapon') return `${ARCHETYPES[it.arch].name}`;
-  return SLOT_NAMES[it.slot];
+  return `${it.classId ? `${CLASSES[it.classId].name} ` : ''}${SLOT_NAMES[it.slot]}`;
 }
 
 function itemCard(it, { equipped = false, selected = false, compact = false } = {}) {
@@ -385,17 +424,13 @@ function itemCard(it, { equipped = false, selected = false, compact = false } = 
 // ---------------------------------------------------------------------------
 let flySlot = null, hoverId = null, dismantle = null, vaultOpen = false, modsScreen = null;
 
-function playerStats() {
-  const s = G.save;
-  return armorStats(s.classId, ARMOR_SLOTS.map((sl) => getEquipped(s, sl)).filter(Boolean), playerLevel(s));
-}
-
 function tileHTML(it, equipped = false) {
   const rar = RARITIES[rarityIndex(it.rarity)];
   const weapon = it.kind === 'weapon';
-  const art = weapon ? `<img src="${weaponIcon(it)}" alt="" draggable="false">` : armorIcon(it.slot);
-  return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
-    ${art}
+  const art = weapon ? `<img src="${weaponIcon(it)}" alt="" draggable="false">` : armorIcon(it);
+  const other = !weapon && it.classId && it.classId !== G.save.classId;
+  return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}${other ? ' other-class' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
+    ${art}${other ? `<span class="t-cls">${CLASSES[it.classId].name}</span>` : ''}
     ${weapon ? `${elementIcon(it.element, 'el-ico t-el')}<span class="t-ammo ammo-ico" style="--ac:${AMMO[it.slot].color}"></span>` : ''}
     <span class="t-power">${it.power}</span>${it.isNew ? '<i class="t-new"></i>' : ''}
   </button>`;
@@ -462,11 +497,14 @@ function renderCharScreen(main) {
   const s = G.save;
   const cls = activeKit(s);
   const el = ELEMENTS[cls.element];
-  G.menu.setMode('character', s.classId, cls.element);
-  const st = playerStats();
+  G.menu.setMode('character', s.classId, cls.element, wornAppearance(s));
+  const shader = shaderFor(s.shaders, s.classId);
+  setArmorIconContext(s.classId, cls.element, shader);
+  const worn = ARMOR_SLOTS.map((sl) => getEquipped(s, sl)).filter(Boolean);
+  const sets = Object.entries(setCounts(worn)).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 2); // set progress worth showing
   const slot = (sl) => {
     const it = getEquipped(s, sl);
-    const hasNew = s.inventory.some((i) => i.slot === sl && i.isNew);
+    const hasNew = s.inventory.some((i) => i.slot === sl && i.isNew && usableBy(i, s.classId));
     return `<div class="cs-slot" data-slot="${sl}"><div class="cs-label">${SLOT_NAMES[sl]}${hasNew ? '<i class="dot"></i>' : ''}</div>${it ? tileHTML(it, true) : '<div class="tile empty"></div>'}</div>`;
   };
   main.innerHTML = `
@@ -477,23 +515,26 @@ function renderCharScreen(main) {
       </div>
       <div class="cs-power"><span class="pw">◆</span>${playerPower(s)}<small>Light</small></div>
       <div class="cs-col left">
-        <div class="cs-slot"><div class="cs-label">Subclass</div><button class="tile subclass" id="cs-sub" style="--rc:${el.color}" aria-label="Subclass">${subclassIcon(el.color)}</button></div>
+        <div class="cs-row">
+          <div class="cs-slot" data-slot="shader"><div class="cs-label">Shader</div><button class="tile shader-tile" id="cs-shader" aria-label="Shader: ${shader ? esc(SHADERS[shader].name) : 'none'}" title="${shader ? esc(SHADERS[shader].name) : 'No shader'}">${shaderSwatch(shader)}</button></div>
+          <div class="cs-slot"><div class="cs-label">Subclass</div><button class="tile subclass" id="cs-sub" style="--rc:${el.color}" aria-label="Subclass">${subclassIcon(el.color)}</button></div>
+        </div>
         ${WEAPON_SLOTS.map(slot).join('')}
       </div>
       <div class="cs-stage" id="cs-stage" title="Drag to rotate"></div>
-      <div class="cs-col right">${ARMOR_SLOTS.map(slot).join('')}</div>
-      <div class="cs-stats">
-        ${STAT_KEYS.map((k) => `<div class="cs-stat" title="${esc(`${STATS[k].name} T${tierOf(st[k])}: ${statLine(k, st[k], s.classId)}`)}"><b>${st[k]}</b><span>${STATS[k].name}</span><i><em style="width:${st[k]}%"></em></i></div>`).join('')}
+      <div class="cs-col right">${ARMOR_SLOTS.map(slot).join('')}
+        ${sets.length ? `<div class="cs-sets">${sets.map(([id, n]) => `<div class="cs-set${n >= SET_PIECES ? ' on' : ''}" title="${esc(`${SETS[id].bonus.name}: ${SETS[id].bonus.desc}`)}"><b>${SETS[id].name}</b><span>${Math.min(n, 4)} / 4</span></div>`).join('')}</div>` : ''}
       </div>
       <div class="cs-foot">
         <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
+        <button class="btn cs-vault-btn cs-switch" id="cs-switch" title="Choose another Guardian">⇄ Characters</button>
         <button class="btn cs-vault-btn" id="cs-vault-btn">Vault <small>${s.vault.length} / ${VAULT_CAP}</small></button>
         <span class="cs-auto" title="Weapon and armor drops of these rarities are dismantled into glimmer automatically">Auto-dismantle
           ${['common', 'uncommon', 'rare'].map((r) => `<button class="cs-auto-t ${s.settings.autoDismantle?.[r] ? 'on' : ''}" data-r="${r}" style="--rc:${RARITIES[rarityIndex(r)].color}">${{ common: 'White', uncommon: 'Green', rare: 'Blue' }[r]}</button>`).join('')}</span>
         <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
         <span class="hint">Click a slot to swap  ·  Hover for details  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
       </div>
-      <button class="cs-mods-arrow${playerLevel(s) < MODS_LEVEL ? ' locked' : ''}" id="cs-mods-btn" ${playerLevel(s) < MODS_LEVEL ? 'aria-disabled="true"' : ''} title="${playerLevel(s) < MODS_LEVEL ? `Mods unlock at level ${MODS_LEVEL}` : 'Armor mods'}"><span>Mods</span><i>❯</i>${playerLevel(s) < MODS_LEVEL ? `<small>Level ${MODS_LEVEL}</small>` : ''}</button>
+      <button class="cs-mods-arrow" id="cs-mods-btn" title="${playerLevel(s) < MODS_LEVEL ? `Armor stats (mods unlock at level ${MODS_LEVEL})` : 'Armor stats and mods'}"><span>${playerLevel(s) < MODS_LEVEL ? 'Stats' : 'Mods'}</span><i>❯</i></button>
       <div class="cs-fly hidden" id="cs-fly"></div>
       <div class="cs-tip hidden" id="cs-tip"></div>
       <div class="cs-panel hidden" id="cs-panel"></div>
@@ -508,13 +549,23 @@ function renderCharScreen(main) {
   root.addEventListener('mouseleave', hideTip);
   root.addEventListener('click', (e) => {
     if (e.target.closest('#cs-vault')) return; // the vault handles its own clicks
+    const opt = e.target.closest('.sh-opt');
+    if (opt) {
+      if (opt.classList.contains('locked')) { sfx.denied(); orbitNotice('Shaders drop from mission caches.'); return; }
+      const err = applyShader(s, opt.dataset.sh || null);
+      if (err) { sfx.denied(); orbitNotice(err); return; }
+      sfx.engram(1); flySlot = null; renderOrbit();
+      return;
+    }
     const t = e.target.closest('.tile');
     if (e.target.closest('#cs-sub')) { openSubclass(); return; }
+    if (e.target.closest('#cs-shader')) { toggleFly('shader', e.target.closest('#cs-shader')); return; }
     if (t && t.dataset.id) {
       const it = getItem(s, t.dataset.id);
       if (t.closest('.cs-slot')) { toggleFly(it.slot, t); return; }
       if (e.shiftKey) { if (infuseItem(s, it.id)) { sfx.engram(3); flySlot = null; renderOrbit(); } else sfx.denied(); return; }
       const blocker = equipItem(s, it.id);
+      if (typeof blocker === 'string') { sfx.denied(); orbitNotice(blocker); return; }
       if (blocker) { sfx.denied(); orbitNotice(`Swap out ${blocker.name} first: only one exotic ${blocker.kind === 'weapon' ? 'weapon' : 'armor piece'} at a time.`); return; }
       sfx.engram(1);
       flySlot = null;
@@ -524,7 +575,6 @@ function renderCharScreen(main) {
     if (!e.target.closest('#cs-fly') && !e.target.closest('#cs-panel')) closeFly();
   });
   $('#cs-mods-btn', main).addEventListener('click', () => {
-    if (playerLevel(s) < MODS_LEVEL) { sfx.denied(); orbitNotice(`Mods unlock at level ${MODS_LEVEL}.`); return; }
     sfx.ui(); closeFly(); closeVault();
     modsScreen = openMods(root, () => { /* stats refresh when the screen closes */ }, () => { modsScreen = null; renderOrbit(); });
   });
@@ -532,6 +582,7 @@ function renderCharScreen(main) {
     orbitNotice(`Armor 2.0: perks are now mods and armor has six stats.${s.armorNote.dropped ? ` ${s.armorNote.dropped} perk${s.armorNote.dropped > 1 ? 's' : ''} did not fit their piece and were removed (the mods are yours to socket from level ${MODS_LEVEL}).` : ''}`);
     delete s.armorNote; writeSave(s);
   }
+  $('#cs-switch', main).addEventListener('click', () => { sfx.ui(); closeFly(); closeVault(); showCharacterSelect(true); });
   $('#cs-vault-btn', main).addEventListener('click', () => { sfx.ui(); closeFly(); vaultOpen = true; renderVault(); });
   $$('.cs-auto-t', main).forEach((b) => b.addEventListener('click', () => {
     const set = (s.settings.autoDismantle = s.settings.autoDismantle || {});
@@ -604,11 +655,14 @@ function toggleFly(sl, anchor) {
 function openFly(sl, anchor) {
   const s = G.save;
   flySlot = sl;
-  const items = s.inventory.filter((i) => i.slot === sl && !isEquipped(s, i))
-    .sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
   const fly = $('#cs-fly');
-  fly.innerHTML = `<div class="fly-head">${SLOT_NAMES[sl]}<span>${items.length}</span></div>
-    ${items.length ? `<div class="fly-grid">${items.map((it) => tileHTML(it)).join('')}</div>` : '<div class="fly-empty">Nothing else for this slot yet. Engrams drop from enemies and boss caches.</div>'}`;
+  if (sl === 'shader') fly.innerHTML = shaderFlyHTML(s);
+  else {
+    const items = s.inventory.filter((i) => i.slot === sl && !isEquipped(s, i) && usableBy(i, s.classId))
+      .sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
+    fly.innerHTML = `<div class="fly-head">${SLOT_NAMES[sl]}<span>${items.length}</span></div>
+      ${items.length ? `<div class="fly-grid">${items.map((it) => tileHTML(it)).join('')}</div>` : '<div class="fly-empty">Nothing else for this slot yet. Engrams drop from enemies and boss caches.</div>'}`;
+  }
   fly.classList.remove('hidden');
   const r = anchor.getBoundingClientRect(), host = $('.cs').getBoundingClientRect();
   const left = anchor.closest('.cs-col').classList.contains('left');
@@ -620,6 +674,26 @@ function openFly(sl, anchor) {
   fly.style.left = `${x - host.left}px`;
   fly.style.top = `${y - host.top}px`;
   $$('.cs-slot').forEach((n) => n.classList.toggle('open', n.dataset.slot === sl));
+}
+
+const hex = (n) => `#${n.toString(16).padStart(6, '0')}`;
+/** A shader as a swatch: armor, trim and cloth colors. null = the armor's own colors. */
+function shaderSwatch(id) {
+  if (!id) return '<span class="sh-sw none"><i></i></span>';
+  const c = SHADERS[id].colors;
+  return `<span class="sh-sw" style="--a:${hex(c.armor)};--t:${hex(c.trim)};--c:${hex(c.cloth)}"><i></i></span>`;
+}
+
+function shaderFlyHTML(s) {
+  const cur = shaderFor(s.shaders, s.classId), owned = s.shaders.owned;
+  const opt = (id) => {
+    const have = id === null || owned.includes(id), on = id === cur;
+    const name = id ? (have ? SHADERS[id].name : 'Not found yet') : 'Default';
+    return `<button class="sh-opt${on ? ' on' : ''}${have ? '' : ' locked'}" data-sh="${id || ''}" title="${esc(name)}">${have ? shaderSwatch(id) : '<span class="sh-sw lock">?</span>'}<small>${esc(name)}</small></button>`;
+  };
+  return `<div class="fly-head">Shader<span>${owned.length} / ${SHADER_IDS.length}</span></div>
+    <div class="sh-grid">${[null, ...SHADER_IDS].map(opt).join('')}</div>
+    <div class="fly-note">Recolors all of your ${CLASSES[s.classId].name}'s armor. Shaders drop from mission caches.</div>`;
 }
 
 function closeFly() {
@@ -672,6 +746,10 @@ function tipHTML(it, side) {
     }
     const sum = (o) => STAT_KEYS.reduce((n, k) => n + (o[k] || 0), 0);
     body += `<div class="tt-stat total"><span>Total</span><i></i><b>${sum(st)}${c ? delta(sum(st), sum(c)) : ''}</b></div></div>`;
+    if (it.set && SETS[it.set] && it.rarity !== 'exotic') {
+      const set = SETS[it.set], n = setCounts(ARMOR_SLOTS.map((sl) => getEquipped(s, sl)).filter(Boolean))[it.set] || 0;
+      body += `<div class="tt-set${n >= SET_PIECES ? ' on' : ''}"><span>${esc(set.name)} set  ·  ${set.dest}  ·  ${Math.min(n, 4)} / 4 equipped</span><b>${esc(set.bonus.name)}</b><em>${esc(set.bonus.desc)}${n >= SET_PIECES ? '' : ` Equip ${SET_PIECES} pieces of this set.`}</em></div>`;
+    }
     const xp = it.rarity === 'exotic' && EXOTIC_ARMOR_PERKS[it.name];
     if (xp) body += `<div class="tt-perks"><div class="tt-perk exo"><i></i><div><b>${xp.name}</b><span>${xp.desc}</span></div></div></div>`;
     const lv = playerLevel(s), live = activeMods(it, lv);
@@ -679,6 +757,7 @@ function tipHTML(it, side) {
     if (socketed.length) body += `<div class="tt-perks">${socketed.map((id) => `<div class="tt-perk${live.includes(id) ? '' : ' idle'}"><i></i><div><b>${MODS[id].name}</b><span>${live.includes(id) ? MODS[id].desc : lv < MODS_LEVEL ? `Unlocks at level ${MODS_LEVEL}.` : 'Not active (locked or over energy).'}</span></div></div>`).join('')}</div>`;
     body += `<div class="tt-note">Mods ${energyUsed(it.mods)} / ${energyCap(it)} energy${lv < MODS_LEVEL ? `  ·  unlock at level ${MODS_LEVEL}` : ''}</div>`;
     if (it.rarity === 'exotic') body += '<div class="tt-note">Only one exotic armor piece can be equipped.</div>';
+    if (!usableBy(it, s.classId)) body += `<div class="tt-note">Only a ${CLASSES[it.classId].name} can wear this.</div>`;
   }
   if (it.kind === 'weapon' && it.rarity === 'exotic') {
     body += '<div class="tt-note">Only one exotic weapon can be equipped.</div>';
@@ -898,7 +977,7 @@ function openSubclass() {
     openSubclass();
   }));
   $('#sp-close').addEventListener('click', () => { spSlot = null; p.classList.add('hidden'); });
-  $('#change-class').addEventListener('click', () => showClassSelect(true));
+  $('#change-class').addEventListener('click', () => showCharacterSelect(true));
 }
 
 // Hold F to dismantle, Esc to close flyouts (only on the Character screen)
@@ -1013,7 +1092,7 @@ export function updateHUD(dt) {
     setStyle(a.fill, 'ab' + k, 'height', `${Math.round(pct * 100)}%`);
     setClass(a.el, 'ab' + k, 'ready', pct >= 1);
     setClass(a.el, 'hx' + k, 'empowered', P.status.has('heart', k)); // Heart of Inmost Light
-    if (k === 'grenade') setClass(a.el, 'gb', 'charge2', P.gBank > 0); // Armamentarium
+    if (k === 'grenade') setClass(a.el, 'gb', 'charge2', P.gBank > 0); // Starfire Protocol
   }
   const S = P.superActive;
   const sp = S ? S.t / S.max : P.superCharge / 100;
@@ -1412,7 +1491,7 @@ export function showComplete(M) {
         <div><b>◆ ${playerPower(G.save)}</b><span>Light</span></div>
       </div>
       <div class="eyebrow">Rewards  ·  ${loot.length} item${loot.length === 1 ? '' : 's'}</div>
-      <div class="grid rewards">${loot.map((it) => itemCard(it)).join('')}</div>
+      <div class="grid rewards">${loot.map((it) => itemCard(it)).join('')}${M.rewardShader ? `<div class="item shader-card" style="--rc:#c9a6ff"><div class="it-top">${shaderSwatch(M.rewardShader)}<span class="it-name">${esc(SHADERS[M.rewardShader].name)}</span></div><div class="it-sub">Shader  ·  apply it on the Character screen</div></div>` : ''}</div>
       <div class="row-btns">
         <button class="btn primary" id="c-orbit">Return to Orbit</button>
         <button class="btn" id="c-inv">View Character</button>

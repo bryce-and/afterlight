@@ -512,15 +512,15 @@ export function createMenuScene() {
       holder.add(planet);
     },
     setOffset(x) { holder.position.x = x; },
-    setMode(m, classId, elementId) {
+    setMode(m, classId, elementId, look) {
       mode = m;
       holder.visible = m === 'planet';
       charHolder.visible = m === 'character';
       if (m === 'character') {
-        const key = classId + elementId;
+        const key = classId + elementId + JSON.stringify(look || null);
         if (charKey !== key) {
           if (character) charHolder.remove(character.group);
-          character = buildCharacter(classId, elementId);
+          character = buildCharacter(classId, elementId, look);
           charHolder.add(character.group);
           charKey = key;
         }

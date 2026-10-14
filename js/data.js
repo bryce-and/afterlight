@@ -151,26 +151,29 @@ export const EXOTIC_WEAPONS = [
 ];
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
 export const HEAVY_VERSION = { dmg: 1.4, reserve: 10, brick: 3 };
-// What each exotic armor piece does (works on any class)
+// What each exotic armor piece does. Exotic armor belongs to one class, like Destiny 2.
 export const EXOTIC_ARMOR_PERKS = {
-  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'The first hit of your super deals 2.5x damage. Golden Gun becomes a single shot that deals 4x damage.' },
+  // Titan
+  'An Insurmountable Skullfort': { id: 'skullfort', name: 'Cranial Spike', desc: 'Kills with your powered melee fully recharge it and restore your health.' },
   Synthoceps: { id: 'synthoceps', name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
   'Heart of Inmost Light': { id: 'heart', name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
-  'St0mp-EE5': { id: 'stomp', name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your class ability recharges 30% faster.' },
-  'An Insurmountable Skullfort': { id: 'skullfort', name: 'Cranial Spike', desc: 'Kills with your powered melee fully recharge it and restore your health.' },
-  "Nezarec's Sin": { id: 'nezarec', name: 'Abyssal Extractors', desc: 'Ability kills make all of your abilities recharge twice as fast for 5s.' },
-  'Ophidian Aspect': { id: 'ophidian', name: 'Cobra Totem', desc: 'Reload 35% faster, swap weapons faster, and your melee lunges 50% farther.' },
-  'Contraverse Hold': { id: 'contraverse', name: 'Chaos Accelerant', desc: 'Grenades that catch enemies refund 30% of their cooldown. Take 20% less damage for 3s after throwing one.' },
-  'Actium War Rig': { id: 'actium', name: 'Auto-Loading Link', desc: 'While you fire, your weapon loads a round from reserves every 0.4s.' },
-  Armamentarium: { id: 'armamentarium', name: 'Pocket Arsenal', desc: 'Your grenade gains a second charge.' },
-  'Transversive Steps': { id: 'transversive', name: 'Strategic Relocation', desc: 'Sprint 15% faster. Sprinting for a moment reloads the weapon in your hands.' },
   Dunemarchers: { id: 'dunemarchers', name: 'Linear Actuators', desc: 'Sprinting builds static. Your next melee chains lightning into up to 3 enemies.' },
+  // Hunter
+  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'Golden Gun fires a single shot that deals 4x damage. A kill with it returns 30% super energy.' },
+  "Liar's Handshake": { id: 'liars', name: 'Cross Counter', desc: 'Powered melee hits grant Cross Counter for 5s: your next uncharged melee deals double damage and heals you for 40.' },
+  'Raiden Flux': { id: 'raiden', name: 'Shocking Blows', desc: 'Each Arc Staff hit extends the super by 0.5s (up to 5s). Quick successive hits deal 10% more damage, stacking to 50%.' },
+  'St0mp-EE5': { id: 'stomp', name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your dodge recharges 30% faster.' },
+  // Warlock
+  "Nezarec's Sin": { id: 'nezarec', name: 'Abyssal Extractors', desc: 'Void ability kills make all of your abilities recharge twice as fast for 5s.' },
+  'Contraverse Hold': { id: 'contraverse', name: 'Chaos Accelerant', desc: 'Void grenades that catch enemies refund 30% of their cooldown. Take 20% less damage for 3s after throwing one.' },
+  'Starfire Protocol': { id: 'starfire', name: 'Fusion Harness', desc: 'Your grenade gains a second charge. Solar grenade kills return 20% grenade energy.' },
+  'Transversive Steps': { id: 'transversive', name: 'Strategic Relocation', desc: 'Sprint 15% faster. Sprinting for a moment reloads the weapon in your hands.' },
 };
+/** Exotic armor by class and slot (drops only for its class). */
 export const EXOTIC_ARMOR = {
-  helmet: ['Celestial Nighthawk', 'An Insurmountable Skullfort', "Nezarec's Sin"],
-  arms: ['Synthoceps', 'Ophidian Aspect', 'Contraverse Hold'],
-  chest: ['Heart of Inmost Light', 'Actium War Rig', 'Armamentarium'],
-  legs: ['St0mp-EE5', 'Transversive Steps', 'Dunemarchers'],
+  vanguard: { helmet: 'An Insurmountable Skullfort', arms: 'Synthoceps', chest: 'Heart of Inmost Light', legs: 'Dunemarchers' },
+  stalker: { helmet: 'Celestial Nighthawk', arms: "Liar's Handshake", chest: 'Raiden Flux', legs: 'St0mp-EE5' },
+  arcanist: { helmet: "Nezarec's Sin", arms: 'Contraverse Hold', chest: 'Starfire Protocol', legs: 'Transversive Steps' },
 };
 
 // ---------- Classes ----------

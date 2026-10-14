@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { buildGunModel } from './models.js';
 import { ELEMENTS } from './data.js';
+import { buildCharacter } from './characters.js';
+import { lookOf } from './style.js';
 
-// Weapon icons are rendered from the real viewmodel meshes into a small
-// offscreen canvas, then cached as data URLs. Armour uses simple SVG icons.
+// Weapon and armor icons are rendered from the real meshes (the viewmodel, or the slot's pieces on the
+// Guardian model) into a small offscreen canvas, then cached as data URLs.
 
 let rr = null, scene = null, cam = null;
 const cache = new Map();
@@ -53,6 +55,43 @@ export function weaponIcon(item) {
   return url;
 }
 
+// Armor icons show the piece on the current class, in its look and the class's shader, glowing in the subclass color.
+let armorCtx = { classId: 'vanguard', element: 'solar', shader: null };
+/** Called when the class, subclass or shader changes (the character screen does it before drawing tiles). */
+export function setArmorIconContext(classId, element, shader) { armorCtx = { classId, element, shader }; }
+
+const ARMOR_VIEW = { helmet: 0.5, arms: 0.35, chest: 0.4, legs: 0.35 }; // turn toward the camera, radians
+
+/** An image URL of the armor piece (rendered and cached), for <img src>. */
+export function armorIconURL(item) {
+  const { element, shader } = armorCtx;
+  const classId = item.classId || armorCtx.classId; // armor of another class is drawn on that class
+  const lk = lookOf(item);
+  const key = `armor|${classId}|${element}|${shader}|${item.slot}|${lk}`;
+  if (cache.has(key)) return cache.get(key);
+  if (!rr) init();
+  const ch = buildCharacter(classId, element, { helmet: lk, arms: lk, chest: lk, legs: lk, shader });
+  const g = ch.group;
+  g.rotation.y = ARMOR_VIEW[item.slot];
+  g.traverse((o) => { if (o.isMesh) o.visible = o.userData.slot === item.slot; });
+  scene.add(g);
+  g.updateMatrixWorld(true);
+  const bb = new THREE.Box3();
+  g.traverse((o) => { if (o.isMesh && o.visible) bb.expandByObject(o); });
+  const c = bb.getCenter(new THREE.Vector3()), s = bb.getSize(new THREE.Vector3());
+  const half = Math.max(s.x, s.y) / 2 * 1.12;
+  Object.assign(cam, { left: -half, right: half, top: half, bottom: -half });
+  cam.position.set(c.x, c.y, 5);
+  cam.lookAt(c.x, c.y, 0);
+  cam.updateProjectionMatrix();
+  rr.render(scene, cam);
+  const url = rr.domElement.toDataURL('image/png');
+  scene.remove(g);
+  g.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+  cache.set(key, url);
+  return url;
+}
+
 /** Element symbol (Kinetic, Solar, Arc, Void, Stasis, Strand) in the element's color. */
 export function elementIcon(id, cls = 'el-ico') {
   const el = ELEMENTS[id];
@@ -60,14 +99,9 @@ export function elementIcon(id, cls = 'el-ico') {
   return `<svg viewBox="0 0 64 64" class="${cls}" style="color:${el.color}" role="img" aria-label="${el.name}"><title>${el.name}</title><g fill="currentColor">${el.symbol}</g></svg>`;
 }
 
-const ARMOR_SVG = {
-  helmet: '<path d="M32 8c-12 0-20 9-20 21v10c0 3 2 6 5 7l5 2v6h20v-6l5-2c3-1 5-4 5-7V29C52 17 44 8 32 8zm-12 24h24v6H20z"/>',
-  arms: '<path d="M20 10h14l4 14 8 4v14l-6 12H22l-6-10V30l4-6z"/><path d="M22 44h18" stroke="#0005" stroke-width="3"/>',
-  chest: '<path d="M14 12l10-4 8 6 8-6 10 4 4 16-6 4v22H20V32l-6-4z"/><path d="M32 14v40" stroke="#0005" stroke-width="3"/>',
-  legs: '<path d="M18 8h28l-2 20-4 28h-6l-2-24-2 24h-6l-4-28z"/>',
-};
-export function armorIcon(slot) {
-  return `<svg viewBox="0 0 64 64" class="armor-svg" aria-hidden="true"><g fill="currentColor">${ARMOR_SVG[slot]}</g></svg>`;
+/** An armor item's icon as HTML (the rendered piece). */
+export function armorIcon(item) {
+  return `<img class="armor-img" src="${armorIconURL(item)}" alt="" draggable="false">`;
 }
 
 // Faction emblems for the enemy plate (original designs): Fallen a horned shard, Hive a crescent

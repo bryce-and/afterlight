@@ -1,17 +1,18 @@
-import { SLOTS, LOCATIONS, RARITIES, CLASSES } from './data.js';
+import { SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP } from './progression.js';
 import { randInt } from './util.js';
 import { frameFor, weaponStats } from './frames.js';
 import { MODS, blankMods, migrateArmorStats } from './armor.js';
+import { setForLegacy, appearance, shaderFor, SHADERS } from './style.js';
 
 const KEY = 'afterlight_save_v2';
 // First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
@@ -41,6 +42,20 @@ const MIGRATIONS = {
       else if (it.perk) s.armorNote.dropped++;
       delete it.perk;
     }
+  },
+  // Fashion Is Endgame (v1.6): legendary armor joins a destination set (stable from its id); shaders start empty.
+  // One Guardian per class: everything owned belongs to the class being played, and armor becomes class-bound.
+  // Exotic armor becomes that class's exotic for the slot (Armamentarium, say, becomes Starfire Protocol on a Warlock).
+  // Power, stats, mods and rarity are kept; other names are kept too.
+  5: (s) => {
+    for (const it of [...(s.inventory || []), ...(s.vault || [])]) {
+      if (it.kind !== 'armor') continue;
+      if (it.rarity === 'legendary' && !it.set) it.set = setForLegacy(it);
+      it.classId = s.classId;
+      if (it.rarity === 'exotic') it.name = EXOTIC_ARMOR[s.classId][it.slot];
+    }
+    s.shaders = { owned: [], applied: {} };
+    s.chars = {};
   },
 };
 const OLD_ARMOR_PTS = { common: 6, uncommon: 8, rare: 10, legendary: 13, exotic: 17 }; // v1.4 stat totals
@@ -105,16 +120,13 @@ export function resetSave() {
 }
 
 export function createSave(classId) {
-  const gear = starterGear();
+  const kit = starterKit(classId);
   const s = {
-    version: SAVE_VERSION, classId, glimmer: 250, inventory: gear, vault: [], equipped: {}, cleared: {}, subclass: {}, loadout: {},
+    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, subclass: {}, loadout: {},
+    shaders: { owned: [], applied: {} }, chars: {},
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
   };
-  for (const it of gear) s.equipped[it.slot] = it.id;
-  // one common weapon of every other type, so every archetype is there to try
-  const owned = new Set(gear.filter((i) => i.kind === 'weapon').map((i) => i.arch));
-  s.inventory.push(...armoryGear(owned, 10));
   writeSave(s);
   return s;
 }
@@ -150,7 +162,7 @@ export function claimLevelReward(s, level) {
   if (state !== 'ready') return { error: state === 'locked' ? `Reach level ${level} first.` : 'No reward at this level.' };
   if (s.inventory.length >= INVENTORY_CAP) return { error: `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.` };
   const power = Math.min(LIGHT_CAP, playerPower(s) + randInt(2, 5));
-  const item = rollItem(power, rewardAt(level) === 'exotic' ? 4 : 3);
+  const item = rollItem(power, rewardAt(level) === 'exotic' ? 4 : 3, undefined, null, s.classId);
   s.inventory.push(item);
   s.progression.claimed.push(level);
   writeSave(s);
@@ -159,10 +171,14 @@ export function claimLevelReward(s, level) {
 
 /** The player's class + chosen subclass, with that subclass's loadout applied. */
 export function activeKit(s) {
-  const sub = s.subclass?.[s.classId];
-  const ids = Object.keys(CLASSES[s.classId].subclasses);
-  const sid = sub && CLASSES[s.classId].subclasses[sub] && isSubclassUnlocked(s, s.classId, sub) ? sub : ids[0];
+  const sid = subclassFor(s, s.classId);
   return resolveKit(s.classId, sid, s.loadout?.[s.classId]?.[sid], playerLevel(s));
+}
+
+/** The subclass a class plays: its stored choice if unlocked, otherwise its first starter. */
+export function subclassFor(s, classId) {
+  const sub = s.subclass?.[classId];
+  return sub && CLASSES[classId].subclasses[sub] && isSubclassUnlocked(s, classId, sub) ? sub : Object.keys(CLASSES[classId].subclasses)[0];
 }
 
 /** The valid loadout for a subclass right now (defaults fill anything missing or locked). */
@@ -181,6 +197,57 @@ export const getItem = (s, id) => s.inventory.find((i) => i.id === id);
 export const getEquipped = (s, slot) => getItem(s, s.equipped[slot]);
 export const isEquipped = (s, it) => s.equipped[it.slot] === it.id;
 
+// ---------- characters ----------
+// One Guardian per class, like Destiny 2. The active one's gear is s.inventory and s.equipped; the others wait in
+// s.chars[classId] = { inventory, equipped }. Items move between Guardians only through the shared vault, and armor
+// (exotics too) only ever sits with its own class. Level, glimmer, shaders owned and the vault are account-wide;
+// Light comes from each Guardian's own gear.
+
+/** True when this Guardian can hold or wear the item (armor belongs to one class). */
+export const usableBy = (it, classId) => it.kind !== 'armor' || !it.classId || it.classId === classId;
+/** Guardians that have been played (the active one included). */
+export const playedClasses = (s) => Object.keys(CLASSES).filter((c) => c === s.classId || s.chars?.[c]);
+
+/** A Guardian's Light from its own equipped gear. */
+export function charPower(s, classId) {
+  const ch = classId === s.classId ? s : s.chars?.[classId];
+  if (!ch) return 0;
+  const total = SLOTS.reduce((sum, sl) => sum + (ch.inventory.find((i) => i.id === ch.equipped[sl])?.power ?? 0), 0);
+  return Math.floor(total / SLOTS.length);
+}
+
+/** A new Guardian's kit: starter weapons and armor for its class, plus one common of every other weapon type. */
+export function starterKit(classId, power = 10) {
+  const gear = starterGear(classId);
+  const equipped = Object.fromEntries(gear.map((it) => [it.slot, it.id]));
+  const owned = new Set(gear.filter((i) => i.kind === 'weapon').map((i) => i.arch));
+  return { inventory: [...gear, ...armoryGear(owned, power)], equipped };
+}
+
+/** Switches the active Guardian (creating it with a starter kit the first time). */
+export function switchCharacter(s, classId) {
+  if (!CLASSES[classId]) throw new Error(`switchCharacter: no class ${classId}`);
+  if (classId === s.classId) return;
+  s.chars = s.chars || {};
+  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped };
+  const next = s.chars[classId] || starterKit(classId);
+  delete s.chars[classId];
+  s.classId = classId;
+  s.inventory = next.inventory;
+  s.equipped = next.equipped;
+  writeSave(s);
+}
+/** What the Guardian looks like: the equipped armor's looks and the class's shader (style.js). */
+export const wornAppearance = (s) => appearance(['helmet', 'arms', 'chest', 'legs'].map((sl) => getEquipped(s, sl)), shaderFor(s.shaders, s.classId));
+
+/** Applies an owned shader to every armor piece of the current class (null = none). Returns an error or null. */
+export function applyShader(s, id) {
+  if (id !== null && (!SHADERS[id] || !s.shaders.owned.includes(id))) return 'You have not found that shader yet.';
+  if (id === null) delete s.shaders.applied[s.classId]; else s.shaders.applied[s.classId] = id;
+  writeSave(s);
+  return null;
+}
+
 export function playerPower(s) {
   const total = SLOTS.reduce((sum, sl) => sum + (getEquipped(s, sl)?.power ?? 0), 0);
   return Math.floor(total / SLOTS.length);
@@ -189,11 +256,12 @@ export function playerPower(s) {
 /**
  * Equips an item. Only one exotic armor piece and one exotic weapon can be equipped:
  * equipping a second one is refused, and this returns the exotic already equipped
- * in another slot (null when the item was equipped).
+ * in another slot (null when the item was equipped). Armor of another class returns the reason as a string.
  */
 export function equipItem(s, id) {
   const it = getItem(s, id);
   if (!it) throw new Error(`equipItem: no item ${id}`);
+  if (!usableBy(it, s.classId)) return `Only a ${CLASSES[it.classId].name} can wear ${it.name}.`;
   if (it.rarity === 'exotic') {
     const slots = it.kind === 'weapon' ? ['primary', 'special', 'heavy'] : ['helmet', 'arms', 'chest', 'legs'];
     const other = slots.map((sl) => sl !== it.slot && getEquipped(s, sl)).find((x) => x && x.rarity === 'exotic');
@@ -221,6 +289,7 @@ export function toVault(s, id) {
 export function fromVault(s, id) {
   const it = s.vault.find((i) => i.id === id);
   if (!it) throw new Error(`fromVault: no vault item ${id}`);
+  if (!usableBy(it, s.classId)) return `${it.name} is ${CLASSES[it.classId].name} armor. Switch to your ${CLASSES[it.classId].name} to take it out.`;
   if (s.inventory.length >= INVENTORY_CAP) return `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.`;
   s.vault = s.vault.filter((i) => i !== it);
   s.inventory.push(it);

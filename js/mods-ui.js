@@ -84,13 +84,13 @@ export function fillMods(el, onChange) {
   el.innerHTML = `
     <div class="ms-panel ms-left">
       <button class="btn ms-back" id="ms-back">‹ Character</button>
-      <div class="ms-title">Mods</div>
+      <div class="ms-title">${L < MODS_LEVEL ? 'Stats' : 'Mods'}</div>
       ${statsHTML(st, s.classId)}
     </div>
     <div class="ms-panel ms-right">
       <div class="ms-pieces">${items.map((it, n) => it ? `<button class="ms-piece r-${it.rarity}${it.slot === sel ? ' on' : ''}" data-slot="${it.slot}" style="--rc:${RARITIES[rarityIndex(it.rarity)].color}">
-        ${armorIcon(it.slot)}<span>${SLOT_NAMES[it.slot]}</span><small>${energyUsed(it.mods)} / ${energyCap(it)}</small></button>` : `<div class="ms-piece empty"><span>${SLOT_NAMES[ARMOR_SLOTS[n]]}</span></div>`).join('')}</div>
-      ${cur ? detailHTML(cur, L) : '<div class="ms-hint">Equip armor to socket mods.</div>'}
+        ${armorIcon(it)}<span>${SLOT_NAMES[it.slot]}</span><small>${energyUsed(it.mods)} / ${energyCap(it)}</small></button>` : `<div class="ms-piece empty"><span>${SLOT_NAMES[ARMOR_SLOTS[n]]}</span></div>`).join('')}</div>
+      ${L < MODS_LEVEL ? `<div class="ms-hint">Mods unlock at level ${MODS_LEVEL}. Until then this screen shows your armor stats.</div>` : cur ? detailHTML(cur, L) : '<div class="ms-hint">Equip armor to socket mods.</div>'}
     </div>`;
   el.querySelectorAll('.ms-piece[data-slot]').forEach((b) => b.addEventListener('click', () => { sel = b.dataset.slot; pinned = null; sfx.ui(); fillMods(el, onChange); }));
   el.querySelectorAll('.ms-sock-btn').forEach((b) => b.addEventListener('click', () => { pinned = pinned === +b.dataset.i ? null : +b.dataset.i; sfx.ui(); el.querySelectorAll('.ms-socket').forEach((n) => n.classList.toggle('pinned', +n.dataset.i === pinned)); }));

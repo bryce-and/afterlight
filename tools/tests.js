@@ -1,6 +1,6 @@
 // Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
-import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS } from '../js/data.js';
+import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
 import { rollItem } from '../js/loot.js';
 import * as S from '../js/save.js';
@@ -16,6 +16,7 @@ import { ENERGY, SHIELD_ELEMENTS } from '../js/data.js';
 import { readyState } from '../js/net.js';
 import * as AR from '../js/armor.js';
 import { makeArmor } from '../js/loot.js';
+import * as ST from '../js/style.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -328,9 +329,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = fresh({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, 5); eq(S.SAVE_VERSION, 5);
+  eq(s.version, 6); eq(S.SAVE_VERSION, 6);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 5, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 6, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing']]);
 });
@@ -388,8 +389,8 @@ test('waves: spawning the last wave never clears the zone in the same check', ()
 test('drops: engram chances cut, bosses still drop', () => {
   eq(C.ENGRAM_CHANCE, { grunt: 0.02, rusher: 0.02, captain: 0.05, heavy: 0.08, boss: 1 });
 });
-test('Celestial Nighthawk: Golden Gun 4x, other supers 2.5x', () => {
-  eq(C.NIGHTHAWK, { goldenGun: 4, other: 2.5 });
+test('Celestial Nighthawk: Golden Gun only, 4x single shot, kill refunds 30% super', () => {
+  eq(C.NIGHTHAWK, { goldenGun: 4, refund: 30 });
 });
 test('Ionic Trace and super armor perks toned down', () => {
   ok(C.IONIC.electrostatic < 0.15 && C.IONIC.ions < 0.1 && C.IONIC.gap > 0, 'ionic');
@@ -498,7 +499,7 @@ test('save v3 upgrades through v4: weapons gain archetypes and fixed stats; perk
   const v3 = { version: 3, classId: 'vanguard', glimmer: 5, inventory: inv, vault: [{ ...inv[1], id: 'w4' }], equipped: { heavy: 'w1' }, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
   fresh({ afterlight_save_v2: JSON.stringify(v3) });
   const s = S.loadSave();
-  eq(s.version, 5);
+  eq(s.version, 6);
   const [w1, w2, w3, a1] = s.inventory;
   eq([w1.frame, w1.element, w1.perks, w1.power, w1.name], ['adaptive', 'arc', ['rampage'], 90, 'Corrective Measure'], 'owned items keep their element');
   eq(w1.stats, weaponStats(w1));
@@ -629,7 +630,7 @@ test('save v4 upgrades to v5: stats become six, a matching perk becomes the mod,
   const v4 = { version: 4, classId: 'arcanist', glimmer: 9, inventory: inv, vault: [armor('v1', 'legs', 'legendary', 'plating', { mob: 5, res: 5, rec: 5 })], equipped: {}, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
   fresh({ afterlight_save_v2: JSON.stringify(v4) });
   const s = S.loadSave();
-  eq(s.version, 5);
+  eq(s.version, 6);
   const [h1, g1, c1, l1] = s.inventory;
   for (const it of s.inventory) { eq(Object.keys(it.stats), AR.STAT_KEYS); eq(it.mods.length, 4); ok(!('perk' in it)); eq(it.power, 77); }
   eq(h1.mods, [null, 'handson', null, null]); eq(l1.mods, [null, 'kickstart', null, null]);
@@ -659,6 +660,135 @@ test('level track and unlocks: nothing before level 5, mods spread over levels 6
   eq(AR.modsUnlockedAt(6), ['targetp']);
   let n = 0; for (let L = 6; L <= 30; L++) n += AR.modsUnlockedAt(L).length;
   eq(n, 23);
+});
+
+// ---------- Fashion Is Endgame (v1.6) ----------
+test('destination sets: one per destination, four named pieces each, a bonus each; every look has every slot', () => {
+  eq(ST.SET_IDS.slice().sort(), LOCATIONS.map((l) => l.id).sort());
+  const names = new Set();
+  for (const id of ST.SET_IDS) {
+    const set = ST.SETS[id];
+    for (const sl of ['helmet', 'arms', 'chest', 'legs']) { ok(set.pieces[sl], `${id} ${sl}`); ok(!names.has(set.pieces[sl]), `duplicate ${set.pieces[sl]}`); names.add(set.pieces[sl]); }
+    ok(set.bonus.name && set.bonus.desc, `${id} bonus`);
+  }
+  for (const [id, L] of Object.entries(ST.LOOKS)) for (const sl of ['helmet', 'arms', 'chest', 'legs']) ok(L[sl], `${id} ${sl}`);
+  eq(new Set(ST.SET_IDS.map((id) => JSON.stringify(ST.SETS[id].look))).size, ST.SET_IDS.length, 'every set looks different');
+});
+test('set drops: legendary armor is the destination set, else a random set; lower rarities and exotics have none', () => {
+  for (const id of ST.SET_IDS) { const it = makeArmor('chest', 50, 3, id); eq(it.set, id); eq(it.name, ST.SETS[id].pieces.chest); }
+  for (let i = 0; i < 20; i++) ok(ST.SET_IDS.includes(makeArmor('legs', 50, 3).set), 'no destination: a random set');
+  for (const r of [0, 1, 2, 4]) ok(!('set' in makeArmor('helmet', 50, r, 'moon')), `rarity ${r}`);
+  eq(rollItem(50, 3, 'arms', 'io').set, 'io');
+  eq(ST.setForDrop('nowhere', () => 0), ST.SET_IDS[0]);
+});
+test('set bonus: any 3 of 4 pieces of one set; exotics and plain armor never count', () => {
+  const p = (slot, set, rarity = 'legendary') => ({ slot, rarity, set });
+  eq(ST.activeSets([p('helmet', 'mars'), p('arms', 'mars'), p('chest', 'io')]), []);
+  eq(ST.activeSets([p('helmet', 'mars'), p('arms', 'mars'), p('legs', 'mars'), p('chest', 'io')]), ['mars']);
+  eq(ST.activeSets([p('helmet', 'mars'), p('arms', 'mars'), p('legs', 'mars', 'exotic')]), [], 'an exotic does not count');
+  eq(ST.setCounts([p('helmet', 'earth'), p('arms', undefined, 'rare'), null]), { earth: 1 });
+  eq(ST.SET_PIECES, 3);
+  ok(ST.SET_TUNE.reload < 1 && ST.SET_TUNE.regenDelay < 1 && ST.SET_TUNE.outlawDmg <= 1.2 && ST.SET_TUNE.superPassive <= 1.15, 'bonuses stay mod-sized');
+});
+test('looks: set, exotic, then plain by rarity; appearance round-trips over the network', () => {
+  eq(ST.lookOf({ rarity: 'legendary', set: 'moon' }), 'moon');
+  eq(ST.lookOf({ rarity: 'exotic' }), 'exotic');
+  eq([ST.lookOf({ rarity: 'common' }), ST.lookOf({ rarity: 'uncommon' }), ST.lookOf({ rarity: 'rare' }), ST.lookOf(null)], ['g0', 'g1', 'g2', 'g0']);
+  const a = ST.appearance([{ slot: 'helmet', rarity: 'exotic' }, { slot: 'chest', rarity: 'legendary', set: 'titan' }], 'calus');
+  eq(a, { helmet: 'exotic', arms: 'g0', chest: 'titan', legs: 'g0', shader: 'calus' });
+  eq(ST.decodeAppearance(ST.encodeAppearance(a)), a);
+  eq(ST.decodeAppearance('junk,moon|nope'), { helmet: 'g0', arms: 'moon', chest: 'g0', legs: 'g0', shader: null }, 'bad ids fall back');
+});
+test('shaders: 10, drop only if not owned, never duplicate, guaranteed drop ignores the chance', () => {
+  eq(ST.SHADER_IDS.length, 10);
+  eq(ST.rollShader([], false, () => 0.99), null, 'missed the chance');
+  ok(ST.SHADER_IDS.includes(ST.rollShader([], false, () => 0.1)));
+  ok(ST.rollShader([], true, () => 0.99), 'guaranteed');
+  eq(ST.rollShader(ST.SHADER_IDS, true), null, 'all owned: nothing');
+  const owned = ST.SHADER_IDS.slice(0, 9);
+  for (let i = 0; i < 20; i++) eq(ST.rollShader(owned, true), ST.SHADER_IDS[9]);
+  const rnd = mulberry32(7); let n = 0; for (let i = 0; i < 4000; i++) if (ST.rollShader([], false, rnd)) n++;
+  ok(Math.abs(n / 4000 - ST.SHADER_DROP.chance) < 0.03, `drop rate ${n / 4000}`);
+});
+test('shader per class: apply needs ownership, all armor at once, unknown ids read as none', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  eq(s.shaders, { owned: [], applied: {} });
+  ok(S.applyShader(s, 'superblack'), 'not owned yet');
+  s.shaders.owned.push('superblack');
+  eq(S.applyShader(s, 'superblack'), null);
+  eq(S.wornAppearance(s).shader, 'superblack');
+  eq(ST.shaderFor(s.shaders, 'vanguard'), null, 'other classes keep their own');
+  eq(S.applyShader(s, null), null); eq(S.wornAppearance(s).shader, null);
+  eq(ST.shaderFor({ owned: ['x'], applied: { stalker: 'x' } }, 'stalker'), null);
+});
+test('save v5 upgrades to v6: legendary armor joins a stable set, shaders start empty, items otherwise kept', () => {
+  const armor = (id, slot, rarity) => ({ id, kind: 'armor', slot, rarity, name: `Old ${slot}`, power: 120, stats: { mob: 9, res: 9, rec: 9, dis: 9, int: 9, str: 9 }, mods: [null, 'handson', null, null] });
+  const inv = [armor('L1', 'helmet', 'legendary'), armor('R1', 'arms', 'rare'), armor('X1', 'chest', 'exotic')];
+  const v5 = { version: 5, classId: 'vanguard', glimmer: 3, inventory: inv, vault: [armor('L2', 'legs', 'legendary')], equipped: {}, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
+  fresh({ afterlight_save_v2: JSON.stringify(v5) });
+  const s = S.loadSave();
+  eq(s.version, 6);
+  eq(s.shaders, { owned: [], applied: {} });
+  const [L1, R1, X1] = s.inventory;
+  ok(ST.SET_IDS.includes(L1.set) && ST.SET_IDS.includes(s.vault[0].set), 'legendaries get a set');
+  ok(!('set' in R1) && !('set' in X1), 'rare and exotic stay out');
+  ok([...s.inventory, ...s.vault].every((it) => it.classId === 'vanguard'), 'every armor piece belongs to the class being played');
+  eq(X1.name, 'Heart of Inmost Light', 'an exotic becomes that class\'s exotic for its slot');
+  eq(s.chars, {});
+  for (const it of [L1, R1]) eq(it.name, inv.find((x) => x.id === it.id).name);
+  for (const it of [L1, R1, X1]) { eq(it.power, 120); eq(it.mods, [null, 'handson', null, null]); eq(it.stats.mob, 9); }
+  fresh({ afterlight_save_v2: JSON.stringify(v5) });
+  eq(S.loadSave().inventory[0].set, L1.set, 'stable on a re-run');
+});
+
+test('characters: each Guardian has its own inventory and gear; level and vault are shared', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  const titanInv = s.inventory, gun = S.getEquipped(s, 'primary');
+  ok(s.inventory.filter((i) => i.kind === 'armor').every((i) => i.classId === 'vanguard'), 'starter armor is Titan armor');
+  ok(s.inventory.length > 7, 'a new save has the armory weapons too');
+  S.addXp(s, 5000);
+  const lvl = S.playerLevel(s);
+  S.switchCharacter(s, 'stalker');
+  eq(s.classId, 'stalker'); eq(S.playedClasses(s).sort(), ['stalker', 'vanguard']);
+  ok(s.inventory !== titanInv && !s.inventory.includes(gun), 'the Hunter has its own inventory');
+  eq(S.getEquipped(s, 'helmet').classId, 'stalker', 'a new Hunter gets a starter kit with Hunter armor');
+  ok(S.getEquipped(s, 'primary'), 'and weapons');
+  eq(S.playerLevel(s), lvl, 'level is shared');
+  ok(S.charPower(s, 'vanguard') > 0); eq(S.charPower(s, 'stalker'), S.playerPower(s), 'Light comes from the active Guardian\'s gear'); eq(S.charPower(s, 'arcanist'), 0, 'unplayed');
+  // a weapon moves from the Hunter to the Titan through the vault
+  const w = s.inventory.find((i) => i.kind === 'weapon' && !S.isEquipped(s, i));
+  eq(S.toVault(s, w.id), null);
+  S.switchCharacter(s, 'vanguard');
+  eq(s.inventory, titanInv, 'the Titan gets its own inventory back');
+  eq(S.getEquipped(s, 'primary'), gun);
+  eq(S.fromVault(s, w.id), null, 'weapons go to any Guardian');
+  // armor only comes out to its own class
+  S.switchCharacter(s, 'stalker');
+  const hArmor = s.inventory.find((i) => i.kind === 'armor' && !S.isEquipped(s, i)) || (() => { const a = makeArmor('legs', 10, 0, null, 'stalker'); s.inventory.push(a); return a; })();
+  eq(S.toVault(s, hArmor.id), null);
+  S.switchCharacter(s, 'vanguard');
+  ok(S.fromVault(s, hArmor.id), 'a Titan cannot take Hunter armor out');
+  ok(!S.getItem(s, hArmor.id), 'it stays in the vault');
+  const stray = { ...hArmor, id: 'stray' }; s.inventory.push(stray);
+  ok(typeof S.equipItem(s, 'stray') === 'string', 'and Hunter armor can never be worn by a Titan');
+  s.inventory.pop();
+  const loaded = S.loadSave();
+  eq([loaded.classId, Object.keys(loaded.chars)], ['vanguard', ['stalker']], 'saved');
+  // drops roll armor for the class being played
+  eq(makeArmor('legs', 20, 3, 'io', 'arcanist').classId, 'arcanist');
+  eq(rollItem(20, 1, 'chest', null, 'stalker').classId, 'stalker');
+});
+test('class exotics: one per slot per class, Destiny classes, they drop only for their class', () => {
+  const D = { vanguard: ['An Insurmountable Skullfort', 'Synthoceps', 'Heart of Inmost Light', 'Dunemarchers'], stalker: ['Celestial Nighthawk', "Liar's Handshake", 'Raiden Flux', 'St0mp-EE5'], arcanist: ["Nezarec's Sin", 'Contraverse Hold', 'Starfire Protocol', 'Transversive Steps'] };
+  for (const [c, names] of Object.entries(D)) eq(['helmet', 'arms', 'chest', 'legs'].map((sl) => EXOTIC_ARMOR[c][sl]), names);
+  const ids = new Set();
+  for (const names of Object.values(D)) for (const n of names) { ok(EXOTIC_ARMOR_PERKS[n], `${n} has a perk`); ids.add(EXOTIC_ARMOR_PERKS[n].id); }
+  eq(ids.size, 12);
+  eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 12, 'the removed exotics are gone');
+  for (const c of Object.keys(D)) for (let i = 0; i < 8; i++) { const it = makeArmor('chest', 50, 4, null, c); eq([it.classId, it.name], [c, EXOTIC_ARMOR[c].chest]); }
+  ok(C.LIARS.mult === 2 && C.RAIDEN.maxExtend === 5 && C.RAIDEN.step * C.RAIDEN.maxStacks === 0.5 && C.STARFIRE.refund === 0.2);
 });
 
 // ---------- runner ----------

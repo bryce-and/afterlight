@@ -12,8 +12,12 @@ export function superKillGain(source, crit, typeId) {
 // Ionic Trace: share of every ability cooldown refunded per trace, and the minimum gap between
 // traces. Jolt-chain kills don't send one. (v1.3: Electrostatic Mind 0.15, Spark of Ions 0.1, no gap.)
 export const IONIC = { electrostatic: 0.08, ions: 0.05, gap: 0.5 };
-// Celestial Nighthawk: the first super hit, once. (v1.3: Golden Gun 6x, other supers 4x.)
-export const NIGHTHAWK = { goldenGun: 4, other: 2.5 };
+// Celestial Nighthawk (Hunter): Golden Gun becomes one shot. (v1.3: Golden Gun 6x, other supers 4x; v1.3.1: 4x and 2.5x; v1.6: Golden Gun only, kill refund.)
+export const NIGHTHAWK = { goldenGun: 4, refund: 30 };
+/** Class exotics added in v1.6. */
+export const LIARS = { t: 5, mult: 2, heal: 40 }; // Liar's Handshake: Cross Counter
+export const RAIDEN = { extend: 0.5, maxExtend: 5, window: 1, step: 0.1, maxStacks: 5 }; // Raiden Flux
+export const STARFIRE = { refund: 0.2 }; // Starfire Protocol: Solar grenade kills
 // super damage multiplier (v1.1: 2.2)
 export const SUPER_POWER = 2.0;
 

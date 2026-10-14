@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { net, send, broadcast, sendTo } from './net.js';
 import { buildCharacter, ghost } from './characters.js';
+import { decodeAppearance } from './style.js';
 import { Enemy, fireEnemyShot } from './enemies.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
@@ -195,7 +196,7 @@ function myState() {
   const P = G.player;
   const wi = P.weapon.item;
   return {
-    id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId,
+    id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, lk: P.lookCode,
     x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0,
     // animation: sprinting, airborne, firing, and the gun in hand
     s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.thirdPerson ? P.superActive.type : '', w: P.superActive && !P.keepsGuns ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
@@ -240,11 +241,11 @@ function ensureRemote(st) {
   }
   r.name = st.n; r.h = st.h; r.dead = !!st.d; r.inv = !!st.iv; r.state = st;
   if (!r.inMission) { r.pos.set(st.x, st.y, st.z); r.inMission = true; }
-  if (r.cls !== st.c || r.sc !== st.sc) { removeAvatar(r); r.cls = st.c; r.sc = st.sc; }
+  if (r.cls !== st.c || r.sc !== st.sc || r.lk !== st.lk) { removeAvatar(r); r.cls = st.c; r.sc = st.sc; r.lk = st.lk; }
   r.target.set(st.x, st.y, st.z);
   r.targetYaw = st.yw;
   if (!r.avatar && G.scene) {
-    const ch = buildCharacter(st.c, classKit(st.c, st.sc).element);
+    const ch = buildCharacter(st.c, classKit(st.c, st.sc).element, decodeAppearance(st.lk));
     ch.group.children[1].visible = false; // stage disc
     ch.group.children[2].visible = false; // stage ring
     r.avatar = ch;
