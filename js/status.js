@@ -17,6 +17,12 @@ export const STATUS = {
   heart: { name: 'Inmost Light', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   dunemarchers: { name: 'Static Charge', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity },
   nighthawk: { name: 'Celestial Nighthawk', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity },
+  quietone: { name: 'Mask of the Quiet One', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
+  hallowfire: { name: 'Hallowfire Heart', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity },
+  direahamkara: { name: 'Dire Promise', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
+  sunbracers: { name: 'Helium Spirals', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
+  stormdancer: { name: "Stormdancer's Brace", group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity, maxStacks: 5 },
+  lunafaction: { name: 'Lunafaction Rift', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   // aspects and fragments (Paths of Light)
   sunspot: { name: 'Sunspot', group: 'general', glyph: '☀', color: '#ffb547' },
   roaring: { name: 'Roaring Flames', group: 'general', glyph: '▲', color: '#ff8b2b', t: 10, maxStacks: 3 },

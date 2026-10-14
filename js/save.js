@@ -12,7 +12,7 @@ const KEY = 'afterlight_save_v2';
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
@@ -52,12 +52,28 @@ const MIGRATIONS = {
       if (it.kind !== 'armor') continue;
       if (it.rarity === 'legendary' && !it.set) it.set = setForLegacy(it);
       it.classId = s.classId;
-      if (it.rarity === 'exotic') it.name = EXOTIC_ARMOR[s.classId][it.slot];
+      if (it.rarity === 'exotic') it.name = EXOTIC_ARMOR[s.classId][it.slot][0]; // the v1.6 exotic for that slot
     }
     s.shaders = { owned: [], applied: {} };
     s.chars = {};
   },
+  // Exotic Hunt (v1.7): the exotics already found, shared by every Guardian (duplicate protection).
+  // Seeded from every exotic the player owns: each Guardian's inventory and the vault. Nothing else changes.
+  6: (s) => { s.exoticsFound = ownedExotics(s); },
 };
+
+/** Names of every exotic in any Guardian's inventory or the vault. */
+function ownedExotics(s) {
+  const all = [...(s.inventory || []), ...(s.vault || []), ...Object.values(s.chars || {}).flatMap((c) => c.inventory || [])];
+  return [...new Set(all.filter((it) => it.rarity === 'exotic').map((it) => it.name))];
+}
+
+/** Records an exotic as found (duplicate protection). */
+export function noteExotic(s, it) {
+  if (it?.rarity !== 'exotic') return;
+  s.exoticsFound = s.exoticsFound || [];
+  if (!s.exoticsFound.includes(it.name)) s.exoticsFound.push(it.name);
+}
 const OLD_ARMOR_PTS = { common: 6, uncommon: 8, rare: 10, legendary: 13, exotic: 17 }; // v1.4 stat totals
 
 let store = (() => { try { return globalThis.localStorage; } catch { return null; } })();
@@ -123,7 +139,7 @@ export function createSave(classId) {
   const kit = starterKit(classId);
   const s = {
     version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, subclass: {}, loadout: {},
-    shaders: { owned: [], applied: {} }, chars: {},
+    shaders: { owned: [], applied: {} }, chars: {}, exoticsFound: [],
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
   };
@@ -162,8 +178,9 @@ export function claimLevelReward(s, level) {
   if (state !== 'ready') return { error: state === 'locked' ? `Reach level ${level} first.` : 'No reward at this level.' };
   if (s.inventory.length >= INVENTORY_CAP) return { error: `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.` };
   const power = Math.min(LIGHT_CAP, playerPower(s) + randInt(2, 5));
-  const item = rollItem(power, rewardAt(level) === 'exotic' ? 4 : 3, undefined, null, s.classId);
+  const item = rollItem(power, rewardAt(level) === 'exotic' ? 4 : 3, null, null, s.classId, s.exoticsFound);
   s.inventory.push(item);
+  noteExotic(s, item);
   s.progression.claimed.push(level);
   writeSave(s);
   return { item };
@@ -326,6 +343,7 @@ export function infuseItem(s, id) {
 /** Adds an item; if over cap, auto-dismantles the weakest unequipped item and returns it. */
 export function addItem(s, it) {
   s.inventory.push(it);
+  noteExotic(s, it);
   if (s.inventory.length <= INVENTORY_CAP) return null;
   const rIdx = (x) => RARITIES.findIndex((r) => r.id === x.rarity);
   const candidates = s.inventory.filter((i) => !isEquipped(s, i) && i !== it && i.rarity !== 'exotic');

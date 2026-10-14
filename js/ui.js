@@ -14,7 +14,7 @@ import { weaponIcon, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_
 import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './style.js';
 import { frameDef, weaponHandling } from './frames.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets } from './game.js';
-import { dmgDrift, HUD_SCALE } from './combat.js';
+import { dmgDrift, HUD_SCALE, ABILITY_CD } from './combat.js';
 import { initAudio, setVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
@@ -843,8 +843,8 @@ const MAX_FRAGMENT_SLOTS = 4;
 /** Everything the screen can show about one entry: { kind, id, name, desc, meta, color, locked }. */
 function spEntry(kind, id, ctx) {
   const { cls, el, L } = ctx;
-  if (kind === 'grenade') { const g = GRENADES[id]; return { kind, id, name: g.name, desc: g.desc, meta: `Grenade  ·  ${Math.round(g.cd * (cls.grenadeCdMult ?? 1))}s cooldown`, color: el.color }; }
-  if (kind === 'class') { const c = CLASS_ABILITIES[cls.id][id]; return { kind, id, name: c.name, desc: c.desc, meta: `Class ability  ·  ${c.cd}s cooldown`, color: '#e9eef5' }; }
+  if (kind === 'grenade') { const g = GRENADES[id]; return { kind, id, name: g.name, desc: g.desc, meta: `Grenade  ·  ${Math.round(g.cd * (cls.grenadeCdMult ?? 1) * ABILITY_CD.grenade)}s cooldown`, color: el.color }; }
+  if (kind === 'class') { const c = CLASS_ABILITIES[cls.id][id]; return { kind, id, name: c.name, desc: c.desc, meta: `Class ability  ·  ${Math.round(c.cd * ABILITY_CD.class)}s cooldown`, color: '#e9eef5' }; }
   if (kind === 'aspect') { const a = ASPECTS[id], lv = aspectLevel(id); return { kind, id, name: a.name, desc: a.desc, meta: `Aspect  ·  ${a.slots} fragment slot${a.slots > 1 ? 's' : ''}`, color: el.color, locked: L < lv ? lv : 0 }; }
   if (kind === 'fragment') { const f = FRAGMENTS[id], lv = fragmentLevel(id); return { kind, id, name: f.name, desc: f.desc, meta: `${ELEMENTS[f.element].name} fragment`, color: ELEMENTS[f.element].color, locked: L < lv ? lv : 0 }; }
   throw new Error(`spEntry: unknown kind ${kind}`);

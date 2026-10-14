@@ -13,11 +13,34 @@ export function superKillGain(source, crit, typeId) {
 // traces. Jolt-chain kills don't send one. (v1.3: Electrostatic Mind 0.15, Spark of Ions 0.1, no gap.)
 export const IONIC = { electrostatic: 0.08, ions: 0.05, gap: 0.5 };
 // Celestial Nighthawk (Hunter): Golden Gun becomes one shot. (v1.3: Golden Gun 6x, other supers 4x; v1.3.1: 4x and 2.5x; v1.6: Golden Gun only, kill refund.)
-export const NIGHTHAWK = { goldenGun: 4, refund: 30 };
+// v1.7: base Golden Gun was cut, so Nighthawk's multiplier rose to keep its one shot at about the same damage.
+export const NIGHTHAWK = { goldenGun: 5, refund: 30 };
+// Golden Gun damage per shot and splash (before SUPER_POWER and mission scaling). Knock 'Em Down's
+// two extra shots cost a little damage per shot. (v1.6: 1100 and 350, no Knock 'Em Down cut.)
+export const GOLDEN_GUN = { shot: 850, splash: 270, knockMult: 0.85 };
+// Nova Bomb leaves a void field where it lands: damage every tick, plus weaken and suppress. (New in v1.7.)
+export const NOVA_FIELD = { life: 6, radius: 6, tick: 0.5, dmg: 50, weaken: 1, suppress: 1 };
 /** Class exotics added in v1.6. */
 export const LIARS = { t: 5, mult: 2, heal: 40 }; // Liar's Handshake: Cross Counter
 export const RAIDEN = { extend: 0.5, maxExtend: 5, window: 1, step: 0.1, maxStacks: 5 }; // Raiden Flux
 export const STARFIRE = { refund: 0.2 }; // Starfire Protocol: Solar grenade kills
+/** Class exotics added in v1.7. */
+export const QUIET = { t: 4, regen: 1.5, heal: 40 }; // Mask of the Quiet One
+export const URSA = { perDmg: 0.25, max: 50 }; // Ursa Furiosa: super % per point of blocked damage
+export const HALLOWFIRE = { regen: 1.6 }; // Hallowfire Heart
+export const GRAVITON = { dur: 1.5, melee: 2, heal: 15 }; // Graviton Forfeit (heal per second)
+export const AHAMKARA = { refund: 0.05, gap: 0.2 }; // Young Ahamkara's Spine (per grenade hit, at most once per gap)
+export const RASPBERRY = { chains: 2, refund: 0.3 }; // Lucky Raspberry
+export const ORPHEUS = { perEnemy: 5, max: 50 }; // Orpheus Rig
+export const DIRE = { perKill: 5, max: 40, t: 5, cut: 0.7 }; // Skull of Dire Ahamkara
+export const SUNBRACERS = { t: 5, gap: 0.8 }; // Sunbracers: free grenades, at most one per gap
+export const STORMDANCER = { extend: 0.5, maxExtend: 5, step: 0.1, maxStacks: 5 }; // Stormdancer's Brace
+
+// ---------- ability cooldowns ----------
+// v1.7: every grenade, melee and class ability cooldown is multiplied by these, and a kill takes
+// less off each cooldown, so abilities hit hard but come back slower and weapons carry the fight.
+export const ABILITY_CD = { grenade: 1.5, melee: 1.5, class: 1.3 };
+export const KILL_CD_REFUND = 0.3; // seconds off every ability cooldown per kill (v1.6: 0.6)
 // super damage multiplier (v1.1: 2.2)
 export const SUPER_POWER = 2.0;
 

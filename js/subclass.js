@@ -1,3 +1,4 @@
+import { ABILITY_CD } from './combat.js';
 // Subclass registry: grenades (shared per element), class abilities (shared per class),
 // aspects (unique to one subclass) and fragments (shared per element), plus the rules for a
 // valid loadout. Pure data and functions (no DOM, no Three.js) so the tests can check them.
@@ -47,7 +48,7 @@ export const ASPECTS = {
   demolition: { cls: 'vanguard', sub: 'sentinel', name: 'Controlled Demolition', slots: 2, desc: 'Weakened or suppressed enemies you defeat explode in void energy, and you heal.' },
   bulwark: { cls: 'vanguard', sub: 'sentinel', name: 'Offensive Bulwark', slots: 1, unlockLevel: 13, desc: 'While your overshield is up, grenades recharge 50% faster and powered melees hit 50% harder.' },
   // Hunter
-  knockemdown: { cls: 'stalker', sub: 'gunslinger', name: "Knock 'Em Down", slots: 1, desc: 'Golden Gun gains 2 shots. Dodging refunds half of your melee.' },
+  knockemdown: { cls: 'stalker', sub: 'gunslinger', name: "Knock 'Em Down", slots: 1, desc: 'Golden Gun gains 2 shots, each dealing 15% less damage. Dodging refunds half of your melee.' },
   gunpowder: { cls: 'stalker', sub: 'gunslinger', name: 'Gunpowder Gamble', slots: 2, desc: 'Five kills charge an explosive. While your grenade is recharging, Q throws it instead.' },
   onyourmark: { cls: 'stalker', sub: 'gunslinger', name: 'On Your Mark', slots: 1, desc: 'Dodging grants a stack of On Your Mark: reload 15% faster per stack, up to 3, for 6s.' },
   vanishing: { cls: 'stalker', sub: 'nightstalker', name: 'Vanishing Step', slots: 1, cd: { class: 1.2 }, desc: 'Dodging turns you invisible for 4s. Enemies lose track of you.' },
@@ -186,9 +187,9 @@ export function resolveKit(classId, subId, lo, level) {
     ...kit, loadout: L, aspects: L.aspects, fragments: L.fragments,
     abilities: {
       ...kit.abilities,
-      grenade: { id: L.grenade, ...g, cd: Math.round(g.cd * (kit.grenadeCdMult ?? 1) * cdm.grenade) },
-      melee: { ...kit.abilities.melee, cd: kit.abilities.melee.cd * cdm.melee },
-      class: { ...c, cd: Math.round(CLASS_ABILITIES[classId][L.class].cd * cdm.class) },
+      grenade: { id: L.grenade, ...g, cd: Math.round(g.cd * (kit.grenadeCdMult ?? 1) * cdm.grenade * ABILITY_CD.grenade) },
+      melee: { ...kit.abilities.melee, cd: kit.abilities.melee.cd * cdm.melee * ABILITY_CD.melee },
+      class: { ...c, cd: Math.round(CLASS_ABILITIES[classId][L.class].cd * cdm.class * ABILITY_CD.class) },
     },
   };
 }

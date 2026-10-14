@@ -41,7 +41,9 @@ export const speedMult = (mob) => 1 + mob * 0.005;
 export const jumpBonus = (mob) => mob * 0.0125;
 export const shieldMax = (res) => Math.round(55 + res * 1.2);
 export const regenDelay = (rec) => clamp(4.6 - rec * 0.04, 1.6, 4.6);
-export const regenRate = (rec) => 40 + rec * 1.0;
+// v1.7: health and shield regenerate 25% slower (v1.6: 40 + rec).
+export const REGEN_SCALE = 0.75;
+export const regenRate = (rec) => (40 + rec * 1.0) * REGEN_SCALE;
 
 // ---------- orbs of power and armor charge ----------
 export const ORB = { life: 20, r: 1.7, super: 4, charge: 1, weaponKills: 3, window: 4, superMax: 4, harmonicKills: 2, harmonicWindow: 3, harmonicGap: 5, energy: 0.1 };

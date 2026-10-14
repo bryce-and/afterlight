@@ -5,7 +5,7 @@ import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, rin
 import { dealDamage, enemiesNear, addTicker } from './game.js';
 import { sendFx, remotes } from './coop.js';
 import { net } from './net.js';
-import { STORM_GRENADE, ARC_SOUL } from './combat.js';
+import { STORM_GRENADE, ARC_SOUL, NOVA_FIELD } from './combat.js';
 import { ORB } from './armor.js';
 import { SUNSPOT, HEAL_ORB } from './subclass.js';
 import { sfx } from './audio.js';
@@ -244,6 +244,7 @@ export function abilityFx(kind, o, local) {
           if (inside) {
             if (empower) P.status.apply('empower', { t: 0.25 });
             else { P.status.apply('rift', { t: 0.2 }); P.heal(28 * dt); P.regenT = Math.min(P.regenT, 0.5); }
+            if (o.luna) P.status.apply('lunafaction', { t: 0.25 }); // the caster's Lunafaction Boots, for whoever stands inside
           }
           was = inside;
           return life > 0;
@@ -481,6 +482,26 @@ export function abilityFx(kind, o, local) {
           return life > 0;
         },
         dispose() { G.scene?.remove(anchor); },
+      });
+      break;
+    }
+    case 'novafield': { // Nova Bomb's lingering void field: damages, weakens and suppresses enemies inside
+      const p = V(o.p), col = hex('void'), F = NOVA_FIELD;
+      const zone = zoneMesh(p, F.radius, col);
+      shockwave(p.clone().setY(0.05), F.radius, col, 0.6);
+      let life = F.life, tick = 0, pulse = 0;
+      addTicker({
+        update(dt) {
+          life -= dt; tick -= dt; pulse -= dt; zone.rotation.y -= dt * 0.8;
+          if (pulse <= 0) { pulse = 0.5; ringFx(p, F.radius, col, 0.6); }
+          if (Math.random() < 0.6) swirl(p, F.radius * 0.9, Math.random() < 0.5 ? col : 0xe6d0ff, 1.2, false, 0.06, 2);
+          if (local && tick <= 0) {
+            tick = F.tick;
+            for (const e of G.enemies) if (e.alive && inXZ(e, p, F.radius)) dealDamage(e, o.dmg, { element: 'void', source: 'super', weaken: F.weaken, suppress: F.suppress });
+          }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(zone); },
       });
       break;
     }

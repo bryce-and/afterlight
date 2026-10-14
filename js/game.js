@@ -9,7 +9,7 @@ import { explosionFx } from './effects.js';
 import { pointInColliders } from './physics.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
-import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS } from './save.js';
+import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP } from './progression.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection } from './music.js';
@@ -314,7 +314,7 @@ function openChest() {
   for (let i = 0; i < n; i++) {
     let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), first ? 5 : 2));
     if (first && M.mi === 2 && i === 0) rIdx = 4;
-    rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx, undefined, M.loc.id, G.save.classId));
+    rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
@@ -340,6 +340,7 @@ export function grantItem(item) {
   if (G.save.settings.autoDismantle?.[item.rarity]) { // weapons and armor alike
     const v = dismantleValue(item);
     G.save.glimmer += v;
+    noteExotic(G.save, item); // it still dropped: duplicate protection counts it
     writeSave(G.save);
     ui.feed(`Auto-dismantled ${item.name}  ·  +${v} glimmer`, RARITIES[rarityIndex(item.rarity)].color);
     return;
@@ -526,7 +527,7 @@ function dropEngram(pos) {
   const pp = playerPower(G.save);
   const rIdx = rollRarity(playerLevel(G.save));
   const power = clamp(Math.max(pp, M.def.power - 3) + randInt(-1, 2), 1, LIGHT_CAP);
-  spawnPickup('engram', pos, rollItem(power, rIdx, undefined, M.loc.id, G.save.classId));
+  spawnPickup('engram', pos, rollItem(power, rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
 }
 
 export function explode(pos, radius, dmg, element, o = {}) {
@@ -973,7 +974,7 @@ function openActChest() {
     let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), 2 + Math.floor(c.wave / 5)));
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
     if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
-    rewards.push(rollItem(Math.min(LIGHT_CAP, pp + randInt(1, 4)), rIdx, undefined, null, G.save.classId));
+    rewards.push(rollItem(Math.min(LIGHT_CAP, pp + randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   const glimmer = 60 + c.wave * 12;

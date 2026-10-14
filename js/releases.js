@@ -4,6 +4,20 @@
 
 export const RELEASES = [
   {
+    version: '1.7', name: 'Exotic Hunt', date: '2026-10-14', accent: '#f4c542', glyph: '⬢',
+    summary: 'Twelve new exotics, and no more chasing the same drop twice. Abilities hit hard and come back slower, so your guns matter again.',
+    notes: [
+      'Four new exotic armor pieces for every class, eight each. Titan: Mask of the Quiet One, Ursa Furiosa, Hallowfire Heart, Peacekeepers',
+      'Hunter: Graviton Forfeit, Young Ahamkara\'s Spine, Lucky Raspberry, Orpheus Rig. Warlock: Skull of Dire Ahamkara, Sunbracers, Stormdancer\'s Brace, Lunafaction Boots',
+      'Lunafaction Boots turn your rifts into a reload station for the whole fireteam',
+      'Exotic drops now favor exotics you haven\'t found yet, for weapons and armor alike. Once you have them all, every exotic is fair game again. Exotics you already own count as found',
+      'Grenades, melees and class abilities take longer to recharge, and kills shave off less. Health and shields regenerate a little slower',
+      'Nova Bomb leaves a void field for 6 seconds that damages, weakens and suppresses anything inside',
+      'Golden Gun hits softer, which makes Celestial Nighthawk\'s single shot stand out. Knock \'Em Down\'s two extra shots deal slightly less damage each',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="exhBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#231a0c"/><stop offset="0.55" stop-color="#0d1118"/><stop offset="1" stop-color="#1d1430"/></linearGradient><radialGradient id="exhGlow" cx="0.5" cy="0.46" r="0.5"><stop offset="0" stop-color="#f4c542" stop-opacity="0.6"/><stop offset="1" stop-color="#f4c542" stop-opacity="0"/></radialGradient><linearGradient id="exhFace" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2c2"/><stop offset="0.5" stop-color="#f4c542"/><stop offset="1" stop-color="#9a6b12"/></linearGradient></defs><rect width="320" height="180" fill="url(#exhBg)"/><rect width="320" height="180" fill="url(#exhGlow)"/><g stroke="#ffffff" stroke-opacity="0.06"><path d="M-20 200 200 -20M20 200 240 -20M60 200 280 -20M100 200 320 -20M140 200 360 -20"/></g><ellipse cx="160" cy="150" rx="78" ry="12" fill="#b07cff" fill-opacity="0.22" stroke="#b07cff" stroke-opacity="0.7"/><ellipse cx="160" cy="150" rx="50" ry="7" fill="none" stroke="#e6d0ff" stroke-opacity="0.5"/><g stroke="#f4c542" stroke-opacity="0.45" fill="none"><ellipse cx="160" cy="82" rx="104" ry="34"/><ellipse cx="160" cy="82" rx="74" ry="56" transform="rotate(-24 160 82)"/></g><g stroke="#0a0d12" stroke-width="1.5"><path d="M160 34l34 20v40l-34 20-34-20V54z" fill="url(#exhFace)"/><path d="M160 34v40l34-20M160 74l-34-20M160 74v40" fill="none" stroke="#7a5310" stroke-opacity="0.7"/></g><path d="M160 58l10 6v12l-10 6-10-6V64z" fill="#ffffff" fill-opacity="0.85"/><g fill="#f4c542" stroke="#0a0d12"><path d="M56 82l7-7 7 7-7 7z"/><path d="M250 82l7-7 7 7-7 7z"/><path d="M110 34l6-6 6 6-6 6z"/><path d="M206 132l6-6 6 6-6 6z"/></g><g fill="#9aa3b2" fill-opacity="0.75"><path d="M92 120l6-6 6 6-6 6z"/><path d="M222 40l6-6 6 6-6 6z"/></g><path d="M10 22L120 70" stroke="#ffb547" stroke-width="3" stroke-linecap="round" stroke-opacity="0.85"/><circle cx="10" cy="22" r="5" fill="#ffd27a"/><g fill="#ffffff" fill-opacity="0.8"><circle cx="280" cy="24" r="1.4"/><circle cx="300" cy="120" r="1.2"/><circle cx="30" cy="150" r="1.4"/><circle cx="262" cy="160" r="1.2"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+  },
+  {
     version: '1.6', name: 'Fashion Is Endgame', date: '2026-10-14', accent: '#f4c542', glyph: '◆',
     summary: 'Look the part. Your armor now shows on your Guardian, every destination has its own armor set, shaders recolor your whole look, and you can play a Titan, a Hunter and a Warlock side by side.',
     notes: [

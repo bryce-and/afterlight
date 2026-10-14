@@ -1,4 +1,4 @@
-import { ARCHETYPES, RARITIES, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, RARITIES, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt } from './util.js';
 import { LIGHT_CAP } from './progression.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
@@ -79,12 +79,12 @@ export function makeExotic(name, power) {
   return makeWeapon(tpl.slot || ARCHETYPES[tpl.arch].slot, power, 4, null, name);
 }
 
-/** `dest`: the destination the drop comes from (a location id); legendaries are that destination's set. `classId`: who can wear it. */
-export function makeArmor(slot, power, rIdx, dest = null, classId = null) {
+/** `dest`: the destination the drop comes from (a location id); legendaries are that destination's set. `classId`: who can wear it. `exoticName`: a specific exotic. */
+export function makeArmor(slot, power, rIdx, dest = null, classId = null, exoticName = null) {
   const rar = RARITIES[rIdx];
   const stats = rollStats(ARMOR_TOTAL[rar.id] + randInt(-2, 2));
   let name, set = null;
-  if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = EXOTIC_ARMOR[classId][slot]; } // exotics exist for one class
+  if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = exoticName || pick(EXOTIC_ARMOR[classId][slot]); } // exotics exist for one class
   else if (rar.id === 'legendary') { set = setForDrop(dest); name = SETS[set].pieces[slot]; }
   else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(ARMOR_NOUN[slot])}`;
   else name = `${pick(ADJ)} ${pick(ARMOR_NOUN[slot])}`;
@@ -94,8 +94,45 @@ export function makeArmor(slot, power, rIdx, dest = null, classId = null) {
   return it;
 }
 
-export function rollItem(power, rIdx, slot = pick(SLOTS), dest = null, classId = null) {
-  return WEAPON_SLOTS.includes(slot) ? makeWeapon(slot, power, rIdx) : makeArmor(slot, power, rIdx, dest, classId);
+// Duplicate protection: an exotic the player has already found is this much less likely
+// than one they haven't. Once every exotic in the pool is found, all are equally likely again.
+export const EXOTIC_REPEAT_WEIGHT = 0.15;
+
+/** Drop weight of each exotic name, given the names already found. */
+export function exoticWeights(names, found = []) {
+  const have = new Set(found);
+  const complete = names.every((n) => have.has(n));
+  return names.map((n) => (!complete && have.has(n) ? EXOTIC_REPEAT_WEIGHT : 1));
+}
+
+/** Picks one exotic name, favoring ones not found yet. */
+export function pickExotic(names, found = [], rnd = Math.random) {
+  const w = exoticWeights(names, found);
+  let r = rnd() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < names.length; i++) { r -= w[i]; if (r < 0) return names[i]; }
+  return names[names.length - 1];
+}
+
+/**
+ * A drop. `slot` null rolls one (so weapons vs armor keep their usual split). `found`: exotic names
+ * the player already has (save.exoticsFound); an exotic drop then favors ones not found yet. Weapon
+ * exotics are one pool for every Guardian; armor exotics are the class's pool. A given slot limits the pool.
+ */
+export function rollItem(power, rIdx, slot = null, dest = null, classId = null, found = []) {
+  const fixed = !!slot;
+  slot = slot || pick(SLOTS);
+  const weapon = WEAPON_SLOTS.includes(slot);
+  if (RARITIES[rIdx].id === 'exotic') {
+    if (weapon) {
+      const pool = EXOTIC_WEAPONS.filter((e) => !fixed || (e.slot || ARCHETYPES[e.arch].slot) === slot).map((e) => e.name);
+      return makeExotic(pickExotic(pool, found), power);
+    }
+    classId = classId || pick(Object.keys(EXOTIC_ARMOR));
+    const pool = exoticArmorFor(classId).filter((x) => !fixed || x.slot === slot);
+    const name = pickExotic(pool.map((x) => x.name), found);
+    return makeArmor(pool.find((x) => x.name === name).slot, power, rIdx, dest, classId, name);
+  }
+  return weapon ? makeWeapon(slot, power, rIdx) : makeArmor(slot, power, rIdx, dest, classId);
 }
 
 export function starterGear(classId = null) {

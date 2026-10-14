@@ -9,9 +9,9 @@ export const ELEMENTS = {
   stasis: { id: 'stasis', name: 'Stasis', color: '#4d88ff', hex: 0x4d88ff, symbol: '<path d="M32 2 40 20 32 30 24 20zM32 62 24 44 32 34 40 44zM6 17l19 3 5 11-12-1zM58 47l-19-3-5-11 12 1zM6 47l11-15h12l-8 10zM58 17 47 32H35l8-10z"/>' },
   strand: { id: 'strand', name: 'Strand', color: '#35e366', hex: 0x35e366, symbol: '<path d="M32 4c10 8 10 20 0 28-10-8-10-20 0-28zm0 6c-4 6-4 12 0 16 4-4 4-10 0-16z"/><path d="M8 50c3-12 14-18 24-18-2 12-12 20-24 18zm6-4c8 0 13-4 15-10-6 1-12 4-15 10z"/><path d="M56 50c-12 2-22-6-24-18 10 0 21 6 24 18zm-6-4c-3-6-9-9-15-10 2 6 7 10 15 10z"/>' },
 };
-// Energy elements a non-exotic weapon can roll (Kinetic is primary-only). Stasis and Strand have no verbs yet (U16).
+// Energy elements a non-exotic weapon can roll (Kinetic is primary-only). Stasis and Strand have no verbs yet (U17).
 export const ENERGY = ['solar', 'arc', 'void', 'stasis', 'strand'];
-// Enemy shields stay Light elements until Darkness (U16).
+// Enemy shields stay Light elements until Darkness (U17).
 export const SHIELD_ELEMENTS = ['solar', 'arc', 'void'];
 
 export const RARITIES = [
@@ -158,23 +158,37 @@ export const EXOTIC_ARMOR_PERKS = {
   Synthoceps: { id: 'synthoceps', name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
   'Heart of Inmost Light': { id: 'heart', name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
   Dunemarchers: { id: 'dunemarchers', name: 'Linear Actuators', desc: 'Sprinting builds static. Your next melee chains lightning into up to 3 enemies.' },
+  'Mask of the Quiet One': { id: 'quietone', name: 'Eye for an Eye', desc: 'Taking damage makes your abilities recharge 50% faster for 4s. Void ability kills heal you for 40.' },
+  'Ursa Furiosa': { id: 'ursa', name: 'Bear Mother', desc: 'Damage you block while guarding with Sentinel Shield returns super energy when the super ends (up to 50%).' },
+  'Hallowfire Heart': { id: 'hallowfire', name: 'Sunheart', desc: 'While your super is fully charged, your abilities recharge 60% faster.' },
+  Peacekeepers: { id: 'peacekeepers', name: 'Hip Holsters', desc: 'Submachine guns reload themselves while stowed, and you switch to them twice as fast.' },
   // Hunter
-  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'Golden Gun fires a single shot that deals 4x damage. A kill with it returns 30% super energy.' },
+  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'Golden Gun fires a single shot that deals 5x damage. A kill with it returns 30% super energy.' },
   "Liar's Handshake": { id: 'liars', name: 'Cross Counter', desc: 'Powered melee hits grant Cross Counter for 5s: your next uncharged melee deals double damage and heals you for 40.' },
   'Raiden Flux': { id: 'raiden', name: 'Shocking Blows', desc: 'Each Arc Staff hit extends the super by 0.5s (up to 5s). Quick successive hits deal 10% more damage, stacking to 50%.' },
   'St0mp-EE5': { id: 'stomp', name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your dodge recharges 30% faster.' },
+  'Graviton Forfeit': { id: 'graviton', name: 'Vanishing Shadow', desc: 'Invisibility lasts 50% longer. While invisible, your melee recharges twice as fast and you regenerate health.' },
+  "Young Ahamkara's Spine": { id: 'ahamkara', name: 'Wish-Dragon Teeth', desc: 'Grenade hits return 5% of your melee and class ability energy.' },
+  'Lucky Raspberry': { id: 'raspberry', name: 'Sparkling Personality', desc: 'Arc grenades chain lightning into 2 more enemies. An Arc grenade that catches an enemy refunds 30% of its cooldown.' },
+  'Orpheus Rig': { id: 'orpheus', name: 'Uncanny Arrows', desc: 'Every enemy caught by a Shadowshot tether returns 5% super energy when the super ends (up to 50%).' },
   // Warlock
   "Nezarec's Sin": { id: 'nezarec', name: 'Abyssal Extractors', desc: 'Void ability kills make all of your abilities recharge twice as fast for 5s.' },
   'Contraverse Hold': { id: 'contraverse', name: 'Chaos Accelerant', desc: 'Void grenades that catch enemies refund 30% of their cooldown. Take 20% less damage for 3s after throwing one.' },
   'Starfire Protocol': { id: 'starfire', name: 'Fusion Harness', desc: 'Your grenade gains a second charge. Solar grenade kills return 20% grenade energy.' },
   'Transversive Steps': { id: 'transversive', name: 'Strategic Relocation', desc: 'Sprint 15% faster. Sprinting for a moment reloads the weapon in your hands.' },
+  'Skull of Dire Ahamkara': { id: 'direahamkara', name: 'Dire Promise', desc: 'Nova Bomb kills return 5% super energy each (up to 40%) and make you take 30% less damage for 5s.' },
+  Sunbracers: { id: 'sunbracers', name: 'Helium Spirals', desc: 'Solar melee kills give you free Solar grenades for 5s.' },
+  "Stormdancer's Brace": { id: 'stormdancer', name: 'Eye of the Storm', desc: 'Stormtrance kills extend the super by 0.5s (up to 5s) and stack 10% more damage, up to 50%.' },
+  'Lunafaction Boots': { id: 'lunafaction', name: 'Lunafaction Rift', desc: 'Your rifts also reload the weapons of every Guardian standing inside them, fireteam included.' },
 };
-/** Exotic armor by class and slot (drops only for its class). */
+/** Exotic armor by class and slot (drops only for its class). The first per slot is the original v1.6 piece. */
 export const EXOTIC_ARMOR = {
-  vanguard: { helmet: 'An Insurmountable Skullfort', arms: 'Synthoceps', chest: 'Heart of Inmost Light', legs: 'Dunemarchers' },
-  stalker: { helmet: 'Celestial Nighthawk', arms: "Liar's Handshake", chest: 'Raiden Flux', legs: 'St0mp-EE5' },
-  arcanist: { helmet: "Nezarec's Sin", arms: 'Contraverse Hold', chest: 'Starfire Protocol', legs: 'Transversive Steps' },
+  vanguard: { helmet: ['An Insurmountable Skullfort', 'Mask of the Quiet One'], arms: ['Synthoceps', 'Ursa Furiosa'], chest: ['Heart of Inmost Light', 'Hallowfire Heart'], legs: ['Dunemarchers', 'Peacekeepers'] },
+  stalker: { helmet: ['Celestial Nighthawk', 'Graviton Forfeit'], arms: ["Liar's Handshake", "Young Ahamkara's Spine"], chest: ['Raiden Flux', 'Lucky Raspberry'], legs: ['St0mp-EE5', 'Orpheus Rig'] },
+  arcanist: { helmet: ["Nezarec's Sin", 'Skull of Dire Ahamkara'], arms: ['Contraverse Hold', 'Sunbracers'], chest: ['Starfire Protocol', "Stormdancer's Brace"], legs: ['Transversive Steps', 'Lunafaction Boots'] },
 };
+/** Every exotic armor piece a class can find, with its slot. */
+export const exoticArmorFor = (classId) => Object.entries(EXOTIC_ARMOR[classId]).flatMap(([slot, names]) => names.map((name) => ({ name, slot })));
 
 // ---------- Classes ----------
 export const CLASSES = {
@@ -254,7 +268,7 @@ export const CLASSES = {
         defaults: { grenade: 'vortex', class: 'rift', aspects: [] },
         abilities: {
           melee: { id: 'siphon', name: 'Energy Drain', cd: 11, desc: 'Ranged void strike that restores health and shields.' },
-          super: { id: 'nova', camera: 'first', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits.' },
+          super: { id: 'nova', camera: 'first', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits, then leaves a void field for 6s that damages, weakens and suppresses enemies inside.' },
         },
       },
       stormcaller: {

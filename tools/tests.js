@@ -1,8 +1,8 @@
 // Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
-import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS } from '../js/data.js';
+import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
-import { rollItem } from '../js/loot.js';
+import { rollItem, exoticWeights, pickExotic, EXOTIC_REPEAT_WEIGHT } from '../js/loot.js';
 import * as S from '../js/save.js';
 import { mulberry32 } from '../js/util.js';
 import { RELEASES, ROADMAP, ROADMAP_STATUSES } from '../js/releases.js';
@@ -281,11 +281,11 @@ test('registry: 3 grenades per element, 2 class abilities per class, 3 aspects p
   eq([SC.fragmentsFor('solar').length, SC.fragmentsFor('arc').length, SC.fragmentsFor('void').length], [4, 5, 5]);
   for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 1 || a.slots === 2, a.name);
 });
-test('every default loadout is valid and resolves to the v1.2 abilities', () => {
+test('every default loadout is valid and resolves to the v1.7 abilities (cooldowns 1.5x grenade, 1.3x class)', () => {
   const v12 = { // grenade, grenade cd, class ability, class cd
-    sunbreaker: ['solar', 22, 'barricade', 26], striker: ['pulse', 20, 'barricade', 26], sentinel: ['suppressor', 22, 'ward', 34],
-    gunslinger: ['swarm', 20, 'marksman', 10], nightstalker: ['axion', 20, 'marksman', 12], arcstrider: ['flux', 20, 'gambler', 9],
-    voidwalker: ['vortex', 24, 'rift', 32], stormcaller: ['storm', 22, 'empower', 32], dawnblade: ['solar', 12, 'rift', 32],
+    sunbreaker: ['solar', 33, 'barricade', 34], striker: ['pulse', 30, 'barricade', 34], sentinel: ['suppressor', 33, 'ward', 44],
+    gunslinger: ['swarm', 30, 'marksman', 13], nightstalker: ['axion', 30, 'marksman', 16], arcstrider: ['flux', 30, 'gambler', 12],
+    voidwalker: ['vortex', 36, 'rift', 42], stormcaller: ['storm', 33, 'empower', 42], dawnblade: ['solar', 18, 'rift', 42],
   };
   for (const [c, sid] of SUBS) {
     const d = SC.defaultLoadout(c, sid);
@@ -329,9 +329,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = fresh({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, 6); eq(S.SAVE_VERSION, 6);
+  eq(s.version, 7); eq(S.SAVE_VERSION, 7);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 6, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 7, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing']]);
 });
@@ -389,8 +389,8 @@ test('waves: spawning the last wave never clears the zone in the same check', ()
 test('drops: engram chances cut, bosses still drop', () => {
   eq(C.ENGRAM_CHANCE, { grunt: 0.02, rusher: 0.02, captain: 0.05, heavy: 0.08, boss: 1 });
 });
-test('Celestial Nighthawk: Golden Gun only, 4x single shot, kill refunds 30% super', () => {
-  eq(C.NIGHTHAWK, { goldenGun: 4, refund: 30 });
+test('Celestial Nighthawk: Golden Gun only, 5x single shot (v1.7, base Golden Gun cut), kill refunds 30% super', () => {
+  eq(C.NIGHTHAWK, { goldenGun: 5, refund: 30 });
 });
 test('Ionic Trace and super armor perks toned down', () => {
   ok(C.IONIC.electrostatic < 0.15 && C.IONIC.ions < 0.1 && C.IONIC.gap > 0, 'ionic');
@@ -499,7 +499,7 @@ test('save v3 upgrades through v4: weapons gain archetypes and fixed stats; perk
   const v3 = { version: 3, classId: 'vanguard', glimmer: 5, inventory: inv, vault: [{ ...inv[1], id: 'w4' }], equipped: { heavy: 'w1' }, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
   fresh({ afterlight_save_v2: JSON.stringify(v3) });
   const s = S.loadSave();
-  eq(s.version, 6);
+  eq(s.version, S.SAVE_VERSION);
   const [w1, w2, w3, a1] = s.inventory;
   eq([w1.frame, w1.element, w1.perks, w1.power, w1.name], ['adaptive', 'arc', ['rampage'], 90, 'Corrective Measure'], 'owned items keep their element');
   eq(w1.stats, weaponStats(w1));
@@ -557,7 +557,7 @@ test('armor stats are calibrated to v1.4: a full legendary set (tier 5) matches 
   eq(st.dis, 50); eq(AR.tierOf(st.dis), 5);
   ok(Math.abs(AR.shieldMax(st.int) - 115) <= 3, 'shield'); // v1.4: 55 + 3 x 20
   ok(Math.abs((AR.speedMult(st.int) - 1) - 0.24) < 0.03, 'speed');
-  ok(Math.abs(AR.regenRate(st.int) - 90) <= 3, 'regen rate');
+  ok(Math.abs(AR.regenRate(st.int) - 90 * 0.75) <= 3, 'regen rate (25% slower since v1.7)');
   ok(Math.abs(AR.regenDelay(st.int) - 2.6) < 0.15, 'regen delay');
 });
 test('rolled armor: six stats with the rarity total, four empty sockets, energy by rarity, no perk', () => {
@@ -630,7 +630,7 @@ test('save v4 upgrades to v5: stats become six, a matching perk becomes the mod,
   const v4 = { version: 4, classId: 'arcanist', glimmer: 9, inventory: inv, vault: [armor('v1', 'legs', 'legendary', 'plating', { mob: 5, res: 5, rec: 5 })], equipped: {}, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
   fresh({ afterlight_save_v2: JSON.stringify(v4) });
   const s = S.loadSave();
-  eq(s.version, 6);
+  eq(s.version, S.SAVE_VERSION);
   const [h1, g1, c1, l1] = s.inventory;
   for (const it of s.inventory) { eq(Object.keys(it.stats), AR.STAT_KEYS); eq(it.mods.length, 4); ok(!('perk' in it)); eq(it.power, 77); }
   eq(h1.mods, [null, 'handson', null, null]); eq(l1.mods, [null, 'kickstart', null, null]);
@@ -728,7 +728,7 @@ test('save v5 upgrades to v6: legendary armor joins a stable set, shaders start 
   const v5 = { version: 5, classId: 'vanguard', glimmer: 3, inventory: inv, vault: [armor('L2', 'legs', 'legendary')], equipped: {}, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
   fresh({ afterlight_save_v2: JSON.stringify(v5) });
   const s = S.loadSave();
-  eq(s.version, 6);
+  eq(s.version, S.SAVE_VERSION);
   eq(s.shaders, { owned: [], applied: {} });
   const [L1, R1, X1] = s.inventory;
   ok(ST.SET_IDS.includes(L1.set) && ST.SET_IDS.includes(s.vault[0].set), 'legendaries get a set');
@@ -780,15 +780,77 @@ test('characters: each Guardian has its own inventory and gear; level and vault 
   eq(makeArmor('legs', 20, 3, 'io', 'arcanist').classId, 'arcanist');
   eq(rollItem(20, 1, 'chest', null, 'stalker').classId, 'stalker');
 });
-test('class exotics: one per slot per class, Destiny classes, they drop only for their class', () => {
-  const D = { vanguard: ['An Insurmountable Skullfort', 'Synthoceps', 'Heart of Inmost Light', 'Dunemarchers'], stalker: ['Celestial Nighthawk', "Liar's Handshake", 'Raiden Flux', 'St0mp-EE5'], arcanist: ["Nezarec's Sin", 'Contraverse Hold', 'Starfire Protocol', 'Transversive Steps'] };
+test('class exotics: two per slot per class (8 each), Destiny classes, they drop only for their class', () => {
+  const D = {
+    vanguard: [['An Insurmountable Skullfort', 'Mask of the Quiet One'], ['Synthoceps', 'Ursa Furiosa'], ['Heart of Inmost Light', 'Hallowfire Heart'], ['Dunemarchers', 'Peacekeepers']],
+    stalker: [['Celestial Nighthawk', 'Graviton Forfeit'], ["Liar's Handshake", "Young Ahamkara's Spine"], ['Raiden Flux', 'Lucky Raspberry'], ['St0mp-EE5', 'Orpheus Rig']],
+    arcanist: [["Nezarec's Sin", 'Skull of Dire Ahamkara'], ['Contraverse Hold', 'Sunbracers'], ['Starfire Protocol', "Stormdancer's Brace"], ['Transversive Steps', 'Lunafaction Boots']],
+  };
   for (const [c, names] of Object.entries(D)) eq(['helmet', 'arms', 'chest', 'legs'].map((sl) => EXOTIC_ARMOR[c][sl]), names);
   const ids = new Set();
-  for (const names of Object.values(D)) for (const n of names) { ok(EXOTIC_ARMOR_PERKS[n], `${n} has a perk`); ids.add(EXOTIC_ARMOR_PERKS[n].id); }
-  eq(ids.size, 12);
-  eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 12, 'the removed exotics are gone');
-  for (const c of Object.keys(D)) for (let i = 0; i < 8; i++) { const it = makeArmor('chest', 50, 4, null, c); eq([it.classId, it.name], [c, EXOTIC_ARMOR[c].chest]); }
+  for (const names of Object.values(D)) for (const n of names.flat()) { ok(EXOTIC_ARMOR_PERKS[n], `${n} has a perk`); ids.add(EXOTIC_ARMOR_PERKS[n].id); }
+  eq(ids.size, 24);
+  eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 24, 'no stray exotic perks');
+  for (const id of ids) if (!['skullfort', 'synthoceps', 'dunemarchers', 'stomp', 'transversive', 'raiden', 'liars', 'starfire', 'graviton', 'ahamkara', 'raspberry', 'orpheus', 'ursa', 'peacekeepers'].includes(id)) ok(STATUS[id] || ['heart', 'nighthawk', 'nezarec', 'contraverse'].includes(id), `${id} shows in the buff HUD`);
+  for (const c of Object.keys(D)) for (let i = 0; i < 12; i++) { const it = makeArmor('chest', 50, 4, null, c); ok(it.classId === c && EXOTIC_ARMOR[c].chest.includes(it.name), `${c} chest exotic`); }
   ok(C.LIARS.mult === 2 && C.RAIDEN.maxExtend === 5 && C.RAIDEN.step * C.RAIDEN.maxStacks === 0.5 && C.STARFIRE.refund === 0.2);
+});
+
+test('exotic duplicate protection: unfound exotics are favored until every one is found', () => {
+  const names = ['A', 'B', 'C', 'D'];
+  eq(exoticWeights(names, []), [1, 1, 1, 1]);
+  eq(exoticWeights(names, ['A', 'C']), [EXOTIC_REPEAT_WEIGHT, 1, EXOTIC_REPEAT_WEIGHT, 1]);
+  eq(exoticWeights(names, names), [1, 1, 1, 1], 'all found: equal again');
+  const rnd = mulberry32(7), n = { A: 0, B: 0, C: 0, D: 0 };
+  for (let i = 0; i < 4000; i++) n[pickExotic(names, ['A', 'B', 'C'], rnd)]++;
+  const share = n.D / 4000;
+  ok(share > 0.62 && share < 0.74, `the one unfound exotic drops about 69% of the time (got ${share})`);
+  ok(EXOTIC_REPEAT_WEIGHT < 1 && EXOTIC_REPEAT_WEIGHT > 0, 'repeats stay possible');
+});
+test('exotic drops: weapons use the shared pool, armor the class pool; a fixed slot limits the pool', () => {
+  const weapons = EXOTIC_WEAPONS.map((e) => e.name);
+  const armor = exoticArmorFor('arcanist').map((x) => x.name);
+  eq(armor.length, 8);
+  for (let i = 0; i < 60; i++) {
+    const it = rollItem(100, 4, null, null, 'arcanist', []);
+    eq(it.rarity, 'exotic');
+    if (it.kind === 'weapon') ok(weapons.includes(it.name), it.name);
+    else { ok(armor.includes(it.name), it.name); eq(it.classId, 'arcanist'); eq(EXOTIC_ARMOR.arcanist[it.slot].includes(it.name), true, 'slot matches the exotic'); }
+  }
+  for (let i = 0; i < 20; i++) { const it = rollItem(100, 4, 'legs', null, 'stalker'); eq(it.slot, 'legs'); ok(EXOTIC_ARMOR.stalker.legs.includes(it.name)); }
+  for (let i = 0; i < 20; i++) eq(rollItem(100, 4, 'heavy').slot, 'heavy');
+  // with all but one class exotic found, that one dominates the armor drops
+  const found = armor.filter((x) => x !== 'Lunafaction Boots');
+  let luna = 0, arm = 0;
+  for (let i = 0; i < 600; i++) { const it = rollItem(100, 4, null, null, 'arcanist', found); if (it.kind === 'armor') { arm++; if (it.name === 'Lunafaction Boots') luna++; } }
+  ok(luna / arm > 0.35, `unfound exotic share ${luna / arm}`);
+});
+test('save v6 upgrades to v7: exoticsFound is seeded from every Guardian and the vault; items are untouched', () => {
+  const ex = (id, name, kind = 'armor') => ({ id, kind, slot: kind === 'armor' ? 'helmet' : 'primary', rarity: 'exotic', name, power: 100, stats: { mob: 9, res: 9, rec: 9, dis: 9, int: 9, str: 9 }, mods: [null, null, null, null], classId: 'vanguard' });
+  const v6 = { version: 6, classId: 'vanguard', glimmer: 5, inventory: [ex('a', 'Synthoceps'), ex('b', 'Thorn', 'weapon')], vault: [ex('c', 'Synthoceps')], equipped: {}, cleared: {}, subclass: {}, loadout: {},
+    shaders: { owned: [], applied: {} }, chars: { stalker: { inventory: [ex('d', 'Raiden Flux')], equipped: {} } }, progression: { xp: 0, claimed: [] }, settings: {} };
+  fresh({ afterlight_save_v2: JSON.stringify(v6) });
+  const s = S.loadSave();
+  eq(s.version, 7);
+  eq(s.exoticsFound.sort(), ['Raiden Flux', 'Synthoceps', 'Thorn']);
+  eq(s.inventory.map((i) => i.id), ['a', 'b']); eq(s.vault[0].name, 'Synthoceps');
+  // new exotics are noted once, other rarities never
+  S.addItem(s, ex('e', 'Peacekeepers')); S.addItem(s, ex('f', 'Peacekeepers'));
+  S.addItem(s, { ...ex('g', 'Plain Helm'), rarity: 'legendary' });
+  eq(s.exoticsFound.filter((n) => n === 'Peacekeepers').length, 1);
+  ok(!s.exoticsFound.includes('Plain Helm'));
+  fresh(); eq(S.createSave('stalker').exoticsFound, []);
+});
+test('v1.7 tuning: slower abilities, Golden Gun nerf with Nighthawk kept, Nova field', () => {
+  eq(C.ABILITY_CD, { grenade: 1.5, melee: 1.5, class: 1.3 });
+  ok(C.KILL_CD_REFUND < 0.6, 'kills take less off cooldowns');
+  ok(C.GOLDEN_GUN.shot < 1100 && C.GOLDEN_GUN.splash < 350, 'base Golden Gun is weaker');
+  const hawk = C.GOLDEN_GUN.shot * C.NIGHTHAWK.goldenGun;
+  ok(hawk >= 4000 && hawk > C.GOLDEN_GUN.shot * 4.5, 'one Nighthawk shot stays near its v1.6 damage (4400)');
+  ok(C.GOLDEN_GUN.knockMult < 1 && C.GOLDEN_GUN.knockMult >= 0.8, "Knock 'Em Down shots are slightly weaker");
+  eq([C.NOVA_FIELD.life, C.NOVA_FIELD.weaken > 0, C.NOVA_FIELD.suppress > 0], [6, true, true]);
+  const k = SC.resolveKit('stalker', 'gunslinger', undefined, 40);
+  eq(k.abilities.melee.cd, CLASSES.stalker.subclasses.gunslinger.abilities.melee.cd * 1.5);
 });
 
 // ---------- runner ----------
