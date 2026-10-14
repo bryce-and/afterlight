@@ -27,10 +27,10 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Each super declares `camera` in `data.js`; all 9 checked in browser: camera matches and the enemy under the crosshair takes the damage. Super animations not done | U3 (camera, aim) | In progress |
 | R19 | Exotic weapons/armor: unique perk and model | Weapons: perks + models exist. Armor: perks only, no visuals | U4/U6 | Planned |
 | R20 | Legendary armor: perks, matching sets, destination tie, 3-piece set bonus, character-screen icons | Missing (generic slot SVGs) | U6 | Planned |
-| R21 | Weapon archetypes, models, diagonal D2-style icons, Arc/Solar/Void/Stasis/Strand symbols | 12 archetypes; side-profile rectangular icons; no symbols; no Stasis/Strand | U4 | Planned |
+| R21 | Weapon archetypes, models, diagonal D2-style icons, Arc/Solar/Void/Stasis/Strand symbols | `js/frames.js`: Destiny archetypes (frames) for all 12 families, stats fixed by archetype; 74 named legendaries with fixed archetype and element (Destinypedia-sourced); diagonal square icons; a symbol per element; Stasis and Strand weapon elements (no verbs yet). Legendary model variety not done | U4 | Complete and published (v1.4) |
 | R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U9 | Planned |
 | R23 | Stagger when shot | Non-boss enemies flinch 0.15 to 0.35 s on hits above a share of max HP (lower for crits, higher for captains and heavies), with a cooldown; `combat.js` `staggerFor` | U2 | Complete and published (v1.2) |
-| R24 | VFX: tracking rounds are particles that track, not lightning; supers with cool factor | Seekers are homing meshes; many effects are lightning | U4 | Planned |
+| R24 | VFX: tracking rounds are particles that track, not lightning; supers with cool factor | Swarm, Axion Bolt, Parasitic Nanites and Wolfpack Rounds are homing particle swarms (`swarm` projectile) that deal damage on arrival. Super VFX not done | U4 (seekers) | In progress |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U9 | Planned |
 | R26 | Tight ADS spread | Primary ADS cones 40 to 50% tighter, specials tighter; aimed movement no longer widens the cone; hip fire unchanged | U2 | Complete and published (v1.2) |
 | R27 | Damage numbers drift from the hit to the side | Numbers pop at the hit, drift out to alternating sides and ease down (`combat.js` `dmgDrift`) | U2 | Complete and published (v1.2) |
@@ -83,7 +83,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | M1 | Title screen Update Log (released only) | U1 | Complete and published (v1.1) |
 | M2 | Title screen Roadmap (curated teasers) | U1 | Complete and published (v1.1) |
 | M3 | Requirement tracking, docs, decision log | U1 | Complete and published (v1.1) |
-| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 53 tests as of v1.3.1 |
+| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 65 tests as of v1.4 |
 | M5 | Versioned GitHub releases | U1 | Complete and published (v1.1) |
 
 ## V4 additions (2026-10-14)
@@ -101,13 +101,13 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V09 | Co-op: a player downed mid-jump drops to the ground | H1 | Complete and published (v1.3.1) |
 | V33 | Co-op health check: zone/wave cleared with enemies alive; members missing host debuffs, stagger, zone and boss banners | H1 | Complete and published (v1.3.1): `waveStep` never clears on the check that spawns a wave (solo too); snapshot carries debuff bits and stagger; banners broadcast |
 | V10 | Co-op: Arc Soul tracks correctly | H1 | Complete and published (v1.3.1): companion replays follow the caster's avatar (caster id on ability fx) |
-| V11 | Thrown hammer glows and explodes after 7s if not picked up | U4 | Planned |
-| V12 | Hammer of Sol creates Sunspots; enemies inside burn | U4 | Planned |
-| V13 | Healing Grenade places a white orb: heal + Restoration on touch | U4 | Planned |
-| V14 | Downed screen: skull animation, "You Died", "Reviving in X" | U4 | Planned |
-| V15 | Co-op: Ghost glows over the downed body with "REVIVE" | U4 | Planned |
-| V16 | Topbar "AFTERLIGHT" returns to the title screen | U4 | Planned |
-| V17 | Title shows the current update name, "Version X.Y", and unique artwork | U4 (then every update) | Planned |
+| V11 | Thrown hammer glows and explodes after 7s if not picked up | U4 | Complete and published (v1.4): glows and pulses brighter, explodes (4 m Solar) at 7 s; picking it up first works as before |
+| V12 | Hammer of Sol creates Sunspots; enemies inside burn | U4 | Complete and published (v1.4): every super hammer impact leaves a Sunspot. Every Sunspot (Sol Invictus too) burns enemies inside; the caster deals the damage |
+| V13 | Healing Grenade places a white orb: heal + Restoration on touch | U4 | Complete and published (v1.4): white burst, then a white orb for 10 s; client-side, every Guardian can pick it up once on their own screen |
+| V14 | Downed screen: skull animation, "You Died", "Reviving in X" | U4 | Complete and published (v1.4): solo and co-op |
+| V15 | Co-op: Ghost glows over the downed body with "REVIVE" | U4 | Complete and published (v1.4) |
+| V16 | Topbar "AFTERLIGHT" returns to the title screen | U4 | Complete and published (v1.4): in a fireteam it asks first, then leaves the fireteam |
+| V17 | Title shows the current update name, "Version X.Y", and unique artwork | U4 (then every update) | Complete and published (v1.4): card from the newest `RELEASES` entry (`art` SVG); refresh every update |
 | V18 | Armor mods replace perks: 4 sockets, 10 energy, slot 1 stat mods, a mod pool per armor slot, D2-style (no raid mods) | U5 | Planned |
 | V19 | Mods screen with slide-in from the character screen's right-edge arrow | U5 | Planned |
 | V20 | Six armor stats (D2 new names) incl. cooldown stats | U5 | Planned |
@@ -122,4 +122,6 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U16 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U20 (optional) | Planned |
-| V32 | Subclass traits for the 6 subclasses without one | U4 | Planned |
+| V32 | Subclass traits for the 6 subclasses without one | U4 | Complete and published (v1.4): Sunbreaker burn, Striker Amplified, Gunslinger melee energy, Nightstalker weaken, Voidwalker detonation, Stormcaller jolt (`TRAITS` in `subclass.js`) |
+| V34 | Weapon archetypes per family (D2 frames); stats fixed by archetype; named legendaries always the same archetype and element; archetype shown on the item (added by Bryce for U4) | U4 | Complete and published (v1.4) |
+| V35 | Ready Up bar in the Director for fireteams; the last Guardian to ready launches the leader's pick; solo launches directly (added by Bryce for U4) | U4 | Complete and published (v1.4) |

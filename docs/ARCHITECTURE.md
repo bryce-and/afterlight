@@ -3,7 +3,7 @@
 The module map is in the README. These notes cover systems added during the overhaul and the rules for extending them.
 
 ## Save (`js/save.js`)
-- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 2).
+- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 4: v3 added loadouts, v4 weapon archetypes).
 - Changing the save shape means: add `MIGRATIONS[n]` (upgrades version n to n + 1 in place), bump `SAVE_VERSION`, and add a fixture test in `tools/tests.js`. `loadSave` runs the steps in order and refuses saves from a newer version without touching them.
 - Pre-overhaul saves (`afterlight_save_v1`) are copied once to `afterlight_backup_v1`, then removed. A new Guardian takes only its settings.
 - Storage is swappable (`useStorage`) so tests never touch the real save.
@@ -29,9 +29,26 @@ The module map is in the README. These notes cover systems added during the over
 - A new aspect or fragment: add the data entry, then a check in the Player method where it acts. The subclass screen, the reward track and the tests pick it up from the data.
 - Icons: `js/ability-icons.js` draws a frame per slot type around a glyph generated from the id; a test checks they are distinct.
 
+## Weapons and archetypes (`js/frames.js`)
+- `ARCHETYPES` (`data.js`) is the weapon family (Auto Rifle, Pulse Rifle...). `FRAMES[family]` holds Destiny's archetypes for it: `stats` multiply the family's base stats; `handling.mult` multiplies handling, `handling.set` replaces it (burst, charge, pellets, `move`, `tracking`, `wave`, `chargeBurst`), `handling.projectile` multiplies projectile values.
+- `weaponStats(item)` is the only place stats are computed: family x archetype x rarity (exotics x their own `mods`), plus the heavy-slot bonus. There is no random roll, so every copy of a weapon is identical; only perks roll. `weaponHandling(item)` is what the Player fires with and what the tooltip reads.
+- `LEGENDARY_WEAPONS` fixes each named legendary's family, archetype and element. Lower rarities roll an archetype once at drop (`item.frame`). Exotics have no `frame`.
+- A new archetype: add a `FRAMES` entry (and its behavior in `Player.fire` / `weaponExplosion` if it needs one); a test keeps each family's damage per second within 15%.
+- Elements: `ELEMENTS` carries a `symbol` (SVG) used by `elementIcon` (`icons.js`). `ENERGY` (what weapons roll) includes Stasis and Strand; `SHIELD_ELEMENTS` (enemy shields) stays Light-only.
+- Icons: `weaponIcon` renders the viewmodel at a diagonal into a square, cached per family, rarity, element (and exotic name).
+- Tracking rounds use the `swarm` projectile kind (a cluster of particles that homes on `target`); `Player.seekerSwarm` spawns one.
+
 ## Combat rules (`js/combat.js`)
 - Pure tuning and rules shared by the game and the tests: super gain, Song of Flame, weapon tier scaling (`weaponTierMult`), primary boost, ability power, ADS spread (`spreadFor`), chain targets, Storm Grenade, stagger thresholds (`staggerFor`), damage-number drift.
 - `dealDamage` applies weapon tier scaling to `weapon` and `perk` sources and decides stagger on the owner's side.
+
+## Traits and shared ability effects (`js/subclass.js` numbers, `player.js` behavior)
+- Every subclass has a `passive` (trait) shown on the subclass screen. Hit traits (Sunbreaker, Nightstalker, Stormcaller) go through `Player.traitHitOpts`, called from `dealDamage` for this player's own grenade and melee hits only (never `raw` relayed hits or jolt chains). Kill traits (Striker, Gunslinger, Voidwalker) are in `Player.traitOnKill`. Tuning is `TRAITS`.
+- Sunspots (`castFx('sunspot')`) burn enemies inside on the caster's screen (`SUNSPOT`); Hammer of Sol impacts and Sol Invictus both make them.
+- Healing Grenade orb (`healburst`): replayed on every screen; each player picks it up once on their own screen (`HEAL_ORB`). The thrown hammer explodes after `HAMMER_FUSE.fuse` seconds on the caster's screen (the blast syncs as an explosion).
+
+## Ready Up (`js/net.js`)
+- The host owns `net.ready` (member ids) and sends it in the `lobby` message. Members send `{ t: 'ready', on }`. `readyState(members, ready, sel)` is the rule: a pick and every current member ready. The last ready calls `net.onAllReady(sel)`, which launches through the existing `launchFireteam` / `launchActivity`. Readiness resets on a new pick (`setSelection`) or a roster change.
 
 ## Feed vs buff HUD (`ui.feed`, `js/status.js`)
 - The top-right feed is for drops and notices only (items, level up, Underpowered, arena moving, co-op notices, reinforcements, ammo). An effect with a duration goes on the status registry only. A one-off proc (White Nail, Skullfort, hammer recovered...) is a `STATUS` entry with `t: 1.5`.
