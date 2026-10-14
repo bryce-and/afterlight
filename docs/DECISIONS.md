@@ -13,3 +13,8 @@
 | 2026-10-13 | Kill XP is shared by the whole fireteam; mission and cache XP go to whoever opens the cache. | Claude (U1) |
 | 2026-10-13 | Mission recommended Light = 10 × mission number (10 to 180) under the base cap of 200. | Claude (U1) |
 | 2026-10-13 | Public update names: v1.0 "Kindling" (the pre-overhaul baseline), v1.1 "First Light". | Claude (U1) |
+| 2026-10-13 | U2 public name: "Clear Sight". | Bryce |
+| 2026-10-13 | Primaries were weak because weapon damage never scaled with mission tier while enemy health grows 10% per tier. Weapons (and their perks) now scale at 75% of that pace, plus +10% for primaries; ability power 1.4 to 1.3. Enemy health unchanged. | Bryce (U2) |
+| 2026-10-13 | Enemy debuffs (weaken, slow, suppress, burn, poison) stay on their own fields in U2 and move to the status registry in U3. | Bryce (U2) |
+| 2026-10-13 | Status effects are runtime only (no save change). Weapon effects are scoped to the weapon slot and cleared when that slot's weapon is swapped. A re-applied effect keeps the longer timer unless the caller sets it. | Claude (U2) |
+| 2026-10-13 | Stagger is decided by the enemy's owner (host), never applies to bosses, and has a cooldown so it can't chain. Fireteam members see the enemy stop but not the tilt. | Claude (U2) |

@@ -29,20 +29,20 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R20 | Legendary armor: perks, matching sets, destination tie, 3-piece set bonus, character-screen icons | Missing (generic slot SVGs) | U5 | Planned |
 | R21 | Weapon archetypes, models, diagonal D2-style icons, Arc/Solar/Void/Stasis/Strand symbols | 12 archetypes; side-profile rectangular icons; no symbols; no Stasis/Strand | U4 | Planned |
 | R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U6 | Planned |
-| R23 | Stagger when shot | Missing | U2 | Planned |
+| R23 | Stagger when shot | Non-boss enemies flinch 0.15 to 0.35 s on hits above a share of max HP (lower for crits, higher for captains and heavies), with a cooldown; `combat.js` `staggerFor` | U2 | Complete and published (v1.2) |
 | R24 | VFX: tracking rounds are particles that track, not lightning; supers with cool factor | Seekers are homing meshes; many effects are lightning | U4 | Planned |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U6 | Planned |
-| R26 | Tight ADS spread | ADS spread exists per archetype; needs tightening | U2 | Planned |
-| R27 | Damage numbers drift from the hit to the side | Float straight up with jitter | U2 | Planned |
-| R28 | Buff HUD: general effects above abilities, weapon effects below, with timers; exotic effects visible | Missing (feed messages only) | U2 | Planned |
-| R29 | Visible super-charged animation; yellow bar when charged | Bar pulses in element color | U2 | Planned |
-| R30 | Enemy health bars and names when aimed at, opacity fade | Missing (boss bar only) | U2 | Planned |
-| R31 | Primary weapon / enemy HP rebalance; slight ability tune-back | Not done | U2 | Planned |
-| R32 | Super gain and damage nerf; less super energy from kills | Kills give 3 to 9%, passive 0.75%/s | U2 | Planned |
-| R33 | Song of Flame uptime too high | Needs repro (energy blocked during super; suspect post-super ability kills) | U2 | Planned |
-| R34 | Stormtrance initially hits up to 4 from the caster | Chains to 2 (defect: primary counted in the 3) | U2 | Planned |
-| R35 | Celestial Nighthawk double-buffs Golden Gun? | Suspect: Golden Gun splash re-hits the primary target; unconfirmed | U2 | Planned |
-| R36 | Storm Grenade hits multiple enemies; slight damage nerf OK | One target per tick (confirmed in code) | U2 | Planned |
+| R26 | Tight ADS spread | Primary ADS cones 40 to 50% tighter, specials tighter; aimed movement no longer widens the cone; hip fire unchanged | U2 | Complete and published (v1.2) |
+| R27 | Damage numbers drift from the hit to the side | Numbers pop at the hit, drift out to alternating sides and ease down (`combat.js` `dmgDrift`) | U2 | Complete and published (v1.2) |
+| R28 | Buff HUD: general effects above abilities, weapon effects below, with timers; exotic effects visible | Status registry (`js/status.js`) drives the HUD: name, timer bar, seconds, stacks; exotic effects gold-bordered. Enemy debuffs move to the registry in U3 | U2 | Complete and published (v1.2) |
+| R29 | Visible super-charged animation; yellow bar when charged | Charging keeps the element color; when full the bar turns gold, pops, glows and sweeps | U2 | Complete and published (v1.2) |
+| R30 | Enemy health bars and names when aimed at, opacity fade | Plate above the aimed enemy's head (tracks it) with faction emblem, name, HP and shield; fades over ~1 s after looking away; bosses keep the boss bar | U2 | Complete and published (v1.2) |
+| R31 | Primary weapon / enemy HP rebalance; slight ability tune-back | Weapons scale with mission tier at 75% of enemy HP growth, primaries +10%, ability power 1.4 to 1.3. Auto Rifle on a Vandal at matched Light: 7/12/18 body shots in missions 1/9/18 before, 6/7/7 after | U2 | Complete and published (v1.2) |
+| R32 | Super gain and damage nerf; less super energy from kills | Passive 0.75 to 0.5%/s, kills 3 to 10% down to 2 to 6%, Hands-On 4 to 3, super damage -9% (`SUPER_POWER` 2.2 to 2.0) | U2 | Complete and published (v1.2) |
+| R33 | Song of Flame uptime too high | No energy leak found (gain is blocked during supers). Duration 12 to 10 s, ability regen 8x to 4x. Modeled uptime with a kill every 2 s: 21% to 13% | U2 | Complete and published (v1.2) |
+| R34 | Stormtrance initially hits up to 4 from the caster | Primary + 3 chains; verified in browser (4 of 5 clustered enemies per tick) | U2 | Complete and published (v1.2) |
+| R35 | Celestial Nighthawk double-buffs Golden Gun? | Cause: the splash re-hit the shot's target. Splash now skips it; verified the 6x applies once and the target takes no splash | U2 | Complete and published (v1.2) |
+| R36 | Storm Grenade hits multiple enemies; slight damage nerf OK | Every enemy under the cloud each 0.3 s tick, 40 to 30 per strike; verified 5 of 5 hit | U2 | Complete and published (v1.2) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Panel lists fixed abilities only | U3 | Planned |
 | R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U7/U9 | Planned |
 | R39 | Objectives within missions | Only travel / clear / boss | U7 | Planned |
@@ -80,5 +80,5 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | M1 | Title screen Update Log (released only) | U1 | Complete and published (v1.1) |
 | M2 | Title screen Roadmap (curated teasers) | U1 | Complete and published (v1.1) |
 | M3 | Requirement tracking, docs, decision log | U1 | Complete and published (v1.1) |
-| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`, 24 tests |
+| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 35 tests as of v1.2 |
 | M5 | Versioned GitHub releases | U1 | Complete and published (v1.1) |

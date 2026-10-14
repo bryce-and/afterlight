@@ -6,8 +6,8 @@ Every update needs Bryce's explicit approval before work starts.
 | # | Version | Public name | Contents | Depends on | Status |
 |---|---|---|---|---|---|
 | U1 | v1.1 | **First Light** | Save v2 + full reset with backup; levels 1 to 40; reward track; rarity by level; starter subclasses + level 10 unlock; Light cap 200; title Update Log + Roadmap; test page | none | Released |
-| U2 | v1.2 | Clear Sight *(working)* | Status-effect registry; buff HUD with timers; yellow super bar; enemy health bars and names; side-floating damage numbers; ADS spread; stagger; balance pass (super gain, Song of Flame, Stormtrance 4, Storm Grenade, Nighthawk) | U1 | Proposed next |
-| U3 | | Paths of Light *(working)* | Ability registry; elemental grenades shared per element; class-unique aspects; fragments; D2-style subclass screen | U2 | Planned |
+| U2 | v1.2 | **Clear Sight** | Status-effect registry; buff HUD with timers; yellow super bar; enemy health bars and names; side-floating damage numbers; ADS spread; stagger; balance pass (weapon tier scaling, super gain, Song of Flame, Stormtrance 4, Storm Grenade, Nighthawk) | U1 | Released |
+| U3 | | Paths of Light *(working)* | Ability registry; elemental grenades shared per element; class-unique aspects; fragments; D2-style subclass screen; move enemy debuffs (weaken, slow, suppress, burn, poison) onto the status registry | U2 | Proposed next |
 | U4 | | Arsenal | Diagonal weapon icons with element symbols; archetype pass; Stasis/Strand weapon elements; particle seekers | U2 | Planned |
 | U5 | | Armor and Style | Visible armor; destination sets; perk counts by rarity; 3-piece set bonus; shaders; armor icons; mods | U1, U3 | Planned |
 | U6 | | Hostile Intent | Enemy navigation with verticality; faction behaviors; shields and grenades; boss push/hold | U2 | Planned |
