@@ -12,20 +12,21 @@ Every update needs Bryce's explicit approval before work starts.
 | U4 | v1.4 | **Arsenal** | Destiny weapon archetypes per family with archetype-fixed stats and named legendaries (fixed archetype and element); diagonal weapon icons with element symbols; Stasis/Strand weapon elements; particle seekers; Ready Up in the Director. Plus the former H2 items: traits for the 6 subclasses missing one; thrown hammer explodes after 7s; Hammer of Sol Sunspots (every Sunspot burns); Healing Grenade orb; "You Died" downed screen and co-op REVIVE Ghost; topbar "AFTERLIGHT" to title; title shows update name, version and artwork. Save v4 | U2 | Released |
 | U5 | v1.5 | **Armor 2.0** | Perks replaced by mods: 4 sockets per piece, 10 energy, slot 1 stat mods only, a mod set per armor slot (existing perks become mods, Destiny 2 style, no raid mods). Six stats (Destiny's newer names) including ones that drive ability cooldowns. Mods screen: an arrow on the character screen's right edge slides to your character and 4 armor pieces with sockets, energy and hover-to-pick. Added in the proposal: mods unlock at level 5, orbs of power and armor charge, Arc Soul and jolt nerfs, vitals stay on top at narrow widths | U3 | Released |
 | U6 | v1.6 | **Fashion Is Endgame** | Visible armor on the character; destination armor sets; 3-piece set bonus; shaders; armor icons. Added during the update: three Guardians with a character select screen and separate inventories (vault shared), class-bound armor, class exotics with Destiny perks, stats on the Mods screen only | U5 | Released |
-| U7 | | Light Ascendant | Every Light subclass to 4 aspects and 8 fragments per element; missing Destiny 2 Light supers (selectable); more class jumps including Blink | U3 | Planned |
-| U8 | | Resonance | Audio overhaul: ambient, tense and orchestral music in place of lo-fi; weightier gun and ability SFX; restrained enemy sounds (Destiny 2 as reference) | none | Planned |
-| U9 | | Hostile Intent | Enemy navigation with verticality; faction behaviors; every non-melee unit melees at very close range, with an animation; suicide units (Cursed Thrall, Explosive Shanks); temporary shields and grenades; boss push/hold; 3-player difficulty retune | U2 | Planned |
-| U10 | | New Factions | Taken and Scorn as real factions: unique models, units, abilities and behaviors | U9 | Planned |
-| U11 | | The Ghost's Story | Objective system; Ghost dialogue; Calus story; planet Director with gating; lighting, collision, verticality | U9, U1 | Planned |
-| U12 | | The Last City *(working)* | Tower social space, Postmaster, hangout, shooting range | U11 | Planned |
-| U13 | | Open Frontier | Patrol space, beacons, public events with heroics, sparrow | U9, U11 | Planned |
-| U14 | | Legend and Ultimate | Legendary/Ultimate campaign, Light 300/350, multi-exotic switch, activity and fireteam Light scaling | U11 | Planned |
-| U15 | | Exotic Missions | Timed exotic mission framework, first at level 30 | U11, U4 | Planned |
-| U16 | | Darkness | Stasis and Strand subclasses for every class, each with two supers (its Destiny 2 super plus a new original one: a burst super if the D2 one roams, a roaming super if it's burst); Darkness enemy abilities | U7, U9 | Planned |
-| U17 | | The Emperor's Shadow *(working)* | Leviathan dungeon, Calus | U9, U11, U14 | Planned |
-| U18 | | *(optional)* Roguelike Horde | Boons, run inventory | U2, U4 | Planned |
-| U19 | | *(optional)* Crucible | PvP maps, Control, Duel, AI Guardians | U9, U3 | Planned |
-| U20 | | *(optional)* Mobile | Phones only: touch controls; HUD and menus for mobile; "Mobile mode" with calmer AI strafing and bigger enemy hitboxes. Desktop HUD, menus, AI and hitboxes stay exactly as they are | U2 | Planned |
+| U7 | v1.7 | **Exotic Hunt** | 12 new class exotics (8 per class, two per slot) with Destiny perks; exotic duplicate protection (unfound exotics favored until all are found; weapons shared, armor per class); save v7. Added during the update: Lunafaction rifts reload the whole fireteam; ability cooldowns up (grenade and melee 1.5x, class 1.3x, kill refund halved); health and shield regen 25% slower; Nova Bomb void field; base Golden Gun cut, Nighthawk 5x, Knock 'Em Down shots 15% weaker | U6 | Released |
+| U8 | | Light Ascendant | Every Light subclass to 4 aspects and 8 fragments per element; missing Destiny 2 Light supers (selectable); more class jumps including Blink | U3 | Planned |
+| U9 | | Resonance | Audio overhaul: ambient, tense and orchestral music in place of lo-fi; weightier gun and ability SFX; restrained enemy sounds (Destiny 2 as reference) | none | Planned |
+| U10 | | Hostile Intent | Enemy navigation with verticality; faction behaviors; every non-melee unit melees at very close range, with an animation; suicide units (Cursed Thrall, Explosive Shanks); temporary shields and grenades; boss push/hold; 3-player difficulty retune | U2 | Planned |
+| U11 | | New Factions | Taken and Scorn as real factions: unique models, units, abilities and behaviors | U10 | Planned |
+| U12 | | The Ghost's Story | Objective system; Ghost dialogue; Calus story; planet Director with gating; lighting, collision, verticality | U10, U1 | Planned |
+| U13 | | The Last City *(working)* | Tower social space, Postmaster, hangout, shooting range | U12 | Planned |
+| U14 | | Open Frontier | Patrol space, beacons, public events with heroics, sparrow | U10, U12 | Planned |
+| U15 | | Legend and Ultimate | Legendary/Ultimate campaign, Light 300/350, multi-exotic switch, activity and fireteam Light scaling | U12 | Planned |
+| U16 | | Exotic Missions | Timed exotic mission framework, first at level 30 | U12, U4 | Planned |
+| U17 | | Darkness | Stasis and Strand subclasses for every class, each with two supers (its Destiny 2 super plus a new original one: a burst super if the D2 one roams, a roaming super if it's burst); Darkness enemy abilities | U8, U10 | Planned |
+| U18 | | The Emperor's Shadow *(working)* | Leviathan dungeon, Calus | U10, U12, U15 | Planned |
+| U19 | | *(optional)* Roguelike Horde | Boons, run inventory | U2, U4 | Planned |
+| U20 | | *(optional)* Crucible | PvP maps, Control, Duel, AI Guardians | U10, U3 | Planned |
+| U21 | | *(optional)* Mobile | Phones only: touch controls; HUD and menus for mobile; "Mobile mode" with calmer AI strafing and bigger enemy hitboxes. Desktop HUD, menus, AI and hitboxes stay exactly as they are | U2 | Planned |
 
 V4 (2026-10-14) superseded V3's armor perks with mods (U5), split armor into Armor 2.0 and Style, and added Light Ascendant, Resonance, New Factions and Mobile. Later updates were renumbered.
 

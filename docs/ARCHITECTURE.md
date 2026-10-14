@@ -3,7 +3,7 @@
 The module map is in the README. These notes cover systems added during the overhaul and the rules for extending them.
 
 ## Save (`js/save.js`)
-- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 6: v3 added loadouts, v4 weapon archetypes, v5 armor stats and mods, v6 sets, shaders and characters).
+- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 7: v3 added loadouts, v4 weapon archetypes, v5 armor stats and mods, v6 sets, shaders and characters, v7 `exoticsFound`).
 - Changing the save shape means: add `MIGRATIONS[n]` (upgrades version n to n + 1 in place), bump `SAVE_VERSION`, and add a fixture test in `tools/tests.js`. `loadSave` runs the steps in order and refuses saves from a newer version without touching them.
 - Pre-overhaul saves (`afterlight_save_v1`) are copied once to `afterlight_backup_v1`, then removed. A new Guardian takes only its settings.
 - Storage is swappable (`useStorage`) so tests never touch the real save.
@@ -28,7 +28,8 @@ The module map is in the README. These notes cover systems added during the over
 - One Guardian per class. The active one's gear is `s.inventory` / `s.equipped`; the others wait in `s.chars[classId] = { inventory, equipped }`. `switchCharacter` swaps them (a first-time class gets `starterKit`). Everything that reads the inventory keeps working on the active Guardian.
 - Shared: XP/level, glimmer, `s.shaders.owned`, `s.vault`, `s.cleared`. Per Guardian: Light (`playerPower` / `charPower`), subclass and loadouts (already keyed by class), applied shader.
 - Armor carries `classId` (exotics too). `usableBy(it, classId)` is the rule: `equipItem` refuses other-class armor and `fromVault` won't hand it out. Drops pass the class being played to `rollItem` / `makeArmor`.
-- Exotic armor: `EXOTIC_ARMOR[classId][slot]` (`data.js`), perks in `EXOTIC_ARMOR_PERKS` with ids the Player checks in `this.exo`.
+- Exotic armor: `EXOTIC_ARMOR[classId][slot]` is a list (two per slot since v1.7; the first is the v1.6 piece), `exoticArmorFor(classId)` flattens it (`data.js`). Perks in `EXOTIC_ARMOR_PERKS` with ids the Player checks in `this.exo`; their numbers live in `combat.js`.
+- Exotic duplicate protection: `rollItem(..., found)` with `save.exoticsFound` picks exotics through `pickExotic` (`loot.js`). `noteExotic` (`save.js`) records one whenever it reaches the player (`addItem`, reward claims, auto-dismantle). The list is shared by every Guardian.
 
 ## Style: looks, sets, shaders (`js/style.js`, `js/characters.js`)
 - `style.js` is pure data and rules. `LOOKS` (palette or null for class colors, plus a variant per slot: visor, crest, cuff, plate, shoulder, knee, shin), `SETS` (one per destination id: piece names, bonus text, look), `SET_TUNE`, `SHADERS`, `lookOf(item)`, `activeSets(items)` (any `SET_PIECES` of one set, exotics never count), `rollShader`, `shaderFor`, `appearance` / `encodeAppearance` / `decodeAppearance`.

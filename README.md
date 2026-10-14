@@ -23,7 +23,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 - **Combat HUD**: buffs and exotic effects with timers (general above the abilities, weapon perks below), enemy name and health on aim, damage numbers that drift aside, a gold super bar when charged. Enemies flinch on heavy hits.
 - **6 destinations, 18 missions**: the Cosmodrome, the Moon, Mars, Titan, the Tangled Shore and Io, each mission ending in a boss. Horde and Endless activities.
 - **Character screen** in the style of Destiny: 3D class model wearing your armor, weapons left, armor right, flyouts to swap gear, item cards, hold F to dismantle. Stats and mods live on the Mods screen.
-- **Armor and style**: armor shows on your Guardian. Six destination armor sets with 3-piece bonuses, four class exotics per class, and 10 shaders from mission caches that recolor all of your armor.
+- **Armor and style**: armor shows on your Guardian. Six destination armor sets with 3-piece bonuses, eight exotics per class (drops favor the ones you haven't found yet), and 10 shaders from mission caches that recolor all of your armor.
 - **Loot**: engrams drop from enemies, boss caches give rare-or-better gear, five rarities up to Exotic, random perks, Light (up to 200), infusion, dismantling for Glimmer.
 - Progress saves to the browser's localStorage (`afterlight_save_v2`). The pre-overhaul save, if any, is kept untouched in `afterlight_backup_v1`.
 - The title screen has an **Update Log** (shipped updates) and a **Roadmap** (teasers), both from `js/releases.js`.
