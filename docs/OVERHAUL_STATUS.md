@@ -23,7 +23,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R14 | Armor perk counts by rarity (superseded by V4: perks become mods) | Superseded: no perks. Four sockets on every piece, energy by rarity (4/6/8/10/10) | U5 | Complete and published (v1.5) |
 | R15 | New destination adds new perks | Each destination's set brings its own 3-piece bonus (armor mods stay one pool) | U6 | Complete and published (v1.6) |
 | R16 | Shaders recolor armor | 10 shaders, dropped from mission caches (never duplicates); one per class recolors all armor | U6 | Complete and published (v1.6) |
-| R17 | Subclasses with working aspects, fragments, melee, supers, grenades | Registry `js/subclass.js`: 9 grenades shared by element, 2 class abilities per class, 27 aspects, 14 fragments; behaviors in `player.js` / `abilities.js`. All 18 test loadouts (every aspect and fragment) fired in a mission with no errors | U3 | Complete and published (v1.3) |
+| R17 | Subclasses with working aspects, fragments, melee, supers, grenades | Registry `js/subclass.js`: 9 grenades shared by element, 2 class abilities per class, 36 aspects (4 per subclass), 24 fragments (8 per element), 21 supers, 11 class jumps; behaviors in `player.js` / `abilities.js`. v1.8: all 18 test loadouts (every aspect, fragment and jump) exercised in a mission with no errors | U3, U8 | Complete and published (v1.8) |
 | R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Each super declares `camera` in `data.js`; all 9 checked in browser: camera matches and the enemy under the crosshair takes the damage. Super animations not done | U3 (camera, aim) | In progress |
 | R19 | Exotic weapons/armor: unique perk and model | Weapons: perks + models. Armor: class exotics (8 per class, two per slot, since v1.7) with Destiny perks, one shared exotic look. Exotic drops favor ones not found yet (`pickExotic` in `loot.js`, `exoticsFound` in the save) | U4/U6/U7 | Complete and published (v1.7) |
 | R20 | Legendary armor: perks, matching sets, destination tie, 3-piece set bonus, character-screen icons | Destination sets with any-3-of-4 bonuses; armor icons rendered from the piece in the current shader | U6 | Complete and published (v1.6) |
@@ -43,7 +43,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R34 | Stormtrance initially hits up to 4 from the caster | Primary + 3 chains; verified in browser (4 of 5 clustered enemies per tick) | U2 | Complete and published (v1.2) |
 | R35 | Celestial Nighthawk double-buffs Golden Gun? | Cause: the splash re-hit the shot's target. Splash now skips it; verified the 6x applies once and the target takes no splash | U2 | Complete and published (v1.2) |
 | R36 | Storm Grenade hits multiple enemies; slight damage nerf OK | Every enemy under the cloud each 0.3 s tick, 40 to 30 per strike; verified 5 of 5 hit | U2 | Complete and published (v1.2) |
-| R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 4 fragments; option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade and class choices done; alternate supers, melees and jumps not built | U3 (part) | In progress |
+| R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 4 fragments; option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; alternate melees not built | U3, U8 | In progress |
 | R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U12/U14 | Planned |
 | R39 | Objectives within missions | Only travel / clear / boss | U12 | Planned |
 | R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Missing | U14 | Planned |
@@ -61,7 +61,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U10 | Planned |
 | R53 | Distinct faction behaviors | Missing (names and models only) | U10 | Planned |
 | R54 | Darkness supers and abilities | Missing | U17 | Planned |
-| R55 | Aspects and fragments | 3 aspects per subclass (2 slots, each opens 1 or 2 fragment slots); 4 Solar, 5 Arc, 5 Void fragments. Level 10 subclasses earn their third aspect at 13/16/19; Spark of Ions (22) and Echo of Instability (25) on the reward track | U3 | Complete and published (v1.3) |
+| R55 | Aspects and fragments | 4 aspects per subclass since v1.8 (2 slots, each opens 1 or 2 fragment slots); 8 fragments per element. Level 10 subclasses earn their third aspect at 13/16/19; Spark of Ions (22) and Echo of Instability (25) on the reward track | U3 | Complete and published (v1.3) |
 | R56 | Armor mods | 57 mods (12 stat, 10 helmet, 12 gauntlet, 11 chest, 12 leg) in `js/armor.js`; Mods screen in `js/mods-ui.js`; unit-tested rules; every orb and hit mod exercised in a mission | U5 | Complete and published (v1.5) |
 | R57 | Armor stats affect ability cooldowns, Destiny-style (added by Bryce, not in V3) | Discipline (grenade), Strength (melee) and each class's own stat (Titan Resilience, Hunter Mobility, Warlock Recovery) scale cooldowns 1.3x at tier 0, 1.0x at 5, 0.65x at 10; floor 0.4x. Checked in a mission: cdMax matches the formula | U5 | Complete and published (v1.5) |
 | R58 | Hunter Triple Jump is the ground jump + 2 (added by Bryce) | Two air jumps, the second at 85% height. Peak 4.2 m, below Titan Catapult Lift (4.8 m) | U3 | Complete and published (v1.3) |
@@ -83,7 +83,7 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | M1 | Title screen Update Log (released only) | U1 | Complete and published (v1.1) |
 | M2 | Title screen Roadmap (curated teasers) | U1 | Complete and published (v1.1) |
 | M3 | Requirement tracking, docs, decision log | U1 | Complete and published (v1.1) |
-| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 84 tests as of v1.6 |
+| M4 | Test and validation tooling | U1 | Complete and published (v1.1): `tools/tests.html`; 93 tests as of v1.8 |
 | M5 | Versioned GitHub releases | U1 | Complete and published (v1.1) |
 
 ## V4 additions (2026-10-14)
@@ -116,9 +116,9 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V23 | Harder with 3 players (retune) | U10 | Planned |
 | V24 | Taken and Scorn as full factions | U11 | Planned |
 | V25 | Music and SFX overhaul: ambient/tense/orchestral music, weightier guns and abilities, light enemy SFX | U9 | Planned |
-| V26 | 4 aspects per subclass, 8 fragments per element | U8 | Planned |
-| V27 | Missing Destiny 2 Light supers | U8 | Planned |
-| V28 | More class jumps, including Blink | U8 | Planned |
+| V26 | 4 aspects per subclass, 8 fragments per element | U8 | Complete and published (v1.8): D2 fourth aspects where they exist (Unbreakable, On the Prowl, Ionic Sentry, Hellion, Crackshot), D1 names for the rest (Tempered Metal, Aftershocks, Fast Twitch, Angel of Light); 10 new D2 fragments |
+| V27 | Missing Destiny 2 Light supers | U8 | Complete and published (v1.8): 12 selectable supers (Burning Maul, Thundercrash, Ward of Dawn, Twilight Arsenal, Blade Barrage, Spectral Blades, Gathering Storm, Storm's Edge, Well of Radiance, Nova Warp, Chaos Reach, Daybreak), each fired in a mission with camera and damage checked; unlocked at levels 14/17/23/26 |
+| V28 | More class jumps, including Blink | U8 | Complete and published (v1.8): High/Strafe Lift, High/Strafe Jump, Balanced/Strafe Glide; Blink on Arcstrider and Voidwalker only, moved in steps so it stops at walls |
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U17 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U21 (optional) | Planned |

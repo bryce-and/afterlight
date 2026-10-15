@@ -17,7 +17,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 ## What's in it
 
 - **3 Guardians, 9 subclasses**: play a Titan, a Hunter and a Warlock on one account. Each has its own gear, inventory and Light; your level, glimmer, shaders and vault are shared, and gear moves between Guardians through the vault.
-- **Subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a super, melee and jump, and on the subclass screen you choose a grenade from its element, a class ability from its class, two aspects and the fragments they open.
+- **Subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a melee, and on the subclass screen you choose its super (21 in all, new ones unlocked on the reward track), a class jump (Blink for Arcstriders and Voidwalkers), a grenade from its element, a class ability from its class, two of its four aspects and the fragments they open (eight per element).
 - **Guardian levels 1 to 40**: XP from kills (shared by the fireteam), missions and caches. The Level tab is a reward track: a Legendary every 3 levels, Exotics at 20 and 40. Drop rarity climbs with your level.
 - **12 weapon types** (every player gets one of each) in primary / special / heavy slots, each with Destiny's archetypes (Adaptive, Rapid-Fire, High-Impact, Precision...) that fix its stats. Named legendaries always have the same archetype and element. Kinetic, Solar, Arc, Void, Stasis and Strand weapons; aim down sights, reloads, recoil, precision damage, elemental shields.
 - **Combat HUD**: buffs and exotic effects with timers (general above the abilities, weapon perks below), enemy name and health on aim, damage numbers that drift aside, a gold super bar when charged. Enemies flinch on heavy hits.
@@ -63,7 +63,7 @@ WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse
 | `js/frames.js` | Weapon archetypes (Destiny frames), named legendaries, archetype-fixed stats and handling |
 | `js/progression.js` | Level curve, XP values, reward track, drop rarity by level, Light cap |
 | `js/status.js` | Status-effect registry (player buffs and exotic effects shown on the HUD, enemy debuffs) |
-| `js/subclass.js` | Subclass registry: shared grenades and class abilities, aspects, fragments, loadout rules |
+| `js/subclass.js` | Subclass registry: shared grenades and class abilities, supers, class jumps, aspects, fragments, loadout rules |
 | `js/ability-icons.js` | Generated icons for abilities, aspects and fragments |
 | `js/combat.js` | Combat tuning and rules: super gain, spread, stagger, chain targets, weapon tier scaling |
 | `js/releases.js` | Title-screen Update Log and Roadmap content |
