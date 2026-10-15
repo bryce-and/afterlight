@@ -36,6 +36,12 @@ export const STATUS = {
   radiant: { name: 'Radiant', group: 'general', glyph: '✦', color: '#ffb547', t: 6 },
   frequency: { name: 'Frequency', group: 'general', glyph: '↻', color: '#5fd3ff', t: 5 },
   amplified: { name: 'Amplified', group: 'general', glyph: 'ϟ', color: '#5fd3ff', t: 6 }, // Striker trait
+  // Light Ascendant
+  tempered: { name: 'Tempered Metal', group: 'general', glyph: '»', color: '#ff8b2b', t: 6 },
+  unbreakable: { name: 'Unbreakable', group: 'general', glyph: '⬢', color: '#b07cff', t: 2 },
+  wol: { name: 'Weapons of Light', group: 'general', glyph: '✦', color: '#b07cff', t: 0.3 },
+  well: { name: 'Well of Radiance', group: 'general', glyph: '✚', color: '#ffb547', t: 0.3 },
+  voidaxe: { name: 'Void Axe (F to throw)', group: 'general', glyph: '⚒', color: '#b07cff', t: 10 },
   // armor mods (Armor 2.0)
   charge: { name: 'Armor Charge', group: 'general', glyph: '◈', color: '#cdb6ff', t: 10, maxStacks: 9 },
   emergency: { name: 'Emergency Reinforcement', group: 'general', glyph: '⬢', color: '#9fd0ff', t: 4 },

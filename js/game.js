@@ -413,6 +413,8 @@ export function dealDamage(e, amount, o = {}) {
   // subclass traits on this player's own grenade and melee hits (never on relayed hits or jolt chains)
   // (companions such as Arc Soul are not grenade or melee hits, so they don't carry traits or mod procs either)
   if (!o.raw && !o.jolted && !o.companion && (o.source === 'ability' || o.source === 'melee') && G.player?.traitHitOpts) { Object.assign(o, G.player.traitHitOpts(e, o)); G.player.modOnHit?.(o); }
+  // Aftershocks (Striker aspect): this player's own Arc ability and super hits
+  if (!o.raw && !o.jolted && !o.companion && o.element === 'arc' && (o.source === 'ability' || o.source === 'melee' || o.source === 'super')) G.player?.aftershock?.();
   // debuffs go on the registry (members show them on the plate; the owner's copy is the real one)
   for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
   if (e.remote) {
@@ -610,6 +612,12 @@ export function projectileMesh(o) {
     const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), basicMat(o.color, true));
     glow.position.z = 0.08; glow.scale.set(0.6, 0.6, 2.2);
     g.add(blade, tip, edge, guard, handle, wrap, glow);
+  } else if (o.kind === 'axe') {
+    // Twilight Arsenal axe: a glowing void head on a pale haft
+    const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5), basicMat(0xe6d0ff));
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.05), mat(o.color, { emissive: o.color, emissiveIntensity: 2.6 }));
+    head.position.y = 0.35;
+    g.add(haft, head);
   } else if (o.kind === 'swarm') {
     // tracking rounds (Swarm, Axion Bolt, SIVA, Wolfpack): a cluster of particles, not one solid shape
     for (let i = 0; i < 6; i++) {
@@ -683,7 +691,7 @@ function updateProjectiles(dt) {
       continue;
     }
     p.mesh.position.copy(p.pos);
-    if (p.kind === 'hammer') p.mesh.rotation.x -= dt * 18;
+    if (p.kind === 'hammer' || p.kind === 'axe') p.mesh.rotation.x -= dt * 18;
     else if (p.kind === 'nova') { p.mesh.rotation.y += dt * 4; p.mesh.scale.setScalar(1 + Math.sin(p.age * 30) * 0.08); }
     else { p.mesh.lookAt(tmp.copy(p.pos).add(p.vel)); if (p.kind === 'knife') p.mesh.rotateX(p.age * 28); }
     // trails
@@ -698,6 +706,7 @@ function updateProjectiles(dt) {
       if (Math.random() < 0.5) ember(p.pos, 0xffffff, p.size * 0.35, 0.2, 0.2);
     }
     else if (p.kind === 'hammer') { for (let i = 0; i < 2; i++) ember(p.pos, i ? 0xffd27a : p.color, 0.14, 0.4, 1.2); }
+    else if (p.kind === 'axe') { for (let i = 0; i < 2; i++) ember(p.pos, i ? 0xe6d0ff : p.color, 0.12, 0.4, 0.8); }
     else if (p.kind === 'nova') { for (let i = 0; i < 3; i++) swirl(p.pos, 1.4, i ? p.color : 0xe6d0ff, 0.45, true, 0.12, 0.8); ember(p.pos, p.color, 0.2, 0.5, 1); }
   }
 }

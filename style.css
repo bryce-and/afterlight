@@ -52,6 +52,7 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .t-update .tu-info { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 12px 16px; min-width: 0; }
 .t-update .tu-info span { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
 .t-update .tu-info b { font-family: var(--head); font-size: 26px; letter-spacing: 0.08em; text-transform: uppercase; overflow-wrap: anywhere; }
+.t-update .tu-info b.long { font-size: 20px; letter-spacing: 0.04em; } /* a long word (Ascendant) fits without breaking */
 @media (max-width: 520px) { .t-update { flex-direction: column; } .t-update .tu-art { flex-basis: auto; } }
 .t-hint { font-family: var(--head); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3em; font-size: 16px; animation: pulse 1.6s ease-in-out infinite; }
 .t-foot { margin-top: 18px; color: var(--muted); font-size: 12px; }

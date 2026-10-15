@@ -273,12 +273,12 @@ test('damage numbers drift mostly sideways, on alternating sides', () => {
 
 // ---------- subclasses: registry, loadouts, gating (Paths of Light) ----------
 const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasses).map((sid) => [c, sid]));
-test('registry: 3 grenades per element, 2 class abilities per class, 3 aspects per subclass, 14 fragments', () => {
+test('registry: 3 grenades per element, 2 class abilities per class, 4 aspects per subclass, 8 fragments per element', () => {
   for (const el of ['solar', 'arc', 'void']) eq(SC.grenadesFor(el).length, 3, el);
   for (const c of Object.keys(CLASSES)) eq(SC.classAbilitiesFor(c).length, 2, c);
-  for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, 3, sid);
-  eq(Object.keys(SC.ASPECTS).length, 27);
-  eq([SC.fragmentsFor('solar').length, SC.fragmentsFor('arc').length, SC.fragmentsFor('void').length], [4, 5, 5]);
+  for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, 4, sid);
+  eq(Object.keys(SC.ASPECTS).length, 36);
+  eq([SC.fragmentsFor('solar').length, SC.fragmentsFor('arc').length, SC.fragmentsFor('void').length], [8, 8, 8]);
   for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 1 || a.slots === 2, a.name);
 });
 test('every default loadout is valid and resolves to the v1.7 abilities (cooldowns 1.5x grenade, 1.3x class)', () => {
@@ -340,7 +340,7 @@ test('setLoadout saves a valid loadout per subclass; activeKit uses it', () => {
   const s = S.createSave('vanguard');
   eq(s.loadout, {});
   S.setLoadout(s, 'vanguard', 'sunbreaker', { grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing', 'empyrean'] });
-  eq(S.getLoadout(s, 'vanguard', 'sunbreaker'), { grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing'] });
+  eq(S.getLoadout(s, 'vanguard', 'sunbreaker'), { super: 'hammers', jump: 'lift', grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing'] });
   const k = S.activeKit(s);
   eq([k.abilities.grenade.name, k.abilities.class.name, k.fragments.length], ['Healing Grenade', 'Rally Barricade', 3]);
   eq(S.getLoadout(s, 'vanguard', 'striker'), SC.defaultLoadout('vanguard', 'striker'), 'other subclasses untouched');
@@ -367,13 +367,75 @@ test('every ability, aspect and fragment icon is distinct within its slot type',
   const groups = {
     grenade: Object.keys(SC.GRENADES), aspect: Object.keys(SC.ASPECTS), fragment: Object.keys(SC.FRAGMENTS),
     class: Object.values(SC.CLASS_ABILITIES).flatMap(Object.keys),
-    melee: SUBS.map(([c, sid]) => CLASSES[c].subclasses[sid].abilities.melee.id), super: SUBS.map(([c, sid]) => CLASSES[c].subclasses[sid].abilities.super.id),
+    melee: SUBS.map(([c, sid]) => CLASSES[c].subclasses[sid].abilities.melee.id), super: SUBS.flatMap(([c, sid]) => SC.supersFor(c, sid)),
+    jump: Object.values(SC.JUMPS).flatMap(Object.keys),
   };
   for (const [slot, ids] of Object.entries(groups)) {
     const unique = [...new Set(ids)];
     const svgs = new Set(unique.map((id) => abilityIcon(slot, id, '#fff')));
     eq(svgs.size, unique.length, `${slot} icons`);
   }
+});
+
+// ---------- Light Ascendant (v1.8) ----------
+test('supers: 12 new Light supers, 4 per class, each with a camera, a duration and a reward-track level', () => {
+  eq(Object.keys(SC.SUPERS).length, 12);
+  for (const c of Object.keys(CLASSES)) eq(Object.values(SC.SUPERS).filter((x) => x.cls === c).length, 4, c);
+  for (const [c, sid] of SUBS) {
+    const ids = SC.supersFor(c, sid);
+    ok(ids.length === 2 || ids.length === 3, `${sid} has its original super plus one or two`);
+    eq(ids[0], CLASSES[c].subclasses[sid].abilities.super.id, `${sid} original first`);
+    for (const id of ids) {
+      const d = SC.superDef(c, sid, id);
+      ok(['first', 'third'].includes(d.camera) && d.name && d.desc, id);
+      ok(C.SUPER_TIME[id] > 0, `${id} duration`);
+    }
+  }
+  // unlock levels land on levels with no item reward and no other unlock
+  for (const L of [14, 17, 23, 26]) { eq(rewardAt(L), null, `level ${L}`); for (const c of Object.keys(CLASSES)) eq(SC.buildUnlocksAt(L, c).length, 1, `${c} ${L}`); }
+  eq(SC.buildUnlocksAt(14, 'vanguard').map((x) => [x.type, x.id]), [['super', 'maul']]);
+  eq(SC.superLevel('vanguard', 'sentinel', 'sentinel'), 10, 'original super comes with the subclass');
+});
+test('super choice: locked supers fall back to the original; resolveKit uses the chosen one', () => {
+  eq(SC.sanitizeLoadout('vanguard', 'sunbreaker', { super: 'maul' }, 13).super, 'hammers', 'locked below 14');
+  eq(SC.sanitizeLoadout('vanguard', 'sunbreaker', { super: 'maul' }, 14).super, 'maul');
+  eq(SC.sanitizeLoadout('vanguard', 'sunbreaker', { super: 'thundercrash' }, 40).super, 'hammers', 'another subclass');
+  eq(SC.sanitizeLoadout('arcanist', 'dawnblade', { super: 'daybreak' }, 40).super, 'daybreak');
+  const k = SC.resolveKit('stalker', 'arcstrider', { super: 'stormsedge' }, 40);
+  eq([k.abilities.super.id, k.abilities.super.name, k.abilities.super.camera], ['stormsedge', "Storm's Edge", 'first']);
+  eq(SC.resolveKit('stalker', 'arcstrider', undefined, 40).abilities.super.id, 'staff');
+});
+test('jumps: 3 or 4 per class; Blink only on Arcstrider and Voidwalker', () => {
+  eq([SC.jumpsFor('vanguard', 'striker').length, SC.jumpsFor('stalker', 'gunslinger').length, SC.jumpsFor('arcanist', 'stormcaller').length], [3, 3, 3]);
+  ok(SC.jumpsFor('stalker', 'arcstrider').includes('blink') && SC.jumpsFor('arcanist', 'voidwalker').includes('blink'), 'Blink where allowed');
+  ok(!SC.jumpsFor('stalker', 'nightstalker').includes('blink') && !SC.jumpsFor('arcanist', 'dawnblade').includes('blink'), 'nowhere else');
+  eq(SC.sanitizeLoadout('stalker', 'gunslinger', { jump: 'blink' }, 40).jump, 'double', 'Blink refused on Gunslinger');
+  eq(SC.sanitizeLoadout('stalker', 'arcstrider', { jump: 'blink' }, 40).jump, 'blink');
+  eq(SC.sanitizeLoadout('vanguard', 'striker', { jump: 'glide' }, 40).jump, 'lift', 'other class jump refused');
+  const k = SC.resolveKit('arcanist', 'voidwalker', { jump: 'blink' }, 1);
+  eq([k.jump, k.jumpName], ['blink', 'Blink']);
+  for (const c of Object.keys(CLASSES)) eq(SC.defaultLoadout(c, Object.keys(CLASSES[c].subclasses)[0]).jump, CLASSES[c].jump, `${c} default jump unchanged`);
+  for (const ids of Object.values(SC.JUMPS)) for (const id of Object.keys(ids)) ok(SC.JUMP_TUNE[id] || id === 'double', `${id} tuned`);
+});
+test('a v1.7 loadout (no super or jump) keeps working and gets the original super and jump', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  s.loadout = { stalker: { gunslinger: { grenade: 'healing', class: 'gambler', aspects: ['gunpowder'], fragments: ['torches'] } } };
+  const lo = S.getLoadout(s, 'stalker', 'gunslinger');
+  eq(lo, { super: 'revolver', jump: 'double', grenade: 'healing', class: 'gambler', aspects: ['gunpowder'], fragments: ['torches'] });
+  eq(S.SAVE_VERSION, 7, 'no save version bump');
+});
+test('new super damage stays in the band of the originals', () => {
+  const T = C.SUPER_TUNE;
+  // roaming supers: damage per second of the main attack, against the v1.7 roaming supers (Hammer of Sol, Fists of Havoc, Arc Staff)
+  const orig = [420 / 0.45, 520 / 0.7, (260 * 2 + 520) / (3 * 0.34)];
+  const mean = orig.reduce((a, b) => a + b) / orig.length;
+  const roam = { maul: T.maul.swing / T.maul.swingCd + T.maul.slam / T.maul.slamCd, spectral: (T.spectral.hit * 2 + T.spectral.fin) / 0.9, daybreak: T.daybreak.dmg / 0.45, novawarp: T.novawarp.dmg1 / (T.novawarp.chargeT + 0.35) };
+  for (const [id, dps] of Object.entries(roam)) ok(dps > mean * 0.6 && dps < mean * 1.4, `${id} ${Math.round(dps)} vs ${Math.round(mean)}`);
+  // burst supers: total to one target, against Nova Bomb (with its field) and Golden Gun
+  const nova = 2600 + C.NOVA_FIELD.dmg * (C.NOVA_FIELD.life / C.NOVA_FIELD.tick), gg = C.GOLDEN_GUN.shot * 6;
+  const burst = { thundercrash: T.thundercrash.dmg, twilight: T.twilight.dmg * 3, bladebarrage: T.blades.dmg * T.blades.n * 2, gathering: T.gathering.dmg + T.gathering.tick * T.gathering.field * 2, stormsedge: T.stormsedge.dmg * 3, chaosreach: T.chaos.dmg * 10 * C.SUPER_TIME.chaosreach };
+  for (const [id, d] of Object.entries(burst)) ok(d >= nova * 0.75 && d <= gg, `${id} ${Math.round(d)} in ${Math.round(nova * 0.75)} to ${gg}`);
 });
 
 // ---------- H1 hotfix (v1.3.1) ----------

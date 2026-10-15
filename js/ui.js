@@ -4,7 +4,7 @@ import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS
 import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, activeMods, energyCap, energyUsed } from './armor.js';
 import { openMods } from './mods-ui.js';
 import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
-import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt } from './subclass.js';
+import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice } from './save.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt } from './progression.js';
@@ -95,7 +95,7 @@ export function showTitle() {
   $('#title .t-hint').textContent = G.save ? 'Click to continue' : 'Click to begin';
   // the current update: its artwork, name and version
   const cur = RELEASES[0];
-  $('#t-update').innerHTML = `<div class="tu-art">${cur.art || ''}</div><div class="tu-info"><span>Version ${esc(cur.version)}</span><b style="color:${cur.accent}">${esc(cur.name)}</b></div>`;
+  $('#t-update').innerHTML = `<div class="tu-art">${cur.art || ''}</div><div class="tu-info"><span>Version ${esc(cur.version)}</span><b class="${cur.name.split(' ').some((w) => w.length > 8) ? 'long' : ''}" style="color:${cur.accent}">${esc(cur.name)}</b></div>`;
   closeTitlePanel();
   if (takeLegacyNotice()) {
     const n = $('#t-notice');
@@ -453,9 +453,9 @@ function renderLevel(main) {
     else if (kind === 'legendary') { icon = '<i class="lt-engram leg"></i>'; label = 'Legendary'; }
     else if (sub) { icon = subclassIcon(CLASSES[s.classId].subclasses[sub.subId].color); label = sub.name; }
     else if (build) {
-      const color = build.type === 'aspect' ? CLASSES[s.classId].subclasses[build.sub].color : ELEMENTS[build.element].color;
+      const color = build.type === 'fragment' ? ELEMENTS[build.element].color : CLASSES[s.classId].subclasses[build.sub].color;
       icon = abilityIcon(build.type, build.id, color);
-      label = `${build.type === 'aspect' ? 'Aspect' : 'Fragment'}: ${build.name}`;
+      label = `${{ aspect: 'Aspect', fragment: 'Fragment', super: 'Super' }[build.type]}: ${build.name}`;
     }
     const mods = L === MODS_LEVEL ? [] : modsUnlockedAt(L).map((id) => MODS[id]);
     if (L === MODS_LEVEL) { if (!icon) { icon = abilityIcon('fragment', 'mods', '#cdb6ff'); label = 'Armor Mods'; } else label += '<br>+ Armor Mods'; }
@@ -474,7 +474,7 @@ function renderLevel(main) {
         <div><div class="eyebrow">Guardian Level</div><div class="lvl-big">${info.level}<small>/ ${LEVEL_CAP}</small></div></div>
         <div class="lvl-xp">${info.max ? '<b>Max level</b>' : `<div class="xp-track big"><div class="xp-fill" style="width:${((info.into / info.need) * 100).toFixed(1)}%"></div></div>
           <div class="lvl-xp-t">${info.into.toLocaleString()} / ${info.need.toLocaleString()} XP to level ${info.level + 1}</div>`}</div>
-        <p class="desc">Earn XP from every kill, mission and cache. A Legendary every three levels, Exotics at 20 and 40, your third subclass at level ${third}, then its last aspect and new fragments. Item rewards wait here until you claim them.</p>
+        <p class="desc">Earn XP from every kill, mission and cache. A Legendary every three levels, Exotics at 20 and 40, your third subclass at level ${third}, then new supers, its last aspect and new fragments. Item rewards wait here until you claim them.</p>
       </div>
       <div class="lt-track" id="lt-track">${Array.from({ length: LEVEL_CAP }, (_, i) => node(i + 1)).join('')}</div>
     </div>`;
@@ -837,12 +837,14 @@ function feedOrbit(text) {
 // ---------------------------------------------------------------------------
 // Subclass screen (D2 style): abilities, aspects and fragments for the active subclass
 // ---------------------------------------------------------------------------
-let spSlot = null; // the slot whose options are open: 'grenade' | 'class' | 'aspect0' | 'frag2' ...
+let spSlot = null; // the slot whose options are open: 'super' | 'jump' | 'grenade' | 'class' | 'aspect0' | 'frag2' ...
 const MAX_FRAGMENT_SLOTS = 4;
 
 /** Everything the screen can show about one entry: { kind, id, name, desc, meta, color, locked }. */
 function spEntry(kind, id, ctx) {
   const { cls, el, L } = ctx;
+  if (kind === 'super') { const x = superDef(cls.id, cls.subclassId, id), lv = superLevel(cls.id, cls.subclassId, id); return { kind, id, name: x.name, desc: x.desc, meta: `Super  ·  ${x.camera === 'third' ? 'third person' : 'first person'}`, color: el.color, locked: L < lv ? lv : 0 }; }
+  if (kind === 'jump') { const j = JUMPS[cls.id][id]; return { kind, id, name: j.name, desc: j.desc, meta: j.sub ? `Jump  ·  ${cls.subclass} only` : 'Jump', color: '#e9eef5' }; }
   if (kind === 'grenade') { const g = GRENADES[id]; return { kind, id, name: g.name, desc: g.desc, meta: `Grenade  ·  ${Math.round(g.cd * (cls.grenadeCdMult ?? 1) * ABILITY_CD.grenade)}s cooldown`, color: el.color }; }
   if (kind === 'class') { const c = CLASS_ABILITIES[cls.id][id]; return { kind, id, name: c.name, desc: c.desc, meta: `Class ability  ·  ${Math.round(c.cd * ABILITY_CD.class)}s cooldown`, color: '#e9eef5' }; }
   if (kind === 'aspect') { const a = ASPECTS[id], lv = aspectLevel(id); return { kind, id, name: a.name, desc: a.desc, meta: `Aspect  ·  ${a.slots} fragment slot${a.slots > 1 ? 's' : ''}`, color: el.color, locked: L < lv ? lv : 0 }; }
@@ -866,12 +868,12 @@ function openSubclass() {
   const slots = fragmentSlots(lo.aspects);
   const ab = cls.abilities;
   const fixed = {
-    super: { kind: 'super', name: ab.super.name, desc: ab.super.desc, meta: `Super  ·  ${ab.super.camera === 'third' ? 'third person' : 'first person'}`, color: el.color, icon: abilityIcon('super', ab.super.id, el.color) },
     melee: { kind: 'melee', name: ab.melee.name, desc: ab.melee.desc, meta: `Melee  ·  ${ab.melee.cd}s cooldown`, color: el.color, icon: abilityIcon('melee', ab.melee.id, el.color) },
-    jump: { kind: 'jump', name: cls.jumpName, desc: 'Your class jump. Jump variants arrive in a later update.', meta: 'Jump', color: '#e9eef5', icon: abilityIcon('jump', cls.jump, '#e9eef5') },
   };
   const entries = {}; // slot -> entry (with icon)
   const withIcon = (e, frame) => ({ ...e, icon: abilityIcon(frame, e.id, e.color) });
+  entries.super = withIcon(spEntry('super', lo.super, ctx), 'super');
+  entries.jump = withIcon(spEntry('jump', lo.jump, ctx), 'jump');
   entries.grenade = withIcon(spEntry('grenade', lo.grenade, ctx), 'grenade');
   entries.class = withIcon(spEntry('class', lo.class, ctx), 'class');
   if (ab.class.id === 'ward') entries.class = { ...entries.class, name: ab.class.name, desc: `${ab.class.desc} (Bastion replaces your barricade.)` };
@@ -884,9 +886,9 @@ function openSubclass() {
   // options for the open slot
   let opts = '';
   if (spSlot) {
-    const kind = spSlot === 'grenade' ? 'grenade' : spSlot === 'class' ? 'class' : spSlot.startsWith('aspect') ? 'aspect' : 'fragment';
+    const kind = ['super', 'jump', 'grenade', 'class'].includes(spSlot) ? spSlot : spSlot.startsWith('aspect') ? 'aspect' : 'fragment';
     const frame = kind === 'fragment' ? 'fragment' : kind;
-    const ids = kind === 'grenade' ? grenadesFor(cls.element) : kind === 'class' ? classAbilitiesFor(s.classId) : kind === 'aspect' ? aspectsFor(s.classId, cls.subclassId) : fragmentsFor(cls.element);
+    const ids = kind === 'super' ? supersFor(s.classId, cls.subclassId) : kind === 'jump' ? jumpsFor(s.classId, cls.subclassId) : kind === 'grenade' ? grenadesFor(cls.element) : kind === 'class' ? classAbilitiesFor(s.classId) : kind === 'aspect' ? aspectsFor(s.classId, cls.subclassId) : fragmentsFor(cls.element);
     const current = entries[spSlot]?.id;
     const used = new Set(kind === 'aspect' ? lo.aspects : kind === 'fragment' ? lo.fragments : []);
     const removable = kind === 'aspect' || kind === 'fragment';
@@ -907,9 +909,9 @@ function openSubclass() {
     <div class="sp-body" style="--ec:${el.color}">
       <div class="sp-main">
         <div class="sp-sec"><div class="sp-sec-t">Abilities</div><div class="sp-slots">
-          ${slotBtn('super', 'super', fixed.super, 'Super', { ro: true })}
+          ${slotBtn('super', 'super', entries.super, 'Super')}
           ${slotBtn('class', 'class', entries.class, 'Class ability')}
-          ${slotBtn('jump', 'jump', fixed.jump, 'Jump', { ro: true })}
+          ${slotBtn('jump', 'jump', entries.jump, 'Jump')}
           ${slotBtn('melee', 'melee', fixed.melee, 'Melee', { ro: true })}
           ${slotBtn('grenade', 'grenade', entries.grenade, 'Grenade')}
         </div></div>
@@ -922,7 +924,7 @@ function openSubclass() {
         ${spSlot ? `<div class="sp-opts" aria-label="Options">${opts}</div>` : ''}
         ${cls.passive ? `<div class="abil-row sp-trait"><kbd>★</kbd><div><b>Subclass trait</b><span>${cls.passive}</span></div></div>` : ''}
       </div>
-      <aside class="sp-detail" id="sp-detail">${spDetailHTML(spSlot ? entries[spSlot] ?? null : fixed.super)}</aside>
+      <aside class="sp-detail" id="sp-detail">${spDetailHTML(spSlot ? entries[spSlot] ?? null : entries.super)}</aside>
     </div>
     <details class="sp-controls"><summary>All controls</summary>${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</details>
     <div class="row-btns">
@@ -932,7 +934,7 @@ function openSubclass() {
   const detail = $('#sp-detail', p);
   const slotEntry = (slot) => entries[slot] ?? fixed[slot] ?? null;
   const show = (e) => { detail.innerHTML = spDetailHTML(e); };
-  const restore = () => show(spSlot ? slotEntry(spSlot) : fixed.super);
+  const restore = () => show(spSlot ? slotEntry(spSlot) : entries.super);
   $$('.sp-slot', p).forEach((b) => {
     const slot = b.dataset.slot;
     b.addEventListener('mouseenter', () => show(slotEntry(slot)));
@@ -953,8 +955,7 @@ function openSubclass() {
       if (b.getAttribute('aria-disabled')) { sfx.denied(); return; }
       const i = +(spSlot.match(/\d+$/)?.[0] ?? 0);
       let patch;
-      if (kind === 'grenade') patch = { grenade: id };
-      else if (kind === 'class') patch = { class: id };
+      if (kind === 'grenade' || kind === 'class' || kind === 'super' || kind === 'jump') patch = { [kind]: id };
       else {
         const key = kind === 'aspect' ? 'aspects' : 'fragments';
         const arr = [...lo[key]];

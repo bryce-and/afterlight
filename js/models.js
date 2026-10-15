@@ -443,6 +443,30 @@ export function buildSuperModel(type) {
     B(0.05, 0.12, 0.05, 0, 0, -0.15, mat(0x2a2030));
     return finish(g, { muzzleF: 0.45, muzzleY: 0, S: 0.05, hip: [0.18, -0.18, -0.42], ads: 0.42, flash: 0xb07cff });
   }
+  if (type === 'gathering' || type === 'stormsedge') {
+    // Gathering Storm staff / Storm's Edge dagger held point-forward
+    const glow = mat(0x5fd3ff, { emissive: 0x5fd3ff, emissiveIntensity: 2.6 });
+    const len = type === 'gathering' ? 0.8 : 0.32;
+    B(0.016, 0.016, len, 0, 0.02, len / 2 + 0.05, type === 'gathering' ? mat(0x39404c) : glow);
+    const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), glow);
+    tip.position.set(0, 0.02, -(len + 0.08)); tip.scale.z = 2.5; g.add(tip);
+    B(0.07, 0.06, 0.08, 0.02, -0.03, 0.12, mat(0x24272c));
+    return finish(g, { muzzleF: len, muzzleY: 0.02, S: 0.05, hip: [0.2, -0.22, -0.4], ads: 0.42, flash: 0x5fd3ff });
+  }
+  if (type === 'bladebarrage') {
+    // a fan of solar knives between the fingers
+    const glow = mat(0xffb547, { emissive: 0xff8b2b, emissiveIntensity: 2 });
+    for (let i = 0; i < 4; i++) B(0.012, 0.004, 0.16, -0.04 + i * 0.028, 0.03 + Math.abs(i - 1.5) * -0.01, 0.16 - Math.abs(i - 1.5) * 0.02, glow);
+    B(0.09, 0.07, 0.1, 0, -0.02, 0.06, mat(0x2a2d33));
+    return finish(g, { muzzleF: 0.2, muzzleY: 0.03, S: 0.05, hip: [0.2, -0.2, -0.4], ads: 0.42, flash: 0xffb547 });
+  }
+  if (type === 'well') {
+    // Well of Radiance: a solar sword held point-down, ready to plant
+    const glow = mat(0xffd27a, { emissive: 0xffb547, emissiveIntensity: 2.4 });
+    B(0.03, 0.6, 0.008, 0, -0.18, 0.2, glow);
+    B(0.14, 0.02, 0.03, 0, 0.13, 0.2, mat(0x5a3a22));
+    return finish(g, { muzzleF: 0.2, muzzleY: -0.4, S: 0.05, hip: [0.18, -0.12, -0.42], ads: 0.42, flash: 0xffb547 });
+  }
   if (type === 'stormtrance') {
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 1), new THREE.MeshBasicMaterial({ color: 0xe0f6ff }));
     const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 0), new THREE.MeshBasicMaterial({ color: 0x5fd3ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));

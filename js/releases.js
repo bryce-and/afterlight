@@ -4,6 +4,20 @@
 
 export const RELEASES = [
   {
+    version: '1.8', name: 'Light Ascendant', date: '2026-10-15', accent: '#ffd27a', glyph: '✧',
+    summary: 'Every Light subclass grows up. Twelve new supers to choose from, a fourth aspect for every subclass, eight fragments per element, and new ways to jump, including Blink.',
+    notes: [
+      'Choose your super on the subclass screen. Titan: Burning Maul, Thundercrash, Ward of Dawn and Twilight Arsenal. Hunter: Blade Barrage, Spectral Blades, Gathering Storm and Storm\'s Edge. Warlock: Well of Radiance, Nova Warp, Chaos Reach and Daybreak',
+      'New supers unlock on the reward track at levels 14, 17, 23 and 26. Your original supers stay available',
+      'Ward of Dawn and Well of Radiance protect the whole fireteam, and anyone can pick up a Twilight Arsenal axe and throw it',
+      'A fourth aspect for every subclass: Tempered Metal, Aftershocks, Unbreakable, Crackshot, On the Prowl, Fast Twitch, Angel of Light, Ionic Sentry and Hellion',
+      'Ten new fragments, eight per element. Solar: Searing, Combustion, Benevolence, Tempering. Arc: Resistance, Discharge, Magnitude. Void: Remnants, Obscurity, Leeching',
+      'New class jumps: High Lift and Strafe Lift for Titans, High Jump and Strafe Jump for Hunters, Balanced Glide and Strafe Glide for Warlocks. Arcstriders and Voidwalkers can Blink',
+      'Your loadouts carry over: every subclass keeps its super and jump until you change them',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="laBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1020"/><stop offset="0.6" stop-color="#121a2c"/><stop offset="1" stop-color="#2a1d14"/></linearGradient><radialGradient id="laSun" cx="0.5" cy="0.42" r="0.5"><stop offset="0" stop-color="#fff4d6" stop-opacity="0.95"/><stop offset="0.25" stop-color="#ffd27a" stop-opacity="0.55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#laBg)"/><g stroke-linecap="round" stroke-width="2" fill="none" stroke-opacity="0.55"><path d="M160 76L40 4" stroke="#ff8b2b"/><path d="M160 76L100 -6" stroke="#ffb547"/><path d="M160 76L220 -6" stroke="#5fd3ff"/><path d="M160 76L280 4" stroke="#b07cff"/><path d="M160 76L10 70" stroke="#ff8b2b"/><path d="M160 76L310 70" stroke="#b07cff"/></g><rect width="320" height="180" fill="url(#laSun)"/><g fill="none" stroke-width="3" stroke-linecap="round"><path d="M76 96C96 54 132 40 160 40" stroke="#ff8b2b"/><path d="M244 96C224 54 188 40 160 40" stroke="#b07cff"/><path d="M110 112C126 82 142 72 160 72C178 72 194 82 210 112" stroke="#5fd3ff"/></g><g stroke="#0a0d12" stroke-width="1.5"><path d="M160 58l9 12-4 10h-10l-4-10z" fill="#e9eef5"/><path d="M151 82h18l6 30-6 22h-18l-6-22z" fill="#cfd6e2"/><path d="M151 86l-26-10 6 14 20 8zM169 86l26-10-6 14-20 8z" fill="#ffd27a"/><path d="M154 134l-4 26h8l2-24zM166 134l4 26h-8l-2-24z" fill="#9aa3b2"/></g><path d="M156 67h8" stroke="#ffb547" stroke-width="2.5"/><ellipse cx="160" cy="166" rx="70" ry="7" fill="#ffd27a" fill-opacity="0.25" stroke="#ffd27a" stroke-opacity="0.6"/><g fill="#ffffff" fill-opacity="0.85"><circle cx="30" cy="30" r="1.4"/><circle cx="292" cy="40" r="1.2"/><circle cx="270" cy="140" r="1.4"/><circle cx="46" cy="132" r="1.2"/><circle cx="210" cy="24" r="1"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+  },
+  {
     version: '1.7', name: 'Exotic Hunt', date: '2026-10-14', accent: '#f4c542', glyph: '⬢',
     summary: 'Twelve new exotics, and no more chasing the same drop twice. Abilities hit hard and come back slower, so your guns matter again.',
     notes: [

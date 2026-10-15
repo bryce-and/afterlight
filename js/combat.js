@@ -46,6 +46,25 @@ export const SUPER_POWER = 2.0;
 
 // ---------- Song of Flame ----------
 export const SONG = { duration: 10, abilityRegen: 4 }; // v1.1: 12 s, 8x
+// How long each super lasts (seconds). Burst supers are short: the cast, then their effects play out.
+export const SUPER_TIME = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: SONG.duration,
+  maul: 15, thundercrash: 3.2, wardofdawn: 0.8, twilight: 6, bladebarrage: 1.2, spectral: 12, gathering: 1.6, stormsedge: 6, well: 1.0, novawarp: 10, chaosreach: 4.5, daybreak: 12 };
+// Light Ascendant supers (base numbers before superDmg scaling). Tuned so a full cast deals about what
+// the subclass's original super does: roughly 2,500 to 3,000 to one target, more spread over a crowd.
+export const SUPER_TUNE = {
+  maul: { swing: 300, swingR: 3.2, swingCd: 0.5, slam: 480, slamR: 5, slamCd: 1.4, tornado: 70, burn: 20 },
+  thundercrash: { speed: 30, r: 8, dmg: 3000 },
+  ward: { r: 7, life: 14, wol: 1.25 },
+  twilight: { dmg: 800, r: 4.5, pickup: 500, life: 10 },
+  blades: { n: 5, knock: 1, r: 2.5, dmg: 300 },
+  spectral: { hit: 260, fin: 460, leap: 500, leapR: 4.5, leapCd: 1.4 },
+  gathering: { dmg: 2600, tick: 45, r: 7, field: 5, fieldR: 5 },
+  stormsedge: { range: 18, r: 5, dmg: 900 },
+  well: { r: 6, life: 15, blast: 500, heal: 30, cut: 0.75, dmg: 1.25 },
+  novawarp: { chargeT: 1, r0: 3.5, r1: 7, dmg0: 350, dmg1: 900, warp: 6 },
+  chaos: { range: 45, dmg: 60, refund: 45 },
+  daybreak: { r: 3, dmg: 340, burn: 20 },
+};
 
 // ---------- weapon damage ----------
 // Enemy health grows 10% per mission tier. Weapons keep 75% of that pace so late missions

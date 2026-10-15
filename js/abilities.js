@@ -2,12 +2,12 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { ELEMENTS } from './data.js';
 import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, ringFx, lightning, beam, explosionFx, ember } from './effects.js';
-import { dealDamage, enemiesNear, addTicker } from './game.js';
+import { dealDamage, enemiesNear, addTicker, explode } from './game.js';
 import { sendFx, remotes } from './coop.js';
 import { net } from './net.js';
-import { STORM_GRENADE, ARC_SOUL, NOVA_FIELD } from './combat.js';
+import { STORM_GRENADE, ARC_SOUL, NOVA_FIELD, SUPER_TUNE } from './combat.js';
 import { ORB } from './armor.js';
-import { SUNSPOT, HEAL_ORB } from './subclass.js';
+import { SUNSPOT, HEAL_ORB, ASPECT_TUNE } from './subclass.js';
 import { sfx } from './audio.js';
 import * as ui from './ui.js';
 
@@ -19,7 +19,7 @@ import * as ui from './ui.js';
 const V = (a) => (a instanceof THREE.Vector3 ? a.clone() : new THREE.Vector3(a[0], a[1], a[2]));
 const arr = (v) => [Math.round(v.x * 100) / 100, Math.round(v.y * 100) / 100, Math.round(v.z * 100) / 100];
 const hex = (el) => ELEMENTS[el]?.hex ?? 0xffffff;
-const orbs = new Map(); // live Orbs of Power by id, so a claim on one screen removes them everywhere
+const orbs = new Map(); // live Orbs of Power (and Twilight Arsenal axes) by id, so a claim on one screen removes them everywhere
 
 /** Run an ability effect locally and tell the fireteam about it. */
 export function castFx(kind, o) {
@@ -95,7 +95,7 @@ export function abilityFx(kind, o, local) {
       const zone = zoneMesh(p, R, col, true);
       shockwave(p.clone().setY(0.05), R, col, 0.7);
       flare(p, 0xe6d0ff, 2.5, 0.3);
-      let life = o.big ? 5.5 : 4, tick = 0;
+      let life = (o.big ? 5.5 : 4) * (o.linger || 1), tick = 0; // Echo of Remnants: linger
       addTicker({
         update(dt) {
           life -= dt; tick -= dt;
@@ -146,7 +146,7 @@ export function abilityFx(kind, o, local) {
     }
     case 'snare': { // Snare Bomb: a cloud of void smoke that slows and weakens
       const p = V(o.p), col = hex('void');
-      let delay = 0.5, life = 4.5, tick = 0;
+      let delay = 0.5, life = 4.5 * (o.linger || 1), tick = 0; // Echo of Remnants: linger
       flare(p, col, 1, 0.2);
       addTicker({
         update(dt) {
@@ -309,13 +309,15 @@ export function abilityFx(kind, o, local) {
       dome.position.set(p.x, 0, p.z); wire.position.copy(dome.position);
       G.scene.add(dome, wire);
       shockwave(p.clone().setY(0.05), r, col, 0.6);
-      let life = 8, pulse = 0;
+      let life = o.life || 8, pulse = 0;
       addTicker({
         ward: { p: new THREE.Vector3(p.x, 0, p.z), r2: r * r },
         update(dt) {
           life -= dt; pulse -= dt; wire.rotation.y += dt * 0.3;
           dome.material.opacity = 0.12 + 0.05 * Math.sin(G.time * 4);
           const P = G.player;
+          // Ward of Dawn: Weapons of Light for every Guardian inside (on their own screen)
+          if (o.wol && P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r) P.status.apply('wol', { t: 0.3 });
           if (pulse <= 0) {
             pulse = 1;
             if (P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r) P.addOvershield(25, 3);
@@ -332,6 +334,117 @@ export function abilityFx(kind, o, local) {
       ringFx(p.clone().setY(0.1), 3, hex('solar'), 0.5);
       const P = G.player;
       if (!local && P && !P.dead && P.pos.distanceTo(p) < o.r) { P.status.apply('empower', { t: 2.2 }); P.restore(2.2); }
+      break;
+    }
+    case 'blink': { // Blink, Nova Warp, Storm's Edge: a streak between the two points
+      const a = V(o.a), b = V(o.b), col = hex(o.el);
+      afterimage(a, col, 0.5);
+      beam(a, b, col, 0.05, 0.25);
+      glowBurst(b, col, 12, 4, 0.08, 0.4, 0, 0.5);
+      break;
+    }
+    case 'tornado': { // Burning Maul: a solar tornado that rolls forward and burns what it touches
+      const p = V(o.p), d = V(o.d), col = hex('solar');
+      const tw = new THREE.Mesh(new THREE.ConeGeometry(1.1, 3.2, 10, 1, true).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      tw.position.copy(p).setY(1.6);
+      G.scene.add(tw);
+      let life = 2.4, tick = 0;
+      addTicker({
+        update(dt) {
+          life -= dt; tick -= dt;
+          tw.position.addScaledVector(d, dt * 5);
+          tw.rotation.y += dt * 12;
+          if (Math.random() < 0.8) ember(tw.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 1.5)), Math.random() < 0.5 ? col : 0xffd27a, 0.08, 1.2, 0.5);
+          if (local && tick <= 0) { tick = 0.3; for (const e of enemiesNear(tw.position.clone().setY(1), 2.2)) dealDamage(e, o.dmg, { element: 'solar', source: 'super', burn: 1 }); }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(tw); },
+      });
+      break;
+    }
+    case 'voidaxe': { // Twilight Arsenal: an axe that waits where it landed; the first Guardian to touch it can throw it (F)
+      const p = V(o.p), col = hex('void');
+      const axe = new THREE.Group();
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.06), new THREE.MeshBasicMaterial({ color: col }));
+      head.position.y = 0.5;
+      const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 5), new THREE.MeshBasicMaterial({ color: 0xe6d0ff }));
+      axe.add(head, haft);
+      axe.position.copy(p).setY(p.y + 0.6);
+      G.scene.add(axe);
+      const rec = { dead: false };
+      orbs.set(o.id, rec);
+      let life = SUPER_TUNE.twilight.life;
+      addTicker({
+        update(dt) {
+          life -= dt; axe.rotation.y += dt * 2;
+          if (Math.random() < 0.3) ember(axe.position.clone(), col, 0.06, 0.6, 0.5);
+          const P = G.player;
+          if (!rec.dead && P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 1.5 && Math.abs(P.pos.y - p.y) < 2.2) {
+            rec.dead = true;
+            P.status.apply('voidaxe', { set: true });
+            sfx.pickupAmmo();
+            castFx('orbc', { id: o.id });
+          }
+          return life > 0 && !rec.dead;
+        },
+        dispose() { G.scene?.remove(axe); orbs.delete(o.id); },
+      });
+      break;
+    }
+    case 'gatherstorm': { // Gathering Storm: the staff sticks, lightning strikes it, then it jolts enemies around it
+      const p = V(o.p), col = hex('arc'), T = SUPER_TUNE.gathering;
+      const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2, 6), new THREE.MeshBasicMaterial({ color: 0xe0f6ff }));
+      staff.position.copy(p).setY(p.y + 1);
+      G.scene.add(staff);
+      let delay = 1, life = T.field, tick = 0, fx = 0;
+      addTicker({
+        update(dt) {
+          if (delay > 0) {
+            delay -= dt;
+            if (Math.random() < 0.6) lightning(staff.position.clone().setY(p.y + 2), staff.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 3, -1, (Math.random() - 0.5) * 3)), col, 0.03);
+            if (delay <= 0) {
+              lightning(p.clone().setY(40), p.clone().setY(p.y + 1), 0xffffff, 0.25);
+              lightning(p.clone().setY(40).add(new THREE.Vector3(1, 0, 0)), p.clone().setY(p.y + 1), col, 0.15);
+              shockwave(p.clone().setY(p.y + 0.05), T.r, col, 0.8);
+              pillar(p, 1.2, 30, 0xe0f6ff, 0.5, 0.4);
+              if (local) explode(p.clone().setY(p.y + 1), T.r, o.dmg, 'arc', { source: 'super', debuffs: { jolt: 4 } });
+              sfx.explosion(8);
+            }
+            return true;
+          }
+          life -= dt; tick -= dt; fx -= dt;
+          if (fx <= 0) { fx = 0.2; for (const e of enemiesNear(staff.position, T.fieldR).slice(0, 4)) lightning(staff.position, e.center(new THREE.Vector3()), col, 0.04); }
+          if (local && tick <= 0) { tick = 0.5; for (const e of enemiesNear(staff.position, T.fieldR)) dealDamage(e, o.tick, { element: 'arc', source: 'super', jolt: 2 }); }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(staff); },
+      });
+      break;
+    }
+    case 'well': { // Well of Radiance: Guardians inside heal, take less damage and deal more weapon damage (on their own screens)
+      const p = V(o.p), r = o.r, col = hex('solar');
+      const zone = zoneMesh(p, r, col);
+      const sword = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.8, 0.04), new THREE.MeshBasicMaterial({ color: 0xfff1c9 }));
+      sword.position.copy(p).setY(p.y + 0.9);
+      G.scene.add(sword);
+      shockwave(p.clone().setY(0.05), r, col, 0.8);
+      pillar(p, 0.4, 10, 0xffe0a0, 1.0, 0.5);
+      let life = o.life, pulse = 0;
+      addTicker({
+        update(dt) {
+          life -= dt; pulse -= dt; zone.rotation.y += dt * 0.6;
+          if (pulse <= 0) { pulse = 1; ringFx(p, r, col, 0.8); }
+          if (Math.random() < 0.6) ember(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * r * 1.6, 0.2, (Math.random() - 0.5) * r * 1.6)), Math.random() < 0.5 ? col : 0xffffff, 0.06, 1.5, 1);
+          const P = G.player;
+          if (P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r && Math.abs(P.pos.y - p.y) < 3) {
+            P.status.apply('well', { t: 0.3 });
+            P.heal(SUPER_TUNE.well.heal * dt);
+          }
+          return life > 0;
+        },
+        dispose() { G.scene?.remove(zone, sword); },
+      });
+      sfx.heal();
       break;
     }
     case 'airburst': { // Burst Glide / Triple Jump
@@ -366,7 +479,8 @@ export function abilityFx(kind, o, local) {
       break;
     }
     case 'companion': { // Child of the Old Gods (drains + weakens, heals the caster) / Arc Soul (lightning)
-      const child = o.kind === 'child', col = hex(child ? 'void' : 'arc');
+      const child = o.kind === 'child', hell = o.kind === 'hellion', sentry = o.kind === 'sentry';
+      const el = child ? 'void' : hell ? 'solar' : 'arc', col = hex(el);
       const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(child ? 0.32 : 0.24, 1), new THREE.MeshBasicMaterial({ color: col }));
       const halo = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.5, 20), new THREE.MeshBasicMaterial({ color: child ? 0xe6d0ff : 0xe0f6ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
       orb.add(halo);
@@ -380,19 +494,19 @@ export function abilityFx(kind, o, local) {
           life -= dt; tick -= dt;
           // follows the caster on every screen (teammates track the caster's avatar); parks where it was summoned while they're down
           const caster = local ? G.player : remotes.get(o.by);
-          const anchor = caster && !caster.dead ? caster.pos : home;
+          const anchor = caster && !caster.dead && !o.fixed ? caster.pos : home; // Hellion and Ionic Sentry stay where they were summoned
           at.set(anchor.x + Math.cos(G.time * 1.3) * 1.1, anchor.y + 2.3 + Math.sin(G.time * 3) * 0.15, anchor.z + Math.sin(G.time * 1.3) * 1.1);
           orb.position.lerp(at, Math.min(1, dt * 5));
           halo.rotation.y += dt * 3; orb.rotation.x += dt;
           if (tick <= 0) {
-            tick = child ? 0.5 : ARC_SOUL.tick;
-            const tgt = enemiesNear(orb.position, 14, 1)[0];
-            if (tgt) {
+            const A = hell ? ASPECT_TUNE.hellion : sentry ? ASPECT_TUNE.ionicsentry : null;
+            tick = child ? 0.5 : A ? A.tick : ARC_SOUL.tick;
+            for (const tgt of enemiesNear(orb.position, 14, sentry ? A.n : 1)) {
               const c = tgt.center(new THREE.Vector3());
-              if (child) beam(orb.position, c, col, 0.05, 0.2); else lightning(orb.position, c, col, 0.04);
+              if (child || hell) beam(orb.position, c, col, 0.05, 0.2); else lightning(orb.position, c, col, 0.04);
               flare(c, col, 0.6, 0.15);
               if (local) {
-                dealDamage(tgt, child ? 24 : ARC_SOUL.dmg, { element: child ? 'void' : 'arc', source: 'ability', pos: c, weaken: child ? 1 : 0, companion: true });
+                dealDamage(tgt, child ? 24 : A ? A.dmg : ARC_SOUL.dmg, { element: el, source: 'ability', pos: c, weaken: child ? 1 : 0, burn: hell ? 1.5 : 0, jolt: sentry ? 3 : 0, companion: true });
                 if (child) G.player.heal(5);
               }
             }

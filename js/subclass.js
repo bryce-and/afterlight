@@ -47,10 +47,16 @@ export const ASPECTS = {
   bastion: { cls: 'vanguard', sub: 'sentinel', name: 'Bastion', slots: 1, cd: { class: 1.3 }, classAs: { id: 'ward', name: 'Bastion Ward', desc: 'Raise a dome for 8s that destroys enemy shots and refreshes the overshield of everyone inside.' }, desc: 'Your Barricade becomes a Bastion Ward: a dome that destroys enemy shots and refreshes overshields inside.' },
   demolition: { cls: 'vanguard', sub: 'sentinel', name: 'Controlled Demolition', slots: 2, desc: 'Weakened or suppressed enemies you defeat explode in void energy, and you heal.' },
   bulwark: { cls: 'vanguard', sub: 'sentinel', name: 'Offensive Bulwark', slots: 1, unlockLevel: 13, desc: 'While your overshield is up, grenades recharge 50% faster and powered melees hit 50% harder.' },
+  tempered: { cls: 'vanguard', sub: 'sunbreaker', name: 'Tempered Metal', slots: 2, desc: 'Solar ability kills temper your armor for 6s: you move 15% faster and reload 25% faster.' },
+  aftershocks: { cls: 'vanguard', sub: 'striker', name: 'Aftershocks', slots: 2, desc: 'Hits with your Arc abilities and super recharge your grenade and melee by 4% (at most every quarter second).' },
+  unbreakable: { cls: 'vanguard', sub: 'sentinel', name: 'Unbreakable', slots: 1, desc: 'Your grenade becomes a void shield: Q raises it for 2s (90% less damage), then it explodes and weakens enemies around you.' },
   // Hunter
   knockemdown: { cls: 'stalker', sub: 'gunslinger', name: "Knock 'Em Down", slots: 1, desc: 'Golden Gun gains 2 shots, each dealing 15% less damage. Dodging refunds half of your melee.' },
   gunpowder: { cls: 'stalker', sub: 'gunslinger', name: 'Gunpowder Gamble', slots: 2, desc: 'Five kills charge an explosive. While your grenade is recharging, Q throws it instead.' },
   onyourmark: { cls: 'stalker', sub: 'gunslinger', name: 'On Your Mark', slots: 1, desc: 'Dodging grants a stack of On Your Mark: reload 15% faster per stack, up to 3, for 6s.' },
+  crackshot: { cls: 'stalker', sub: 'gunslinger', name: 'Crackshot', slots: 1, desc: 'Dodging fires three scorching shots at the nearest enemies in front of you. If all three land, you heal.' },
+  prowl: { cls: 'stalker', sub: 'nightstalker', name: 'On the Prowl', slots: 1, desc: 'While invisible you move 15% faster and your melee recharges 50% faster. Your first weapon hit out of invisibility weakens the target.' },
+  fasttwitch: { cls: 'stalker', sub: 'arcstrider', name: 'Fast Twitch', slots: 2, desc: 'Powered melee kills fully recharge your dodge and make you Amplified for 4s.' },
   vanishing: { cls: 'stalker', sub: 'nightstalker', name: 'Vanishing Step', slots: 1, cd: { class: 1.2 }, desc: 'Dodging turns you invisible for 4s. Enemies lose track of you.' },
   executioner: { cls: 'stalker', sub: 'nightstalker', name: 'Stylish Executioner', slots: 2, desc: 'Defeating a weakened enemy turns you invisible for 3s and heals you.' },
   trapper: { cls: 'stalker', sub: 'nightstalker', name: "Trapper's Ambush", slots: 1, desc: 'Dodging leaves a cloud of void smoke that slows and weakens enemies.' },
@@ -60,13 +66,34 @@ export const ASPECTS = {
   // Warlock
   feedvoid: { cls: 'arcanist', sub: 'voidwalker', name: 'Feed the Void', slots: 2, desc: 'Ability kills grant Devour for 8s: every kill fully heals you and extends Devour.' },
   chaos: { cls: 'arcanist', sub: 'voidwalker', name: 'Chaos Accelerant', slots: 1, desc: 'Void grenades are overcharged: Vortex is bigger and lasts longer, Axion fires 3 bolts, Suppressor reaches farther.' },
+  angel: { cls: 'arcanist', sub: 'voidwalker', name: 'Angel of Light', slots: 2, desc: 'Aim down sights in the air to hover for up to 3s. Weapon kills while hovering give 10% grenade energy.' },
   childgods: { cls: 'arcanist', sub: 'voidwalker', name: 'Child of the Old Gods', slots: 1, desc: 'Your rift summons a Child of the Old Gods for 8s. It drains the nearest enemy, weakening it and healing you.' },
   electrostatic: { cls: 'arcanist', sub: 'stormcaller', name: 'Electrostatic Mind', slots: 1, desc: 'Arc ability kills release an Ionic Trace that returns to you and recharges every ability by 8% (at most one trace every half second; not from jolt chains).' },
   arcsoul: { cls: 'arcanist', sub: 'stormcaller', name: 'Arc Soul', slots: 1, desc: 'Your rift summons an Arc Soul for 10s that fires lightning at nearby enemies.' },
   surge: { cls: 'arcanist', sub: 'stormcaller', name: 'Lightning Surge', slots: 2, unlockLevel: 19, desc: 'Powered melee while sprinting surges you forward and calls lightning down along your path.' },
+  ionicsentry: { cls: 'arcanist', sub: 'stormcaller', name: 'Ionic Sentry', slots: 1, desc: 'Every third Ionic Trace or Arc ability kill deploys an Ionic Sentry at your feet for 8s. It zaps up to 3 enemies and jolts them.' },
   touchflame: { cls: 'arcanist', sub: 'dawnblade', name: 'Touch of Flame', slots: 1, desc: 'Solar grenades are upgraded: Solar Grenade pulses 8 times and scorches, Swarm fires 6 seekers, Healing leaves a stronger orb.' },
   heatrises: { cls: 'arcanist', sub: 'dawnblade', name: 'Heat Rises', slots: 2, desc: 'While airborne your grenade and melee recharge 50% faster, and kills in the air grant Restoration.' },
   phoenix: { cls: 'arcanist', sub: 'dawnblade', name: 'Phoenix Dive', slots: 1, desc: 'In the air, C dives to the ground in a solar burst on its own 16s timer. Always heals you and grants Restoration.' },
+  hellion: { cls: 'arcanist', sub: 'dawnblade', name: 'Hellion', slots: 2, desc: 'Your rift also summons a Hellion for 8s: a solar turret that fires scorching bolts at nearby enemies.' },
+};
+
+// Tuning for the Light Ascendant aspects and fragments.
+export const ASPECT_TUNE = {
+  tempered: { t: 6, speed: 1.15, reload: 0.75 },
+  aftershocks: { refund: 0.04, gap: 0.25 },
+  unbreakable: { t: 2, cut: 0.1, r: 6, dmg: 260 },
+  crackshot: { shots: 3, dmg: 90, range: 25, heal: 30 },
+  prowl: { speed: 1.15, melee: 1.5 },
+  fasttwitch: { amplified: 4 },
+  angel: { hover: 3, refund: 0.1 },
+  ionicsentry: { every: 3, life: 8, tick: 0.8, dmg: 30, n: 3 },
+  hellion: { life: 8, tick: 0.9, dmg: 40 },
+};
+export const FRAGMENT_TUNE = {
+  searing: 0.1, combustion: { r: 4, dmg: 180 }, benevolence: 1.3, tempering: 2,
+  resistance: { n: 3, r: 8, cut: 0.8 }, discharge: 0.3, magnitude: { pulses: 2, storm: 1, flux: 2 },
+  remnants: 1.5, obscurity: 3, leeching: 60,
 };
 
 export const PHOENIX_DIVE_CD = 16;
@@ -94,11 +121,18 @@ export const FRAGMENTS = {
   ashes: { element: 'solar', name: 'Ember of Ashes', desc: 'Your scorch burns 50% longer.' },
   singeing: { element: 'solar', name: 'Ember of Singeing', desc: 'Solar ability kills take 2s off your class ability cooldown.' },
   empyrean: { element: 'solar', name: 'Ember of Empyrean', desc: 'Solar ability kills extend your Restoration and Radiant by 2s.' },
+  searing: { element: 'solar', name: 'Ember of Searing', desc: 'Defeating a scorched enemy gives you 10% melee energy.' },
+  combustion: { element: 'solar', name: 'Ember of Combustion', desc: 'Powered melee kills make the target ignite in a solar blast.' },
+  benevolence: { element: 'solar', name: 'Ember of Benevolence', desc: 'While you have Restoration, your grenade, melee and class ability recharge 30% faster.' },
+  tempering: { element: 'solar', name: 'Ember of Tempering', desc: 'Solar weapon kills grant 2s of Restoration.' },
   // Arc: Sparks
   recharge: { element: 'arc', name: 'Spark of Recharge', desc: 'Below half health, your grenade and melee recharge 50% faster.' },
   shock: { element: 'arc', name: 'Spark of Shock', desc: 'Arc grenades jolt the enemies they hit.' },
   frequency: { element: 'arc', name: 'Spark of Frequency', desc: 'Powered melee hits make you reload 40% faster for 5s.' },
   momentum: { element: 'arc', name: 'Spark of Momentum', desc: 'While sprinting, your grenade and melee recharge 20% faster.' },
+  resistance: { element: 'arc', name: 'Spark of Resistance', desc: 'With 3 or more enemies within 8 m, you take 20% less damage.' },
+  discharge: { element: 'arc', name: 'Spark of Discharge', desc: 'Arc weapon kills have a 30% chance to release an Ionic Trace that recharges every ability by 5%.' },
+  magnitude: { element: 'arc', name: 'Spark of Magnitude', desc: 'Your Arc grenades last longer: Pulse pulses 2 more times, Storm lasts 1s longer, Flux jolts 2 more enemies.' },
   ions: { element: 'arc', name: 'Spark of Ions', unlockLevel: 22, desc: 'Defeating a jolted enemy releases an Ionic Trace that recharges every ability by 5%.' },
   // Void: Echoes
   expulsion: { element: 'void', name: 'Echo of Expulsion', desc: 'Void ability kills make the target explode.' },
@@ -106,6 +140,53 @@ export const FRAGMENTS = {
   starvation: { element: 'void', name: 'Echo of Starvation', desc: 'Defeating a weakened enemy heals you.' },
   undermining: { element: 'void', name: 'Echo of Undermining', desc: 'Void grenades weaken the enemies they hit for 4s.' },
   instability: { element: 'void', name: 'Echo of Instability', unlockLevel: 25, desc: 'Defeating a weakened enemy grants Volatile Rounds for 6s: your weapon kills explode.' },
+  remnants: { element: 'void', name: 'Echo of Remnants', desc: 'Your lingering void effects last 50% longer: Vortex Grenades and Snare Bomb clouds.' },
+  obscurity: { element: 'void', name: 'Echo of Obscurity', desc: 'Powered melee kills turn you invisible for 3s.' },
+  leeching: { element: 'void', name: 'Echo of Leeching', desc: 'Melee kills heal you for 60.' },
+};
+
+// Light Ascendant: the Destiny 2 Light supers each subclass was missing. The subclass's original super
+// (abilities.super in data.js) stays the default; these are unlocked on the reward track.
+export const SUPERS = {
+  maul: { cls: 'vanguard', sub: 'sunbreaker', name: 'Burning Maul', camera: 'third', unlockLevel: 14, desc: 'For 15s wield a burning maul: click to swing, right-click to slam and send a solar tornado rolling forward. Take 55% less damage.' },
+  thundercrash: { cls: 'vanguard', sub: 'striker', name: 'Thundercrash', camera: 'third', unlockLevel: 17, desc: 'Launch into the air and fly where you look for up to 3s, then crash down in a massive arc blast. Click to crash early.' },
+  wardofdawn: { cls: 'vanguard', sub: 'sentinel', name: 'Ward of Dawn', camera: 'first', unlockLevel: 23, desc: 'Raise a void dome for 14s that destroys enemy shots. Guardians inside gain an overshield and Weapons of Light: +25% weapon damage.' },
+  twilight: { cls: 'vanguard', sub: 'sentinel', name: 'Twilight Arsenal', camera: 'third', unlockLevel: 26, desc: 'Throw three void axes that explode and weaken. Each axe stays where it lands for 10s; any Guardian can pick it up and throw it with F.' },
+  bladebarrage: { cls: 'stalker', sub: 'gunslinger', name: 'Blade Barrage', camera: 'first', unlockLevel: 14, desc: 'Launch a volley of explosive solar knives that seek enemies and scorch them.' },
+  spectral: { cls: 'stalker', sub: 'nightstalker', name: 'Spectral Blades', camera: 'third', unlockLevel: 17, desc: 'For 12s turn invisible and slash with void blades. Kills keep you hidden. Take 50% less damage.' },
+  gathering: { cls: 'stalker', sub: 'arcstrider', name: 'Gathering Storm', camera: 'first', unlockLevel: 23, desc: 'Throw your staff. A second later lightning strikes it in a huge arc blast, and it keeps jolting enemies around it for 5s.' },
+  stormsedge: { cls: 'stalker', sub: 'arcstrider', name: "Storm's Edge", camera: 'first', unlockLevel: 26, desc: 'Throw an arc dagger, teleport to it and slash everything around you. Throw up to three times.' },
+  well: { cls: 'arcanist', sub: 'dawnblade', name: 'Well of Radiance', camera: 'first', unlockLevel: 14, desc: 'Plant a solar sword that blasts enemies and makes a well for 15s. Guardians inside heal, take 25% less damage and gain +25% weapon damage.' },
+  novawarp: { cls: 'arcanist', sub: 'voidwalker', name: 'Nova Warp', camera: 'third', unlockLevel: 17, desc: 'For 10s: press Space to warp a short distance, click to detonate (hold to charge a bigger blast). Take 50% less damage.' },
+  chaosreach: { cls: 'arcanist', sub: 'stormcaller', name: 'Chaos Reach', camera: 'third', unlockLevel: 23, desc: 'Hold fire to channel a long arc beam that pierces and jolts. Let go early to end it and keep some of your super energy.' },
+  daybreak: { cls: 'arcanist', sub: 'dawnblade', name: 'Daybreak', camera: 'third', unlockLevel: 26, desc: 'For 12s hover on solar wings (hold Space) and hurl solar blades that explode and scorch. Take 45% less damage.' },
+};
+
+// Class jumps (Light Ascendant). The class's original jump stays the default; `sub` limits a jump to one subclass.
+export const JUMPS = {
+  vanguard: {
+    lift: { name: 'Catapult Lift', desc: 'Hold Space in the air for a strong burst of upward momentum.' },
+    highlift: { name: 'High Lift', desc: 'Hold Space in the air to rise higher than any other lift, with less control.' },
+    strafelift: { name: 'Strafe Lift', desc: 'Hold Space in the air for a gentler lift with much better air control.' },
+  },
+  stalker: {
+    double: { name: 'Triple Jump', desc: 'Press Space twice in the air: two extra jumps, the second a little lower.' },
+    highjump: { name: 'High Jump', desc: 'Press Space in the air for one much higher jump.' },
+    strafejump: { name: 'Strafe Jump', desc: 'Press Space in the air for one jump with strong air control.' },
+    blink: { name: 'Blink', sub: 'arcstrider', desc: 'Press Space in the air to teleport a short distance in the direction you move.' },
+  },
+  arcanist: {
+    glide: { name: 'Burst Glide', desc: 'Press Space in the air for an upward burst, keep holding to glide fast.' },
+    balanced: { name: 'Balanced Glide', desc: 'Press Space in the air and hold to glide with balanced speed and control.' },
+    strafeglide: { name: 'Strafe Glide', desc: 'Press Space in the air and hold to glide with the most air control.' },
+    blink: { name: 'Blink', sub: 'voidwalker', desc: 'Press Space in the air to teleport a short distance in the direction you move.' },
+  },
+};
+export const JUMP_TUNE = {
+  lift: { max: 6.5, fuel: 1.1, air: 2.5 }, highlift: { max: 8.4, fuel: 1.0, air: 1.5 }, strafelift: { max: 5.4, fuel: 1.1, air: 7 },
+  highjump: { v: 1.3, air: 2.5 }, strafejump: { v: 1.0, air: 7 },
+  glide: { burst: 9.4, speed: 1.35, fuel: 2.8, air: 2.5, steer: 3 }, balanced: { burst: 8.2, speed: 1.15, fuel: 3.2, air: 3, steer: 4.5 }, strafeglide: { burst: 7.2, speed: 1.0, fuel: 3.6, air: 4, steer: 7 },
+  blink: { dist: 7, steps: 14, lift: 1.5 },
 };
 
 export const ASPECT_SLOTS = 2;
@@ -118,6 +199,16 @@ export const grenadesFor = (element) => Object.keys(GRENADES).filter((id) => GRE
 export const classAbilitiesFor = (classId) => Object.keys(CLASS_ABILITIES[classId] || {});
 export const aspectsFor = (classId, subId) => Object.keys(ASPECTS).filter((id) => ASPECTS[id].cls === classId && ASPECTS[id].sub === subId);
 export const fragmentsFor = (element) => Object.keys(FRAGMENTS).filter((id) => FRAGMENTS[id].element === element);
+/** Super ids for a subclass: its original super first, then the Light Ascendant ones. */
+export const supersFor = (classId, subId) => [subOf(classId, subId).abilities.super.id, ...Object.keys(SUPERS).filter((id) => SUPERS[id].cls === classId && SUPERS[id].sub === subId)];
+/** Full super definition (the original lives on the subclass in data.js). */
+export function superDef(classId, subId, id) {
+  const orig = subOf(classId, subId).abilities.super;
+  return id === orig.id ? orig : SUPERS[id] ? { id, ...SUPERS[id] } : null;
+}
+export const superLevel = (classId, subId, id) => Math.max(subOf(classId, subId)?.unlockLevel ?? 1, SUPERS[id]?.unlockLevel ?? 1);
+/** Jump ids a subclass can use. */
+export const jumpsFor = (classId, subId) => Object.keys(JUMPS[classId] || {}).filter((id) => !JUMPS[classId][id].sub || JUMPS[classId][id].sub === subId);
 
 /** Guardian level an aspect is usable at (its subclass's unlock level, or its own if higher). */
 export function aspectLevel(id) {
@@ -132,7 +223,7 @@ export const fragmentSlots = (aspects) => aspects.reduce((n, id) => n + (ASPECTS
 /** What each subclass equips before the player changes anything (matches v1.2 behavior). */
 export function defaultLoadout(classId, subId) {
   const d = subOf(classId, subId).defaults;
-  return { grenade: d.grenade, class: d.class, aspects: [...(d.aspects || [])], fragments: [] };
+  return { super: subOf(classId, subId).abilities.super.id, jump: CLASSES[classId].jump, grenade: d.grenade, class: d.class, aspects: [...(d.aspects || [])], fragments: [] };
 }
 
 /**
@@ -145,6 +236,8 @@ export function sanitizeLoadout(classId, subId, lo = {}, level = 1) {
   if (!sc) throw new Error(`Unknown subclass ${classId}/${subId}`);
   const def = defaultLoadout(classId, subId);
   const out = { ...def };
+  if (supersFor(classId, subId).includes(lo.super) && superLevel(classId, subId, lo.super) <= level) out.super = lo.super;
+  if (jumpsFor(classId, subId).includes(lo.jump)) out.jump = lo.jump;
   if (GRENADES[lo.grenade]?.element === sc.element) out.grenade = lo.grenade;
   if (CLASS_ABILITIES[classId]?.[lo.class]) out.class = lo.class;
   if (Array.isArray(lo.aspects)) {
@@ -157,9 +250,10 @@ export function sanitizeLoadout(classId, subId, lo = {}, level = 1) {
   return out;
 }
 
-/** Aspects and fragments that become usable exactly at `level` (beyond their subclass unlock), for one class. */
+/** Supers, aspects and fragments that become usable exactly at `level` (beyond their subclass unlock), for one class. */
 export function buildUnlocksAt(level, classId) {
   const out = [];
+  for (const [id, x] of Object.entries(SUPERS)) if (x.cls === classId && superLevel(classId, x.sub, id) === level) out.push({ type: 'super', id, name: x.name, sub: x.sub });
   for (const [id, a] of Object.entries(ASPECTS)) if (a.cls === classId && a.unlockLevel && aspectLevel(id) === level) out.push({ type: 'aspect', id, name: a.name, sub: a.sub });
   for (const [id, f] of Object.entries(FRAGMENTS)) if (f.unlockLevel === level) out.push({ type: 'fragment', id, name: f.name, element: f.element });
   return out;
@@ -185,8 +279,10 @@ export function resolveKit(classId, subId, lo, level) {
   const c = { id: L.class, ...CLASS_ABILITIES[classId][L.class], ...(swap || {}) };
   return {
     ...kit, loadout: L, aspects: L.aspects, fragments: L.fragments,
+    jump: L.jump, jumpName: JUMPS[classId][L.jump].name,
     abilities: {
       ...kit.abilities,
+      super: superDef(classId, kit.subclassId, L.super),
       grenade: { id: L.grenade, ...g, cd: Math.round(g.cd * (kit.grenadeCdMult ?? 1) * cdm.grenade * ABILITY_CD.grenade) },
       melee: { ...kit.abilities.melee, cd: kit.abilities.melee.cd * cdm.melee * ABILITY_CD.melee },
       class: { ...c, cd: Math.round(CLASS_ABILITIES[classId][L.class].cd * cdm.class * ABILITY_CD.class) },

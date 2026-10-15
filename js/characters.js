@@ -279,14 +279,35 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
       gun.position.set(-0.2, 0.42, 0.3); // right hand, chest height (the figure faces +z, its right is -x)
       b.torso.add(gun);
     },
-    /** Super props held in third person: 'hammers' | 'fists' | 'staff' | 'sentinel' | 'stormtrance' | null. */
+    /** Super props held in third person (the third-person supers' ids), or null. */
     setProp(type) {
       for (const p of props) p.parent?.remove(p);
       props.length = 0;
       const R = elbow(b.arms[0]), L = elbow(b.arms[1]); // right and left forearms; the hand is ~0.45 down the forearm
       const glow = (c, k = 2.4) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, flatShading: true });
       const put = (parent, mesh, x, y, z) => { mesh.position.set(x, y, z); parent.add(mesh); props.push(mesh); return mesh; };
-      if (type === 'hammers') {
+      if (type === 'maul') {
+        // Burning Maul: a long two-handed maul
+        put(R, new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x4a2e1a, flatShading: true })), 0, -0.45, 0.5);
+        put(R, new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.62), glow(0xff8b2b, 3)), 0, -0.45, 1.2);
+      } else if (type === 'twilight') {
+        put(R, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xe6d0ff, flatShading: true })), 0, -0.45, 0.3);
+        put(R, new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.3), glow(0xb07cff, 2.8)), 0, -0.3, 0.65);
+      } else if (type === 'spectral') {
+        for (const arm of [R, L]) for (let i = 0; i < 3; i++) put(arm, new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.55), glow(0xb07cff, 2.6)), (i - 1) * 0.07, -0.55, 0.22);
+      } else if (type === 'thundercrash') {
+        for (const arm of [R, L]) put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), new THREE.MeshBasicMaterial({ color: 0x5fd3ff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })), 0, -0.45, 0);
+        put(b.torso, new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 1), new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 0.4, 0);
+      } else if (type === 'daybreak') {
+        put(R, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 1.1), glow(0xffd27a, 2.8)), 0, -0.5, 0.5);
+        for (const sx of [-1, 1]) { const w = put(b.torso, new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.04, 0.4), glow(0xffb547, 2.2)), sx * 0.7, 0.45, -0.25); w.rotation.z = sx * 0.4; }
+      } else if (type === 'novawarp' || type === 'chaosreach') {
+        const c = type === 'novawarp' ? 0xb07cff : 0x5fd3ff, core = type === 'novawarp' ? 0xe6d0ff : 0xbfefff;
+        for (const arm of [R, L]) {
+          put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), new THREE.MeshBasicMaterial({ color: core })), 0, -0.52, 0);
+          put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })), 0, -0.52, 0);
+        }
+      } else if (type === 'hammers') {
         // raised over the shoulder: the forearm's +z points up while aiming
         put(R, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.75, 6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x5a3a22, flatShading: true })), 0, -0.45, 0.35);
         put(R, new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.28, 0.28), glow(0xff8b2b, 2.8)), 0, -0.45, 0.78);
