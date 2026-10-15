@@ -92,6 +92,7 @@ The module map is in the README. These notes cover systems added during the over
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
 - Co-op sync: the host snapshot (15/s) carries each enemy's debuff bitmask and stagger time; members refresh debuffs for 0.3 s per snapshot. Zone, area-cleared and boss banners go out as `bn` messages.
+- Sentinel Shield guard (v1.8.1): `S.guard` follows right-click; `takeDamage` cuts `SENTINEL_GUARD.cut` and counts `guardHits`. The character's `update` pose takes `guard` (blends to `GUARD_POSE`) and `blockHit()` flashes the shield. Each player's state packet carries `gd` and `gh`; a remote avatar flashes when `gh` goes up.
 - HUD scale reaches 200%. At 200% on a 1280×720 screen the ability block and weapon list grow large enough to crowd the center of the screen.
 - Celestial Nighthawk's 2.5× (4× for Golden Gun) applies to the first super hit while the super is active. Nova Bomb's projectile can land after the 0.8 s super ends, losing the 4× (unchanged from v1.1).
 - `afterlight.html` (an older single-file entry) is stale and not maintained. `index.html` is the game.
