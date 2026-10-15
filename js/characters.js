@@ -242,6 +242,9 @@ export function ghost() {
   return g;
 }
 
+/** Sentinel Shield guard pose (radians): left arm forward and across, shield twisted to face front. */
+export const GUARD_POSE = { armX: -1.25, armZ: -0.5, twist: 1.5 };
+
 /** Builds a class model wearing `look` ({ helmet, arms, chest, legs, shader }, see style.js appearance). Returns { group, update(dt) }. */
 export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
   const el = ELEMENTS[elementId];
@@ -262,6 +265,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
   group.add(gh);
   let t = Math.random() * 10, phase = 0, gun = null;
   const props = [];
+  let shield = null, guardT = 0, blockT = 0; // Sentinel Shield: the shield prop, guard blend 0..1, block flash 1..0
   const knee = (leg) => leg.userData.knee;
   const elbow = (arm) => arm.userData.elbow;
   const towards = (cur, target, k) => cur + (target - cur) * k;
@@ -283,6 +287,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
     setProp(type) {
       for (const p of props) p.parent?.remove(p);
       props.length = 0;
+      shield = null;
       const R = elbow(b.arms[0]), L = elbow(b.arms[1]); // right and left forearms; the hand is ~0.45 down the forearm
       const glow = (c, k = 2.4) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, flatShading: true });
       const put = (parent, mesh, x, y, z) => { mesh.position.set(x, y, z); parent.add(mesh); props.push(mesh); return mesh; };
@@ -327,6 +332,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         const boss = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), glow(0xe6d0ff, 3));
         boss.position.y = -0.05;
         sh.add(rim, boss);
+        shield = sh; sh.userData.rim = rim;
       } else if (type === 'stormtrance') {
         for (const arm of [R, L]) {
           put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), new THREE.MeshBasicMaterial({ color: 0xbfefff })), 0, -0.52, 0);
@@ -334,7 +340,9 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         }
       }
     },
-    /** pose: null = idle on the Character screen; otherwise { speed, sprint, air, pitch, firing, dead }. */
+    /** Sentinel Shield took a hit while guarding: flash the shield. */
+    blockHit() { blockT = 1; },
+    /** pose: null = idle on the Character screen; otherwise { speed, sprint, air, pitch, firing, dead, guard }. */
     update(dt, pose = null) {
       t += dt;
       const br = Math.sin(t * 1.6);
@@ -368,10 +376,19 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
       // armsLow: fists carried at the sides (Fists of Havoc)
       const aim = pose.armsLow ? -0.35 : pose.sprint ? -0.55 : -1.35 - pitch * 0.85;
       const kick = pose.firing ? Math.random() * 0.08 : 0;
-      b.arms[0].rotation.x = towards(b.arms[0].rotation.x, aim + kick, k);
-      b.arms[0].rotation.z = towards(b.arms[0].rotation.z, pose.armsLow ? -0.35 : pose.sprint ? -0.15 : 0.1, k);
-      b.arms[1].rotation.x = towards(b.arms[1].rotation.x, (pose.armsLow ? -0.35 : pose.sprint ? -0.4 : -1.2 - pitch * 0.85) + kick, k);
-      b.arms[1].rotation.z = towards(b.arms[1].rotation.z, pose.armsLow ? 0.35 : pose.sprint ? 0.2 : -0.55, k);
+      // Sentinel Shield guard: the shield comes up across the chest, the right arm drops to the side
+      guardT = towards(guardT, pose.guard ? 1 : 0, Math.min(1, dt * 16));
+      const gd = guardT * guardT * (3 - 2 * guardT), mix = (a, g) => a + (g - a) * gd;
+      b.arms[0].rotation.x = towards(b.arms[0].rotation.x, mix(aim + kick, -0.3), k);
+      b.arms[0].rotation.z = towards(b.arms[0].rotation.z, mix(pose.armsLow ? -0.35 : pose.sprint ? -0.15 : 0.1, -0.25), k);
+      b.arms[1].rotation.x = towards(b.arms[1].rotation.x, mix((pose.armsLow ? -0.35 : pose.sprint ? -0.4 : -1.2 - pitch * 0.85) + kick, GUARD_POSE.armX - pitch * 0.4), k);
+      b.arms[1].rotation.z = towards(b.arms[1].rotation.z, mix(pose.armsLow ? 0.35 : pose.sprint ? 0.2 : -0.55, GUARD_POSE.armZ), k);
+      if (shield) {
+        blockT = Math.max(0, blockT - dt * 5);
+        shield.rotation.z = GUARD_POSE.twist * gd;
+        shield.scale.setScalar(1 + 0.3 * gd + 0.12 * blockT);
+        shield.userData.rim.material.emissiveIntensity = 2.8 + blockT * 7;
+      }
       // punch / throw: the right arm swings out and back (third-person supers and melee)
       if (pose.punch) {
         const sw = Math.sin(pose.punch * Math.PI);
@@ -380,7 +397,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         b.torso.rotation.y = -sw * 0.35;
       } else b.torso.rotation.y = towards(b.torso.rotation.y, 0, k);
       elbow(b.arms[0]).rotation.x = towards(elbow(b.arms[0]).rotation.x, pose.punch ? -0.1 : pose.sprint ? -0.9 : -0.15, k);
-      elbow(b.arms[1]).rotation.x = towards(elbow(b.arms[1]).rotation.x, pose.sprint ? -0.9 : -0.35, k);
+      elbow(b.arms[1]).rotation.x = towards(elbow(b.arms[1]).rotation.x, pose.sprint && gd < 0.5 ? -0.9 : -0.35, k);
       if (gun) {
         gun.rotation.set(towards(gun.rotation.x, pose.sprint ? 0.7 : pitch, k), Math.PI, pose.sprint ? -0.6 : 0);
         gun.userData.flash.visible = !!pose.firing && Math.random() < 0.5;

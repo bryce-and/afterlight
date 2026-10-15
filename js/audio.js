@@ -103,6 +103,7 @@ export const sfx = {
   kill() { if (throttled('kill', 40)) return; tone({ freq: 500, freqEnd: 1200, dur: 0.1, type: 'triangle', gain: 0.1 }); },
   shieldBreak() { noise({ dur: 0.3, freq: 5000, freqEnd: 1500, type: 'highpass', gain: 0.35 }); tone({ freq: 1500, freqEnd: 500, dur: 0.25, type: 'triangle', gain: 0.12 }); },
   playerShieldBreak() { tone({ freq: 600, freqEnd: 150, dur: 0.35, type: 'sawtooth', gain: 0.15 }); },
+  block() { if (throttled('block', 90)) return; tone({ freq: 240, freqEnd: 110, dur: 0.12, type: 'square', gain: 0.1 }); noise({ dur: 0.1, freq: 1600, type: 'bandpass', gain: 0.25 }); },
   shieldRecharge() { tone({ freq: 300, freqEnd: 900, dur: 0.5, type: 'sine', gain: 0.08 }); },
   hurt() { if (throttled('hurt', 90)) return; noise({ dur: 0.12, freq: 500, gain: 0.35 }); },
   death() { tone({ freq: 300, freqEnd: 60, dur: 1.2, type: 'sawtooth', gain: 0.2 }); },

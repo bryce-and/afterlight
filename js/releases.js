@@ -4,6 +4,16 @@
 
 export const RELEASES = [
   {
+    version: '1.8.1', name: 'Hotfix', date: '2026-10-15', accent: '#b07cff', glyph: '✚',
+    summary: 'Sentinel Shield finally guards like it should. Hold right-click to raise your shield and let the fire break against it.',
+    notes: [
+      'Sentinel Shield: holding right-click now raises the shield in front of you, and it flashes when it takes a hit',
+      'Guarding blocks 95% of incoming damage, up from 85%. Ursa Furiosa counts the extra',
+      'Your fireteam sees you raise the shield and sees every blocked hit',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="sgBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d0a18"/><stop offset="0.65" stop-color="#1a1330"/><stop offset="1" stop-color="#2b2140"/></linearGradient><radialGradient id="sgGlow" cx="0.5" cy="0.47" r="0.42"><stop offset="0" stop-color="#e6d0ff" stop-opacity="0.55"/><stop offset="0.45" stop-color="#b07cff" stop-opacity="0.28"/><stop offset="1" stop-color="#b07cff" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#sgBg)"/><g stroke="#ff7a6b" stroke-width="2" stroke-linecap="round" stroke-opacity="0.8"><path d="M8 52L96 72"/><path d="M4 98L94 94"/><path d="M12 140L98 114"/><path d="M312 60L226 76"/><path d="M316 118L228 104"/></g><g fill="#ffd0c8"><circle cx="96" cy="72" r="2.5"/><circle cx="94" cy="94" r="2.5"/><circle cx="98" cy="114" r="2.5"/><circle cx="226" cy="76" r="2.5"/><circle cx="228" cy="104" r="2.5"/></g><rect width="320" height="180" fill="url(#sgGlow)"/><g stroke="#0a0d12" stroke-width="1.5"><path d="M150 132l-6 32h10l4-30zM170 132l6 32h-10l-4-30z" fill="#6c727b"/><path d="M146 90h28l5 44h-38z" fill="#5a6070"/><path d="M151 70h18v18h-18z" fill="#7a808b"/></g><path d="M155 77h10" stroke="#b07cff" stroke-width="2.5"/><ellipse cx="160" cy="98" rx="52" ry="56" fill="#3a3048" fill-opacity="0.82" stroke="#b07cff" stroke-width="6"/><ellipse cx="160" cy="98" rx="52" ry="56" fill="none" stroke="#e6d0ff" stroke-width="1.5" stroke-opacity="0.9"/><path d="M160 82l10 16-10 16-10-16z" fill="#e6d0ff" stroke="#b07cff" stroke-width="1.5"/><g stroke="#e6d0ff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.85"><path d="M104 70l-10-6"/><path d="M102 98h-12"/><path d="M106 122l-10 6"/><path d="M216 74l10-6"/><path d="M218 102h12"/></g><ellipse cx="160" cy="166" rx="64" ry="6" fill="#b07cff" fill-opacity="0.22" stroke="#b07cff" stroke-opacity="0.55"/><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+  },
+  {
     version: '1.8', name: 'Light Ascendant', date: '2026-10-15', accent: '#ffd27a', glyph: '✧',
     summary: 'Every Light subclass grows up. Twelve new supers to choose from, a fourth aspect for every subclass, eight fragments per element, and new ways to jump, including Blink.',
     notes: [

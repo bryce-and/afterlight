@@ -18,7 +18,7 @@ import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { PHOENIX_DIVE_CD, regenMult, TRAITS, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
 import { weaponHandling } from './frames.js';
-import { SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, DIRE, SUNBRACERS, STORMDANCER } from './combat.js';
+import { SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
@@ -113,6 +113,7 @@ export class Player {
     this.dead = false; this.respawnT = 0;
     this.adsT = 0; this.shake = 0; this.bobT = 0; this.kick = 0; this.punchT = 0; this.punchMax = 0.3; this.punchIsPunch = false; this.landDip = 0; this.sprintT = 0; this.fovKick = 0;
     this.sway = { x: 0, y: 0 };
+    this.guardHits = 0; // hits blocked by Sentinel Shield's guard (fireteam avatars flash when it goes up)
     this.lastFire = -10;
     this.sens = 0.0022 * save.settings.sens;
     this.baseFov = save.settings.fov;
@@ -199,7 +200,7 @@ export class Player {
     if (this.bodyProp !== prop) { this.bodyProp = prop; this.body.setProp(prop); }
     b.position.copy(this.pos);
     b.rotation.y = this.yaw + Math.PI;
-    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0 });
+    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, guard: prop === 'sentinel' && !!this.superActive.guard });
   }
 
   get keepsGuns() { return this.superActive?.type === 'songflame'; }
@@ -1132,8 +1133,11 @@ export class Player {
     const M = G.mission;
     if (this.dead || M.phase === 'done' || M.phase === 'loot' || M.chest?.final) return; // the activity is complete: no more damage
     if (this.exo.has('quietone')) this.status.apply('quietone', { t: QUIET.t, set: true }); // Mask of the Quiet One
-    if (this.superActive?.guard && this.exo.has('ursa')) this.superActive.blocked = (this.superActive.blocked || 0) + amount * 0.85; // Ursa Furiosa
-    if (this.superActive) amount *= this.superActive.guard ? 0.15 : SUPER_ARMOR[this.superActive.type] ?? 1;
+    if (this.superActive?.guard) {
+      if (this.exo.has('ursa')) this.superActive.blocked = (this.superActive.blocked || 0) + amount * SENTINEL_GUARD.cut; // Ursa Furiosa
+      if (amount > 0) { this.guardHits++; this.body?.blockHit(); sfx.block(); }
+    }
+    if (this.superActive) amount *= this.superActive.guard ? 1 - SENTINEL_GUARD.cut : SUPER_ARMOR[this.superActive.type] ?? 1;
     if (this.status.has('direahamkara')) amount *= DIRE.cut; // Skull of Dire Ahamkara
     if (this.status.has('well')) amount *= SUPER_TUNE.well.cut; // Well of Radiance
     if (this.status.has('unbreakable')) amount *= ASPECT_TUNE.unbreakable.cut; // Unbreakable shield

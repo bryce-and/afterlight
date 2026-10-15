@@ -914,6 +914,12 @@ test('v1.7 tuning: slower abilities, Golden Gun nerf with Nighthawk kept, Nova f
   const k = SC.resolveKit('stalker', 'gunslinger', undefined, 40);
   eq(k.abilities.melee.cd, CLASSES.stalker.subclasses.gunslinger.abilities.melee.cd * 1.5);
 });
+test('v1.8.1: Sentinel Shield guard blocks 95% and Ursa Furiosa counts the blocked share', () => {
+  eq(C.SENTINEL_GUARD.cut, 0.95);
+  const hit = 200, taken = hit * (1 - C.SENTINEL_GUARD.cut), blocked = hit * C.SENTINEL_GUARD.cut;
+  ok(Math.abs(taken - 10) < 1e-9, 'a 200 hit lands as 10');
+  ok(Math.abs(Math.min(C.URSA.max, blocked * C.URSA.perDmg) - 47.5) < 1e-9, 'one blocked 200 hit returns 47.5% super');
+});
 
 // ---------- runner ----------
 const out = document.getElementById('out');

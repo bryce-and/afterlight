@@ -27,6 +27,7 @@ export const STARFIRE = { refund: 0.2 }; // Starfire Protocol: Solar grenade kil
 /** Class exotics added in v1.7. */
 export const QUIET = { t: 4, regen: 1.5, heal: 40 }; // Mask of the Quiet One
 export const URSA = { perDmg: 0.25, max: 50 }; // Ursa Furiosa: super % per point of blocked damage
+export const SENTINEL_GUARD = { cut: 0.95 }; // Sentinel Shield guard (hold right-click): share of incoming damage blocked (85% before v1.8.1)
 export const HALLOWFIRE = { regen: 1.6 }; // Hallowfire Heart
 export const GRAVITON = { dur: 1.5, melee: 2, heal: 15 }; // Graviton Forfeit (heal per second)
 export const AHAMKARA = { refund: 0.05, gap: 0.2 }; // Young Ahamkara's Spine (per grenade hit, at most once per gap)
