@@ -201,16 +201,25 @@ function hunter(root, k, S, accent) {
   return b;
 }
 
+// Warlock coat panels as [start, end] in half turns (0 is the front): the front opening sits between
+// the legs, and a narrow vent splits the back.
+const COAT_PANELS = [[0.13, 0.97], [1.03, 1.87]];
+
 function warlock(root, k, S, accent) {
   const b = body(k, { hipW: 0.11, thigh: 0.17, waistW: 0.36, chestW: 0.48, forearm: 0.15 }, S, accent);
   const Ch = S.chest, sv = Ch.v.chest.shoulder;
   k.slot = 'chest';
-  // long coat: an open-fronted flared skirt from waist to shins
-  const robe = k.mesh(new THREE.CylinderGeometry(0.25, 0.44, 0.78, 10, 1, true, Math.PI * 0.62, Math.PI * 1.76), Ch.cloth, 0, 0.62, 0, root);
-  k.mesh(new THREE.TorusGeometry(0.44, 0.015, 3, 20, Math.PI * 1.76), accent, 0, 0.23, 0, root, [Math.PI / 2, 0, Math.PI * 0.62 + Math.PI / 2]);
+  // long coat (H3): trench-coat tails that hang nearly straight from the waist, open at the front
+  // between the legs and split by a short vent at the back, instead of one flared skirt
+  const robe = k.pivot(0, 0.62, 0, root);
+  for (const [t0, t1] of COAT_PANELS) {
+    const len = (t1 - t0) * Math.PI;
+    k.mesh(new THREE.CylinderGeometry(0.25, 0.31, 0.74, 6, 1, true, t0 * Math.PI, len), Ch.cloth, 0, 0.02, 0, robe);
+    k.mesh(new THREE.CylinderGeometry(0.312, 0.315, 0.03, 6, 1, true, t0 * Math.PI, len), accent, 0, -0.34, 0, robe); // hem trim
+  }
   // belt, sash panel, tall collar (its size follows the shoulder variant)
   k.box(0.4, 0.07, 0.28, 0, 0.02, 0, Ch.trim, b.torso);
-  k.box(0.12, 0.5, 0.02, 0, -0.26, 0.17, Ch.cloth, b.torso);
+  k.box(0.12, 0.3, 0.02, 0, -0.16, 0.17, Ch.cloth, b.torso); // short sash, so the coat's front opening shows
   const col = { small: [0.36, 0.2], big: [0.44, 0.24], tall: [0.36, 0.32] }[sv];
   k.box(col[0], col[1], 0.3, 0, 0.78 + (col[1] - 0.2) / 2, -0.02, Ch.armor, b.torso);
   helmet(k, b.head, S.helmet, accent, { w: 0.24, h: 0.27, d: 0.26, y: 0.15 }, 'crown');
@@ -305,7 +314,16 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         put(b.torso, new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 1), new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 0.4, 0);
       } else if (type === 'daybreak') {
         put(R, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 1.1), glow(0xffd27a, 2.8)), 0, -0.5, 0.5);
-        for (const sx of [-1, 1]) { const w = put(b.torso, new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.04, 0.4), glow(0xffb547, 2.2)), sx * 0.7, 0.45, -0.25); w.rotation.z = sx * 0.4; }
+        // solar wings from the shoulder blades: three feathers per side, swept back and up (H3: were flat plates at the chest)
+        for (const sx of [-1, 1]) {
+          const wing = put(b.torso, new THREE.Group(), sx * 0.12, 0.6, -0.2);
+          wing.rotation.set(0, sx * 0.45, sx * 0.55);
+          [1.05, 0.85, 0.65].forEach((len, i) => {
+            const f = new THREE.Mesh(new THREE.BoxGeometry(len, 0.13, 0.03).translate(sx * len / 2, 0, 0), glow(i ? 0xffb547 : 0xffd27a, 2.4 - i * 0.3));
+            f.rotation.z = -sx * i * 0.32;
+            wing.add(f);
+          });
+        }
       } else if (type === 'novawarp' || type === 'chaosreach') {
         const c = type === 'novawarp' ? 0xb07cff : 0x5fd3ff, core = type === 'novawarp' ? 0xe6d0ff : 0xbfefff;
         for (const arm of [R, L]) {

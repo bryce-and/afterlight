@@ -5,7 +5,7 @@ import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, rin
 import { dealDamage, enemiesNear, addTicker, explode } from './game.js';
 import { sendFx, remotes } from './coop.js';
 import { net } from './net.js';
-import { STORM_GRENADE, ARC_SOUL, NOVA_FIELD, SUPER_TUNE } from './combat.js';
+import { STORM_GRENADE, ARC_SOUL, NOVA_FIELD, SUPER_TUNE, CLASS_FX_LIFE } from './combat.js';
 import { ORB } from './armor.js';
 import { SUNSPOT, HEAL_ORB, ASPECT_TUNE } from './subclass.js';
 import { sfx } from './audio.js';
@@ -206,7 +206,7 @@ export function abilityFx(kind, o, local) {
       G.colliders.push(box);
       shockwave(p.clone().setY(0.05), 4, col, 0.5);
       for (let i = 0; i < 16; i++) glowBurst(p.clone().add(new THREE.Vector3(alongX ? (Math.random() - 0.5) * w : 0, 0.1, alongX ? 0 : (Math.random() - 0.5) * d)), i % 2 ? col : 0xffffff, 1, 3, 0.1, 0.7, 4, 1);
-      let life = o.small ? 7 : 12, age = 0;
+      let life = o.small ? CLASS_FX_LIFE.rally : CLASS_FX_LIFE.barricade, age = 0;
       const scene = G.scene;
       addTicker({
         update(dt) {
@@ -233,7 +233,7 @@ export function abilityFx(kind, o, local) {
       shockwave(p.clone().setY(0.05), 5, col, 0.7);
       pillar(p, 4.3, 0.6, col, 10, 0.12);
       pillar(p, 0.5, 9, glow, 1.0, 0.5);
-      let life = 10, pulse = 0, was = false;
+      let life = CLASS_FX_LIFE.rift, pulse = 0, was = false;
       addTicker({
         update(dt) {
           life -= dt; pulse -= dt; zone.rotation.y += dt;
@@ -362,7 +362,7 @@ export function abilityFx(kind, o, local) {
       });
       break;
     }
-    case 'voidaxe': { // Twilight Arsenal: an axe that waits where it landed; the first Guardian to touch it can throw it (F)
+    case 'voidaxe': { // Twilight Arsenal: an axe that waits where it landed; the first Guardian to touch it can throw it (left-click)
       const p = V(o.p), col = hex('void');
       const axe = new THREE.Group();
       const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.06), new THREE.MeshBasicMaterial({ color: col }));
@@ -429,17 +429,31 @@ export function abilityFx(kind, o, local) {
       G.scene.add(sword);
       shockwave(p.clone().setY(0.05), r, col, 0.8);
       pillar(p, 0.4, 10, 0xffe0a0, 1.0, 0.5);
-      let life = o.life, pulse = 0;
+      const W = SUPER_TUNE.well;
+      let life = o.life, pulse = 0, burnT = 0, inside = false;
       addTicker({
         update(dt) {
           life -= dt; pulse -= dt; zone.rotation.y += dt * 0.6;
           if (pulse <= 0) { pulse = 1; ringFx(p, r, col, 0.8); }
           if (Math.random() < 0.6) ember(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * r * 1.6, 0.2, (Math.random() - 0.5) * r * 1.6)), Math.random() < 0.5 ? col : 0xffffff, 0.06, 1.5, 1);
-          const P = G.player;
-          if (P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r && Math.abs(P.pos.y - p.y) < 3) {
-            P.status.apply('well', { t: 0.3 });
-            P.heal(SUPER_TUNE.well.heal * dt);
+          // enemies inside burn (the caster's copy deals the damage)
+          if (local && (burnT -= dt) <= 0) {
+            burnT = 0.5;
+            for (const e of enemiesNear(p, r + 0.5)) {
+              if (Math.hypot(e.pos.x - p.x, e.pos.z - p.z) - e.radius > r || Math.abs(e.pos.y - p.y) > 3) continue;
+              dealDamage(e, W.burn * 0.5, { element: 'solar', source: 'super', burn: 1.1, pos: e.center(new THREE.Vector3()) });
+            }
           }
+          const P = G.player;
+          const now = !!(P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r && Math.abs(P.pos.y - p.y) < 3);
+          if (now) {
+            // the buff shows how long the well has left; a much stronger Restoration lingers briefly after leaving
+            P.status.apply('well', { t: Math.max(0.1, life), set: true });
+            P.heal(W.heal * dt);
+            P.restore(W.restore);
+          } else if (inside) P?.status.remove('well');
+          inside = now;
+          if (life <= 0 && inside) P?.status.remove('well');
           return life > 0;
         },
         dispose() { G.scene?.remove(zone, sword); },

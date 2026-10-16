@@ -49,21 +49,24 @@ export const SUPER_POWER = 2.0;
 export const SONG = { duration: 10, abilityRegen: 4 }; // v1.1: 12 s, 8x
 // How long each super lasts (seconds). Burst supers are short: the cast, then their effects play out.
 export const SUPER_TIME = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: SONG.duration,
-  maul: 15, thundercrash: 3.2, wardofdawn: 0.8, twilight: 6, bladebarrage: 1.2, spectral: 12, gathering: 1.6, stormsedge: 6, well: 1.0, novawarp: 10, chaosreach: 4.5, daybreak: 12 };
+  maul: 15, thundercrash: 3.2, wardofdawn: 0.8, twilight: 6, bladebarrage: 1.2, spectral: 12, gathering: 1.6, stormsedge: 6, well: 1.0, novawarp: 10, chaosreach: 9, daybreak: 12 }; // H3: Chaos Reach 4.5 to 9 s
 // Light Ascendant supers (base numbers before superDmg scaling). Tuned so a full cast deals about what
 // the subclass's original super does: roughly 2,500 to 3,000 to one target, more spread over a crowd.
+// How long a cast rift or barricade lasts (the caster sees it as a timer above the ability bar).
+export const CLASS_FX_LIFE = { rift: 10, barricade: 12, rally: 7 };
+
 export const SUPER_TUNE = {
   maul: { swing: 300, swingR: 3.2, swingCd: 0.5, slam: 480, slamR: 5, slamCd: 1.4, tornado: 70, burn: 20 },
   thundercrash: { speed: 30, r: 8, dmg: 3000 },
   ward: { r: 7, life: 14, wol: 1.25 },
   twilight: { dmg: 800, r: 4.5, pickup: 500, life: 10 },
   blades: { n: 5, knock: 1, r: 2.5, dmg: 300 },
-  spectral: { hit: 260, fin: 460, leap: 500, leapR: 4.5, leapCd: 1.4 },
-  gathering: { dmg: 2600, tick: 45, r: 7, field: 5, fieldR: 5 },
+  spectral: { hit: 210, fin: 370, leap: 400, leapR: 4.5, leapCd: 1.4 }, // H3: about 20% less (was 260/460/500)
+  gathering: { dmg: 2100, tick: 36, r: 7, field: 5, fieldR: 5 }, // H3: about 20% less (was 2600/45)
   stormsedge: { range: 18, r: 5, dmg: 900 },
-  well: { r: 6, life: 15, blast: 500, heal: 30, cut: 0.75, dmg: 1.25 },
-  novawarp: { chargeT: 1, r0: 3.5, r1: 7, dmg0: 350, dmg1: 900, warp: 6 },
-  chaos: { range: 45, dmg: 60, refund: 45 },
+  well: { r: 6, life: 25, blast: 500, heal: 30, restore: 2.5, burn: 30, cut: 0.75, dmg: 1.25 }, // H3: 25 s (was 15), strong Restoration, burns enemies inside
+  novawarp: { chargeT: 1, r0: 3.5, r1: 7, dmg0: 350, dmg1: 900, warp: 6, seekers: 3, seekR: 15, seekDmg: 60, weaken: 4 },
+  chaos: { range: 45, dmg: 60, refund: 45 }, // fires from the start; F again ends it (refund scales with time left)
   daybreak: { r: 3, dmg: 340, burn: 20 },
 };
 

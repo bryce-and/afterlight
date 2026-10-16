@@ -6,6 +6,7 @@
   --text: #e9eef5;
   --muted: #8d97a5;
   --gold: #f4c542;
+  --weak: #ffe23d; /* hits on a weakened enemy */
   --accent: #7fd8ff;
   --red: #ff5a4f;
   --head: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
@@ -234,6 +235,8 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 #hitmarker span:nth-child(4) { transform: rotate(315deg) translateY(-11px); }
 #hitmarker.crit span { background: var(--gold); }
 #hitmarker.kill span { background: var(--red); height: 12px; }
+#hitmarker.weak span { background: var(--weak); } /* weakened target: every hit marker is yellow */
+#hitmarker.weak.kill span { background: var(--weak); }
 #scope { position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 0, transparent 34vh, rgba(0,0,0,0.96) calc(34vh + 2px)); }
 #scope::before, #scope::after { content: ''; position: absolute; background: rgba(0,0,0,0.85); }
 #scope::before { left: 50%; top: 16vh; bottom: 16vh; width: 1px; }
@@ -255,6 +258,7 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 #dmg-layer { position: absolute; inset: 0; overflow: hidden; }
 .dmgnum { position: absolute; left: 0; top: 0; font-weight: 800; font-size: 23px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); white-space: nowrap; will-change: transform; }
 .dmgnum.crit { color: var(--gold); font-size: 28px; }
+.dmgnum.weak { color: var(--weak); }
 #waypoint { position: absolute; left: 0; top: 0; }
 .wp-icon { width: 16px; height: 16px; border: 2px solid #fff; transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 6px rgba(0,0,0,0.6); background: rgba(255,255,255,0.15); }
 .wp-dist { position: absolute; top: 12px; left: 0; transform: translateX(-50%); font-weight: 700; font-size: 13px; text-shadow: 0 1px 3px #000; }
@@ -725,7 +729,6 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .sp-d-desc { color: #c3cbd6; font-size: 13px; line-height: 1.45; }
 .sp-d-lock { margin-top: 10px; font-family: var(--head); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; color: var(--gold); }
 .sp-d-empty { color: var(--muted); font-size: 13px; }
-.sp-trait { margin-top: 4px; }
 .lt-r .ab-svg { width: 100%; height: 100%; display: block; }
 @media (max-width: 760px) {
   .cs-panel.sp-wide { left: 8px; right: 8px; width: auto; top: 70px; padding: 14px; }

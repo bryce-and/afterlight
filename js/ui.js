@@ -8,7 +8,7 @@ import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, JUMPS, gre
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice } from './save.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt } from './progression.js';
-import { RELEASES, ROADMAP } from './releases.js';
+import { RELEASES, ROADMAP, titleRelease } from './releases.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES, setArmorIconContext } from './icons.js';
 import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './style.js';
@@ -93,8 +93,8 @@ export function showTitle() {
   G.menu.setLocation(LOCATIONS[0]);
   G.menu.setOffset(4.4);
   $('#title .t-hint').textContent = G.save ? 'Click to continue' : 'Click to begin';
-  // the current update: its artwork, name and version
-  const cur = RELEASES[0];
+  // the current major update: its artwork, name and version (hotfixes leave the card alone)
+  const cur = titleRelease();
   $('#t-update').innerHTML = `<div class="tu-art">${cur.art || ''}</div><div class="tu-info"><span>Version ${esc(cur.version)}</span><b class="${cur.name.split(' ').some((w) => w.length > 8) ? 'long' : ''}" style="color:${cur.accent}">${esc(cur.name)}</b></div>`;
   closeTitlePanel();
   if (takeLegacyNotice()) {
@@ -843,9 +843,9 @@ const MAX_FRAGMENT_SLOTS = 4;
 /** Everything the screen can show about one entry: { kind, id, name, desc, meta, color, locked }. */
 function spEntry(kind, id, ctx) {
   const { cls, el, L } = ctx;
-  if (kind === 'super') { const x = superDef(cls.id, cls.subclassId, id), lv = superLevel(cls.id, cls.subclassId, id); return { kind, id, name: x.name, desc: x.desc, meta: `Super  ·  ${x.camera === 'third' ? 'third person' : 'first person'}`, color: el.color, locked: L < lv ? lv : 0 }; }
+  if (kind === 'super') { const x = superDef(cls.id, cls.subclassId, id), lv = superLevel(cls.id, cls.subclassId, id); return { kind, id, name: x.name, desc: x.desc, meta: 'Super', color: el.color, locked: L < lv ? lv : 0 }; }
   if (kind === 'jump') { const j = JUMPS[cls.id][id]; return { kind, id, name: j.name, desc: j.desc, meta: j.sub ? `Jump  ·  ${cls.subclass} only` : 'Jump', color: '#e9eef5' }; }
-  if (kind === 'grenade') { const g = GRENADES[id]; return { kind, id, name: g.name, desc: g.desc, meta: `Grenade  ·  ${Math.round(g.cd * (cls.grenadeCdMult ?? 1) * ABILITY_CD.grenade)}s cooldown`, color: el.color }; }
+  if (kind === 'grenade') { const g = GRENADES[id]; return { kind, id, name: g.name, desc: g.desc, meta: `Grenade  ·  ${Math.round(g.cd * ABILITY_CD.grenade)}s cooldown`, color: el.color }; }
   if (kind === 'class') { const c = CLASS_ABILITIES[cls.id][id]; return { kind, id, name: c.name, desc: c.desc, meta: `Class ability  ·  ${Math.round(c.cd * ABILITY_CD.class)}s cooldown`, color: '#e9eef5' }; }
   if (kind === 'aspect') { const a = ASPECTS[id], lv = aspectLevel(id); return { kind, id, name: a.name, desc: a.desc, meta: `Aspect  ·  ${a.slots} fragment slot${a.slots > 1 ? 's' : ''}`, color: el.color, locked: L < lv ? lv : 0 }; }
   if (kind === 'fragment') { const f = FRAGMENTS[id], lv = fragmentLevel(id); return { kind, id, name: f.name, desc: f.desc, meta: `${ELEMENTS[f.element].name} fragment`, color: ELEMENTS[f.element].color, locked: L < lv ? lv : 0 }; }
@@ -876,7 +876,6 @@ function openSubclass() {
   entries.jump = withIcon(spEntry('jump', lo.jump, ctx), 'jump');
   entries.grenade = withIcon(spEntry('grenade', lo.grenade, ctx), 'grenade');
   entries.class = withIcon(spEntry('class', lo.class, ctx), 'class');
-  if (ab.class.id === 'ward') entries.class = { ...entries.class, name: ab.class.name, desc: `${ab.class.desc} (Bastion replaces your barricade.)` };
   for (let i = 0; i < ASPECT_SLOTS; i++) entries['aspect' + i] = lo.aspects[i] ? withIcon(spEntry('aspect', lo.aspects[i], ctx), 'aspect') : null;
   for (let i = 0; i < MAX_FRAGMENT_SLOTS; i++) entries['frag' + i] = lo.fragments[i] ? withIcon(spEntry('fragment', lo.fragments[i], ctx), 'fragment') : null;
 
@@ -922,7 +921,6 @@ function openSubclass() {
           ${Array.from({ length: MAX_FRAGMENT_SLOTS }, (_, i) => slotBtn('frag' + i, 'fragment', entries['frag' + i], 'Fragment', { closed: i >= slots })).join('')}
         </div></div>
         ${spSlot ? `<div class="sp-opts" aria-label="Options">${opts}</div>` : ''}
-        ${cls.passive ? `<div class="abil-row sp-trait"><kbd>★</kbd><div><b>Subclass trait</b><span>${cls.passive}</span></div></div>` : ''}
       </div>
       <aside class="sp-detail" id="sp-detail">${spDetailHTML(spSlot ? entries[spSlot] ?? null : entries.super)}</aside>
     </div>
@@ -1204,10 +1202,11 @@ export function prompt(text) {
   el.classList.remove('hidden');
 }
 
-export function hitmarker(crit, kill) {
+export function hitmarker(crit, kill, weak = false) {
   const el = $('#hitmarker');
-  el.classList.remove('crit', 'kill');
+  el.classList.remove('crit', 'kill', 'weak');
   if (crit) el.classList.add('crit');
+  if (weak) el.classList.add('weak');
   if (kill) el.classList.add('kill');
   el.classList.add('show');
   cache.set('hmshow', true);
@@ -1252,7 +1251,7 @@ let dmgSide = 1;
 export function damageNumber(enemy, pos, amount, o = {}) {
   let el = dmgPool.pop();
   if (!el) { el = document.createElement('div'); $('#dmg-layer').appendChild(el); }
-  el.className = 'dmgnum' + (o.crit ? ' crit' : '');
+  el.className = 'dmgnum' + (o.crit ? ' crit' : '') + (o.weak ? ' weak' : '');
   el.style.color = o.shield ? ELEMENTS[o.shield].color : '';
   el.style.display = 'block';
   el.textContent = Math.max(1, Math.round(amount));
@@ -1308,7 +1307,7 @@ function updateEnemyPlate(dt) {
   setClass(hud.plate, 'ep', 'hidden', !show);
   if (!show) { plateE = null; return; }
   // track the enemy: just above its head, hidden while it's behind the camera
-  _head.copy(plateE.headPos(_head)); _head.y += 0.35 + 0.15 * plateE.def.scale;
+  _head.copy(plateE.headPos(_head)); _head.y += 0.35 + 0.15 * (plateE.scale ?? plateE.def.scale);
   _head.project(G.camera);
   const behind = _head.z > 1;
   const x = (_head.x * 0.5 + 0.5) * innerWidth, y = (-_head.y * 0.5 + 0.5) * innerHeight;

@@ -29,7 +29,7 @@ ui.showTitle();
 // Input
 // ---------------------------------------------------------------------------
 const inp = G.input;
-const GAME_KEYS = new Set(['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyV', 'KeyC', 'KeyX', 'KeyE', 'KeyR', 'ShiftLeft']);
+const GAME_KEYS = new Set(['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyV', 'KeyB', 'KeyC', 'KeyE', 'KeyR', 'ShiftLeft']);
 addEventListener('keydown', (e) => {
   if (G.state === 'playing' && GAME_KEYS.has(e.code)) e.preventDefault();
   if (e.code === 'KeyI' && !e.repeat) {

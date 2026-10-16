@@ -1,4 +1,4 @@
-import { ARCHETYPES, RARITIES, PERK_POOL, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, RARITIES, PERK_POOL, PERK_ELEMENT, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt } from './util.js';
 import { LIGHT_CAP } from './progression.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
@@ -59,7 +59,7 @@ export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
     mods = {};
     for (const [k, v] of Object.entries(tpl.mods || {})) if (MOD_REPLACE.includes(k)) mods[k] = v;
   } else {
-    const pool = PERK_POOL[slot].filter((p) => !(p === 'extmag' && A.mag === 1));
+    const pool = PERK_POOL[slot].filter((p) => !(p === 'extmag' && A.mag === 1) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element));
     while (perks.length < rar.perks && perks.length < pool.length) {
       const p = pick(pool);
       if (!perks.includes(p)) perks.push(p);

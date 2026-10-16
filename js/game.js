@@ -424,12 +424,14 @@ export function dealDamage(e, amount, o = {}) {
     if (shieldHit) e.shield = Math.max(0, e.shield - dmg * (o.shieldBreaker ? 4 : o.element === e.shieldEl ? 2.5 : 1));
     else e.hp = Math.max(1, e.hp - dmg);
     e.flash = 0.12;
-    ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dmg, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
-    ui.hitmarker(!!o.crit, false);
+    const weak = e.status.has('weaken'); // weakened targets show yellow hits
+    ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dmg, { crit: o.crit, weak, shield: shieldHit ? e.shieldEl : null });
+    ui.hitmarker(!!o.crit, false, weak);
     sfx.hit(o.crit);
     return { killed: false, dealt: dmg };
   }
-  if (e.status.has('weaken')) dmg *= WEAKEN_MULT;
+  const weak = e.status.has('weaken'); // +30% from every source, and the hit shows yellow
+  if (weak) dmg *= WEAKEN_MULT;
   let dealt = 0, shieldHit = false;
   if (e.shield > 0) {
     shieldHit = true;
@@ -454,8 +456,8 @@ export function dealDamage(e, amount, o = {}) {
     if (st > 0) e.stagger(st);
   }
   if (!o.remoteHit) {
-    ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dealt, { crit: o.crit, shield: shieldHit ? e.shieldEl : null });
-    ui.hitmarker(!!o.crit, killed);
+    ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dealt, { crit: o.crit, weak, shield: shieldHit ? e.shieldEl : null });
+    ui.hitmarker(!!o.crit, killed, weak);
     sfx.hit(o.crit);
   }
   if (dealt > 0 && !o.jolted && e.status.has('jolt') && !(e.joltAt > G.time)) { e.joltAt = G.time + JOLT.cd; joltFrom(e); }
@@ -546,7 +548,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
     const d = Math.max(0, c.distanceTo(pos) - e.radius);
     if (d > radius) continue;
     const f = 1 - 0.5 * (d / radius);
-    const kb = c.clone().sub(pos).setY(0).normalize().multiplyScalar((6 * f) / e.def.scale);
+    const kb = c.clone().sub(pos).setY(0).normalize().multiplyScalar((6 * f) / (e.scale ?? e.def.scale));
     dealDamage(e, dmg * f, { element, source: o.source || 'explosion', weapon: o.weapon, pos: c.clone().setY(c.y + e.height * 0.3), knock: kb, ...o.debuffs });
   }
   const P = G.player;

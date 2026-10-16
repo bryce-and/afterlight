@@ -4,6 +4,23 @@
 
 export const RELEASES = [
   {
+    version: '1.8.2', name: 'Hotfix', date: '2026-10-15', accent: '#ffb547', glyph: '✚',
+    summary: 'Subclass traits become aspects you choose, the newest supers get tuned, and a long list of fixes, from weapon balance to a Warlock coat that no longer looks like a dress.',
+    notes: [
+      'New controls: V is your powered melee, B your quick melee and F your super. A held Twilight Arsenal axe now throws with a click',
+      'Subclass traits are now aspects: Explosive Pyre, Amplitude, Defender\'s Resolve, Chain of Woe, Abyssal Edge, Crackling Blade, Bloom, Unlimited Power and Gift of the Sun. Each subclass starts with its own equipped',
+      'Bastion is gone, so Sentinels can use Towering and Rally Barricade again',
+      'Roaming supers take 70% less damage. Chaos Reach fires the moment you cast it, lasts twice as long, and ends when you press F again',
+      'Daybreak jumps far higher and lets you hover down slowly, with wings on your back. Well of Radiance lasts 25 seconds, restores much faster and burns enemies inside. Nova Warp releases Void seekers that weaken',
+      'Gathering Storm and Spectral Blades deal less damage',
+      'Hits on weakened enemies show yellow. Your rift and barricade show a timer above your abilities',
+      'Firing breaks invisibility. Holding sprint for half a second cancels a reload. Thralls are a little bigger. Thorn kills burst with poison',
+      'Auto Rifles and Fusion Rifles fire faster. Shotguns hit softer up close and fall off sooner, and SMGs fall off sooner. Heavy weapons hit 10% harder',
+      'Incandescent, Voltshot and Destabilizing Rounds only roll on Solar, Arc and Void weapons',
+      'The Warlock coat hangs straight and opens at the front, more trench coat than robe',
+    ],
+  },
+  {
     version: '1.8.1', name: 'Hotfix', date: '2026-10-15', accent: '#b07cff', glyph: '✚',
     summary: 'Sentinel Shield finally guards like it should. Hold right-click to raise your shield and let the fire break against it.',
     notes: [
@@ -160,6 +177,9 @@ export const RELEASES = [
     ],
   },
 ];
+
+/** The title screen shows the newest major update (hotfixes like 1.8.2 keep the card as it is). */
+export const titleRelease = () => RELEASES.find((r) => r.version.split('.').length === 2);
 
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 

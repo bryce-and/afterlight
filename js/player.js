@@ -16,9 +16,9 @@ import { castFx } from './abilities.js';
 import { buildCharacter } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
-import { PHOENIX_DIVE_CD, regenMult, TRAITS, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
+import { PHOENIX_DIVE_CD, regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
 import { weaponHandling } from './frames.js';
-import { SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER } from './combat.js';
+import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
@@ -60,9 +60,14 @@ function makeWeapon(item) {
 // multiplier as enemy health, so a super feels as strong in the last mission as the first.
 const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
 // damage taken while each super is active
-const SUPER_ARMOR = { hammers: 0.45, fists: 0.35, stormtrance: 0.5, revolver: 0.6, tether: 0.6, staff: 0.45, sentinel: 0.5, songflame: 0.6,
-  maul: 0.45, thundercrash: 0.3, wardofdawn: 0.6, twilight: 0.6, bladebarrage: 0.6, spectral: 0.5, gathering: 0.6, stormsedge: 0.5, well: 0.6, novawarp: 0.5, chaosreach: 0.5, daybreak: 0.55 };
+// H3: every roaming super takes 70% less damage (ROAM_ARMOR); burst supers keep their own value until U9's cast hold
+const ROAM_ARMOR = 0.3;
+const SUPER_ARMOR = { hammers: ROAM_ARMOR, fists: ROAM_ARMOR, stormtrance: ROAM_ARMOR, revolver: ROAM_ARMOR, tether: 0.6, staff: ROAM_ARMOR, sentinel: ROAM_ARMOR, songflame: ROAM_ARMOR,
+  maul: ROAM_ARMOR, thundercrash: ROAM_ARMOR, wardofdawn: 0.6, twilight: 0.6, bladebarrage: 0.6, spectral: ROAM_ARMOR, gathering: 0.6, stormsedge: ROAM_ARMOR, well: 0.6, novawarp: ROAM_ARMOR, chaosreach: ROAM_ARMOR, daybreak: ROAM_ARMOR };
 const OVERSHIELD_MAX = 60;
+// Daybreak (H3): the first jump goes 2.5x as high (speed x sqrt 2.5), then the wings sink at this speed
+const DAYBREAK_JUMP = Math.sqrt(2.5), DAYBREAK_FALL = -1.2;
+const SPRINT_CANCEL = 0.5; // H3: seconds of held sprint that cancel a reload
 // roaming supers play in third person, over the right shoulder (each super declares its camera in data.js)
 const TPS_SUPERS = new Set([...Object.values(CLASSES).flatMap((c) => Object.values(c.subclasses)).map((sc) => sc.abilities.super), ...Object.entries(SUPERS).map(([id, x]) => ({ id, ...x }))].filter((a) => a.camera === 'third').map((a) => a.id));
 const _ray = new THREE.Raycaster(), _f = new THREE.Vector3(), _r = new THREE.Vector3(), _cp = new THREE.Vector3(), _pv = new THREE.Vector3();
@@ -285,11 +290,15 @@ export class Player {
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const wx = ix * cos + iz * sin, wz = -ix * sin + iz * cos;
     this.moveDir = { x: wx, z: wz, len };
-    this.sprinting = !!k.ShiftLeft && iz < 0 && this.adsT < 0.3 && G.time - this.lastFire > 0.35 && !this.weapon.reloading;
+    const wantSprint = !!k.ShiftLeft && iz < 0 && this.adsT < 0.3 && G.time - this.lastFire > 0.35;
+    // holding sprint for SPRINT_CANCEL seconds cancels a reload (the magazine stays as it was)
+    this.sprintHoldT = wantSprint && this.weapon.reloading ? (this.sprintHoldT || 0) + dt : 0;
+    if (this.sprintHoldT >= SPRINT_CANCEL) { this.weapon.reloading = false; this.weapon.reloadT = 0; this.sprintHoldT = 0; }
+    this.sprinting = wantSprint && !this.weapon.reloading;
     this.sprintT = damp(this.sprintT, this.sprinting ? 1 : 0, 10, dt);
     let speed = this.speed * (this.status.has('wind') ? 1.15 : 1) * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
     if (!this.superActive && this.weapon.A.move) speed *= this.weapon.A.move; // Lightweight Frame
-    if (this.status.has('amplified')) speed *= TRAITS.striker.speed; // Striker trait
+    if (this.status.has('amplified')) speed *= ASPECT_TUNE.amplitude.speed; // Amplified
     if (this.superActive?.type === 'hammers') speed *= 1.1;
     if (this.superActive?.type === 'fists') speed *= 1.3;
     if (this.superActive?.type === 'maul' || this.superActive?.type === 'spectral') speed *= 1.15;
@@ -419,7 +428,7 @@ export class Player {
 
     if (inp.pressed.KeyR) this.startReload(w);
     if (w.reloading) {
-      w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1) * (this.status.has('amplified') ? TRAITS.striker.reload : 1) * (1 + MODS_TUNE.loader * (this.ap[LOADER_MOD[w.idx]] || 0));
+      w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1) * (this.status.has('amplified') ? ASPECT_TUNE.amplitude.reload : 1) * (1 + MODS_TUNE.loader * (this.ap[LOADER_MOD[w.idx]] || 0));
       if (w.reloadT <= 0) this.finishReload(w);
     }
     const wantAds = inp.mouse.right && !w.reloading && this.punchT <= 0;
@@ -431,6 +440,11 @@ export class Player {
 
     const A = w.A;
     const held = inp.mouse.left, pressed = inp.mouse.leftPressed;
+    if (this.status.has('voidaxe') && !this.superActive) { // a Twilight Arsenal axe in hand: no guns, left-click throws it
+      w.charge = 0; w.burstLeft = 0;
+      if (pressed) this.throwHeldAxe();
+      return;
+    }
     if (pressed) w.queued = 0.18;
     if (w.reloading && pressed && w.ammo > 0) w.reloading = false;
     if (w.reloading || this.punchT > 0) { w.charge = 0; w.cburst = 0; return; }
@@ -442,7 +456,7 @@ export class Player {
     if (w.ammo <= 0) {
       w.charge = 0; w.burstLeft = 0;
       if (pressed) sfx.empty();
-      if (w.reserve > 0 && w.fireCd <= 0) this.startReload(w);
+      if (w.reserve > 0 && w.fireCd <= 0 && !this.sprinting) this.startReload(w); // a sprint that cancelled the reload waits
       return;
     }
     if (A.mode === 'auto') { if (held && w.fireCd <= 0) this.fire(w); }
@@ -585,6 +599,8 @@ export class Player {
   }
 
   fire(w, burstBolt = false) {
+    // firing breaks invisibility (On the Prowl still weakens with this shot); Spectral Blades keeps its own
+    if (this.status.has('invisible') && this.superActive?.type !== 'spectral') { this.prowlShot = !this.prowlUsed; this.status.remove('invisible'); }
     // Opening Shot: the first shot after a pause
     w.openShot = w.has('opening') && G.time - (w.lastShotT ?? -99) > 2;
     w.lastShotT = G.time;
@@ -682,8 +698,9 @@ export class Player {
   applyHit(w, e, dmg, crit, point, o = {}) {
     const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit);
     const element = o.element ?? wEl(w);
-    const prowl = !o.isSuper && this.asp.has('prowl') && !this.prowlUsed && this.status.has('invisible'); // On the Prowl
+    const prowl = !o.isSuper && this.asp.has('prowl') && !this.prowlUsed && (this.status.has('invisible') || this.prowlShot); // On the Prowl
     if (prowl) this.prowlUsed = true;
+    this.prowlShot = false;
     const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0 });
     if (o.isSuper) return res;
     w.hitCount++;
@@ -863,7 +880,13 @@ export class Player {
         explode(xc, 2.5, w.s.dmg * 1.2, 'solar', { source: 'perk', small: true });
       }
     }
-    if (w.has('thorn')) for (const x of enemiesNear(c, 7, 3)) this.dot(x, w.s.dmg * 0.3, 3, 'kinetic', 0x6dff8e);
+    if (w.has('thorn')) {
+      // Mark of the Devourer: the poison bursts out of the kill and spreads
+      glowBurst(c, 0x6dff8e, 22, 7, 0.09, 0.7, 1.5, 0.3);
+      glowBurst(c, 0x1d5a2a, 12, 4, 0.14, 0.9, 0.8, 0.2);
+      shockwave(c.clone().setY(Math.max(0.05, c.y - 0.8)), 7, 0x6dff8e, 0.5);
+      for (const x of enemiesNear(c, 7, 3)) { this.dot(x, w.s.dmg * 0.3, 3, 'kinetic', 0x6dff8e); lightning(c, x.center(new THREE.Vector3()), 0x6dff8e, 0.05); }
+    }
     if (w.has('ridebull')) { w.ammo = Math.max(w.ammo, w.mag); w.spin = 1; }
     if (w.has('wolves')) this.status.apply('wolves', { scope: w.idx });
     if (w.has('merciless')) this.status.apply('merciless', { scope: w.idx });
@@ -874,15 +897,22 @@ export class Player {
     }
   }
 
-  /** Subclass traits that react to a kill (Striker, Gunslinger, Voidwalker). */
+  /** Former subclass traits (aspects since H3) that react to a kill. */
   traitOnKill(e, o) {
-    const sub = this.cls.subclassId, abil = o.source === 'ability' || o.source === 'melee';
-    if (sub === 'striker' && abil && o.element === 'arc') this.status.apply('amplified', { t: TRAITS.striker.amplified });
-    if (sub === 'gunslinger' && o.source === 'weapon' && o.crit) this.cd.melee = Math.max(0, this.cd.melee - this.cdMax.melee * TRAITS.gunslinger.melee);
-    if (sub === 'voidwalker' && abil && o.element === 'void') explode(e.center(new THREE.Vector3()), TRAITS.voidwalker.radius, TRAITS.voidwalker.dmg, 'void', { source: 'perk', small: true });
+    const A = this.asp, abil = o.source === 'ability' || o.source === 'melee';
+    if (A.has('amplitude') && abil && o.element === 'arc') this.status.apply('amplified', { t: ASPECT_TUNE.amplitude.amplified });
+    if (A.has('chainofwoe') && o.source === 'weapon' && o.crit) {
+      this.cd.melee = Math.max(0, this.cd.melee - this.cdMax.melee * ASPECT_TUNE.chainofwoe.melee);
+      this.cd.grenade = Math.max(0, this.cd.grenade - this.cdMax.grenade * ASPECT_TUNE.chainofwoe.grenade);
+    }
+    if (A.has('pyre') && e.status.has('burn')) {
+      const P = ASPECT_TUNE.pyre, c = e.center(new THREE.Vector3());
+      for (const x of enemiesNear(c, P.spreadR, 4, e)) { this.ignite(x, P.spreadDps, P.spreadT); castFx('chain', { pts: [c, x.center(new THREE.Vector3())], el: 'solar', beam: true, w: 0.04 }); }
+    }
+    if (A.has('crackling') && (o.source === 'melee' || (abil && G.time < this.meleeWin))) this.heal(ASPECT_TUNE.crackling.heal);
   }
 
-  /** Subclass traits on this player's own grenade and melee hits (Sunbreaker, Nightstalker, Stormcaller). Returns extra debuffs for the hit. */
+  /** Former subclass traits (aspects since H3) on this player's own grenade and melee hits. Returns extra debuffs for the hit. */
   traitHitOpts(e, o) {
     // Liar's Handshake: a powered melee hit grants Cross Counter (not the uncharged melee that spends it)
     if (this.exo.has('liars') && !this.inBasicMelee && G.time < this.meleeWin) this.status.apply('crosscounter', { t: LIARS.t, set: true });
@@ -890,14 +920,64 @@ export class Player {
       this.ahamAt = G.time; // Young Ahamkara's Spine
       for (const k of ['melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * AHAMKARA.refund);
     }
-    const sub = this.cls.subclassId;
-    if (sub === 'nightstalker') return { weaken: Math.max(o.weaken || 0, TRAITS.nightstalker.weaken) };
-    if (sub === 'stormcaller') return { jolt: Math.max(o.jolt || 0, TRAITS.stormcaller.jolt) };
-    if (sub === 'sunbreaker' && o.element === 'solar' && !(e.traitBurnAt > G.time)) {
-      e.traitBurnAt = G.time + TRAITS.sunbreaker.burnTicks;
-      this.dot(e, TRAITS.sunbreaker.burnTick, TRAITS.sunbreaker.burnTicks, 'solar', ELEMENTS.solar.hex);
+    const A = this.asp;
+    if (!A.size) return null;
+    const melee = o.source === 'melee' || this.inBasicMelee || G.time < this.meleeWin; // grenade hits fall outside the melee window
+    const powered = !this.inBasicMelee && o.source === 'ability' && G.time < this.meleeWin;
+    const out = {};
+    if (A.has('pyre') && o.element === 'solar' && !(e.traitBurnAt > G.time)) {
+      const P = ASPECT_TUNE.pyre;
+      e.traitBurnAt = G.time + P.burnTicks;
+      this.dot(e, P.burnTick, P.burnTicks, 'solar', ELEMENTS.solar.hex);
     }
-    return null;
+    if (A.has('abyssal') && melee) {
+      const B = ASPECT_TUNE.abyssal;
+      if (e.status.has('weaken')) {
+        const c = e.center(new THREE.Vector3());
+        for (const x of enemiesNear(c, B.spreadR, 6, e)) dealDamage(x, 1, { element: 'void', source: 'perk', raw: true, weaken: B.weaken }); // the debuff travels with the hit to the enemy's owner
+        castFx('suppress', { p: c, r: B.spreadR });
+      }
+      out.weaken = Math.max(o.weaken || 0, B.weaken);
+    }
+    if (A.has('bloom') && o.element === 'void') this.bloom(e);
+    if (A.has('unlimitedpower') && powered) {
+      const U = ASPECT_TUNE.unlimitedpower, c = e.center(new THREE.Vector3());
+      out.jolt = Math.max(o.jolt || 0, U.jolt);
+      for (const x of enemiesNear(c, U.r, U.n, e)) {
+        const xc = x.center(new THREE.Vector3());
+        castFx('chain', { pts: [c, xc], el: 'arc', beam: true, w: 0.05 });
+        dealDamage(x, U.dmg, { element: 'arc', source: 'ability', jolted: true, jolt: U.jolt, pos: xc });
+      }
+    }
+    return out;
+  }
+
+  /** Bloom (Voidwalker aspect): the enemy is unstable; it drains to you while it lasts and detonates if it dies. */
+  bloom(e) {
+    const B = ASPECT_TUNE.bloom;
+    if (e.bloomUntil > G.time) { e.bloomUntil = G.time + B.t; return; } // refresh, one drain per enemy
+    e.bloomUntil = G.time + B.t;
+    const self = this;
+    let tick = B.tick;
+    addTicker({ update(dt) {
+      if (!e.alive) {
+        if (G.time <= e.bloomUntil + 0.05) {
+          const c = e.center(new THREE.Vector3());
+          explode(c, B.r, 60, 'void', { source: 'perk', small: true, debuffs: { weaken: B.weaken } });
+          castFx('suppress', { p: c, r: B.r });
+        }
+        return false;
+      }
+      if (G.time > e.bloomUntil || self.dead) return false;
+      tick -= dt;
+      if (tick <= 0) {
+        tick = B.tick;
+        const r = dealDamage(e, B.dmg, { element: 'void', source: 'perk', raw: true });
+        if (r.dealt > 0) self.heal(r.dealt);
+        if (Math.random() < 0.6) sparks(e.center(new THREE.Vector3()), 0xb07cff, 2, 1.5, 0.05, 0.4);
+      }
+      return true;
+    } });
   }
 
   /** Aspect and fragment reactions to a kill this player made. */
@@ -973,7 +1053,7 @@ export class Player {
       const p = this.pos.clone().setY(this.pos.y + 0.8);
       explode(p, U.r, U.dmg, 'void', { source: 'ability', debuffs: { weaken: 4 } });
       castFx('suppress', { p, r: U.r });
-      if (this.cls.subclassId === 'sentinel') this.addOvershield(25); // Sentinel trait
+      if (this.asp.has('resolve')) this.addOvershield(ASPECT_TUNE.resolve.over); // Defender's Resolve
     });
   }
 
@@ -1209,6 +1289,11 @@ export class Player {
 
   /** Restoration (Sunsinger): health and shields regenerate for t seconds, even under fire. */
   restore(t) { this.status.apply('restoration', { t }); }
+  /** Defender's Resolve and Gift of the Sun: using a grenade, powered melee or class ability. */
+  abilityAspects() {
+    if (this.asp.has('resolve')) this.addOvershield(ASPECT_TUNE.resolve.over);
+    if (this.asp.has('giftsun')) this.restore(ASPECT_TUNE.giftsun.restore);
+  }
   /** Overshield (Sentinel): extra protection on top of your shield that fades after a while. */
   addOvershield(n, t = 8) { this.over = Math.min(OVERSHIELD_MAX, this.over + n); this.status.apply('overshield', { t: this.voidT(t) }); }
 
@@ -1259,10 +1344,10 @@ export class Player {
     this.superWasReady = ready;
     const p = G.input.pressed;
     if (p.KeyQ) this.useGrenade();
-    if (p.KeyV) this.basicMelee();
-    if (p.KeyF) this.useMelee();
+    if (p.KeyB) this.basicMelee();
+    if (p.KeyV) this.useMelee();
     if (p.KeyC) this.useClass();
-    if (p.KeyX) this.useSuper();
+    if (p.KeyF) this.useSuper();
   }
 
   /** Recharge speed per ability from aspects and fragments (capped by REGEN_CAP). */
@@ -1337,7 +1422,7 @@ export class Player {
     } else if (this.cd.grenade > 0) {
       if (this.gBank <= 0) { sfx.denied(); return; }
       this.gBank--; // Starfire Protocol: spend the stored second charge
-    } else this.cd.grenade = this.keepsGuns ? Math.min(3.2, this.cdMax.grenade) : this.cdMax.grenade; // Song of Flame: a 0.8s throw delay (cooldowns run 4x during the super)
+    } else this.cd.grenade = this.cdMax.grenade; // (cooldowns run 4x during Song of Flame)
     this.grenadeWin = G.time + 3; this.grenadePending = true; this.grenadeOrbUsed = false; // grenade mods: hits and kills in the next 3s
     const g = this.cls.abilities.grenade;
     if (this.exo.has('contraverse') && g.element === 'void') this.status.apply('contraverse', { t: 3, set: true }); // Void grenades only
@@ -1350,8 +1435,7 @@ export class Player {
       gravity: 22, size: 0.16, color: ELEMENTS[el].hex, life: 2.0, onHit: (pt, e) => this.detonateGrenade(g, pt, e),
     });
     flare(start, ELEMENTS[el].hex, 0.4, 0.15);
-    if (this.cls.subclassId === 'dawnblade') this.restore(3); // Sunsinger trait: abilities grant Restoration
-    if (this.cls.subclassId === 'sentinel') this.addOvershield(25); // Sentinel trait
+    this.abilityAspects();
     this.throwFist(0.32);
     sfx.throw();
   }
@@ -1456,7 +1540,15 @@ export class Player {
     return best;
   }
 
-  /** V: plain melee. Lunges a short way toward a close target. */
+  /** A Twilight Arsenal axe picked up from the ground: left-click throws it. */
+  throwHeldAxe() {
+    this.status.remove('voidaxe');
+    this.meleeLock = 0.4;
+    this.throwAxe(this.aimForward(new THREE.Vector3()), superDmg(SUPER_TUNE.twilight.pickup), false);
+    this.throwFist(0.3);
+  }
+
+  /** B: plain melee. Lunges a short way toward a close target. */
   basicMelee() {
     if (this.meleeLock > 0 || this.superActive?.type === 'nova') return;
     this.meleeT = 0.6;
@@ -1482,18 +1574,10 @@ export class Player {
     this.shake = Math.max(this.shake, 0.08);
   }
 
-  /** F: powered class melee (needs the ability charged). */
+  /** V: powered class melee (needs the ability charged). */
   useMelee() {
     if (this.meleeLock > 0) return;
     if (this.superActive?.type === 'sentinel') { this.shieldBash(); return; }
-    if (this.status.has('voidaxe') && !this.superActive) {
-      // a Twilight Arsenal axe picked up from the ground: F throws it
-      this.status.remove('voidaxe');
-      this.meleeLock = 0.4;
-      this.throwAxe(this.aimForward(new THREE.Vector3()), superDmg(SUPER_TUNE.twilight.pickup), false);
-      this.throwFist(0.3);
-      return;
-    }
     if (this.cd.melee > 0) { sfx.denied(); return; }
     const id = this.cls.abilities.melee.id;
     const el = this.cls.element;
@@ -1504,6 +1588,7 @@ export class Player {
     this.meleeT = 1.2;
     this.meleeWin = G.time + 1.5; this.meleePending = true; this.meleeOrbUsed = false; // melee mods
     this.empowerOthers('melee');
+    this.abilityAspects();
     this.discharge();
     sfx.melee();
     if (this.frag.has('torches')) this.status.apply('radiant', { set: true }); // Ember of Torches
@@ -1824,21 +1909,20 @@ export class Player {
     this.classWin = G.time + 2; this.classOrbUsed = false; // Reaper
     this.empowerOthers('class');
     sfx.ability();
-    if (this.cls.subclassId === 'sentinel' && id !== 'ward') this.addOvershield(25); // Sentinel trait
+    this.abilityAspects();
     if (id === 'barricade' || id === 'rally') {
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
       const p = this.pos.clone().addScaledVector(fwd, id === 'rally' ? 2.4 : 3.2);
       castFx('barricade', { p, alongX: Math.abs(fwd.z) > Math.abs(fwd.x), small: id === 'rally', el: this.cls.element });
+      this.status.apply('barricadeup', { t: CLASS_FX_LIFE[id], set: true });
       for (const ww of this.weapons) this.instantReload(ww);
       this.status.apply(id === 'rally' ? 'rally' : 'reloaded', { set: true });
     } else if (id === 'marksman' || id === 'gambler') {
       this.dodge(id, airborne);
-    } else if (id === 'ward') {
-      castFx('ward', { p: this.pos.clone(), r: 6 });
-      this.addOvershield(OVERSHIELD_MAX);
     } else if (id === 'rift' || id === 'empower') {
       castFx('rift', { p: this.pos.clone(), kind: id === 'empower' ? 'empower' : 'heal', luna: this.exo.has('lunafaction') }); // Lunafaction Boots: for everyone inside
       ui.screenFlash(id === 'empower' ? '#5fd3ff' : '#b07cff', 0.2);
+      this.status.apply('riftup', { t: CLASS_FX_LIFE.rift, set: true });
       if (this.asp.has('childgods')) castFx('companion', { p: this.pos.clone(), kind: 'child', life: 8 });
       if (this.asp.has('arcsoul')) castFx('companion', { p: this.pos.clone(), kind: 'soul', life: ARC_SOUL.life });
       if (this.asp.has('hellion')) castFx('companion', { p: this.pos.clone(), kind: 'hellion', life: ASPECT_TUNE.hellion.life, fixed: true });
@@ -1858,7 +1942,7 @@ export class Player {
     addTicker({ update(dt) { t -= dt; afterimage(self.pos, col, 0.35); return t > 0; } });
     this.fovKick = Math.max(this.fovKick, 10);
     if (id === 'marksman') this.instantReload(this.weapon);
-    if (id === 'gambler' || this.cls.subclassId === 'arcstrider') { this.cd.melee = 0; this.status.apply('meleeready', { set: true }); } // Arcstrider trait: dodging recharges your melee
+    if (id === 'gambler' || A.has('crackling')) { this.cd.melee = 0; this.status.apply('meleeready', { set: true }); } // Crackling Blade: dodging recharges your melee
     if (A.has('lethal')) this.status.apply('lethal', { t: 4, set: true });
     if (A.has('vanishing')) this.goInvisible(4);
     if (A.has('trapper')) castFx('snare', { p: this.pos.clone().setY(0.3), linger: this.frag.has('remnants') ? FRAGMENT_TUNE.remnants : 1 });
@@ -1912,6 +1996,7 @@ export class Player {
   }
 
   useSuper() {
+    if (this.superActive?.type === 'chaosreach') { this.endChaosReach(); return; } // F again ends Chaos Reach
     if (this.superActive) return;
     if (this.superCharge < 100) { sfx.denied(); return; }
     this.superCharge = 0;
@@ -2158,6 +2243,15 @@ export class Player {
     }
   }
 
+  /** Chaos Reach ended early: keep some super energy for the time left. */
+  endChaosReach() {
+    const S = this.superActive;
+    if (!S || S.ended) return;
+    S.ended = true;
+    this.superCharge = Math.min(100, Math.max(0, S.t / S.max) * SUPER_TUNE.chaos.refund);
+    S.t = 0;
+  }
+
   /** Movement owned by a super. Returns true when the normal jump handling should be skipped this frame. */
   updateSuperMove(dt, wx, wz, speed, jumpPressed) {
     const S = this.superActive;
@@ -2170,21 +2264,32 @@ export class Player {
       this.vel.copy(S.dir).setLength(SUPER_TUNE.thundercrash.speed);
       return true;
     }
-    if (S.type === 'daybreak' && G.input.keys.Space && !this.onGround) {
-      // solar wings: hold Space to hover
-      this.vel.y = damp(this.vel.y, 0.4, 8, dt);
+    if (S.type === 'daybreak' && !this.onGround && this.vel.y < DAYBREAK_FALL) {
+      // solar wings: once the jump peaks you hover, sinking much slower than a normal fall
+      this.vel.y = DAYBREAK_FALL; // gravity already ran this frame, so the wings hold the sink speed
       this.vel.x = damp(this.vel.x, wx * speed * 1.2, 4, dt);
       this.vel.z = damp(this.vel.z, wz * speed * 1.2, 4, dt);
       if (Math.random() < 0.5) ember(this.pos.clone().setY(this.pos.y + 1.2), Math.random() < 0.5 ? 0xffb547 : 0xffffff, 0.05, 0.8, 0.5);
       return true;
     }
-    if (S.type === 'daybreak' && jumpPressed && this.onGround) { this.vel.y = this.jumpV * 1.2; this.onGround = false; sfx.jump(); return true; }
+    if (S.type === 'daybreak' && jumpPressed && this.onGround) { this.vel.y = this.jumpV * DAYBREAK_JUMP; this.onGround = false; sfx.jump(); return true; }
     if (S.type === 'novawarp' && jumpPressed) {
       const md = this.moveDir;
       this.blink(md?.len > 0 ? md.x : 0, md?.len > 0 ? md.z : 0, SUPER_TUNE.novawarp.warp);
+      this.warpSeekers();
       return true;
     }
     return false;
+  }
+
+  /** Nova Warp: each warp releases Void seekers that weaken the nearest enemies. */
+  warpSeekers() {
+    const W = SUPER_TUNE.novawarp, from = this.pos.clone().setY(this.pos.y + 1.2);
+    const prey = enemiesNear(from, W.seekR, W.seekers);
+    for (let i = 0; i < W.seekers; i++) {
+      const target = prey.length ? prey[i % prey.length] : null;
+      after(i * 0.06, () => this.seekerSwarm(from, target, ELEMENTS.void.hex, 0.09, (q) => explode(q, 1.8, superDmg(W.seekDmg), 'void', { source: 'super', small: true, debuffs: { weaken: W.weaken } })));
+    }
   }
 
   /** Per-frame behavior of the Light Ascendant supers (the originals are in updateSuper). */
@@ -2316,9 +2421,8 @@ export class Player {
       }
     }
     if (S.type === 'chaosreach') {
-      // Chaos Reach: a piercing arc beam while fire is held; letting go early ends it and keeps some energy
-      if (inp.mouse.left) {
-        S.started = true;
+      // Chaos Reach: a piercing arc beam from the moment it's cast until it runs out or F is pressed again
+      if (!S.ended) {
         S.tick = (S.tick ?? 0) - dt;
         if (S.tick <= 0) {
           S.tick = 0.1;
@@ -2335,10 +2439,6 @@ export class Player {
           castFx('chain', { pts: [hand.clone(), end], el: 'arc', beam: true, w: 0.22 });
           sfx.zap();
         }
-      } else if (S.started && !S.ended) {
-        S.ended = true;
-        this.superCharge = Math.min(100, Math.max(0, S.t / S.max) * T.chaos.refund);
-        S.t = 0;
       }
     }
     if (S.type === 'daybreak' && inp.mouse.leftPressed && S.cd <= 0) {

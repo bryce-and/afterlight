@@ -1,11 +1,11 @@
 // Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
-import { CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor } from '../js/data.js';
+import { WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
 import { rollItem, exoticWeights, pickExotic, EXOTIC_REPEAT_WEIGHT } from '../js/loot.js';
 import * as S from '../js/save.js';
 import { mulberry32 } from '../js/util.js';
-import { RELEASES, ROADMAP, ROADMAP_STATUSES } from '../js/releases.js';
+import { RELEASES, ROADMAP, ROADMAP_STATUSES, titleRelease } from '../js/releases.js';
 import { StatusSet, STATUS } from '../js/status.js';
 import * as C from '../js/combat.js';
 import * as SC from '../js/subclass.js';
@@ -276,16 +276,17 @@ const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasse
 test('registry: 3 grenades per element, 2 class abilities per class, 4 aspects per subclass, 8 fragments per element', () => {
   for (const el of ['solar', 'arc', 'void']) eq(SC.grenadesFor(el).length, 3, el);
   for (const c of Object.keys(CLASSES)) eq(SC.classAbilitiesFor(c).length, 2, c);
-  for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, 4, sid);
-  eq(Object.keys(SC.ASPECTS).length, 36);
+  // H3: each former subclass trait is an aspect; Bastion is gone, so Sentinel keeps 4 and the rest have 5
+  for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, sid === 'sentinel' ? 4 : 5, sid);
+  eq(Object.keys(SC.ASPECTS).length, 44);
   eq([SC.fragmentsFor('solar').length, SC.fragmentsFor('arc').length, SC.fragmentsFor('void').length], [8, 8, 8]);
   for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 1 || a.slots === 2, a.name);
 });
-test('every default loadout is valid and resolves to the v1.7 abilities (cooldowns 1.5x grenade, 1.3x class)', () => {
+test('every default loadout is valid and resolves to the expected abilities (H3: Sentinel keeps its barricade, Sunsinger grenades from Gift of the Sun)', () => {
   const v12 = { // grenade, grenade cd, class ability, class cd
-    sunbreaker: ['solar', 33, 'barricade', 34], striker: ['pulse', 30, 'barricade', 34], sentinel: ['suppressor', 33, 'ward', 44],
+    sunbreaker: ['solar', 33, 'barricade', 34], striker: ['pulse', 30, 'barricade', 34], sentinel: ['suppressor', 33, 'barricade', 34],
     gunslinger: ['swarm', 30, 'marksman', 13], nightstalker: ['axion', 30, 'marksman', 16], arcstrider: ['flux', 30, 'gambler', 12],
-    voidwalker: ['vortex', 36, 'rift', 42], stormcaller: ['storm', 33, 'empower', 42], dawnblade: ['solar', 18, 'rift', 42],
+    voidwalker: ['vortex', 36, 'rift', 42], stormcaller: ['storm', 33, 'empower', 42], dawnblade: ['solar', 23, 'rift', 42],
   };
   for (const [c, sid] of SUBS) {
     const d = SC.defaultLoadout(c, sid);
@@ -319,7 +320,7 @@ test('reward-track gating: last aspect of each level 10 subclass and two new fra
   eq(SC.sanitizeLoadout('vanguard', 'striker', { aspects: ['knockout'], fragments: ['ions', 'shock'] }, 21).fragments, ['shock']);
 });
 test('aspect cooldown multipliers; recharge boosts are capped', () => {
-  eq(SC.cooldownMults(['bastion']).class, 1.3);
+  eq(SC.cooldownMults(['giftsun']).grenade, 0.7);
   eq(SC.cooldownMults([]), { grenade: 1, melee: 1, class: 1 });
   eq(SC.regenMult([]), 1);
   ok(Math.abs(SC.regenMult([1.5, 1.2]) - 1.8) < 1e-9, 'boosts multiply');
@@ -333,7 +334,7 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
   eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 7, 'written back');
   const k = S.activeKit(s);
-  eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing']]);
+  eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
 test('setLoadout saves a valid loadout per subclass; activeKit uses it', () => {
   fresh();
@@ -430,11 +431,11 @@ test('new super damage stays in the band of the originals', () => {
   // roaming supers: damage per second of the main attack, against the v1.7 roaming supers (Hammer of Sol, Fists of Havoc, Arc Staff)
   const orig = [420 / 0.45, 520 / 0.7, (260 * 2 + 520) / (3 * 0.34)];
   const mean = orig.reduce((a, b) => a + b) / orig.length;
-  const roam = { maul: T.maul.swing / T.maul.swingCd + T.maul.slam / T.maul.slamCd, spectral: (T.spectral.hit * 2 + T.spectral.fin) / 0.9, daybreak: T.daybreak.dmg / 0.45, novawarp: T.novawarp.dmg1 / (T.novawarp.chargeT + 0.35) };
+  const roam = { maul: T.maul.swing / T.maul.swingCd + T.maul.slam / T.maul.slamCd, spectral: (T.spectral.hit * 2 + T.spectral.fin) / 0.9, daybreak: T.daybreak.dmg / 0.45, novawarp: T.novawarp.dmg1 / (T.novawarp.chargeT + 0.35), chaosreach: T.chaos.dmg * 10 }; // H3: Chaos Reach is a roaming super
   for (const [id, dps] of Object.entries(roam)) ok(dps > mean * 0.6 && dps < mean * 1.4, `${id} ${Math.round(dps)} vs ${Math.round(mean)}`);
   // burst supers: total to one target, against Nova Bomb (with its field) and Golden Gun
   const nova = 2600 + C.NOVA_FIELD.dmg * (C.NOVA_FIELD.life / C.NOVA_FIELD.tick), gg = C.GOLDEN_GUN.shot * 6;
-  const burst = { thundercrash: T.thundercrash.dmg, twilight: T.twilight.dmg * 3, bladebarrage: T.blades.dmg * T.blades.n * 2, gathering: T.gathering.dmg + T.gathering.tick * T.gathering.field * 2, stormsedge: T.stormsedge.dmg * 3, chaosreach: T.chaos.dmg * 10 * C.SUPER_TIME.chaosreach };
+  const burst = { thundercrash: T.thundercrash.dmg, twilight: T.twilight.dmg * 3, bladebarrage: T.blades.dmg * T.blades.n * 2, gathering: T.gathering.dmg + T.gathering.tick * T.gathering.field * 2, stormsedge: T.stormsedge.dmg * 3 };
   for (const [id, d] of Object.entries(burst)) ok(d >= nova * 0.75 && d <= gg, `${id} ${Math.round(d)} in ${Math.round(nova * 0.75)} to ${gg}`);
 });
 
@@ -581,9 +582,20 @@ test('elements: six with distinct symbols; Stasis and Strand roll on weapons; en
   for (let i = 0; i < 400; i++) els.add(rollItem(50, 1, 'special').element);
   ok(els.has('stasis') && els.has('strand'), 'rolled');
 });
-test('every subclass has a trait; the six new ones have tuning', () => {
-  for (const c of Object.values(CLASSES)) for (const [id, sc] of Object.entries(c.subclasses)) ok(sc.passive, `${id} trait`);
-  eq(Object.keys(SC.TRAITS).sort(), ['gunslinger', 'nightstalker', 'stormcaller', 'striker', 'sunbreaker', 'voidwalker']);
+test('subclass traits are aspects now (H3): no passives, each subclass defaults to its former trait', () => {
+  const former = { sunbreaker: 'pyre', striker: 'amplitude', sentinel: 'resolve', gunslinger: 'chainofwoe', nightstalker: 'abyssal', arcstrider: 'crackling', voidwalker: 'bloom', stormcaller: 'unlimitedpower', dawnblade: 'giftsun' };
+  for (const [c, sid] of SUBS) {
+    ok(!CLASSES[c].subclasses[sid].passive, `${sid} has no trait`);
+    const a = SC.ASPECTS[former[sid]];
+    ok(a && a.cls === c && a.sub === sid && SC.aspectLevel(former[sid]) === (CLASSES[c].subclasses[sid].unlockLevel ?? 1), `${sid} aspect opens with the subclass`);
+    ok(SC.defaultLoadout(c, sid).aspects.includes(former[sid]), `${sid} default`);
+    ok(SC.ASPECT_TUNE[former[sid]], `${sid} tuning`);
+  }
+  ok(!SC.ASPECTS.bastion, 'Bastion removed');
+  eq(SC.ASPECT_TUNE.giftsun.restore, 5);
+  ok(SC.ASPECT_TUNE.bloom.dmg <= 10, 'Bloom drain is small');
+  // Towering and Rally Barricade are both usable on Sentinel
+  for (const id of ['barricade', 'rally']) eq(SC.resolveKit('vanguard', 'sentinel', { class: id }, 40).abilities.class.id, id);
   ok(STATUS.amplified, 'Amplified on the buff HUD');
 });
 test('hammer fuse, Sunspot burn and the Healing Grenade orb', () => {
@@ -599,9 +611,11 @@ test('Ready Up: launches only with a pick and every current member ready', () =>
   eq(readyState(m.slice(0, 2), ['a', 'b', 'x'], { li: -1, mi: 0 }), { count: 2, total: 2, all: true });
   eq(readyState([{ id: 'a' }, { id: 'd' }], ['a', 'b'], { li: 0, mi: 1 }).all, false, 'someone new joined');
 });
-test('title shows the newest update: name, version and artwork', () => {
-  const r = RELEASES[0];
+test('title shows the newest major update: name, version and artwork; hotfixes leave it alone', () => {
+  const r = titleRelease();
   ok(r.name && r.version && /^<svg[\s\S]*<\/svg>$/.test(r.art), 'art');
+  eq(r.version.split('.').length, 2, 'a major update');
+  ok(RELEASES.indexOf(r) === RELEASES.findIndex((x) => x.version.split('.').length === 2), 'the newest one');
 });
 
 // ---------- Armor 2.0 ----------
@@ -919,6 +933,32 @@ test('v1.8.1: Sentinel Shield guard blocks 95% and Ursa Furiosa counts the block
   const hit = 200, taken = hit * (1 - C.SENTINEL_GUARD.cut), blocked = hit * C.SENTINEL_GUARD.cut;
   ok(Math.abs(taken - 10) < 1e-9, 'a 200 hit lands as 10');
   ok(Math.abs(Math.min(C.URSA.max, blocked * C.URSA.perDmg) - 47.5) < 1e-9, 'one blocked 200 hit returns 47.5% super');
+});
+
+// ---------- H3 hotfix (v1.8.2) ----------
+test('v1.8.2: elemental perks roll only on their element', () => {
+  const want = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void' };
+  const seen = { incandescent: 0, voltshot: 0, destabilizing: 0 };
+  for (let i = 0; i < 4000; i++) {
+    const it = rollItem(50, 2 + (i % 2), WEAPON_SLOTS_T[i % 3]);
+    for (const p of it.perks || []) if (want[p]) { seen[p]++; eq(it.element, want[p], `${p} on ${it.element}`); }
+  }
+  for (const [p, n] of Object.entries(seen)) ok(n > 0, `${p} still drops`);
+});
+test('v1.8.2: weapon tuning', () => {
+  eq([ARCHETYPES.auto.rpm, ARCHETYPES.fusion.rpm, ARCHETYPES.smg.range, ARCHETYPES.shotgun.range, ARCHETYPES.shotgun.dmg, ARCHETYPES.shotgun.falloff.bonus], [650, 80, 15, 9, 22, 1.15]);
+  eq([ARCHETYPES.linear.dmg, ARCHETYPES.rocket.dmg, ARCHETYPES.mg.dmg, ARCHETYPES.glauncher.dmg], [473, 990, 35, 418], 'heavy +10%');
+  // ranges: SMG short, Auto and Pulse medium, Scout long
+  ok(ARCHETYPES.smg.range < ARCHETYPES.auto.range && ARCHETYPES.auto.range <= ARCHETYPES.pulse.range && ARCHETYPES.pulse.range < ARCHETYPES.scout.range, 'range bands');
+});
+test('v1.8.2: supers (Chaos Reach 9 s, Well 25 s, nerfs) and the rift and barricade timers', () => {
+  eq(C.SUPER_TIME.chaosreach, 9);
+  eq(C.SUPER_TUNE.well.life, 25);
+  ok(C.SUPER_TUNE.well.burn > 0 && C.SUPER_TUNE.well.restore > 0, 'Well burns and restores');
+  eq([C.SUPER_TUNE.gathering.dmg, C.SUPER_TUNE.spectral.hit], [2100, 210]);
+  ok(C.SUPER_TUNE.novawarp.seekers > 0 && C.SUPER_TUNE.novawarp.weaken > 0, 'Nova Warp seekers weaken');
+  eq(C.CLASS_FX_LIFE, { rift: 10, barricade: 12, rally: 7 });
+  ok(STATUS.riftup && STATUS.barricadeup, 'timer buffs');
 });
 
 // ---------- runner ----------

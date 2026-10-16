@@ -38,19 +38,21 @@ export const SLOT_NAMES = {
 };
 
 // ---------- Weapon archetypes ----------
+// H3: Auto Rifles 600 to 650 RPM, Fusion Rifles 70 to 80, SMG range 20 to 15 m, Shotguns 23 to 22 damage
+// with a smaller point-blank bonus (1.3 to 1.15) and range 12 to 9 m, heavy weapons +10% damage.
 export const ARCHETYPES = {
-  auto: { id: 'auto', name: 'Auto Rifle', slot: 'primary', dmg: 15, rpm: 600, mode: 'auto', mag: 34, reload: 1.9, spread: 0.028, ads: 0.0038, zoom: 1.35, prec: 1.6, range: 38, recoil: 0.010, bloom: 0.003 },
+  auto: { id: 'auto', name: 'Auto Rifle', slot: 'primary', dmg: 15, rpm: 650, mode: 'auto', mag: 34, reload: 1.9, spread: 0.028, ads: 0.0038, zoom: 1.35, prec: 1.6, range: 38, recoil: 0.010, bloom: 0.003 },
   hand: { id: 'hand', name: 'Hand Cannon', slot: 'primary', dmg: 60, rpm: 140, mode: 'semi', mag: 11, reload: 1.7, spread: 0.014, ads: 0.001, zoom: 1.45, prec: 2.0, range: 32, recoil: 0.045 },
   pulse: { id: 'pulse', name: 'Pulse Rifle', slot: 'primary', dmg: 22, rpm: 900, mode: 'burst', burst: 3, burstDelay: 0.3, mag: 30, reload: 2.0, spread: 0.02, ads: 0.0022, zoom: 1.5, prec: 1.7, range: 42, recoil: 0.012 },
   scout: { id: 'scout', name: 'Scout Rifle', slot: 'primary', dmg: 40, rpm: 200, mode: 'semi', mag: 16, reload: 2.1, spread: 0.02, ads: 0.0005, zoom: 1.7, prec: 1.8, range: 60, recoil: 0.02 },
-  smg: { id: 'smg', name: 'Submachine Gun', slot: 'primary', dmg: 10, rpm: 900, mode: 'auto', mag: 42, reload: 1.6, spread: 0.04, ads: 0.009, zoom: 1.2, prec: 1.5, range: 20, recoil: 0.006, bloom: 0.002 },
-  shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 23, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.05, zoom: 1.15, prec: 1.4, range: 12, recoil: 0.08, falloff: { close: 4, bonus: 1.3, min: 0.15, span: 1 } },
+  smg: { id: 'smg', name: 'Submachine Gun', slot: 'primary', dmg: 10, rpm: 900, mode: 'auto', mag: 42, reload: 1.6, spread: 0.04, ads: 0.009, zoom: 1.2, prec: 1.5, range: 15, recoil: 0.006, bloom: 0.002 },
+  shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 22, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.05, zoom: 1.15, prec: 1.4, range: 9, recoil: 0.08, falloff: { close: 4, bonus: 1.15, min: 0.15, span: 1 } },
   sniper: { id: 'sniper', name: 'Sniper Rifle', slot: 'special', dmg: 360, rpm: 50, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.5, spread: 0.07, ads: 0.0, zoom: 4.5, prec: 2.6, range: 150, recoil: 0.09 },
-  fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 70, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.026, ads: 0.011, falloff: { close: 8, bonus: 1.15, min: 0.3, span: 1 }, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
-  linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 430, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 18, brick: 4, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
-  rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 900, rpm: 40, mode: 'semi', mag: 1, reserve: 8, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
-  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 32, rpm: 720, mode: 'auto', mag: 70, reserve: 210, brick: 60, reload: 3.0, spread: 0.032, ads: 0.0072, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
-  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 380, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
+  fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 80, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.026, ads: 0.011, falloff: { close: 8, bonus: 1.15, min: 0.3, span: 1 }, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
+  linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 473, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 18, brick: 4, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
+  rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 990, rpm: 40, mode: 'semi', mag: 1, reserve: 8, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
+  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 35, rpm: 720, mode: 'auto', mag: 70, reserve: 210, brick: 60, reload: 3.0, spread: 0.032, ads: 0.0072, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
+  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 418, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
 };
 
 // Damage falloff: full damage out to the weapon's range, then it drops to `min` over
@@ -115,6 +117,8 @@ export const EXOTIC_PERKS = {
   wolfpack: { name: 'Wolfpack Rounds', desc: 'Explosions release 4 wolfpack rounds that hunt down nearby enemies.' },
   truth: { name: "Hunter's Trace", desc: 'Rocket kills instantly reload the launcher from reserves.' },
 };
+// Elemental perks roll only on weapons of their element (H3).
+export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void' };
 export const PERK_POOL = {
   primary: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'precise', 'surrounded', 'opening', 'frenzy', 'feeding', 'incandescent', 'voltshot', 'destabilizing', 'demolitionist', 'snapshot', 'reconstruction', 'killingwind'],
   special: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow', 'surrounded', 'opening', 'frenzy', 'feeding', 'incandescent', 'voltshot', 'chainreaction', 'demolitionist', 'snapshot', 'killingwind'],
@@ -198,29 +202,26 @@ export const CLASSES = {
     subclasses: {
       sunbreaker: {
         name: 'Sunbreaker', element: 'solar', color: '#ff8b2b', tagline: 'Walls, hammers, and fire.',
-        passive: 'Your Solar grenades and melees set enemies burning for 3 seconds.',
-        defaults: { grenade: 'solar', class: 'barricade', aspects: [] },
+        defaults: { grenade: 'solar', class: 'barricade', aspects: ['pyre'] },
         abilities: {
           melee: { id: 'hammerthrow', name: 'Throwing Hammer', cd: 10, desc: 'Hurl a solar hammer. Walk over it after it lands to pick it up: your melee recharges instantly and you heal.' },
-          super: { id: 'hammers', camera: 'third', name: 'Hammer of Sol', desc: 'For 15s hurl explosive solar hammers and take 40% less damage.' },
+          super: { id: 'hammers', camera: 'third', name: 'Hammer of Sol', desc: 'For 15s hurl explosive solar hammers and take 70% less damage.' },
         },
       },
       striker: {
         name: 'Striker', element: 'arc', color: '#5fd3ff', tagline: 'Charge in and hit like lightning.',
-        passive: 'Arc ability kills make you Amplified for 6 seconds: you move faster and reload faster.',
-        defaults: { grenade: 'pulse', class: 'barricade', aspects: [] },
+        defaults: { grenade: 'pulse', class: 'barricade', aspects: ['amplitude'] },
         abilities: {
           melee: { id: 'charge', name: 'Shoulder Charge', cd: 9, desc: 'Sprint-tackle forward, slamming the first enemy you hit.' },
-          super: { id: 'fists', camera: 'third', name: 'Fists of Havoc', desc: 'For 14s, each click is a lunging arc slam. Take 50% less damage and move faster.' },
+          super: { id: 'fists', camera: 'third', name: 'Fists of Havoc', desc: 'For 14s, each click is a lunging arc slam. Take 70% less damage and move faster.' },
         },
       },
       sentinel: {
         name: 'Sentinel', unlockLevel: 10, element: 'void', color: '#b07cff', tagline: 'A shield for the fireteam. Overshields and suppression.',
-        passive: 'Grenades, melees and your class ability grant you an overshield.',
-        defaults: { grenade: 'suppressor', class: 'barricade', aspects: ['bastion'] },
+        defaults: { grenade: 'suppressor', class: 'barricade', aspects: ['resolve'] },
         abilities: {
           melee: { id: 'shieldthrow', name: 'Shield Throw', cd: 11, desc: 'Throw your shield to ricochet through up to 3 enemies. Grants an overshield.' },
-          super: { id: 'sentinel', camera: 'third', name: 'Sentinel Shield', desc: 'For 15s: click to throw a shield that ricochets through enemies and returns, hold right-click to guard, F to bash.' },
+          super: { id: 'sentinel', camera: 'third', name: 'Sentinel Shield', desc: 'For 15s: click to throw a shield that ricochets through enemies and returns, hold right-click to guard, V to bash.' },
         },
       },
     },
@@ -231,8 +232,7 @@ export const CLASSES = {
     subclasses: {
       gunslinger: {
         name: 'Gunslinger', element: 'solar', color: '#ffb547', tagline: 'Dodges, knives, and the Golden Gun.',
-        passive: 'Weapon precision kills give you 15% melee energy.',
-        defaults: { grenade: 'swarm', class: 'marksman', aspects: [] },
+        defaults: { grenade: 'swarm', class: 'marksman', aspects: ['chainofwoe'] },
         abilities: {
           melee: { id: 'knife', name: 'Knife Trick', cd: 9, desc: 'Throw a flaming knife. Precision hits deal double damage.' },
           super: { id: 'revolver', camera: 'first', name: 'Golden Gun', desc: 'Six devastating solar shots that burn nearby enemies.' },
@@ -240,8 +240,7 @@ export const CLASSES = {
       },
       nightstalker: {
         name: 'Nightstalker', element: 'void', color: '#b07cff', tagline: 'Smoke, invisibility, and tethers.',
-        passive: 'Your grenades and melees weaken every enemy they hit for 4 seconds.',
-        defaults: { grenade: 'axion', class: 'marksman', aspects: ['vanishing'] },
+        defaults: { grenade: 'axion', class: 'marksman', aspects: ['vanishing', 'abyssal'] },
         abilities: {
           melee: { id: 'snare', name: 'Snare Bomb', cd: 10, desc: 'Throw a smoke bomb that sticks, then bursts into a cloud that slows and weakens enemies.' },
           super: { id: 'tether', camera: 'first', name: 'Shadowshot', desc: 'Three void arrows that tether enemies: pulled, slowed, weakened, and burned.' },
@@ -249,11 +248,10 @@ export const CLASSES = {
       },
       arcstrider: {
         name: 'Arcstrider', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Up close and never still. Dodge, strike, repeat.',
-        passive: 'Dodging recharges your melee; melee kills fully heal you.',
-        defaults: { grenade: 'flux', class: 'gambler', aspects: ['lethal'] },
+        defaults: { grenade: 'flux', class: 'gambler', aspects: ['lethal', 'crackling'] },
         abilities: {
           melee: { id: 'combo', name: 'Combination Blow', cd: 9, desc: 'Lunging arc strike. A kill fully heals you and refunds half the melee.' },
-          super: { id: 'staff', camera: 'third', name: 'Arc Staff', desc: 'For 14s, wield a staff: three-hit combos with a shockwave finisher, dodge freely with C, and take 55% less damage.' },
+          super: { id: 'staff', camera: 'third', name: 'Arc Staff', desc: 'For 14s, wield a staff: three-hit combos with a shockwave finisher, dodge freely with C, and take 70% less damage.' },
         },
       },
     },
@@ -264,8 +262,7 @@ export const CLASSES = {
     subclasses: {
       voidwalker: {
         name: 'Voidwalker', element: 'void', color: '#b07cff', tagline: 'Heal, drain, and annihilate.',
-        passive: 'Enemies you defeat with Void abilities detonate in a small void blast.',
-        defaults: { grenade: 'vortex', class: 'rift', aspects: [] },
+        defaults: { grenade: 'vortex', class: 'rift', aspects: ['bloom'] },
         abilities: {
           melee: { id: 'siphon', name: 'Energy Drain', cd: 11, desc: 'Ranged void strike that restores health and shields.' },
           super: { id: 'nova', camera: 'first', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits, then leaves a void field for 6s that damages, weakens and suppresses enemies inside.' },
@@ -273,8 +270,7 @@ export const CLASSES = {
       },
       stormcaller: {
         name: 'Stormcaller', unlockLevel: 10, element: 'arc', color: '#5fd3ff', tagline: 'Call down the storm.',
-        passive: 'Your melees and grenades jolt the enemies they hit.',
-        defaults: { grenade: 'storm', class: 'empower', aspects: [] },
+        defaults: { grenade: 'storm', class: 'empower', aspects: ['unlimitedpower'] },
         abilities: {
           melee: { id: 'chainl', name: 'Chain Lightning', cd: 10, desc: 'Ranged arc strike that jumps to three more enemies.' },
           super: { id: 'stormtrance', camera: 'third', name: 'Stormtrance', desc: 'For 12s, hold fire to pour chain lightning from your hands.' },
@@ -282,9 +278,7 @@ export const CLASSES = {
       },
       dawnblade: { // shown as Sunsinger; the id stays 'dawnblade' so saves and fireteam messages keep working
         name: 'Sunsinger', element: 'solar', color: '#ffb547', tagline: 'Fire that heals. Abilities that never stop.',
-        passive: 'Your abilities grant Restoration: health and shields regenerate for a few seconds. Grenades recharge 45% faster, and during Song of Flame they have no cooldown.',
-        grenadeCdMult: 0.55,
-        defaults: { grenade: 'solar', class: 'rift', aspects: ['phoenix'] },
+        defaults: { grenade: 'solar', class: 'rift', aspects: ['phoenix', 'giftsun'] },
         abilities: {
           melee: { id: 'snap', name: 'Incinerator Snap', cd: 9, desc: 'Snap your fingers: three explosions burst down a line ahead and set enemies burning.' },
           super: { id: 'songflame', camera: 'first', name: 'Song of Flame', desc: 'For 10s keep your guns: grenades and melees recharge 4x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
@@ -416,5 +410,5 @@ export const ACTIVITIES = [
 export const CONTROLS = [
   ['WASD', 'Move'], ['Shift', 'Sprint'], ['Space', 'Jump / class jump'], ['Mouse', 'Look'],
   ['LMB', 'Fire'], ['RMB', 'Aim down sights'], ['R', 'Reload'], ['1 2 3 / Wheel', 'Switch weapon'],
-  ['Q', 'Grenade'], ['V', 'Melee'], ['Hold E', 'Revive a teammate'], ['F', 'Charged melee ability'], ['C', 'Class ability'], ['X', 'Super'], ['E', 'Interact'], ['I', 'Inventory (swap weapons)'], ['Esc', 'Pause'],
+  ['Q', 'Grenade'], ['B', 'Melee'], ['Hold E', 'Revive a teammate'], ['V', 'Charged melee ability'], ['C', 'Class ability'], ['F', 'Super'], ['E', 'Interact'], ['I', 'Inventory (swap weapons)'], ['Esc', 'Pause'],
 ];

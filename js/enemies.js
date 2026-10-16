@@ -320,6 +320,8 @@ function cabal(c, t) {
   }
 }
 
+const THRALL_SCALE = 1.15;
+
 export class Enemy {
   constructor(typeId, pos, o) {
     const def = ENEMY_TYPES[typeId];
@@ -332,8 +334,11 @@ export class Enemy {
     this.bossModel = this.isBoss ? (o.model ?? M.bossModel ?? null) : null;
     this.name = o.name || M.loc.enemyNames[typeId];
     this.pos = pos.clone(); this.pos.y = 0;
-    this.radius = 0.45 * def.scale;
-    this.height = 2.05 * def.scale;
+    const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
+    // H3: Hive Thralls are a little bigger than other rushers
+    this.scale = def.scale * (faction === 'hollow' && typeId === 'rusher' ? THRALL_SCALE : 1);
+    this.radius = 0.45 * this.scale;
+    this.height = 2.05 * this.scale;
     this.maxHp = def.hp * o.hpMult; this.hp = this.maxHp;
     this.maxShield = def.shield ? def.shield * o.hpMult : 0; this.shield = this.maxShield;
     this.shieldEl = o.element || 'arc';
@@ -354,15 +359,14 @@ export class Enemy {
     // shooters hide behind cover between bursts
     this.usesCover = typeId === 'grunt' || typeId === 'captain';
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0 };
-    const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
     this.faction = faction;
     this.model = buildModel(this, M.loc.colors, faction);
-    this.height = this.model.height * def.scale;
+    this.height = this.model.height * this.scale;
     this.hitMeshes = this.model.hit;
     this.model.group.position.copy(this.pos);
     this.model.group.rotation.order = 'YXZ'; // pitch (stagger, death) tilts about the enemy's own right axis
     G.scene.add(this.model.group);
-    ringFx(this.pos, 2 * def.scale, M.loc.colors.eye, 0.6);
+    ringFx(this.pos, 2 * this.scale, M.loc.colors.eye, 0.6);
     sparks(_v.copy(this.pos).setY(1), M.loc.colors.eye, 8, 5, 0.1, 0.5);
   }
 
@@ -406,7 +410,7 @@ export class Enemy {
     }
     if (this.spawnT < 1) {
       this.spawnT = Math.min(1, this.spawnT + dt * 2.2);
-      m.group.scale.setScalar(this.def.scale * Math.max(0.05, easeOutBack(this.spawnT)));
+      m.group.scale.setScalar(this.scale * Math.max(0.05, easeOutBack(this.spawnT)));
       m.group.position.copy(this.pos);
       return true;
     }
