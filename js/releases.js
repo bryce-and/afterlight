@@ -4,6 +4,17 @@
 
 export const RELEASES = [
   {
+    version: '1.8.3', name: 'Hotfix', date: '2026-10-15', accent: '#ffb547', glyph: '✚',
+    summary: 'Sunsingers get Phoenix Dive as a class ability and a new Icarus Dash aspect, Song of Flame burns hot again, Gift of the Sun gets its own identity, and the quieter aspects open more fragment slots.',
+    notes: [
+      'Gift of the Sun no longer grants Restoration (Ember of Benevolence covers that). Solar grenade and melee kills now leave a Firesprite: walk over it for 15% grenade energy. Grenades still recharge 30% faster',
+      'Phoenix Dive is now a Sunsinger class ability: dive from the air, or burst where you stand on the ground. It always heals you and grants Restoration',
+      'New Sunsinger aspect, Icarus Dash: press Shift in the air to dash. 2 charges',
+      'Song of Flame: grenades and melees recharge almost instantly again',
+      'Amplitude, Defender\'s Resolve, Juggernaut, On Your Mark, Chain of Woe, Ascension and Icarus Dash open 2 fragment slots',
+    ],
+  },
+  {
     version: '1.8.2', name: 'Hotfix', date: '2026-10-15', accent: '#ffb547', glyph: '✚',
     summary: 'Subclass traits become aspects you choose, the newest supers get tuned, and a long list of fixes, from weapon balance to a Warlock coat that no longer looks like a dress.',
     notes: [

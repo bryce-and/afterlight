@@ -17,7 +17,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 ## What's in it
 
 - **3 Guardians, 9 subclasses**: play a Titan, a Hunter and a Warlock on one account. Each has its own gear, inventory and Light; your level, glimmer, shaders and vault are shared, and gear moves between Guardians through the vault.
-- **Subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a melee, and on the subclass screen you choose its super (21 in all, new ones unlocked on the reward track), a class jump (Blink for Arcstriders and Voidwalkers), a grenade from its element, a class ability from its class, two of its aspects (five per subclass, four for Sentinel) and the fragments they open (eight per element).
+- **Subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a melee, and on the subclass screen you choose its super (21 in all, new ones unlocked on the reward track), a class jump (Blink for Arcstriders and Voidwalkers), a grenade from its element, a class ability from its class (Sunsingers also get Phoenix Dive), two of its aspects (five per subclass, four for Sentinel) and the fragments they open (eight per element).
 - **Guardian levels 1 to 40**: XP from kills (shared by the fireteam), missions and caches. The Level tab is a reward track: a Legendary every 3 levels, Exotics at 20 and 40. Drop rarity climbs with your level.
 - **12 weapon types** (every player gets one of each) in primary / special / heavy slots, each with Destiny's archetypes (Adaptive, Rapid-Fire, High-Impact, Precision...) that fix its stats. Named legendaries always have the same archetype and element. Kinetic, Solar, Arc, Void, Stasis and Strand weapons; aim down sights, reloads, recoil, precision damage, elemental shields.
 - **Combat HUD**: buffs and exotic effects with timers (general above the abilities, weapon perks below), enemy name and health on aim, damage numbers that drift aside, a gold super bar when charged. Enemies flinch on heavy hits.
@@ -43,7 +43,7 @@ On the Director screen, **Create Fireteam** to get a 6-character code, or type a
 
 ## Controls
 
-WASD move, Shift sprint, Space jump (press or hold in air for class jump), mouse aim, LMB fire, RMB aim down sights, R reload, 1/2/3 or wheel switch weapon, Q grenade, B melee, V charged melee ability, C class ability, F super, E interact, Esc pause.
+WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in air for class jump), mouse aim, LMB fire, RMB aim down sights, R reload, 1/2/3 or wheel switch weapon, Q grenade, B melee, V charged melee ability, C class ability, F super, E interact, Esc pause.
 
 ## Code map
 

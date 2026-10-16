@@ -887,7 +887,7 @@ function openSubclass() {
   if (spSlot) {
     const kind = ['super', 'jump', 'grenade', 'class'].includes(spSlot) ? spSlot : spSlot.startsWith('aspect') ? 'aspect' : 'fragment';
     const frame = kind === 'fragment' ? 'fragment' : kind;
-    const ids = kind === 'super' ? supersFor(s.classId, cls.subclassId) : kind === 'jump' ? jumpsFor(s.classId, cls.subclassId) : kind === 'grenade' ? grenadesFor(cls.element) : kind === 'class' ? classAbilitiesFor(s.classId) : kind === 'aspect' ? aspectsFor(s.classId, cls.subclassId) : fragmentsFor(cls.element);
+    const ids = kind === 'super' ? supersFor(s.classId, cls.subclassId) : kind === 'jump' ? jumpsFor(s.classId, cls.subclassId) : kind === 'grenade' ? grenadesFor(cls.element) : kind === 'class' ? classAbilitiesFor(s.classId, cls.subclassId) : kind === 'aspect' ? aspectsFor(s.classId, cls.subclassId) : fragmentsFor(cls.element);
     const current = entries[spSlot]?.id;
     const used = new Set(kind === 'aspect' ? lo.aspects : kind === 'fragment' ? lo.fragments : []);
     const removable = kind === 'aspect' || kind === 'fragment';

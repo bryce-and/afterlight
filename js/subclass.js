@@ -31,6 +31,7 @@ export const CLASS_ABILITIES = {
   arcanist: {
     rift: { name: 'Healing Rift', cd: 32, desc: 'Conjure a well that heals everyone inside and speeds reloads.' },
     empower: { name: 'Empowering Rift', cd: 32, desc: 'Conjure a well that gives everyone inside +25% weapon damage.' },
+    phoenix: { name: 'Phoenix Dive', cd: 13, sub: 'dawnblade', desc: 'In the air, dive to the ground in a solar burst. On the ground, release the burst where you stand. Always heals you and grants Restoration.' },
   },
 };
 
@@ -42,20 +43,20 @@ export const ASPECTS = {
   roaring: { cls: 'vanguard', sub: 'sunbreaker', name: 'Roaring Flames', slots: 2, desc: 'Solar ability kills grant Roaring Flames: +20% ability damage per stack, up to 3, for 10s.' },
   consecration: { cls: 'vanguard', sub: 'sunbreaker', name: 'Consecration', slots: 1, desc: 'Your powered melee also sends a wave of solar fire along the ground that scorches enemies.' },
   knockout: { cls: 'vanguard', sub: 'striker', name: 'Knockout', slots: 2, desc: 'Breaking a shield or a powered melee kill heals you. For 5s your quick melee hits twice as hard and lunges farther.' },
-  juggernaut: { cls: 'vanguard', sub: 'striker', name: 'Juggernaut', slots: 1, desc: 'After sprinting for 1s you raise a frontal shield: take 50% less damage while you keep sprinting.' },
+  juggernaut: { cls: 'vanguard', sub: 'striker', name: 'Juggernaut', slots: 2, desc: 'After sprinting for 1s you raise a frontal shield: take 50% less damage while you keep sprinting.' },
   thunder: { cls: 'vanguard', sub: 'striker', name: 'Touch of Thunder', slots: 1, desc: 'Arc grenades are upgraded: Pulse pulses 8 times, Storm lasts 50% longer, Flux jolts the enemy it sticks to.' },
   demolition: { cls: 'vanguard', sub: 'sentinel', name: 'Controlled Demolition', slots: 2, desc: 'Weakened or suppressed enemies you defeat explode in void energy, and you heal.' },
   bulwark: { cls: 'vanguard', sub: 'sentinel', name: 'Offensive Bulwark', slots: 1, unlockLevel: 13, desc: 'While your overshield is up, grenades recharge 50% faster and powered melees hit 50% harder.' },
   tempered: { cls: 'vanguard', sub: 'sunbreaker', name: 'Tempered Metal', slots: 2, desc: 'Solar ability kills temper your armor for 6s: you move 15% faster and reload 25% faster.' },
   aftershocks: { cls: 'vanguard', sub: 'striker', name: 'Aftershocks', slots: 2, desc: 'Hits with your Arc abilities and super recharge your grenade and melee by 4% (at most every quarter second).' },
   pyre: { cls: 'vanguard', sub: 'sunbreaker', name: 'Explosive Pyre', slots: 1, desc: 'Solar grenade and melee hits scorch enemies for 3s. Scorched enemies you defeat spread scorch to enemies within 4m.' },
-  amplitude: { cls: 'vanguard', sub: 'striker', name: 'Amplitude', slots: 1, desc: 'Arc ability kills make you Amplified for 6s: you move faster and reload faster.' },
-  resolve: { cls: 'vanguard', sub: 'sentinel', name: "Defender's Resolve", slots: 1, desc: 'Your grenade, melee and class ability grant you an overshield.' },
+  amplitude: { cls: 'vanguard', sub: 'striker', name: 'Amplitude', slots: 2, desc: 'Arc ability kills make you Amplified for 6s: you move faster and reload faster.' },
+  resolve: { cls: 'vanguard', sub: 'sentinel', name: "Defender's Resolve", slots: 2, desc: 'Your grenade, melee and class ability grant you an overshield.' },
   unbreakable: { cls: 'vanguard', sub: 'sentinel', name: 'Unbreakable', slots: 1, desc: 'Your grenade becomes a void shield: Q raises it for 2s (90% less damage), then it explodes and weakens enemies around you.' },
   // Hunter
   knockemdown: { cls: 'stalker', sub: 'gunslinger', name: "Knock 'Em Down", slots: 1, desc: 'Golden Gun gains 2 shots, each dealing 15% less damage. Dodging refunds half of your melee.' },
   gunpowder: { cls: 'stalker', sub: 'gunslinger', name: 'Gunpowder Gamble', slots: 2, desc: 'Five kills charge an explosive. While your grenade is recharging, Q throws it instead.' },
-  onyourmark: { cls: 'stalker', sub: 'gunslinger', name: 'On Your Mark', slots: 1, desc: 'Dodging grants a stack of On Your Mark: reload 15% faster per stack, up to 3, for 6s.' },
+  onyourmark: { cls: 'stalker', sub: 'gunslinger', name: 'On Your Mark', slots: 2, desc: 'Dodging grants a stack of On Your Mark: reload 15% faster per stack, up to 3, for 6s.' },
   crackshot: { cls: 'stalker', sub: 'gunslinger', name: 'Crackshot', slots: 1, desc: 'Dodging fires three scorching shots at the nearest enemies in front of you. If all three land, you heal.' },
   prowl: { cls: 'stalker', sub: 'nightstalker', name: 'On the Prowl', slots: 1, desc: 'While invisible you move 15% faster and your melee recharges 50% faster. Your first weapon hit out of invisibility weakens the target.' },
   fasttwitch: { cls: 'stalker', sub: 'arcstrider', name: 'Fast Twitch', slots: 2, desc: 'Powered melee kills fully recharge your dodge and make you Amplified for 4s.' },
@@ -64,8 +65,8 @@ export const ASPECTS = {
   trapper: { cls: 'stalker', sub: 'nightstalker', name: "Trapper's Ambush", slots: 1, desc: 'Dodging leaves a cloud of void smoke that slows and weakens enemies.' },
   lethal: { cls: 'stalker', sub: 'arcstrider', name: 'Lethal Current', slots: 1, desc: 'After a dodge, your next powered melee within 4s hits twice as hard and jolts nearby enemies.' },
   flowstate: { cls: 'stalker', sub: 'arcstrider', name: 'Flow State', slots: 2, desc: 'Arc ability kills grant Flow State for 6s: your dodge recharges 50% faster and you reload 25% faster.' },
-  ascension: { cls: 'stalker', sub: 'arcstrider', name: 'Ascension', slots: 1, unlockLevel: 16, desc: 'Dodging in the air launches you upward and jolts nearby enemies.' },
-  chainofwoe: { cls: 'stalker', sub: 'gunslinger', name: 'Chain of Woe', slots: 1, desc: 'Weapon precision kills give you 15% melee energy and 10% grenade energy.' },
+  ascension: { cls: 'stalker', sub: 'arcstrider', name: 'Ascension', slots: 2, unlockLevel: 16, desc: 'Dodging in the air launches you upward and jolts nearby enemies.' },
+  chainofwoe: { cls: 'stalker', sub: 'gunslinger', name: 'Chain of Woe', slots: 2, desc: 'Weapon precision kills give you 15% melee energy and 10% grenade energy.' },
   abyssal: { cls: 'stalker', sub: 'nightstalker', name: 'Abyssal Edge', slots: 1, desc: 'Melee hits weaken enemies for 6s. A melee hit on an enemy that is already weakened spreads weaken to enemies within 5m.' },
   crackling: { cls: 'stalker', sub: 'arcstrider', name: 'Crackling Blade', slots: 1, desc: 'Dodging recharges your melee. Melee kills fully heal you.' },
   // Warlock
@@ -79,10 +80,10 @@ export const ASPECTS = {
   ionicsentry: { cls: 'arcanist', sub: 'stormcaller', name: 'Ionic Sentry', slots: 1, desc: 'Every third Ionic Trace or Arc ability kill deploys an Ionic Sentry at your feet for 8s. It zaps up to 3 enemies and jolts them.' },
   bloom: { cls: 'arcanist', sub: 'voidwalker', name: 'Bloom', slots: 1, desc: 'Void grenade and melee hits make enemies unstable for 5s: they slowly lose health and you gain it. An unstable enemy that dies detonates and weakens enemies nearby.' },
   unlimitedpower: { cls: 'arcanist', sub: 'stormcaller', name: 'Unlimited Power', slots: 1, desc: 'Powered melee hits jolt the target and arc lightning to 2 more enemies nearby.' },
-  giftsun: { cls: 'arcanist', sub: 'dawnblade', name: 'Gift of the Sun', slots: 1, cd: { grenade: 0.7 }, desc: 'Your grenade, melee and class ability grant 5s of Restoration. Grenades recharge 30% faster.' },
+  giftsun: { cls: 'arcanist', sub: 'dawnblade', name: 'Gift of the Sun', slots: 1, cd: { grenade: 0.7 }, desc: 'Solar grenade and melee kills leave a Firesprite. Walk over it for 15% grenade energy (at most 3 at a time). Grenades recharge 30% faster.' },
   touchflame: { cls: 'arcanist', sub: 'dawnblade', name: 'Touch of Flame', slots: 1, desc: 'Solar grenades are upgraded: Solar Grenade pulses 8 times and scorches, Swarm fires 6 seekers, Healing leaves a stronger orb.' },
   heatrises: { cls: 'arcanist', sub: 'dawnblade', name: 'Heat Rises', slots: 2, desc: 'While airborne your grenade and melee recharge 50% faster, and kills in the air grant Restoration.' },
-  phoenix: { cls: 'arcanist', sub: 'dawnblade', name: 'Phoenix Dive', slots: 1, desc: 'In the air, C dives to the ground in a solar burst on its own 16s timer. Always heals you and grants Restoration.' },
+  icarus: { cls: 'arcanist', sub: 'dawnblade', name: 'Icarus Dash', slots: 2, desc: 'In the air, press Shift to dash in your movement direction. 2 charges, each recharging in 6s.' },
   hellion: { cls: 'arcanist', sub: 'dawnblade', name: 'Hellion', slots: 2, desc: 'Your rift also summons a Hellion for 8s: a solar turret that fires scorching bolts at nearby enemies.' },
 };
 
@@ -97,6 +98,7 @@ export const ASPECT_TUNE = {
   angel: { hover: 3, refund: 0.1 },
   ionicsentry: { every: 3, life: 8, tick: 0.8, dmg: 30, n: 3 },
   hellion: { life: 8, tick: 0.9, dmg: 40 },
+  icarus: { charges: 2, cd: 6, t: 0.2, speed: 22 },
   // Former subclass traits (H3)
   pyre: { burnTick: 18, burnTicks: 3, spreadR: 4, spreadDps: 18, spreadT: 3 },
   amplitude: { amplified: 6, speed: 1.1, reload: 1.25 },
@@ -106,15 +108,13 @@ export const ASPECT_TUNE = {
   crackling: { heal: 1000 },
   bloom: { t: 5, tick: 0.5, dmg: 8, r: 4, weaken: 4 },
   unlimitedpower: { jolt: 4, n: 2, r: 8, dmg: 60 },
-  giftsun: { restore: 5 },
+  giftsun: { energy: 0.15, life: 10, r: 1.6, max: 3 },
 };
 export const FRAGMENT_TUNE = {
   searing: 0.1, combustion: { r: 4, dmg: 180 }, benevolence: 1.3, tempering: 2,
   resistance: { n: 3, r: 8, cut: 0.8 }, discharge: 0.3, magnitude: { pulses: 2, storm: 1, flux: 2 },
   remnants: 1.5, obscurity: 3, leeching: 60,
 };
-
-export const PHOENIX_DIVE_CD = 16;
 
 // Sunspots (Sol Invictus and Hammer of Sol): enemies inside burn; the caster's copy deals the damage.
 export const SUNSPOT = { r: 2.7, life: 6, tick: 0.5, dmg: 22 };
@@ -204,7 +204,8 @@ export const REGEN_CAP = 2;
 const subOf = (classId, subId) => CLASSES[classId]?.subclasses[subId];
 
 export const grenadesFor = (element) => Object.keys(GRENADES).filter((id) => GRENADES[id].element === element);
-export const classAbilitiesFor = (classId) => Object.keys(CLASS_ABILITIES[classId] || {});
+/** Class abilities for a class; one with a `sub` (Phoenix Dive) is only for that subclass. */
+export const classAbilitiesFor = (classId, subId) => Object.entries(CLASS_ABILITIES[classId] || {}).filter(([, c]) => !c.sub || c.sub === subId).map(([id]) => id);
 export const aspectsFor = (classId, subId) => Object.keys(ASPECTS).filter((id) => ASPECTS[id].cls === classId && ASPECTS[id].sub === subId);
 export const fragmentsFor = (element) => Object.keys(FRAGMENTS).filter((id) => FRAGMENTS[id].element === element);
 /** Super ids for a subclass: its original super first, then the Light Ascendant ones. */
@@ -247,7 +248,7 @@ export function sanitizeLoadout(classId, subId, lo = {}, level = 1) {
   if (supersFor(classId, subId).includes(lo.super) && superLevel(classId, subId, lo.super) <= level) out.super = lo.super;
   if (jumpsFor(classId, subId).includes(lo.jump)) out.jump = lo.jump;
   if (GRENADES[lo.grenade]?.element === sc.element) out.grenade = lo.grenade;
-  if (CLASS_ABILITIES[classId]?.[lo.class]) out.class = lo.class;
+  if (classAbilitiesFor(classId, subId).includes(lo.class)) out.class = lo.class;
   if (Array.isArray(lo.aspects)) {
     out.aspects = [...new Set(lo.aspects)].filter((id) => ASPECTS[id]?.cls === classId && ASPECTS[id].sub === subId && aspectLevel(id) <= level).slice(0, ASPECT_SLOTS);
   }

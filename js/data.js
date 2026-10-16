@@ -278,10 +278,10 @@ export const CLASSES = {
       },
       dawnblade: { // shown as Sunsinger; the id stays 'dawnblade' so saves and fireteam messages keep working
         name: 'Sunsinger', element: 'solar', color: '#ffb547', tagline: 'Fire that heals. Abilities that never stop.',
-        defaults: { grenade: 'solar', class: 'rift', aspects: ['phoenix', 'giftsun'] },
+        defaults: { grenade: 'solar', class: 'rift', aspects: ['icarus', 'giftsun'] },
         abilities: {
           melee: { id: 'snap', name: 'Incinerator Snap', cd: 9, desc: 'Snap your fingers: three explosions burst down a line ahead and set enemies burning.' },
-          super: { id: 'songflame', camera: 'first', name: 'Song of Flame', desc: 'For 10s keep your guns: grenades and melees recharge 4x faster, your weapons deal 30% more damage, and nearby allies are empowered.' },
+          super: { id: 'songflame', camera: 'first', name: 'Song of Flame', desc: 'For 10s keep your guns: grenades and melees recharge almost instantly, your weapons deal 30% more damage, and nearby allies are empowered.' },
         },
       },
     },

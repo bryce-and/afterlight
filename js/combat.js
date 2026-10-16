@@ -46,7 +46,7 @@ export const KILL_CD_REFUND = 0.3; // seconds off every ability cooldown per kil
 export const SUPER_POWER = 2.0;
 
 // ---------- Song of Flame ----------
-export const SONG = { duration: 10, abilityRegen: 4 }; // v1.1: 12 s, 8x
+export const SONG = { duration: 10, abilityRegen: 25 }; // v1.1: 12 s, 8x; H3: 4x; H4: 25x, near-instant grenades and melees
 // How long each super lasts (seconds). Burst supers are short: the cast, then their effects play out.
 export const SUPER_TIME = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: SONG.duration,
   maul: 15, thundercrash: 3.2, wardofdawn: 0.8, twilight: 6, bladebarrage: 1.2, spectral: 12, gathering: 1.6, stormsedge: 6, well: 1.0, novawarp: 10, chaosreach: 9, daybreak: 12 }; // H3: Chaos Reach 4.5 to 9 s

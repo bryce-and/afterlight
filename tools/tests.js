@@ -226,7 +226,7 @@ test('Song of Flame: modeled super uptime is lower than v1.1', () => {
   const up = (dur, passive, perKill) => dur / (dur + 100 / (passive + perKill / 2));
   const before = up(12, 0.75, 3), after = up(C.SONG.duration, C.SUPER_PASSIVE, C.superKillGain('weapon', false, 'grunt'));
   ok(after < before * 0.8, `before ${(before * 100).toFixed(1)}%, after ${(after * 100).toFixed(1)}%`);
-  ok(C.SONG.abilityRegen < 8, 'ability regen during Song toned down');
+  ok(C.SONG.abilityRegen >= 20, 'H4: grenades and melees recharge almost instantly during Song');
 });
 test('chains skip the primary target: Stormtrance hits 4, Golden Gun splash never re-hits', () => {
   const a = { n: 'a' }, b = { n: 'b' }, c = { n: 'c' }, d = { n: 'd' }, e = { n: 'e' };
@@ -275,7 +275,7 @@ test('damage numbers drift mostly sideways, on alternating sides', () => {
 const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasses).map((sid) => [c, sid]));
 test('registry: 3 grenades per element, 2 class abilities per class, 4 aspects per subclass, 8 fragments per element', () => {
   for (const el of ['solar', 'arc', 'void']) eq(SC.grenadesFor(el).length, 3, el);
-  for (const c of Object.keys(CLASSES)) eq(SC.classAbilitiesFor(c).length, 2, c);
+  for (const [c, sid] of SUBS) eq(SC.classAbilitiesFor(c, sid).length, sid === 'dawnblade' ? 3 : 2, sid); // H4: Phoenix Dive is Dawnblade's third
   // H3: each former subclass trait is an aspect; Bastion is gone, so Sentinel keeps 4 and the rest have 5
   for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, sid === 'sentinel' ? 4 : 5, sid);
   eq(Object.keys(SC.ASPECTS).length, 44);
@@ -592,7 +592,13 @@ test('subclass traits are aspects now (H3): no passives, each subclass defaults 
     ok(SC.ASPECT_TUNE[former[sid]], `${sid} tuning`);
   }
   ok(!SC.ASPECTS.bastion, 'Bastion removed');
-  eq(SC.ASPECT_TUNE.giftsun.restore, 5);
+  eq(SC.ASPECT_TUNE.giftsun.energy, 0.15);
+  ok(!SC.ASPECTS.phoenix, 'Phoenix Dive is a class ability now');
+  eq(SC.sanitizeLoadout('arcanist', 'dawnblade', { class: 'phoenix' }, 40).class, 'phoenix');
+  eq(SC.sanitizeLoadout('arcanist', 'voidwalker', { class: 'phoenix' }, 40).class, 'rift', 'Phoenix Dive is Dawnblade only');
+  eq(SC.sanitizeLoadout('arcanist', 'dawnblade', { aspects: ['phoenix', 'giftsun'], fragments: ['torches', 'ashes'] }, 40).aspects, ['giftsun'], 'an old Phoenix Dive aspect is dropped');
+  ok(!/Restoration/.test(SC.ASPECTS.giftsun.desc), 'Gift of the Sun no longer overlaps Ember of Benevolence');
+  for (const id of ['amplitude', 'resolve', 'juggernaut', 'onyourmark', 'chainofwoe', 'ascension', 'icarus']) eq(SC.ASPECTS[id].slots, 2, id + ' opens 2 fragment slots');
   ok(SC.ASPECT_TUNE.bloom.dmg <= 10, 'Bloom drain is small');
   // Towering and Rally Barricade are both usable on Sentinel
   for (const id of ['barricade', 'rally']) eq(SC.resolveKit('vanguard', 'sentinel', { class: id }, 40).abilities.class.id, id);

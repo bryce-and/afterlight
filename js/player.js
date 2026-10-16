@@ -16,7 +16,7 @@ import { castFx } from './abilities.js';
 import { buildCharacter } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
-import { PHOENIX_DIVE_CD, regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
+import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
 import { weaponHandling } from './frames.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
@@ -91,7 +91,8 @@ export class Player {
     this.yaw = 0; this.pitch = 0; this.recoilAcc = 0;
     this.onGround = true; this.radius = 0.4; this.height = 1.8; this.eyeH = 1.62;
     const ab = this.cls.abilities;
-    this.cd = { grenade: 0, melee: 0, class: 0, dive: 0 };
+    this.cd = { grenade: 0, melee: 0, class: 0 };
+    this.icarus = { n: ASPECT_TUNE.icarus.charges, t: 0 }; // Icarus Dash charges
     // equipped aspects and fragments (subclass loadout)
     this.asp = new Set(this.cls.aspects); this.frag = new Set(this.cls.fragments);
     this.gpKills = 0; this.jugT = 0; this.sentryN = 0; this.prowlUsed = false;
@@ -389,9 +390,7 @@ export class Player {
     if (this.diving && res.onGround) {
       // Phoenix Dive landing
       this.diving = false;
-      castFx('phoenix', { p: this.pos.clone(), r: 5 });
-      explode(this.pos.clone().setY(0.6), 5, 170, 'solar', { source: 'ability' });
-      this.shake = 0.3;
+      this.phoenixBurst();
     }
     if (!wasGround && this.onGround && vyBefore < -7) { this.landDip = Math.min(0.15, -vyBefore * 0.012); sfx.land(); }
     this.landDip = damp(this.landDip, 0, 10, dt);
@@ -992,6 +991,7 @@ export class Player {
       if (A.has('solinvictus')) castFx('sunspot', { p: e.pos.clone().setY(0) });
       if (A.has('roaring')) this.status.apply('roaring', { add: 1, set: true });
       if (F.has('singeing')) this.cd.class = Math.max(0, this.cd.class - 2);
+      if (A.has('giftsun')) this.firesprite(c);
       if (F.has('empyrean')) for (const id of ['restoration', 'radiant']) { const st = this.status.get(id); if (st) { st.t += 2; st.max = Math.max(st.max, st.t); } }
     }
     if (abil && o.element === 'arc') {
@@ -1289,10 +1289,42 @@ export class Player {
 
   /** Restoration (Sunsinger): health and shields regenerate for t seconds, even under fire. */
   restore(t) { this.status.apply('restoration', { t }); }
-  /** Defender's Resolve and Gift of the Sun: using a grenade, powered melee or class ability. */
+  /** Defender's Resolve: using a grenade, powered melee or class ability. */
   abilityAspects() {
     if (this.asp.has('resolve')) this.addOvershield(ASPECT_TUNE.resolve.over);
-    if (this.asp.has('giftsun')) this.restore(ASPECT_TUNE.giftsun.restore);
+  }
+  /** Gift of the Sun: a Firesprite on the ground that only this player sees and collects for grenade energy. */
+  firesprite(at) {
+    const T = ASPECT_TUNE.giftsun;
+    this.spriteTk = (this.spriteTk ?? []).filter((t) => G.tickers.includes(t)); // tickers are dropped on a mission reset
+    if (this.spriteTk.length >= T.max) return;
+    const p = at.clone().setY(Math.max(0, at.y - 0.4)), col = ELEMENTS.solar.hex;
+    const m = new THREE.Group();
+    m.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.16), new THREE.MeshBasicMaterial({ color: 0xffe0a0 })));
+    m.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })));
+    m.position.copy(p);
+    G.scene.add(m);
+    glowBurst(p, col, 10, 4, 0.08, 0.5, 2, 0.3);
+    const self = this;
+    let life = T.life;
+    const tk = {
+      update(dt) {
+        life -= dt;
+        m.position.y = p.y + Math.sin(G.time * 4) * 0.1;
+        m.children[0].rotation.y += dt * 3;
+        if (Math.random() < 0.3) ember(m.position.clone(), col, 0.04, 0.6, 0.5);
+        if (!self.dead && Math.hypot(self.pos.x - p.x, self.pos.z - p.z) < T.r && Math.abs(self.pos.y + 1 - p.y) < 2) {
+          self.cd.grenade = Math.max(0, self.cd.grenade - self.cdMax.grenade * T.energy);
+          glowBurst(m.position.clone(), col, 14, 4, 0.08, 0.5, 2, 0.3);
+          sfx.pickupAmmo();
+          return false;
+        }
+        return life > 0 && G.player === self;
+      },
+      dispose() { G.scene?.remove(m); },
+    };
+    this.spriteTk.push(tk);
+    addTicker(tk);
   }
   /** Overshield (Sentinel): extra protection on top of your shield that fades after a while. */
   addOvershield(n, t = 8) { this.over = Math.min(OVERSHIELD_MAX, this.over + n); this.status.apply('overshield', { t: this.voidT(t) }); }
@@ -1327,7 +1359,8 @@ export class Player {
     for (const k of ['grenade', 'melee', 'class']) {
       this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.status.has('heart', k) ? 1.6 : 1) * nez * boost[k] * exo * (k === 'melee' ? grav : 1));
     }
-    this.cd.dive = Math.max(0, this.cd.dive - dt);
+    const IC = ASPECT_TUNE.icarus; // Icarus Dash: charges come back one at a time
+    if (this.icarus.n < IC.charges && (this.icarus.t -= dt) <= 0) { this.icarus.n++; this.icarus.t = IC.cd; }
     if (this.asp.has('juggernaut')) {
       this.jugT = this.sprinting ? this.jugT + dt : 0;
       if (this.jugT >= 1) this.status.apply('juggernaut'); else this.status.remove('juggernaut');
@@ -1347,6 +1380,7 @@ export class Player {
     if (p.KeyB) this.basicMelee();
     if (p.KeyV) this.useMelee();
     if (p.KeyC) this.useClass();
+    if (p.ShiftLeft && this.asp.has('icarus') && !this.onGround && this.pos.y > 0.4) this.icarusDash();
     if (p.KeyF) this.useSuper();
   }
 
@@ -1902,7 +1936,6 @@ export class Player {
   useClass() {
     if (this.superActive?.type === 'staff') return; // Arc Staff dodges are free (handled in the super)
     const airborne = !this.onGround && this.pos.y > 0.4;
-    if (this.asp.has('phoenix') && airborne && this.cd.dive <= 0) { this.phoenixDive(); return; }
     if (this.cd.class > 0) { sfx.denied(); return; }
     const id = this.cls.abilities.class.id;
     this.cd.class = this.cdMax.class;
@@ -1917,6 +1950,8 @@ export class Player {
       this.status.apply('barricadeup', { t: CLASS_FX_LIFE[id], set: true });
       for (const ww of this.weapons) this.instantReload(ww);
       this.status.apply(id === 'rally' ? 'rally' : 'reloaded', { set: true });
+    } else if (id === 'phoenix') {
+      this.phoenixDive(airborne);
     } else if (id === 'marksman' || id === 'gambler') {
       this.dodge(id, airborne);
     } else if (id === 'rift' || id === 'empower') {
@@ -1957,15 +1992,36 @@ export class Player {
     }
   }
 
-  /** Phoenix Dive (aspect): from the air, slam down in a solar burst; always heals. */
-  phoenixDive() {
-    this.cd.dive = PHOENIX_DIVE_CD;
-    this.classWin = G.time + 2; this.classOrbUsed = false; // Reaper
-    this.vel.set(this.vel.x * 0.2, -30, this.vel.z * 0.2);
-    this.diving = true;
+  /** Phoenix Dive (Dawnblade class ability): from the air, slam down in a solar burst; on the ground, burst in place. Always heals. */
+  phoenixDive(airborne) {
+    if (airborne) { this.vel.set(this.vel.x * 0.2, -30, this.vel.z * 0.2); this.diving = true; }
+    else this.phoenixBurst();
     this.heal(60);
     this.restore(5);
     sfx.heal();
+  }
+  phoenixBurst() {
+    castFx('phoenix', { p: this.pos.clone(), r: 5 });
+    explode(this.pos.clone().setY(this.pos.y + 0.6), 5, 170, 'solar', { source: 'ability' });
+    this.shake = 0.3;
+  }
+
+  /** Icarus Dash (aspect): an air dash in the movement direction, on its own charges. */
+  icarusDash() {
+    const IC = ASPECT_TUNE.icarus;
+    if (this.icarus.n <= 0 || this.diving) return;
+    if (this.icarus.n === IC.charges) this.icarus.t = IC.cd;
+    this.icarus.n--;
+    const md = this.moveDir;
+    if (md && md.len > 0) this.dashDir.set(md.x, 0, md.z);
+    else this.dashDir.copy(this.getForward(new THREE.Vector3()).setY(0).normalize());
+    this.dash = IC.t; this.dashSpeed = IC.speed;
+    this.vel.y = Math.max(this.vel.y, 1);
+    castFx('airburst', { p: this.pos.clone(), el: 'solar' });
+    const self = this, col = ELEMENTS.solar.hex;
+    let t = IC.t;
+    addTicker({ update(dt) { t -= dt; afterimage(self.pos, col, 0.35); return t > 0; } });
+    this.fovKick = Math.max(this.fovKick, 8);
   }
 
   /** Blink: a short teleport in the movement direction, moved in small steps so it never passes through a wall. */
