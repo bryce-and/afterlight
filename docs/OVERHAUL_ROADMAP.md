@@ -15,22 +15,24 @@ Every update needs Bryce's explicit approval before work starts.
 | U7 | v1.7 | **Exotic Hunt** | 12 new class exotics (8 per class, two per slot) with Destiny perks; exotic duplicate protection (unfound exotics favored until all are found; weapons shared, armor per class); save v7. Added during the update: Lunafaction rifts reload the whole fireteam; ability cooldowns up (grenade and melee 1.5x, class 1.3x, kill refund halved); health and shield regen 25% slower; Nova Bomb void field; base Golden Gun cut, Nighthawk 5x, Knock 'Em Down shots 15% weaker | U6 | Released |
 | U8 | v1.8 | **Light Ascendant** | Every Light subclass to 4 aspects and 8 fragments per element; 12 missing Destiny 2 Light supers (selectable, reward-track unlocks at 14/17/23/26); 7 more class jumps including Blink (Arcstrider and Voidwalker only). No Prismatic | U3 | Released |
 | H2 | v1.8.1 | **Hotfix** | Sentinel Shield guard: right-click raises the shield in front of the body (it was only visible on the hidden first-person model), the shield flashes and sounds on a blocked hit, both sync in co-op; guard blocks 95% (was 85%) | U8 | Released |
-| U9 | | Resonance | Audio overhaul: ambient, tense and orchestral music in place of lo-fi; weightier gun and ability SFX; restrained enemy sounds (Destiny 2 as reference) | none | Planned |
-| U10 | | Hostile Intent | Enemy navigation with verticality; faction behaviors; every non-melee unit melees at very close range, with an animation; suicide units (Cursed Thrall, Explosive Shanks); temporary shields and grenades; boss push/hold; 3-player difficulty retune | U2 | Planned |
-| U11 | | New Factions | Taken and Scorn as real factions: unique models, units, abilities and behaviors | U10 | Planned |
-| U12 | | The Ghost's Story | Objective system; Ghost dialogue; Calus story; planet Director with gating; lighting, collision, verticality | U10, U1 | Planned |
-| U13 | | The Last City *(working)* | Tower social space, Postmaster, hangout, shooting range | U12 | Planned |
-| U14 | | Open Frontier | Patrol space, beacons, public events with heroics, sparrow | U10, U12 | Planned |
-| U15 | | Legend and Ultimate | Legendary/Ultimate campaign, Light 300/350, multi-exotic switch, activity and fireteam Light scaling | U12 | Planned |
-| U16 | | Exotic Missions | Timed exotic mission framework, first at level 30 | U12, U4 | Planned |
-| U17 | | Darkness | Stasis and Strand subclasses for every class, each with two supers (its Destiny 2 super plus a new original one: a burst super if the D2 one roams, a roaming super if it's burst); Darkness enemy abilities | U8, U10 | Planned |
-| U18 | | The Emperor's Shadow *(working)* | Leviathan dungeon, Calus | U10, U12, U15 | Planned |
-| U19 | | *(optional)* Roguelike Horde | Boons, run inventory | U2, U4 | Planned |
-| U20 | | *(optional)* Crucible | PvP maps, Control, Duel, AI Guardians | U10, U3 | Planned |
-| U21 | | *(optional)* Mobile | Phones only: touch controls; HUD and menus for mobile; "Mobile mode" with calmer AI strafing and bigger enemy hitboxes. Desktop HUD, menus, AI and hitboxes stay exactly as they are | U2 | Planned |
-| U22 | | *(optional)* Prismatic | Prismatic subclasses and features (kept out of U8 by Bryce) | U8, U17 | Planned |
+| H3 | v1.8.2 | **Hotfix** | Subclass traits become 9 aspects (Bastion removed, so Towering and Rally Barricade work on Sentinel); keys V powered melee, B quick melee, F super, held axe throws on click; roaming supers 70% damage reduction; Chaos Reach instant, 9 s, F toggles it off; Daybreak 2.5x jump and slow hover, wings on the back; Well of Radiance 25 s, strong Restoration, burns, timer buff; Nova Warp seekers weaken; Gathering Storm and Spectral Blades about 20% less damage; yellow hits on weakened enemies; rift and barricade timers; firing breaks invisibility; sprint cancels reload; bigger Thralls; Thorn burst; weapon tuning (Auto and Fusion RPM, Shotgun and SMG falloff, heavy +10%); elemental perks match the weapon element; Warlock coat redesign; title card keeps the latest major update | U8 | Released |
+| U9 | v1.9 | **Eyes Up, Guardian** | Super pass: third-person animations for every super except Golden Gun and Song of Flame; burst supers (Nova Bomb, Shadowshot, Blade Barrage, Gathering Storm, Twilight Arsenal) hover the caster with 85% damage reduction; Well and Ward slam to the ground first; co-op VFX check. Sentinel Shield barrier with blind; Twilight Arsenal axe model and third-person hold; Hellion follows and lobs burning bolts; Phoenix Dive as a third Dawnblade class ability, Icarus Dash aspect. Void VFX rework. Enemy cover AI (heavies never, peeking). Slower leveling; rarity gates (rare 5, legendary 10, exotic 20) for use and drops, reward track fixed, save migration. Orbs: armor charge only with a charge mod, its own counter; missing Font mods. UI: D2-style Modify screen, more fragment slots, weapon silhouettes in missions, wider character layout | H3 | Planned |
+| U10 | | Resonance | Audio overhaul: ambient, tense and orchestral music in place of lo-fi; weightier gun and ability SFX; restrained enemy sounds (Destiny 2 as reference) | none | Planned |
+| U11 | | Hostile Intent | Enemy navigation with verticality; faction behaviors; every non-melee unit melees at very close range, with an animation; suicide units (Cursed Thrall, Explosive Shanks); temporary shields and grenades; boss push/hold; 3-player difficulty retune | U2 | Planned |
+| U12 | | New Factions | Taken and Scorn as real factions: unique models, units, abilities and behaviors | U11 | Planned |
+| U13 | | The Ghost's Story | Objective system; Ghost dialogue; Calus story; planet Director with gating; lighting, collision, verticality | U11, U1 | Planned |
+| U14 | | The Last City *(working)* | Tower social space, Postmaster, hangout, shooting range | U13 | Planned |
+| U15 | | Open Frontier | Patrol space, beacons, public events with heroics, sparrow | U11, U13 | Planned |
+| U16 | | Legend and Ultimate | Legendary/Ultimate campaign, Light 300/350, multi-exotic switch, activity and fireteam Light scaling | U13 | Planned |
+| U17 | | Exotic Missions | Timed exotic mission framework, first at level 30 | U13, U4 | Planned |
+| U18 | | Darkness | Stasis and Strand subclasses for every class, each with two supers (its Destiny 2 super plus a new original one: a burst super if the D2 one roams, a roaming super if it's burst); Darkness enemy abilities | U8, U11 | Planned |
+| U19 | | The Emperor's Shadow *(working)* | Leviathan dungeon, Calus | U11, U13, U16 | Planned |
+| U20 | | *(optional)* Roguelike Horde | Boons, run inventory | U2, U4 | Planned |
+| U21 | | *(optional)* Crucible | PvP maps, Control, Duel, AI Guardians | U11, U3 | Planned |
+| U22 | | *(optional)* Mobile | Phones only: touch controls; HUD and menus for mobile; "Mobile mode" with calmer AI strafing and bigger enemy hitboxes. Desktop HUD, menus, AI and hitboxes stay exactly as they are | U2 | Planned |
+| U23 | | *(optional)* Prismatic | Prismatic subclasses and features (kept out of U8 by Bryce) | U8, U18 | Planned |
 
-V4 (2026-10-14) superseded V3's armor perks with mods (U5), split armor into Armor 2.0 and Style, and added Light Ascendant, Resonance, New Factions and Mobile. Later updates were renumbered.
+H3 and U9 were split out of Bryce's 2026-10-15 hotfix list (U9 "Eyes Up, Guardian" took the U9 slot; Resonance and everything after moved down one number). V4 (2026-10-14) superseded V3's armor perks with mods (U5), split armor into Armor 2.0 and Style, and added Light Ascendant, Resonance, New Factions and Mobile. Later updates were renumbered.
 
 ## Release checklist
 

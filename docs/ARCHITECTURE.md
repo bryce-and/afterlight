@@ -68,8 +68,10 @@ The module map is in the README. These notes cover systems added during the over
 - Pure tuning and rules shared by the game and the tests: super gain, Song of Flame, weapon tier scaling (`weaponTierMult`), primary boost, ability power, ADS spread (`spreadFor`), chain targets, Storm Grenade, stagger thresholds (`staggerFor`), damage-number drift.
 - `dealDamage` applies weapon tier scaling to `weapon` and `perk` sources and decides stagger on the owner's side.
 
-## Traits and shared ability effects (`js/subclass.js` numbers, `player.js` behavior)
-- Every subclass has a `passive` (trait) shown on the subclass screen. Hit traits (Sunbreaker, Nightstalker, Stormcaller) go through `Player.traitHitOpts`, called from `dealDamage` for this player's own grenade and melee hits only (never `raw` relayed hits or jolt chains). Kill traits (Striker, Gunslinger, Voidwalker) are in `Player.traitOnKill`. Tuning is `TRAITS`.
+## Former traits and shared ability effects (`js/subclass.js` numbers, `player.js` behavior)
+- Since v1.8.2 there are no subclass traits: each former trait is an aspect (`pyre`, `amplitude`, `resolve`, `chainofwoe`, `abyssal`, `crackling`, `bloom`, `unlimitedpower`, `giftsun`; tuning in `ASPECT_TUNE`) and each subclass's `defaults.aspects` equips its own. Hit effects go through `Player.traitHitOpts`, called from `dealDamage` for this player's own grenade and melee hits only (never `raw` relayed hits or jolt chains). Kill effects are in `Player.traitOnKill`. Grenade, powered melee and class ability use call `Player.abilityAspects` (Defender's Resolve, Gift of the Sun). Bloom's drain is one ticker per enemy (`Player.bloom`) that detonates if the enemy dies while unstable.
+- Rift and barricade lifetimes are `CLASS_FX_LIFE` (combat.js); the caster gets a `riftup` / `barricadeup` status for the timer.
+- Hits on a weakened enemy pass `weak` to `ui.hitmarker` and `ui.damageNumber` (yellow).
 - Sunspots (`castFx('sunspot')`) burn enemies inside on the caster's screen (`SUNSPOT`); Hammer of Sol impacts and Sol Invictus both make them.
 - Healing Grenade orb (`healburst`): replayed on every screen; each player picks it up once on their own screen (`HEAL_ORB`). The thrown hammer explodes after `HAMMER_FUSE.fuse` seconds on the caster's screen (the blast syncs as an explosion).
 
@@ -86,7 +88,7 @@ The module map is in the README. These notes cover systems added during the over
 - Missions and activities ask `waveStep(alive, waveIdx, waveCount, isBoss)` each check: it spawns the next wave at 2 or fewer alive and only clears when every wave has spawned and none are alive, never on the check that spawned a wave.
 
 ## Update Log / Roadmap (`js/releases.js`)
-- `RELEASES` holds shipped updates only, newest first. `ROADMAP` holds curated teasers with a status from `ROADMAP_STATUSES` and no dates. The title screen renders both; adding an entry needs no UI change. Tests check ordering, statuses and the absence of dates.
+- `RELEASES` holds shipped updates only, newest first. The title card shows `titleRelease()`, the newest major update (x.y); hotfixes (x.y.z) only add an Update Log entry and need no `art`. `ROADMAP` holds curated teasers with a status from `ROADMAP_STATUSES` and no dates. The title screen renders both; adding an entry needs no UI change. Tests check ordering, statuses and the absence of dates.
 
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
