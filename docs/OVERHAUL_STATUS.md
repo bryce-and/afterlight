@@ -159,9 +159,12 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V67 | All supers third person with animations, hover hold on burst supers, Well/Ward ground slam, co-op VFX test | U9 | Planned |
 | V68 | Sentinel Shield barrier that blocks shots and blinds | U9 | Planned |
 | V69 | Twilight Arsenal axe model and third-person hold | U9 | Planned |
-| V70 | Hellion follows the player, lobs burning bolts, procs on any class ability; Phoenix Dive a Dawnblade class ability; Icarus Dash aspect | U9 | Planned |
+| V70 | Hellion follows the player, lobs burning bolts, procs on any class ability; Phoenix Dive a Dawnblade class ability; Icarus Dash aspect | U9 (Phoenix Dive and Icarus Dash shipped early in H4) | Partly published (v1.8.3): Phoenix Dive is a Dawnblade-only class ability (13 s base, 17 s after scaling; air dive or ground burst), Icarus Dash replaces the Phoenix Dive aspect (Shift in the air, 2 charges, 6 s each). Hellion part still Planned for U9 |
 | V71 | Void VFX rework | U9 | Planned |
 | V72 | Slower leveling; rarity gates for use and drops | U9 | Planned |
 | V73 | Orbs: armor charge only with charge mods, own counter; missing Font mods | U9 | Planned |
 | V74 | UI pass: Modify screen, more fragment slots, weapon silhouettes, wider character layout | U9 | Planned |
 | V75 | Enemy cover AI: heavies never, smaller units only when not outnumbered and no heavy is near, peek and return | U9 | Planned |
+| V76 | Gift of the Sun distinct from Ember of Benevolence (Bryce, H4) | H4 | Complete and published (v1.8.3): no Restoration; Solar grenade and melee kills leave a Firesprite (caster only, 10 s, at most 3) worth 15% grenade energy; grenades 30% faster kept. Spawn cap and pickup refund exercised in a mission |
+| V77 | Weaker aspects open 2 fragment slots (Bryce, H4) | H4 | Complete and published (v1.8.3): Amplitude, Defender's Resolve, Juggernaut, On Your Mark, Chain of Woe, Ascension, Icarus Dash. Unit-tested |
+| V78 | Song of Flame: near-instant grenade and melee uptime (Bryce, H4) | H4 | Complete and published (v1.8.3): ability regen 25x during the super (grenade about 1.5 s, melee about 0.7 s at base cooldowns). Measured by stepping the game loop |
