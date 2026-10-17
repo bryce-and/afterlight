@@ -1,6 +1,6 @@
 # Overhaul Roadmap (internal)
 
-The living plan. The audit snapshot that produced it is `OVERHAUL_AUDIT.md`. The player-facing roadmap is `js/releases.js` and is deliberately curated, not a copy of this.
+The living plan. The audit snapshot that produced it is `archive/OVERHAUL_AUDIT.md`. The player-facing roadmap is `js/releases.js` and is deliberately curated, not a copy of this.
 Every update needs Bryce's explicit approval before work starts.
 
 | # | Version | Public name | Contents | Depends on | Status |
@@ -42,12 +42,11 @@ H3 and U9 were split out of Bryce's 2026-10-15 hotfix list (U9 "Eyes Up, Guardia
 ## Release checklist
 
 1. Work on `update/<n>-<slug>`. Keep the diff to the approved scope.
-2. Run `tools/tests.html` in the preview browser: all tests pass.
+2. Run `sh tools/run_tests.sh` (headless `tools/tests.html`): all tests pass.
 3. Co-op connection check: two `?localtest` tabs connect, launch together and see each other (a full co-op QA run only when Bryce asks).
 4. Play-check in the preview browser: no console errors; a mission start to finish (`tools/leveltest.js` plus opening the cache); every touched screen.
 5. Save check: a pre-update save loads correctly (or, for a reset, is backed up), and a new save starts correctly.
 6. **Title screen:** open the Update Log (the new entry is on top, with version, name, date and notes) and the Roadmap (the shipped update is removed, the remaining teasers are accurate and undated). Back and Esc return to the title. Check at 1280×720 and at phone width.
-7. Update `OVERHAUL_STATUS.md`, this table, `DECISIONS.md` and the README.
-8. Run `python3 tools/stamp_version.py`, then review the full diff.
-9. Merge to `main`, push, tag `vX.Y`, and create a GitHub release named after the update.
-10. Verify that `origin/main` has the commit and that the GitHub Pages site serves the new version (check the import map tag in the live `index.html`).
+7. Update `js/releases.js`, `OVERHAUL_STATUS.md` (move rows that reach "Complete and published" to `archive/STATUS_SHIPPED.md`), this table, `DECISIONS.md` and the README. The `docs-keeper` agent (Haiku) can do this from a finished summary.
+8. Run `sh tools/release.sh prep X.Y` (checks the Update Log entry, runs the tests, stamps the version), then review the full diff and commit code and docs.
+9. Run `sh tools/release.sh ship X.Y`: fast-forwards `main`, pushes, tags `vX.Y`, creates the GitHub release from the Update Log entry, and waits until GitHub Pages serves the new stamp.
