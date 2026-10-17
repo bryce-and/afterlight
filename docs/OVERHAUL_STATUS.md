@@ -7,13 +7,13 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 
 | ID | Requirement | Current (code) | Update | Status |
 |---|---|---|---|---|
-| R01 | Social space: the Tower, hangout | Missing | U14 | Planned |
-| R02 | Postmaster | Missing (overflow auto-dismantles) | U14 | Planned |
-| R03 | Shooting range at-light | Missing | U14 | Planned |
-| R04 | Director screen with planets, locked until campaign progress | Partial: list + 3D planet, linear mission unlock | U13 | Planned |
-| R05 | Campaign story, Ghost narrates, no player voice | Missing (one-line mission descriptions) | U13 | Planned |
-| R06 | Calus antagonist | Missing | U13 | Planned |
-| R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U19 | Planned |
+| R01 | Social space: the Tower, hangout | Missing | U16 | Planned |
+| R02 | Postmaster | Missing (overflow auto-dismantles) | U16 | Planned |
+| R03 | Shooting range at-light | Missing | U16 | Planned |
+| R04 | Director screen with planets, locked until campaign progress | Partial: list + 3D planet, linear mission unlock | U15 | Planned |
+| R05 | Campaign story, Ghost narrates, no player voice | Missing (one-line mission descriptions) | U15 | Planned |
+| R06 | Calus antagonist | Missing | U15 | Planned |
+| R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U22 | Planned |
 | R08 | Player level 1 to 40 | XP curve in `progression.js`; kills shared by fireteam, mission and cache XP; HUD XP bar; Level tab | U1 | Complete and published (v1.1) |
 | R09 | Third subclass drops at level 10 | `unlockLevel: 10` on Sentinel, Arcstrider, Stormcaller; unlock message mid-mission | U1 | Complete and published (v1.1) |
 | R10 | Starters: Titan Sunbreaker+Fists of Havoc, Warlock Nova+Dawnblade, Hunter Golden Gun+Shadowshot | Gated in class select and the subclass panel; unit-tested | U1 | Complete and published (v1.1) |
@@ -28,10 +28,10 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R19 | Exotic weapons/armor: unique perk and model | Weapons: perks + models. Armor: class exotics (8 per class, two per slot, since v1.7) with Destiny perks, one shared exotic look. Exotic drops favor ones not found yet (`pickExotic` in `loot.js`, `exoticsFound` in the save) | U4/U6/U7 | Complete and published (v1.7) |
 | R20 | Legendary armor: perks, matching sets, destination tie, 3-piece set bonus, character-screen icons | Destination sets with any-3-of-4 bonuses; armor icons rendered from the piece in the current shader | U6 | Complete and published (v1.6) |
 | R21 | Weapon archetypes, models, diagonal D2-style icons, Arc/Solar/Void/Stasis/Strand symbols | `js/frames.js`: Destiny archetypes (frames) for all 12 families, stats fixed by archetype; 74 named legendaries with fixed archetype and element (Destinypedia-sourced); diagonal square icons; a symbol per element; Stasis and Strand weapon elements (no verbs yet). Legendary model variety not done | U4 | Complete and published (v1.4) |
-| R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U11 | Planned |
+| R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U13 | Planned |
 | R23 | Stagger when shot | Non-boss enemies flinch 0.15 to 0.35 s on hits above a share of max HP (lower for crits, higher for captains and heavies), with a cooldown; `combat.js` `staggerFor` | U2 | Complete and published (v1.2) |
 | R24 | VFX: tracking rounds are particles that track, not lightning; supers with cool factor | Swarm, Axion Bolt, Parasitic Nanites and Wolfpack Rounds are homing particle swarms (`swarm` projectile) that deal damage on arrival. Super VFX not done | U4 (seekers), U9 (Void VFX) | In progress |
-| R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U11 | Planned |
+| R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13 | Planned |
 | R26 | Tight ADS spread | Primary ADS cones 40 to 50% tighter, specials tighter; aimed movement no longer widens the cone; hip fire unchanged | U2 | Complete and published (v1.2) |
 | R27 | Damage numbers drift from the hit to the side | Numbers pop at the hit, drift out to alternating sides and ease down (`combat.js` `dmgDrift`) | U2 | Complete and published (v1.2) |
 | R28 | Buff HUD: general effects above abilities, weapon effects below, with timers; exotic effects visible | Status registry (`js/status.js`) drives the HUD: name, timer bar, seconds, stacks; exotic effects gold-bordered. Enemy debuffs moved to the registry in v1.3 | U2 | Complete and published (v1.2) |
@@ -44,23 +44,23 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | R35 | Celestial Nighthawk double-buffs Golden Gun? | Cause: the splash re-hit the shot's target. Splash now skips it; verified the 6x applies once and the target takes no splash | U2 | Complete and published (v1.2) |
 | R36 | Storm Grenade hits multiple enemies; slight damage nerf OK | Every enemy under the cloud each 0.3 s tick, 40 to 30 per strike; verified 5 of 5 hit | U2 | Complete and published (v1.2) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 4 fragments; option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; alternate melees not built | U3, U8, U9 (Modify screen) | In progress |
-| R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U13/U15 | Planned |
-| R39 | Objectives within missions | Only travel / clear / boss | U13 | Planned |
-| R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Missing | U15 | Planned |
-| R41 | Sparrow usable on all levels | Missing | U15 | Planned |
-| R42 | More verticality in missions | Player can stand on boxes; enemies locked to y=0 | U11/U13 | Planned |
-| R43 | Properly lit dark interiors | Max 6 lights per map | U13 | Planned |
-| R44 | Map collision fix | AABB only; specific bugs not yet reproduced | U13 | Not assessed |
-| R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Missing | U16 | Planned |
-| R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Missing | U16 | Planned |
-| R47 | Same base campaign, harder (not a new campaign) | n/a | U16 | Planned |
-| R48 | Light past 100: base 200, Legendary 300, Ultimate 350 | Base cap 200 and missions rescaled to 10 to 180 (v1.1). 300/350 pending | U1 (200), U16 (300/350) | In progress |
-| R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U16 | Planned |
-| R50 | Non-campaign activities scale to your Light; fireteam brought to leader's Light; loot by own Light | Partial: Horde starts at the player's power | U16 | Planned |
-| R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U17 | Planned |
-| R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U11 | Planned |
-| R53 | Distinct faction behaviors | Missing (names and models only) | U11 | Planned |
-| R54 | Darkness supers and abilities | Missing | U18 | Planned |
+| R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U15/U17 | Planned |
+| R39 | Objectives within missions | Only travel / clear / boss | U15 | Planned |
+| R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Missing | U17 | Planned |
+| R41 | Sparrow usable on all levels | Missing | U17 | Planned |
+| R42 | More verticality in missions | Player can stand on boxes; enemies locked to y=0 | U13/U15 | Planned |
+| R43 | Properly lit dark interiors | Max 6 lights per map | U15 | Planned |
+| R44 | Map collision fix | AABB only; specific bugs not yet reproduced | U15 | Not assessed |
+| R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Missing | U19 | Planned |
+| R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Missing | U19 | Planned |
+| R47 | Same base campaign, harder (not a new campaign) | n/a | U19 | Planned |
+| R48 | Light past 100: base 200, Legendary 300, Ultimate 350 | Base cap 200 and missions rescaled to 10 to 180 (v1.1). 300/350 pending | U1 (200), U19 (300/350) | In progress |
+| R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U19 | Planned |
+| R50 | Non-campaign activities scale to your Light; fireteam brought to leader's Light; loot by own Light | Partial: Horde starts at the player's power | U18 | Planned |
+| R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U20 | Planned |
+| R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13 | Planned |
+| R53 | Distinct faction behaviors | Missing (names and models only) | U13 | Planned |
+| R54 | Darkness supers and abilities | Missing | U21 | Planned |
 | R55 | Aspects and fragments | 4 aspects per subclass since v1.8 (2 slots, each opens 1 or 2 fragment slots); 8 fragments per element. Level 10 subclasses earn their third aspect at 13/16/19; Spark of Ions (22) and Echo of Instability (25) on the reward track | U3 | Complete and published (v1.3) |
 | R56 | Armor mods | 57 mods (12 stat, 10 helmet, 12 gauntlet, 11 chest, 12 leg) in `js/armor.js`; Mods screen in `js/mods-ui.js`; unit-tested rules; every orb and hit mod exercised in a mission | U5 | Complete and published (v1.5) |
 | R57 | Armor stats affect ability cooldowns, Destiny-style (added by Bryce, not in V3) | Discipline (grenade), Strength (melee) and each class's own stat (Titan Resilience, Hunter Mobility, Warlock Recovery) scale cooldowns 1.3x at tier 0, 1.0x at 5, 0.65x at 10; floor 0.4x. Checked in a mission: cdMax matches the formula | U5 | Complete and published (v1.5) |
@@ -71,10 +71,10 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 
 | ID | Requirement | Current | Update | Status |
 |---|---|---|---|---|
-| O1 | Roguelike Horde: boons every 5 rounds, game paused, 10 s choice, stacking buffs or weapon swaps (with confirmation), mostly legendaries and some exotics, multiple exotic weapons OK, no exotic armor, AR/shotgun/GL start, run inventory resets but caches pay into real inventory | A 30-wave Horde exists (not roguelike) | U20 | Planned |
-| O2 | PvP: 3 to 5 maps | Missing | U21 | Planned |
-| O3 | Control and Duel | Missing | U21 | Planned |
-| O4 | AI Guardians (not too strong) | Missing | U21 | Planned |
+| O1 | Roguelike Horde: boons every 5 rounds, game paused, 10 s choice, stacking buffs or weapon swaps (with confirmation), mostly legendaries and some exotics, multiple exotic weapons OK, no exotic armor, AR/shotgun/GL start, run inventory resets but caches pay into real inventory | A 30-wave Horde exists (not roguelike) | U23 | Planned |
+| O2 | PvP: 3 to 5 maps | Missing | U24 | Planned |
+| O3 | Control and Duel | Missing | U24 | Planned |
+| O4 | AI Guardians (not too strong) | Missing | U24 | Planned |
 
 ## Master-prompt requirements
 
@@ -111,17 +111,17 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V18 | Armor mods replace perks: 4 sockets, 10 energy, slot 1 stat mods, a mod pool per armor slot, D2-style (no raid mods) | U5 | Complete and published (v1.5): energy is 4/6/8/10/10 by rarity (Bryce) |
 | V19 | Mods screen with slide-in from the character screen's right-edge arrow | U5 | Complete and published (v1.5): arrow turns into a vertical tab under 900 px; locked below level 5 |
 | V20 | Six armor stats (D2 new names) incl. cooldown stats | U5 | Complete and published (v1.5): the classic names (Bryce chose them over the new ones) |
-| V21 | Every non-melee unit can melee at very close range, with an animation | U11 | Planned |
-| V22 | Suicide units: Cursed Thrall (Hive), Explosive Shanks (Fallen) | U11 | Planned |
-| V23 | Harder with 3 players (retune) | U11 | Planned |
-| V24 | Taken and Scorn as full factions | U12 | Planned |
-| V25 | Music and SFX overhaul: ambient/tense/orchestral music, weightier guns and abilities, light enemy SFX | U10 | Planned |
+| V21 | Every non-melee unit can melee at very close range, with an animation | U13 | Planned |
+| V22 | Suicide units: Cursed Thrall (Hive), Explosive Shanks (Fallen) | U13 | Planned |
+| V23 | Harder with 3 players (retune) | U13 | Planned |
+| V24 | Taken and Scorn as full factions | U14 | Planned |
+| V25 | Music and SFX overhaul: ambient/tense/orchestral music, weightier guns and abilities, light enemy SFX | U12 | Planned |
 | V26 | 4 aspects per subclass, 8 fragments per element | U8 | Complete and published (v1.8): D2 fourth aspects where they exist (Unbreakable, On the Prowl, Ionic Sentry, Hellion, Crackshot), D1 names for the rest (Tempered Metal, Aftershocks, Fast Twitch, Angel of Light); 10 new D2 fragments |
 | V27 | Missing Destiny 2 Light supers | U8 | Complete and published (v1.8): 12 selectable supers (Burning Maul, Thundercrash, Ward of Dawn, Twilight Arsenal, Blade Barrage, Spectral Blades, Gathering Storm, Storm's Edge, Well of Radiance, Nova Warp, Chaos Reach, Daybreak), each fired in a mission with camera and damage checked; unlocked at levels 14/17/23/26 |
 | V28 | More class jumps, including Blink | U8 | Complete and published (v1.8): High/Strafe Lift, High/Strafe Jump, Balanced/Strafe Glide; Blink on Arcstrider and Voidwalker only, moved in steps so it stops at walls |
-| V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U18 | Planned |
+| V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U21 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
-| V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U22 (optional) | Planned |
+| V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U25 (optional) | Planned |
 | V32 | Subclass traits for the 6 subclasses without one | U4 | Complete and published (v1.4); superseded in v1.8.2: traits became aspects (V51) |
 | V34 | Weapon archetypes per family (D2 frames); stats fixed by archetype; named legendaries always the same archetype and element; archetype shown on the item (added by Bryce for U4) | U4 | Complete and published (v1.4) |
 | V35 | Ready Up bar in the Director for fireteams; the last Guardian to ready launches the leader's pick; solo launches directly (added by Bryce for U4) | U4 | Complete and published (v1.4) |
@@ -161,10 +161,42 @@ Statuses: Not assessed · Planned · In progress · Implemented · Tested · Com
 | V69 | Twilight Arsenal axe model and third-person hold | U9 | Planned |
 | V70 | Hellion follows the player, lobs burning bolts, procs on any class ability; Phoenix Dive a Dawnblade class ability; Icarus Dash aspect | U9 (Phoenix Dive and Icarus Dash shipped early in H4) | Partly published (v1.8.3): Phoenix Dive is a Dawnblade-only class ability (13 s base, 17 s after scaling; air dive or ground burst), Icarus Dash replaces the Phoenix Dive aspect (Shift in the air, 2 charges, 6 s each). Hellion part still Planned for U9 |
 | V71 | Void VFX rework | U9 | Planned |
-| V72 | Slower leveling; rarity gates for use and drops | U9 | Planned |
+| V72 | Slower leveling; rarity gates for use and drops | U10 | Planned |
 | V73 | Orbs: armor charge only with charge mods, own counter; missing Font mods | U9 | Planned |
 | V74 | UI pass: Modify screen, more fragment slots, weapon silhouettes, wider character layout | U9 | Planned |
 | V75 | Enemy cover AI: heavies never, smaller units only when not outnumbered and no heavy is near, peek and return | U9 | Planned |
 | V76 | Gift of the Sun distinct from Ember of Benevolence (Bryce, H4) | H4 | Complete and published (v1.8.3): no Restoration; Solar grenade and melee kills leave a Firesprite (caster only, 10 s, at most 3) worth 15% grenade energy; grenades 30% faster kept. Spawn cap and pickup refund exercised in a mission |
 | V77 | Weaker aspects open 2 fragment slots (Bryce, H4) | H4 | Complete and published (v1.8.3): Amplitude, Defender's Resolve, Juggernaut, On Your Mark, Chain of Woe, Ascension, Icarus Dash. Unit-tested |
 | V78 | Song of Flame: near-instant grenade and melee uptime (Bryce, H4) | H4 | Complete and published (v1.8.3): ability regen 25x during the super (grenade about 1.5 s, melee about 0.7 s at base cooldowns). Measured by stepping the game loop |
+
+## Future Update Implementation (Bryce, 2026-10-15)
+
+| ID | Requirement | Update | Status |
+|---|---|---|---|
+| F01 | Destination exotics replaced by level-appropriate drops (today each destination's third mission guarantees an exotic on first clear, `openChest` in `game.js`); the base-clear menu is the campaign's exotic reward | U10 | Planned |
+| F02 | Legendary unlock animation opens a reward menu: 3 exotic armor (your class) and 3 exotic weapons, keep 1 of each | U19 | Planned |
+| F03 | Legendary: a random exotic after the final mission's boss | U19 | Planned |
+| F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U19 | Planned |
+| F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U19 | Planned |
+| F06 | Light rework: enemies up to 60 above you are beatable but extremely hard; 61 or more above, attacks kill almost instantly (today the delta is clamped to -40..+10, `game.js`) | U18 | Planned |
+| F07 | 61 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U18 | Planned |
+| F08 | Campaign progress per Guardian (today `cleared` is one account-wide map in the save); lands with the campaign reset | U15 | Planned |
+| F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U19 | Planned |
+| F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
+| F11 | Swords, Sidearms, special Grenade Launchers, Glaives (shield; glaive melee replaces B while equipped, with its own behavior), Trace Rifles, each with distinct behavior | U11 | Planned |
+| F12 | Role balance pass before adding them; ammo type by archetype (Rocket-Assisted Sidearms and Rocket-Assisted Pulse Rifles special) | U11 | Planned |
+| F13 | More exotic weapons with unique perks and models (24 today) | U11 | Planned |
+| F14 | A patrol zone on every destination | U17 | Planned |
+| F15 | Collection screen for every exotic weapon found | U10 | Planned |
+| F16 | Exotic Kiosk in the Tower: retrieve earned exotics at your current Light; armor rolls random stats, exotic weapons have fixed stats | U16 | Planned |
+| F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13 (variants), U19 (difficulty scaling) | Planned |
+| F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U27 (optional) | Planned |
+| F19 | Legendary perk columns: Magazine or Reload, Damage, Effect (enemy effects, explosions and kill payoffs); a 9-perk pool per named weapon, 3 per column; uncommon rolls column 1, rare adds one Damage or Effect perk, legendary all three; new Destiny 2 perks (today one pool per ammo slot, `PERK_POOL`) | U10 | Planned |
+| F20 | Reward-track engram rarity matches what is usable at that level (today a legendary every 3 levels, below U9's level 10 legendary gate) | U10 | Planned |
+| F21 | Named weapons at every rarity, not only legendary (today commons to rares get generated names) | U10 | Planned |
+| F22 | D2-style weapon inspect screen on right-click: the model behind, the perks that dropped | U10 | Planned |
+| F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U19 | Planned |
+| F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U18, U19 | Planned |
+| F25 | Full progress reset for everyone when the campaign launches; old save backed up, settings kept | U15 | Planned |
+| F26 | Split Loot 2.0 out of Arsenal II; U9's leveling, rarity gate and reward-track work moves into it | U10 | Planned |
+| F27 | Steady Hands and Snapshot Sights leave the random rolls (no column fits them); Vampire Touch, Demolitionist and Killing Wind join the Effect column | U10 | Planned |
