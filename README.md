@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v1.9 "Eyes Up, Guardian"**: burst supers hover while they cast, the Sentinel barrier blocks enemy shots for your whole team, Hellion lobs burning bolts, Void VFX are reworked, a D2-style Modify screen, and Fonts for every stat.
 - **3 Guardians, 9 subclasses**: play a Titan, a Hunter and a Warlock on one account. Each has its own gear, inventory and Light; your level, glimmer, shaders and vault are shared, and gear moves between Guardians through the vault.
 - **Subclasses**: each class starts with two subclasses and unlocks its third at level 10. Every subclass has a melee, and on the subclass screen you choose its super (21 in all, new ones unlocked on the reward track), a class jump (Blink for Arcstriders and Voidwalkers), a grenade from its element, a class ability from its class (Sunsingers also get Phoenix Dive), two of its aspects (five per subclass, four for Sentinel) and the fragments they open (eight per element).
 - **Guardian levels 1 to 40**: XP from kills (shared by the fireteam), missions and caches. The Level tab is a reward track: a Legendary every 3 levels, Exotics at 20 and 40. Drop rarity climbs with your level.

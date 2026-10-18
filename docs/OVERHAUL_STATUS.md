@@ -15,11 +15,9 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R05 | Campaign story, Ghost narrates, no player voice | Missing (one-line mission descriptions) | U15 | Planned |
 | R06 | Calus antagonist | Missing | U15 | Planned |
 | R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U22 | Planned |
-| R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Each super declares `camera` in `data.js`; all 9 checked in browser: camera matches and the enemy under the crosshair takes the damage. Super animations not done | U3 (camera, aim), U9 (animations, hover) | In progress |
 | R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U13 | Planned |
-| R24 | VFX: tracking rounds are particles that track, not lightning; supers with cool factor | Swarm, Axion Bolt, Parasitic Nanites and Wolfpack Rounds are homing particle swarms (`swarm` projectile) that deal damage on arrival. Super VFX not done | U4 (seekers), U9 (Void VFX) | In progress |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13 | Planned |
-| R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 4 fragments; option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; alternate melees not built | U3, U8, U9 (Modify screen) | In progress |
+| R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
 | R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U15/U17 | Planned |
 | R39 | Objectives within missions | Only travel / clear / boss | U15 | Planned |
 | R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Missing | U17 | Planned |
@@ -64,16 +62,8 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U21 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U25 (optional) | Planned |
-| V54 | Roaming supers 70% damage reduction (burst supers 85% during the U9 hover) | H3 (roaming), U9 (burst) | Roaming: complete and published (v1.8.2), measured 100 damage lands as 30. Burst: planned |
-| V67 | All supers third person with animations, hover hold on burst supers, Well/Ward ground slam, co-op VFX test | U9 | Planned |
-| V68 | Sentinel Shield barrier that blocks shots and blinds | U9 | Planned |
-| V69 | Twilight Arsenal axe model and third-person hold | U9 | Planned |
-| V70 | Hellion follows the player, lobs burning bolts, procs on any class ability; Phoenix Dive a Dawnblade class ability; Icarus Dash aspect | U9 (Phoenix Dive and Icarus Dash shipped early in H4) | Partly published (v1.8.3): Phoenix Dive is a Dawnblade-only class ability (13 s base, 17 s after scaling; air dive or ground burst), Icarus Dash replaces the Phoenix Dive aspect (Shift in the air, 2 charges, 6 s each). Hellion part still Planned for U9 |
-| V71 | Void VFX rework | U9 | Planned |
 | V72 | Slower leveling; rarity gates for use and drops | U10 | Planned |
-| V73 | Orbs: armor charge only with charge mods, own counter; missing Font mods | U9 | Planned |
-| V74 | UI pass: Modify screen, more fragment slots, weapon silhouettes, wider character layout | U9 | Planned |
-| V75 | Enemy cover AI: heavies never, smaller units only when not outnumbered and no heavy is near, peek and return | U9 | Planned |
+| V75 | Enemy cover AI: heavies never, smaller units only when not outnumbered and no heavy is near, peek and return | U13 (moved from U9) | Planned |
 
 ## Future Update Implementation (Bryce, 2026-10-15)
 
