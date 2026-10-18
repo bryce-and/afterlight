@@ -243,7 +243,7 @@ export const CLASSES = {
         defaults: { grenade: 'axion', class: 'marksman', aspects: ['vanishing', 'abyssal'] },
         abilities: {
           melee: { id: 'snare', name: 'Snare Bomb', cd: 10, desc: 'Throw a smoke bomb that sticks, then bursts into a cloud that slows and weakens enemies.' },
-          super: { id: 'tether', camera: 'first', name: 'Shadowshot', desc: 'Three void arrows that tether enemies: pulled, slowed, weakened, and burned.' },
+          super: { id: 'tether', camera: 'third', name: 'Shadowshot', desc: 'Three void arrows that tether enemies: pulled, slowed, weakened, and burned.' },
         },
       },
       arcstrider: {
@@ -265,7 +265,7 @@ export const CLASSES = {
         defaults: { grenade: 'vortex', class: 'rift', aspects: ['bloom'] },
         abilities: {
           melee: { id: 'siphon', name: 'Energy Drain', cd: 11, desc: 'Ranged void strike that restores health and shields.' },
-          super: { id: 'nova', camera: 'first', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits, then leaves a void field for 6s that damages, weakens and suppresses enemies inside.' },
+          super: { id: 'nova', camera: 'third', name: 'Nova Bomb', desc: 'Hurl a massive ball of void energy that erases everything it hits, then leaves a void field for 6s that damages, weakens and suppresses enemies inside.' },
         },
       },
       stormcaller: {

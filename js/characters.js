@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ELEMENTS } from './data.js';
-import { buildGunModel } from './models.js';
+import { buildGunModel, buildVoidAxe } from './models.js';
+import { SENTINEL_BARRIER } from './combat.js';
 import { LOOKS, SHADERS } from './style.js';
 
 // Low-poly Guardian models (Character screen, your own third-person body, fireteam avatars).
@@ -253,6 +254,17 @@ export function ghost() {
 
 /** Sentinel Shield guard pose (radians): left arm forward and across, shield twisted to face front. */
 export const GUARD_POSE = { armX: -1.25, armZ: -0.5, twist: 1.5 };
+// U9: held poses of the third-person supers (arm targets: rotation x/z of the right and left arm, torso lean).
+// Throws, slashes and swings play on top of these through the punch animation.
+export const SUPER_POSE_KINDS = {
+  overhead: { r: [-2.9, -0.2], l: [-2.9, 0.2], lean: -0.1 },  // a ball or staff raised over the head (Nova Bomb, Gathering Storm)
+  bow: { r: [-1.45, 0.55], l: [-1.5, -0.1], lean: 0, twist: 0.45 }, // drawn bow: left arm out, right hand at the cheek (Shadowshot)
+  fan: { r: [-1.2, -0.9], l: [-1.2, 0.9], lean: 0.15 },     // arms swept wide to loose the knives (Blade Barrage)
+  channel: { r: [-1.45, 0.15], l: [-1.45, -0.15], lean: 0.1 }, // both hands forward (Stormtrance, Chaos Reach, Nova Warp)
+  slam: { r: [-0.5, -0.1], l: [-0.5, 0.1], lean: 0.55, crouch: 0.25 }, // fists driven into the ground (Well, Ward)
+};
+/** Which held pose a super uses, by super id (supers not listed keep the shouldered aim). */
+export const SUPER_POSES = { nova: 'overhead', gathering: 'overhead', tether: 'bow', bladebarrage: 'fan', stormtrance: 'channel', chaosreach: 'channel', novawarp: 'channel', well: 'slam', wardofdawn: 'slam' };
 
 /** Builds a class model wearing `look` ({ helmet, arms, chest, legs, shader }, see style.js appearance). Returns { group, update(dt) }. */
 export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
@@ -274,7 +286,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
   group.add(gh);
   let t = Math.random() * 10, phase = 0, gun = null;
   const props = [];
-  let shield = null, guardT = 0, blockT = 0; // Sentinel Shield: the shield prop, guard blend 0..1, block flash 1..0
+  let shield = null, barrier = null, guardT = 0, blockT = 0, poseT = 0, poseKind = null; // Sentinel Shield: the shield prop, guard blend 0..1, block flash 1..0
   const knee = (leg) => leg.userData.knee;
   const elbow = (arm) => arm.userData.elbow;
   const towards = (cur, target, k) => cur + (target - cur) * k;
@@ -296,7 +308,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
     setProp(type) {
       for (const p of props) p.parent?.remove(p);
       props.length = 0;
-      shield = null;
+      shield = null; barrier = null;
       const R = elbow(b.arms[0]), L = elbow(b.arms[1]); // right and left forearms; the hand is ~0.45 down the forearm
       const glow = (c, k = 2.4) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, flatShading: true });
       const put = (parent, mesh, x, y, z) => { mesh.position.set(x, y, z); parent.add(mesh); props.push(mesh); return mesh; };
@@ -305,8 +317,44 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         put(R, new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x4a2e1a, flatShading: true })), 0, -0.45, 0.5);
         put(R, new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.62), glow(0xff8b2b, 3)), 0, -0.45, 1.2);
       } else if (type === 'twilight') {
-        put(R, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xe6d0ff, flatShading: true })), 0, -0.45, 0.3);
-        put(R, new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.3), glow(0xb07cff, 2.8)), 0, -0.3, 0.65);
+        // Twilight Arsenal (U9): the axe held raised in the right hand, haft along the forearm's +z
+        const ax = put(R, buildVoidAxe(1.1), 0, -0.48, 0.05);
+        ax.rotation.x = Math.PI / 2;
+      } else if (type === 'tether') {
+        // Shadowshot: a void bow in the left hand, an arrow nocked in the right
+        const bow = put(L, new THREE.Group(), 0, -0.48, 0.05);
+        for (const sy of [-1, 1]) {
+          const limb = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, 0.05), glow(0xb07cff, 2.6));
+          limb.position.set(0, sy * 0.24, -0.08); limb.rotation.x = sy * 0.35; bow.add(limb);
+        }
+        bow.add(new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.9, 0.01), glow(0xe6d0ff, 3)));
+        put(R, new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.75), glow(0xe6d0ff, 3)), 0, -0.48, 0.3);
+      } else if (type === 'nova') {
+        // Nova Bomb: a void ball gathered above the raised hands
+        put(b.torso, new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 1), new THREE.MeshBasicMaterial({ color: 0x1a0830 })), 0, 1.45, 0.1);
+        put(b.torso, new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshBasicMaterial({ color: 0xb07cff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 1.45, 0.1);
+      } else if (type === 'bladebarrage') {
+        for (const arm of [R, L]) for (let i = 0; i < 3; i++) {
+          const kn = put(arm, new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), glow(0xffb547, 3)), (i - 1) * 0.08, -0.52, 0.12);
+          kn.scale.set(0.6, 0.6, 3);
+        }
+      } else if (type === 'gathering' || type === 'stormsedge') {
+        if (type === 'gathering') {
+          const st = put(R, new THREE.Group(), 0, -0.47, 0);
+          st.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.7, 6), new THREE.MeshStandardMaterial({ color: 0x39404c, flatShading: true })));
+          for (const sy of [-1, 1]) { const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), glow(0x5fd3ff, 2.8)); tip.position.y = sy * 0.88; tip.scale.y = 2; st.add(tip); }
+        } else {
+          const d = put(R, new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), glow(0x5fd3ff, 3)), 0, -0.5, 0.2);
+          d.scale.set(0.6, 0.6, 4);
+        }
+      } else if (type === 'well') {
+        // Well of Radiance: a solar sword, point down
+        const sw = put(R, new THREE.Group(), 0, -0.48, 0);
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, 0.03), glow(0xffd27a, 3));
+        blade.position.y = -0.6; sw.add(blade);
+        sw.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.05, 0.06), glow(0xff8b2b, 2.4)));
+      } else if (type === 'wardofdawn') {
+        for (const arm of [R, L]) put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 1), new THREE.MeshBasicMaterial({ color: 0xb07cff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })), 0, -0.5, 0);
       } else if (type === 'spectral') {
         for (const arm of [R, L]) for (let i = 0; i < 3; i++) put(arm, new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.55), glow(0xb07cff, 2.6)), (i - 1) * 0.07, -0.55, 0.22);
       } else if (type === 'thundercrash') {
@@ -351,6 +399,19 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         boss.position.y = -0.05;
         sh.add(rim, boss);
         shield = sh; sh.userData.rim = rim;
+        // U9: the barrier the shield projects while guarding; on the figure, so it moves and turns with you
+        const SB = SENTINEL_BARRIER;
+        const bar = put(fig, new THREE.Group(), 0, SB.y, SB.z);
+        const arc = SB.w / SB.r;
+        const face = new THREE.Mesh(new THREE.CylinderGeometry(SB.r, SB.r, SB.h, 28, 1, true, -arc / 2, arc), new THREE.MeshBasicMaterial({ color: 0x8a4fe0, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }));
+        face.position.z = -SB.r;
+        const edge = new THREE.Mesh(new THREE.TorusGeometry(SB.r, 0.035, 4, 32, arc), glow(0xe6d0ff, 3));
+        edge.rotation.set(Math.PI / 2, 0, Math.PI / 2 - arc / 2);
+        edge.position.set(0, SB.h / 2, -SB.r);
+        const edge2 = edge.clone(); edge2.position.y = -SB.h / 2;
+        bar.add(face, edge, edge2);
+        bar.scale.setScalar(0.001); bar.visible = false;
+        barrier = bar; bar.userData.face = face;
       } else if (type === 'stormtrance') {
         for (const arm of [R, L]) {
           put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), new THREE.MeshBasicMaterial({ color: 0xbfefff })), 0, -0.52, 0);
@@ -407,13 +468,30 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         shield.scale.setScalar(1 + 0.3 * gd + 0.12 * blockT);
         shield.userData.rim.material.emissiveIntensity = 2.8 + blockT * 7;
       }
+      if (barrier) {
+        barrier.visible = gd > 0.05;
+        barrier.scale.set(gd, gd, 1);
+        barrier.userData.face.material.opacity = 0.28 + 0.05 * Math.sin(t * 6) + blockT * 0.3;
+      }
+      // U9: held super pose (blends in and out); hover dangles the legs
+      if (pose.superPose) poseKind = pose.superPose;
+      poseT = towards(poseT, pose.superPose ? 1 : 0, Math.min(1, dt * 10));
+      const SP = poseT > 0.01 && SUPER_POSE_KINDS[poseKind];
+      if (SP) {
+        const pm = (a, g) => a + (g - a) * poseT;
+        b.arms[0].rotation.x = pm(b.arms[0].rotation.x, SP.r[0]); b.arms[0].rotation.z = pm(b.arms[0].rotation.z, SP.r[1]);
+        b.arms[1].rotation.x = pm(b.arms[1].rotation.x, SP.l[0]); b.arms[1].rotation.z = pm(b.arms[1].rotation.z, SP.l[1]);
+        b.torso.rotation.x = pm(b.torso.rotation.x, SP.lean);
+        if (SP.crouch) b.torso.position.y -= SP.crouch * poseT;
+      }
+      if (pose.hover) b.legs.forEach((leg, i) => { leg.rotation.x = towards(leg.rotation.x, i ? 0.15 : -0.25, k); knee(leg).rotation.x = towards(knee(leg).rotation.x, i ? 0.5 : 0.35, k); });
       // punch / throw: the right arm swings out and back (third-person supers and melee)
       if (pose.punch) {
         const sw = Math.sin(pose.punch * Math.PI);
         b.arms[0].rotation.x = -1.2 - sw * 1.1;
         b.arms[0].rotation.z = 0.1 + sw * 0.25;
         b.torso.rotation.y = -sw * 0.35;
-      } else b.torso.rotation.y = towards(b.torso.rotation.y, 0, k);
+      } else b.torso.rotation.y = towards(b.torso.rotation.y, SP ? -(SP.twist || 0) * poseT : 0, k);
       elbow(b.arms[0]).rotation.x = towards(elbow(b.arms[0]).rotation.x, pose.punch ? -0.1 : pose.sprint ? -0.9 : -0.15, k);
       elbow(b.arms[1]).rotation.x = towards(elbow(b.arms[1]).rotation.x, pose.sprint && gd < 0.5 ? -0.9 : -0.35, k);
       if (gun) {

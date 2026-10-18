@@ -89,6 +89,7 @@ export function ringFx(pos, radius, color, life = 0.5) {
 }
 
 export function explosionFx(pos, radius, color) {
+  if (color === VOID_FX.mid) { voidBurst(pos, radius); return; } // U9: every Void explosion uses the Void look
   const m1 = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
   const s = new THREE.Mesh(ico, m1);
   s.position.copy(pos);
@@ -104,6 +105,70 @@ export function explosionFx(pos, radius, color) {
   sparks(pos, color, 12, radius * 2.5, 0.12, 0.6);
   flashLight(pos, color, 40 * radius, radius * 5, 0.25);
   ringFx(pos, radius * 1.1, color, 0.45);
+}
+
+// ---------------------------------------------------------------------------
+// Void (U9): a dark core, a purple shell with a dark rim, and an implosion before the blast.
+// Explosions, grenades, Nova Bomb, Nova Warp and the Void fields share these, so Void reads the same everywhere.
+// ---------------------------------------------------------------------------
+export const VOID_FX = { core: 0x14061f, mid: 0xb07cff, hi: 0xe6d0ff, rim: 0x3a1460 };
+const voidCoreMat = () => new THREE.MeshBasicMaterial({ color: VOID_FX.core, transparent: true, opacity: 0.9, depthWrite: false });
+
+/** A dark mote that is pulled into a point (normal blending, so it stays dark against bright skies). */
+export function voidMote(center, radius, life = 0.3, size = 0.12) {
+  const m = new THREE.Mesh(box, basicMat(VOID_FX.core));
+  const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8 - 0.2, Math.random() - 0.5).normalize();
+  add(m, life, (f) => {
+    const k = f.life / f.max; // 1 to 0: from the edge into the center
+    m.position.copy(center).addScaledVector(dir, radius * k);
+    m.scale.setScalar(size * (0.3 + 0.7 * k));
+    m.rotation.set(k * 6, k * 4, 0);
+  });
+}
+
+/** A ring that fades from purple to a dark rim as it spreads. */
+export function voidRing(pos, radius, life = 0.55) {
+  ringFx(pos, radius, VOID_FX.mid, life);
+  const mat = fade(VOID_FX.rim, 0.75);
+  const m = new THREE.Mesh(ring, mat);
+  m.position.set(pos.x, Math.max(0.1, pos.y < 1 ? 0.1 : pos.y + 0.02), pos.z);
+  add(m, life, (f) => {
+    const k = 1 - f.life / f.max;
+    m.scale.setScalar(radius * (0.25 + 0.85 * Math.sqrt(k)));
+    mat.opacity = 0.75 * (1 - k);
+  }, () => mat.dispose());
+}
+
+/** Void explosion: particles rush in, the core collapses, then a dark core and a purple shell burst out. */
+export function voidBurst(pos, radius) {
+  const n = Math.min(26, 8 + Math.round(radius * 3));
+  for (let i = 0; i < n; i++) swirl(pos, radius * 1.3, i % 3 ? VOID_FX.hi : VOID_FX.mid, 0.2, true, 0.1, radius * 0.5);
+  for (let i = 0; i < Math.min(10, 3 + Math.round(radius)); i++) voidMote(pos, radius * 1.2, 0.2);
+  const IMP = 0.3; // share of the life spent imploding
+  const shell = new THREE.MeshBasicMaterial({ color: VOID_FX.mid, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
+  const s = new THREE.Mesh(ico, shell);
+  s.position.copy(pos);
+  add(s, 0.6, (f) => {
+    const k = 1 - f.life / f.max;
+    s.scale.setScalar(k < IMP ? radius * 0.3 * (1 - k / IMP) + 0.05 : radius * Math.sqrt((k - IMP) / (1 - IMP)));
+    shell.opacity = k < IMP ? 0.9 : 0.8 * (1 - (k - IMP) / (1 - IMP));
+  }, () => shell.dispose());
+  const coreM = voidCoreMat();
+  const c = new THREE.Mesh(ico, coreM);
+  c.position.copy(pos);
+  add(c, 0.6, (f) => {
+    const k = 1 - f.life / f.max;
+    c.scale.setScalar(k < IMP ? radius * 0.18 * (1 - k / IMP) + 0.04 : radius * 0.45 * Math.sin(Math.min(1, (k - IMP) / (1 - IMP)) * Math.PI));
+    coreM.opacity = 0.9 * (1 - k * 0.6);
+  }, () => coreM.dispose());
+  // the burst itself, once the implosion finishes
+  add(new THREE.Object3D(), 0.6 * IMP, null, () => {
+    if (!G.scene) return;
+    voidRing(pos, radius * 1.15, 0.55);
+    sparks(pos, VOID_FX.hi, 10, radius * 2.2, 0.1, 0.5);
+    flashLight(pos, VOID_FX.mid, 40 * radius, radius * 5, 0.3);
+  });
+  flashLight(pos, VOID_FX.hi, 12 * radius, radius * 3, 0.15);
 }
 
 export function lightning(a, b, color = 0x5fd3ff, width = 0.05) {

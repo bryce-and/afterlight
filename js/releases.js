@@ -4,6 +4,24 @@
 
 export const RELEASES = [
   {
+    version: '1.9', name: 'Eyes Up, Guardian', date: '2026-10-18', accent: '#b07cff', glyph: '◉',
+    summary: 'Supers get the Destiny treatment: third person, animated, and lifted into the air while you cast. Sentinel Shield throws up a real barrier, Void finally looks like Void, and subclasses get a full Modify screen with more fragment slots.',
+    notes: [
+      'Every super except Golden Gun and Song of Flame now plays in third person, with its own cast pose',
+      'Nova Bomb, Shadowshot, Blade Barrage, Gathering Storm and Twilight Arsenal lift you into the air while you cast, and you take 85% less damage. Well of Radiance and Ward of Dawn slam you into the ground first',
+      'Sentinel Shield: guarding projects a wide Void barrier that moves with you. It stops enemy fire for you and any Guardian behind it, and blinds enemies that touch it. Your fireteam can shoot through it',
+      'Twilight Arsenal axes have a new model. Picking one up puts you in third person, axe in hand, until you throw it',
+      'Hellion follows you, lobs burning bolts that hit, splash and burn for longer, and appears whenever you use your class ability',
+      'Void looks like Void: dark cores, purple shells and implosions on Void explosions, Nova Bomb, Nova Warp, Vortex Grenades, void fields and Shadowshot',
+      'Warlock rifts take your subclass color, with white motes',
+      'Orbs of Power always heal a little. They give armor charge only when you have a mod that uses it, and armor charge has its own counter above your abilities',
+      'A Font for every stat: Font of Intellect, Strength and Recovery (renamed), plus new Fonts of Discipline, Mobility and Resilience',
+      'New Modify screen in the style of Destiny 2: pick a subclass, then press Modify. Every aspect opens one more fragment slot, up to 5',
+      'In missions, weapons show a clean silhouette of their family. The Character screen spreads out a little wider',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="euBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0714"/><stop offset="0.6" stop-color="#160f26"/><stop offset="1" stop-color="#2a1d3c"/></linearGradient><radialGradient id="euBall" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#14061f"/><stop offset="0.55" stop-color="#2a0f45"/><stop offset="0.8" stop-color="#b07cff"/><stop offset="1" stop-color="#e6d0ff" stop-opacity="0"/></radialGradient><radialGradient id="euGlow" cx="0.5" cy="0.28" r="0.5"><stop offset="0" stop-color="#b07cff" stop-opacity="0.55"/><stop offset="1" stop-color="#b07cff" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#euBg)"/><rect width="320" height="180" fill="url(#euGlow)"/><g fill="#ffffff" fill-opacity="0.8"><circle cx="24" cy="22" r="1.3"/><circle cx="292" cy="30" r="1.2"/><circle cx="274" cy="96" r="1"/><circle cx="40" cy="112" r="1.1"/><circle cx="230" cy="16" r="1"/></g><path d="M0 160 60 140 110 150 170 136 230 148 320 132V180H0z" fill="#0d0a16"/><path d="M40 150C90 120 230 120 280 150" fill="none" stroke="#b07cff" stroke-width="3" stroke-opacity="0.5"/><path d="M40 150C90 120 230 120 280 150" fill="none" stroke="#e6d0ff" stroke-width="1" stroke-opacity="0.8"/><g stroke="#e6d0ff" stroke-linecap="round" stroke-opacity="0.75"><path d="M118 34l18 8"/><path d="M202 34l-18 8"/><path d="M112 58l20 0"/><path d="M208 58h-20"/><path d="M126 14l12 14"/><path d="M194 14l-12 14"/></g><g fill="#e6d0ff"><circle cx="118" cy="34" r="1.6"/><circle cx="202" cy="34" r="1.6"/><circle cx="112" cy="58" r="1.4"/><circle cx="208" cy="58" r="1.4"/></g><circle cx="160" cy="44" r="30" fill="url(#euBall)"/><circle cx="160" cy="44" r="13" fill="#14061f"/><g stroke="#0a0d12" stroke-width="1.5"><path d="M150 74l-6-12 4-2 8 10zM170 74l6-12-4-2-8 10z" fill="#4b4458"/><path d="M152 72h16v14h-16z" fill="#4b4458"/><path d="M155 76h10" stroke="#b07cff" stroke-width="2"/><path d="M146 86h28l4 30h-36z" fill="#3a3346"/><path d="M142 116h36l6 22h-14l-6-12-4 12h-14z" fill="#2f2a3a"/></g><path d="M146 92h28" stroke="#9a8a62" stroke-width="2"/><ellipse cx="160" cy="150" rx="36" ry="5" fill="#b07cff" fill-opacity="0.25"/><g fill="#b07cff" fill-opacity="0.7"><path d="M150 144l3-3 3 3-3 3z"/><path d="M166 146l2-2 2 2-2 2z"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+  },
+  {
     version: '1.8.3', name: 'Hotfix', date: '2026-10-15', accent: '#ffb547', glyph: '✚',
     summary: 'Sunsingers get Phoenix Dive as a class ability and a new Icarus Dash aspect, Song of Flame burns hot again, Gift of the Sun gets its own identity, and the quieter aspects open more fragment slots.',
     notes: [

@@ -87,6 +87,7 @@ export const ENEMY_STATUS = {
   burn: { name: 'Scorched', glyph: '♨', color: '#ff8b2b' },
   poison: { name: 'Poisoned', glyph: '☣', color: '#6dff8e' },
   jolt: { name: 'Jolted', glyph: 'ϟ', color: '#5fd3ff' },
+  blind: { name: 'Blinded', glyph: '◌', color: '#e6d0ff' }, // U9: Sentinel Shield barrier; cannot attack
 };
 export const WEAKEN_MULT = 1.3;
 export const SLOW_MULT = 0.35;

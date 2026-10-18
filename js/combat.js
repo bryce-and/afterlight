@@ -27,7 +27,31 @@ export const STARFIRE = { refund: 0.2 }; // Starfire Protocol: Solar grenade kil
 /** Class exotics added in v1.7. */
 export const QUIET = { t: 4, regen: 1.5, heal: 40 }; // Mask of the Quiet One
 export const URSA = { perDmg: 0.25, max: 50 }; // Ursa Furiosa: super % per point of blocked damage
-export const SENTINEL_GUARD = { cut: 0.95 }; // Sentinel Shield guard (hold right-click): share of incoming damage blocked (85% before v1.8.1)
+// Damage taken while each super is active. H3: every roaming super takes 70% less (ROAM_ARMOR).
+// U9: burst supers hover the caster while casting and take 85% less (BURST_ARMOR); Well and Ward slam down first.
+export const ROAM_ARMOR = 0.3, BURST_ARMOR = 0.15;
+export const BURST_SUPERS = ['nova', 'tether', 'bladebarrage', 'gathering', 'twilight'];
+export const SLAM_SUPERS = ['well', 'wardofdawn'];
+export const SUPER_ARMOR = {
+  hammers: ROAM_ARMOR, fists: ROAM_ARMOR, stormtrance: ROAM_ARMOR, revolver: ROAM_ARMOR, staff: ROAM_ARMOR, sentinel: ROAM_ARMOR, songflame: ROAM_ARMOR,
+  maul: ROAM_ARMOR, thundercrash: ROAM_ARMOR, spectral: ROAM_ARMOR, stormsedge: ROAM_ARMOR, novawarp: ROAM_ARMOR, chaosreach: ROAM_ARMOR, daybreak: ROAM_ARMOR,
+  wardofdawn: 0.6, well: 0.6,
+  ...Object.fromEntries(BURST_SUPERS.map((id) => [id, BURST_ARMOR])),
+};
+// Burst-super hover: rise this far, then hold in the air at this share of run speed. Slam supers dive at slamSpeed.
+export const SUPER_HOVER = { lift: 1.6, rise: 6, move: 0.35, hop: 8, hopT: 0.22, slamSpeed: 32, slamMax: 1.5 };
+// U9: Sentinel Shield barrier, projected in front of the shield while guarding and moving with the player.
+// Wide enough to cover teammates standing behind you (Bryce, 2026-10-18): 6 m across, curved on a 4.5 m radius.
+export const SENTINEL_BARRIER = { w: 6, h: 2.6, z: 1.3, y: 1.3, r: 4.5 };
+/** Does the barrier of a Guardian at (px, py, pz) facing yaw stop an enemy shot at p? */
+export function barrierStops(px, py, pz, yaw, p) {
+  const B = SENTINEL_BARRIER, fx = -Math.sin(yaw), fz = -Math.cos(yaw), x = p.x - px, z = p.z - pz;
+  const d = x * fx + z * fz, l = -x * fz + z * fx;
+  return d > 0.2 && d < B.z + 0.5 && Math.abs(l) < B.w / 2 && Math.abs(p.y - py - B.y) < B.h / 2;
+}
+/** U9: a Warlock rift takes the caster's subclass element (older replays without one keep the v1.8 colors). */
+export const riftElement = (el, kind) => el || (kind === 'empower' ? 'arc' : 'void');
+export const SENTINEL_GUARD = { cut: 0.95, blind: 3 }; // Sentinel Shield guard (hold right-click): share of incoming damage blocked (85% before v1.8.1)
 export const HALLOWFIRE = { regen: 1.6 }; // Hallowfire Heart
 export const GRAVITON = { dur: 1.5, melee: 2, heal: 15 }; // Graviton Forfeit (heal per second)
 export const AHAMKARA = { refund: 0.05, gap: 0.2 }; // Young Ahamkara's Spine (per grenade hit, at most once per gap)

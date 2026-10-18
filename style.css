@@ -296,6 +296,15 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .b-st { color: var(--bc); }
 .b-t { color: rgba(255,255,255,0.75); font-variant-numeric: tabular-nums; }
 .b-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--bc); }
+/* armor charge (U9): its own counter above the super bar, one pip per stack */
+#charge { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 22px; margin-bottom: 6px; padding: 0 8px 0 6px; background: rgba(0,0,0,0.5); border: 1px solid rgba(205,182,255,0.55); font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+#charge.hidden { display: none; }
+#charge .ch-ico { color: #cdb6ff; font-size: 12px; }
+#charge .ch-pips { display: inline-flex; gap: 3px; }
+#charge .ch-pips i { width: 8px; height: 8px; transform: rotate(45deg); border: 1px solid #cdb6ff; }
+#charge .ch-pips i.on { background: #cdb6ff; box-shadow: 0 0 6px #cdb6ff; }
+#charge .ch-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: #cdb6ff; }
+#charge.empty { opacity: 0.55; }
 /* enemy plate: floats above the aimed enemy's head (positioned every frame in ui.js) */
 /* sizes scale with the HUD scale setting (--hud-scale); keep PLATE_CENTER in ui.js in step */
 #eplate { --ps: var(--hud-scale, 1); position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: calc(5px * var(--ps)); text-shadow: 0 1px 3px #000; pointer-events: none; will-change: transform; }
@@ -404,8 +413,8 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .cs-power .pw { font-size: 26px; }
 .cs-power small { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); align-self: flex-end; margin-bottom: 6px; }
 .cs-col { position: absolute; top: 96px; display: flex; flex-direction: column; gap: 12px; z-index: 2; }
-.cs-col.left { left: max(24px, calc(50% - 330px)); align-items: flex-end; }
-.cs-col.right { right: max(24px, calc(50% - 330px)); align-items: flex-start; }
+.cs-col.left { left: max(24px, calc(50% - 400px)); align-items: flex-end; }
+.cs-col.right { right: max(24px, calc(50% - 400px)); align-items: flex-start; }
 .cs-slot { display: flex; flex-direction: column; gap: 3px; }
 .cs-col.left .cs-slot { align-items: flex-end; }
 .cs-label { font-family: var(--head); font-weight: 600; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 5px; }
@@ -514,6 +523,7 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .tt-frame b { font-family: var(--head); font-size: 15px; }
 .tt-frame em { font-style: normal; color: var(--muted); font-size: 12px; }
 .wrow .w-ico { width: 34px; height: 34px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
+.wrow .w-sil { width: 52px; height: 20px; opacity: 0.92; } /* U9: generic family silhouette */
 .tt-perks { display: grid; gap: 8px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; }
 .tt-perk { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
 .tt-perk i { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.55); background: radial-gradient(circle, #3b4a63 30%, #1a2230); }
@@ -730,6 +740,52 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .sp-d-lock { margin-top: 10px; font-family: var(--head); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; color: var(--gold); }
 .sp-d-empty { color: var(--muted); font-size: 13px; }
 .lt-r .ab-svg { width: 100%; height: 100%; display: block; }
+/* subclass panel (U9): pick a subclass, then Modify */
+.sp-pick-col { grid-template-columns: 1fr; }
+.sp-pick-col .sp-sub { grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; text-align: left; }
+.sp-pick-col .sp-sub-ico { grid-row: span 2; width: 44px; height: 44px; }
+.sp-pick-col .sp-sub-ico svg { width: 100%; height: 100%; display: block; }
+.sp-modify { width: 100%; margin-bottom: 14px; border-color: var(--ec); }
+/* Modify screen (U9): full screen, laid out like Destiny 2's subclass screen */
+.sp-full { position: absolute; inset: 0; z-index: 20; overflow-y: auto; padding: 16px 36px 22px; color: #e9eef5;
+  background: radial-gradient(ellipse at 22% 40%, color-mix(in srgb, var(--ec) 26%, transparent) 0%, transparent 55%), linear-gradient(180deg, rgba(6,8,12,0.97), rgba(10,12,18,0.99)); }
+.sp-full.hidden { display: none; }
+.spf-head { display: flex; align-items: center; gap: 16px; padding-bottom: 10px; margin-bottom: 14px; border-bottom: 1px solid color-mix(in srgb, var(--ec) 55%, transparent); }
+.spf-back { font-family: var(--head); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 13px; color: #c3cbd6; padding: 6px 10px; border: 1px solid var(--line); }
+.spf-back:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+.spf-back kbd { margin-left: 6px; }
+.spf-emblem { width: 52px; height: 52px; }
+.spf-emblem svg { width: 100%; height: 100%; display: block; }
+.spf-title { font-family: var(--head); font-weight: 700; font-size: 38px; text-transform: uppercase; color: var(--ec); line-height: 1; letter-spacing: 0.04em; }
+.spf-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px 270px; gap: 24px; align-items: start; }
+.spf-t { font-family: var(--head); font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; font-size: 13px; color: #c3cbd6; margin: 4px 0 10px; padding-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+.spf-t small { font-weight: 600; letter-spacing: 0.06em; text-transform: none; color: var(--muted); margin-left: 8px; font-size: 11.5px; }
+.spf-abil { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.spf-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.sp-full .sp-slot { width: 84px; padding: 6px 3px; background: rgba(255,255,255,0.04); }
+.sp-full .sp-slot .ab-svg { width: 52px; height: 52px; }
+.sp-full .sp-slot.big { width: 112px; }
+.sp-full .sp-slot.big .ab-svg { width: 84px; height: 84px; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ec) 60%, transparent)); }
+.sp-slot-k { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.cs-panel .sp-slot-k { display: none; }
+.sp-full .sp-slot-l { min-height: 0; }
+.spf-opts .sp-opts { grid-template-columns: 1fr; margin: 0; max-height: calc(100vh - 220px); overflow-y: auto; }
+.spf-opts.empty { align-self: stretch; }
+.spf-hint { color: var(--muted); font-size: 13px; padding: 14px; border: 1px dashed var(--line); }
+.sp-full .sp-detail { position: sticky; top: 0; }
+@media (max-width: 1100px) { .spf-grid { grid-template-columns: minmax(0, 1fr) 280px; } .sp-full .sp-detail { grid-column: 1 / -1; position: static; } }
+@media (max-width: 760px) {
+  .sp-full { padding: 14px 16px 24px; }
+  .spf-head { flex-wrap: wrap; gap: 10px; }
+  .spf-title { font-size: 30px; }
+  .spf-emblem { width: 44px; height: 44px; }
+  .spf-grid { grid-template-columns: 1fr; gap: 16px; }
+  .sp-full .sp-slot { width: 74px; }
+  .sp-full .sp-slot .ab-svg { width: 46px; height: 46px; }
+  .sp-full .sp-slot.big { width: 96px; }
+  .sp-full .sp-slot.big .ab-svg { width: 70px; height: 70px; }
+  .spf-opts .sp-opts { max-height: none; }
+}
 @media (max-width: 760px) {
   .cs-panel.sp-wide { left: 8px; right: 8px; width: auto; top: 70px; padding: 14px; }
   .sp-body { grid-template-columns: 1fr; }

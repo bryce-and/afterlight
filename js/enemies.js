@@ -9,7 +9,7 @@ import { sparks, ringFx, basicMat, explosionFx, flashLight } from './effects.js'
 import { sfx } from './audio.js';
 import { damagePlayer, spawnBossAdds } from './game.js';
 import * as ui from './ui.js';
-import { pickTarget, allPlayers, damageRemote, announceShot } from './coop.js';
+import { pickTarget, allPlayers, damageRemote, announceShot, remoteBarrierBlocks } from './coop.js';
 import { BOSS_MODELS } from './bosses.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
@@ -476,7 +476,7 @@ export class Enemy {
     const staggered = this.staggerT > 0;
     if (staggered) { mx = 0; mz = 0; }
     const ml = Math.hypot(mx, mz);
-    const suppressed = this.status.has('suppress');
+    const suppressed = this.status.has('suppress') || this.status.has('blind'); // blinded enemies cannot attack either
     if (suppressed && Math.random() < 0.2) sparks(this.headPos(_v), 0x7a4ab0, 1, 1.5, 0.06, 0.3);
     if (this.status.has('weaken') && Math.random() < 0.15) sparks(this.center(_v), 0x7a4ab0, 1, 1, 0.08, 0.4);
     if (this.status.has('jolt') && Math.random() < 0.2) sparks(this.center(_v), 0x5fd3ff, 1, 2, 0.05, 0.25);
@@ -773,6 +773,8 @@ export function updateEnemyShots(dt) {
       if (s.pos.y < 0.02) hit = 'ground';
       else if (pointInColliders(s.pos)) hit = 'wall';
       else if (G.tickers.some((t) => t.ward && t.ward.p.distanceToSquared(s.pos) < t.ward.r2)) hit = 'wall'; // Bastion Ward
+      else if (P.barrierBlocks?.(s.pos)) { hit = 'wall'; P.barrierBlocked(s.dmg); } // Sentinel Shield barrier (U9)
+      else if (remoteBarrierBlocks(s.pos)) hit = 'wall';
       else if (!P.dead && distToPlayer(s.pos) < 0.5) hit = 'player';
     }
     if (hit) {

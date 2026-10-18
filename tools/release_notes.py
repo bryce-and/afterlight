@@ -26,6 +26,7 @@ if len(sys.argv) != 2:
 for block in entries:
     if field(block, 'version') == sys.argv[1]:
         notes = block[block.index('notes:'):]
+        notes = notes[:notes.index('\n    ],')]  # the notes array only, not the art that follows it
         print(f"v{sys.argv[1]} {field(block, 'name')}")
         print(field(block, 'summary') + '\n')
         for n in re.findall(STR, notes):

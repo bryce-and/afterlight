@@ -21,6 +21,7 @@ import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANC
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
+import { buildVoidAxe } from './models.js';
 import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
 
 const _c = new THREE.Vector3();
@@ -465,7 +466,7 @@ export function dealDamage(e, amount, o = {}) {
   return { killed, dealt };
 }
 
-const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt'];
+const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind'];
 
 /** Jolt: a hit on a jolted enemy arcs lightning into it and up to JOLT.n enemies nearby. */
 function joltFrom(e) {
@@ -616,10 +617,7 @@ export function projectileMesh(o) {
     g.add(blade, tip, edge, guard, handle, wrap, glow);
   } else if (o.kind === 'axe') {
     // Twilight Arsenal axe: a glowing void head on a pale haft
-    const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5), basicMat(0xe6d0ff));
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.05), mat(o.color, { emissive: o.color, emissiveIntensity: 2.6 }));
-    head.position.y = 0.35;
-    g.add(haft, head);
+    g.add(buildVoidAxe());
   } else if (o.kind === 'swarm') {
     // tracking rounds (Swarm, Axion Bolt, SIVA, Wolfpack): a cluster of particles, not one solid shape
     for (let i = 0; i < 6; i++) {

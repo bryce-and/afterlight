@@ -280,7 +280,7 @@ test('registry: 3 grenades per element, 2 class abilities per class, 4 aspects p
   for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, sid === 'sentinel' ? 4 : 5, sid);
   eq(Object.keys(SC.ASPECTS).length, 44);
   eq([SC.fragmentsFor('solar').length, SC.fragmentsFor('arc').length, SC.fragmentsFor('void').length], [8, 8, 8]);
-  for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 1 || a.slots === 2, a.name);
+  for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 2 || a.slots === 3, a.name); // U9: one more slot each
 });
 test('every default loadout is valid and resolves to the expected abilities (H3: Sentinel keeps its barricade, Sunsinger grenades from Gift of the Sun)', () => {
   const v12 = { // grenade, grenade cd, class ability, class cd
@@ -300,9 +300,9 @@ test('loadout rules: element, class and subclass must match; locked and unknown 
   const lo = SC.sanitizeLoadout('vanguard', 'sunbreaker', { grenade: 'vortex', class: 'rift', aspects: ['knockout', 'roaring', 'nope'], fragments: ['shock', 'torches'] }, 40);
   eq(lo.grenade, 'solar'); eq(lo.class, 'barricade'); eq(lo.aspects, ['roaring']); eq(lo.fragments, ['torches']);
   // fragments never exceed the slots the aspects open, and duplicates are dropped
-  const two = SC.sanitizeLoadout('arcanist', 'voidwalker', { aspects: ['chaos', 'childgods'], fragments: ['expulsion', 'expulsion', 'persistence', 'starvation'] }, 40);
-  eq(two.fragments, ['expulsion', 'persistence']);
-  eq(SC.fragmentSlots(['feedvoid', 'chaos']), 3);
+  const two = SC.sanitizeLoadout('arcanist', 'voidwalker', { aspects: ['chaos', 'childgods'], fragments: ['expulsion', 'expulsion', 'persistence', 'starvation', 'undermining', 'instability'] }, 40);
+  eq(two.fragments, ['expulsion', 'persistence', 'starvation', 'undermining']); // 2 + 2 slots
+  eq(SC.fragmentSlots(['feedvoid', 'chaos']), 5);
   // only two aspects
   eq(SC.sanitizeLoadout('stalker', 'arcstrider', { aspects: ['lethal', 'flowstate', 'ascension'] }, 40).aspects, ['lethal', 'flowstate']);
 });
@@ -340,13 +340,13 @@ test('setLoadout saves a valid loadout per subclass; activeKit uses it', () => {
   fresh();
   const s = S.createSave('vanguard');
   eq(s.loadout, {});
-  S.setLoadout(s, 'vanguard', 'sunbreaker', { grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing', 'empyrean'] });
-  eq(S.getLoadout(s, 'vanguard', 'sunbreaker'), { super: 'hammers', jump: 'lift', grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing'] });
+  S.setLoadout(s, 'vanguard', 'sunbreaker', { grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing', 'empyrean', 'searing', 'torches'] });
+  eq(S.getLoadout(s, 'vanguard', 'sunbreaker'), { super: 'hammers', jump: 'lift', grenade: 'healing', class: 'rally', aspects: ['roaring', 'solinvictus'], fragments: ['torches', 'ashes', 'singeing', 'empyrean', 'searing'] });
   const k = S.activeKit(s);
-  eq([k.abilities.grenade.name, k.abilities.class.name, k.fragments.length], ['Healing Grenade', 'Rally Barricade', 3]);
+  eq([k.abilities.grenade.name, k.abilities.class.name, k.fragments.length], ['Healing Grenade', 'Rally Barricade', 5]);
   eq(S.getLoadout(s, 'vanguard', 'striker'), SC.defaultLoadout('vanguard', 'striker'), 'other subclasses untouched');
   // dropping an aspect drops the fragments it opened
-  eq(S.setLoadout(s, 'vanguard', 'sunbreaker', { aspects: ['solinvictus'] }).fragments, ['torches']);
+  eq(S.setLoadout(s, 'vanguard', 'sunbreaker', { aspects: ['solinvictus'] }).fragments, ['torches', 'ashes']);
 });
 test('supers declare their camera; Dawnblade shows as Sunsinger with the same id', () => {
   for (const [c, sid] of SUBS) ok(['first', 'third'].includes(CLASSES[c].subclasses[sid].abilities.super.camera), sid);
@@ -403,7 +403,7 @@ test('super choice: locked supers fall back to the original; resolveKit uses the
   eq(SC.sanitizeLoadout('vanguard', 'sunbreaker', { super: 'thundercrash' }, 40).super, 'hammers', 'another subclass');
   eq(SC.sanitizeLoadout('arcanist', 'dawnblade', { super: 'daybreak' }, 40).super, 'daybreak');
   const k = SC.resolveKit('stalker', 'arcstrider', { super: 'stormsedge' }, 40);
-  eq([k.abilities.super.id, k.abilities.super.name, k.abilities.super.camera], ['stormsedge', "Storm's Edge", 'first']);
+  eq([k.abilities.super.id, k.abilities.super.name, k.abilities.super.camera], ['stormsedge', "Storm's Edge", 'third']);
   eq(SC.resolveKit('stalker', 'arcstrider', undefined, 40).abilities.super.id, 'staff');
 });
 test('jumps: 3 or 4 per class; Blink only on Arcstrider and Voidwalker', () => {
@@ -598,7 +598,7 @@ test('subclass traits are aspects now (H3): no passives, each subclass defaults 
   eq(SC.sanitizeLoadout('arcanist', 'voidwalker', { class: 'phoenix' }, 40).class, 'rift', 'Phoenix Dive is Dawnblade only');
   eq(SC.sanitizeLoadout('arcanist', 'dawnblade', { aspects: ['phoenix', 'giftsun'], fragments: ['torches', 'ashes'] }, 40).aspects, ['giftsun'], 'an old Phoenix Dive aspect is dropped');
   ok(!/Restoration/.test(SC.ASPECTS.giftsun.desc), 'Gift of the Sun no longer overlaps Ember of Benevolence');
-  for (const id of ['amplitude', 'resolve', 'juggernaut', 'onyourmark', 'chainofwoe', 'ascension', 'icarus']) eq(SC.ASPECTS[id].slots, 2, id + ' opens 2 fragment slots');
+  for (const id of ['amplitude', 'resolve', 'juggernaut', 'onyourmark', 'chainofwoe', 'ascension', 'icarus']) eq(SC.ASPECTS[id].slots, 3, id + ' opens 3 fragment slots (2 before U9)');
   ok(SC.ASPECT_TUNE.bloom.dmg <= 10, 'Bloom drain is small');
   // Towering and Rally Barricade are both usable on Sentinel
   for (const id of ['barricade', 'rally']) eq(SC.resolveKit('vanguard', 'sentinel', { class: id }, 40).abilities.class.id, id);
@@ -656,8 +656,8 @@ test('rolled armor: six stats with the rarity total, four empty sockets, energy 
 });
 test('mods: counts per slot, costs 1 to 4, unlock levels 5 to 30, the eight former perks are starters', () => {
   eq(AR.statMods().length, 12);
-  eq(['helmet', 'arms', 'chest', 'legs'].map((s) => AR.modsForSlot(s).length), [10, 12, 11, 12]);
-  eq(AR.MOD_IDS.length, 57);
+  eq(['helmet', 'arms', 'chest', 'legs'].map((s) => AR.modsForSlot(s).length), [10, 13, 12, 13]); // U9: Fonts of Discipline, Resilience, Mobility
+  eq(AR.MOD_IDS.length, 60);
   for (const id of AR.MOD_IDS) { const d = AR.MODS[id]; ok(d.cost >= 1 && d.cost <= 4, id); ok(d.unlock >= 5 && d.unlock <= 30, id); ok(d.name && d.desc, id); }
   eq(AR.MOD_IDS.filter((id) => AR.MODS[id].unlock === AR.MODS_LEVEL).length, 34, 'starter set');
   for (const id of AR.FORMER_PERKS) { ok(AR.MODS[id], id); eq(AR.MODS[id].unlock, AR.MODS_LEVEL); }
@@ -741,7 +741,7 @@ test('level track and unlocks: nothing before level 5, mods spread over levels 6
   ok(!AR.modUnlocked('fontendurance', 29) && AR.modUnlocked('fontendurance', 30));
   eq(AR.modsUnlockedAt(6), ['targetp']);
   let n = 0; for (let L = 6; L <= 30; L++) n += AR.modsUnlockedAt(L).length;
-  eq(n, 23);
+  eq(n, 26);
 });
 
 // ---------- Fashion Is Endgame (v1.6) ----------
@@ -965,6 +965,51 @@ test('v1.8.2: supers (Chaos Reach 9 s, Well 25 s, nerfs) and the rift and barric
   ok(C.SUPER_TUNE.novawarp.seekers > 0 && C.SUPER_TUNE.novawarp.weaken > 0, 'Nova Warp seekers weaken');
   eq(C.CLASS_FX_LIFE, { rift: 10, barricade: 12, rally: 7 });
   ok(STATUS.riftup && STATUS.barricadeup, 'timer buffs');
+});
+
+// ---------- Eyes Up, Guardian (v1.9) ----------
+test('v1.9: burst supers hover with 85% damage reduction, roaming keep 70%, Well and Ward slam', () => {
+  eq(C.BURST_SUPERS.slice().sort(), ['bladebarrage', 'gathering', 'nova', 'tether', 'twilight']);
+  for (const id of C.BURST_SUPERS) ok(Math.abs(100 * C.SUPER_ARMOR[id] - 15) < 1e-9, `${id}: 100 damage lands as 15`);
+  for (const id of ['hammers', 'fists', 'maul', 'spectral', 'novawarp', 'chaosreach', 'daybreak']) eq(C.SUPER_ARMOR[id], C.ROAM_ARMOR, id);
+  eq(C.SLAM_SUPERS.slice().sort(), ['wardofdawn', 'well']);
+  ok(C.SUPER_HOVER.lift > 0 && C.SUPER_HOVER.slamSpeed > 0, 'hover and slam tuned');
+  for (const id of Object.keys(C.SUPER_TIME)) ok(C.SUPER_ARMOR[id] !== undefined, `${id} has a damage value`);
+});
+test('v1.9: every super is third person except Golden Gun and Song of Flame', () => {
+  const firsts = [];
+  for (const [c, sid] of SUBS) { const sp = CLASSES[c].subclasses[sid].abilities.super; if (sp.camera === 'first') firsts.push(sp.id); }
+  for (const [id, d] of Object.entries(SC.SUPERS)) if (d.camera === 'first') firsts.push(id);
+  eq(firsts.sort(), ['revolver', 'songflame']);
+});
+test('v1.9: Sentinel Shield barrier is 6 m wide, stops shots in front only, and blinds', () => {
+  eq(C.SENTINEL_BARRIER.w, 6);
+  // facing yaw 0 looks down -z; the barrier stands about 1.3 m ahead
+  ok(C.barrierStops(0, 0, 0, 0, { x: 0, y: 1.2, z: -1 }), 'ahead');
+  ok(C.barrierStops(0, 0, 0, 0, { x: 2.8, y: 1.2, z: -1 }), 'covers a teammate 2.8 m to the side');
+  ok(!C.barrierStops(0, 0, 0, 0, { x: 0, y: 1.2, z: 1 }), 'not behind');
+  ok(!C.barrierStops(0, 0, 0, 0, { x: 3.2, y: 1.2, z: -1 }), 'not past the edge');
+  ok(!C.barrierStops(0, 0, 0, 0, { x: 0, y: 4, z: -1 }), 'not over the top');
+  ok(C.barrierStops(5, 0, 5, Math.PI / 2, { x: 4, y: 1, z: 5 }), 'turns with the Guardian');
+  ok(ENEMY_STATUS.blind && C.SENTINEL_GUARD.blind > 0, 'blind debuff');
+});
+test('v1.9: rifts take the subclass element; Hellion burns longer', () => {
+  eq(['solar', 'arc', 'void'].map((el) => C.riftElement(el, 'heal')), ['solar', 'arc', 'void']);
+  eq(C.riftElement(undefined, 'empower'), 'arc'); eq(C.riftElement(undefined, 'heal'), 'void');
+  ok(SC.ASPECT_TUNE.hellion.burn > 1.5 && SC.ASPECT_TUNE.hellion.splash > 0, 'Hellion bolts splash and burn');
+  ok(SC.ASPECTS.hellion.desc.includes('class ability'), 'any class ability');
+});
+test('v1.9: orbs give armor charge only with a charge mod; a Font for every stat', () => {
+  ok(!AR.usesCharge({}) && !AR.usesCharge({ grenadier: 1, dynamo: 2 }), 'no charge mods');
+  for (const id of ['fontmight', 'surge_arc', 'chargedup', 'timedil', 'stacks']) ok(AR.usesCharge({ [id]: 1 }), id);
+  ok(AR.ORB.heal > 0, 'every orb heals a little');
+  eq(Object.values(AR.FONT_STAT).sort(), AR.STAT_KEYS.slice().sort());
+  for (const [id, k] of Object.entries(AR.FONT_STAT)) eq(AR.MODS[id].name, `Font of ${AR.STATS[k].name}`);
+});
+test('v1.9: aspects open 2 or 3 fragment slots, up to 5', () => {
+  eq(SC.FRAGMENT_CAP, 5);
+  eq(SC.fragmentSlots(['amplitude', 'resolve']), 5, 'two 3-slot aspects cap at 5');
+  ok(Object.values(SC.FRAGMENTS).filter((f) => f.element === 'void').length >= 5, 'enough fragments to fill 5 slots');
 });
 
 // ---------- runner ----------

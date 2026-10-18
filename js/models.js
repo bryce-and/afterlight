@@ -372,6 +372,31 @@ function buildBaseGun(item, look) {
 }
 
 // ---------------------------------------------------------------------------
+// Twilight Arsenal axe (U9): a pale haft with a dark core blade and a glowing void crescent edge.
+// The haft runs along +y (head at the top); the blade faces +x. Used in hand, in flight and where it lands.
+// ---------------------------------------------------------------------------
+export function buildVoidAxe(scale = 1) {
+  const g = new THREE.Group();
+  const glow = (c, k) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, flatShading: true });
+  const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.034, 0.95, 6), new THREE.MeshStandardMaterial({ color: 0xd8c8f0, flatShading: true }));
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.22, 6), new THREE.MeshStandardMaterial({ color: 0x2a2236, flatShading: true }));
+  grip.position.y = -0.3;
+  const blade = new THREE.Shape();
+  blade.moveTo(0, 0.12); blade.quadraticCurveTo(0.22, 0.22, 0.34, 0.3); blade.quadraticCurveTo(0.24, 0, 0.34, -0.3); blade.quadraticCurveTo(0.22, -0.18, 0, -0.1); blade.lineTo(0, 0.12);
+  const core = new THREE.Mesh(new THREE.ExtrudeGeometry(blade, { depth: 0.04, bevelEnabled: false }).translate(0, 0, -0.02), new THREE.MeshStandardMaterial({ color: 0x1a0d2a, flatShading: true }));
+  core.position.set(0.02, 0.33, 0);
+  const edge = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.025, 4, 10, 1.6), glow(0xb07cff, 3));
+  edge.rotation.z = -0.8; edge.position.set(0.06, 0.33, 0);
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 4).rotateZ(Math.PI / 2), glow(0xe6d0ff, 2.6));
+  spike.position.set(-0.1, 0.36, 0);
+  const cap = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), glow(0xe6d0ff, 3));
+  cap.position.y = 0.5;
+  g.add(haft, grip, core, edge, spike, cap);
+  g.scale.setScalar(scale);
+  return g;
+}
+
+// ---------------------------------------------------------------------------
 // Super viewmodels
 // ---------------------------------------------------------------------------
 export function buildSuperModel(type) {

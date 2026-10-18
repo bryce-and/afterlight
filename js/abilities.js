@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { ELEMENTS } from './data.js';
-import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, ringFx, lightning, beam, explosionFx, ember } from './effects.js';
+import { glowBurst, shockwave, pillar, flare, swirl, homingMote, afterimage, ringFx, lightning, beam, explosionFx, ember, voidBurst, voidRing, voidMote, VOID_FX } from './effects.js';
 import { dealDamage, enemiesNear, addTicker, explode } from './game.js';
 import { sendFx, remotes } from './coop.js';
 import { net } from './net.js';
-import { STORM_GRENADE, ARC_SOUL, NOVA_FIELD, SUPER_TUNE, CLASS_FX_LIFE } from './combat.js';
+import { STORM_GRENADE, ARC_SOUL, NOVA_FIELD, SUPER_TUNE, CLASS_FX_LIFE, riftElement } from './combat.js';
 import { ORB } from './armor.js';
 import { SUNSPOT, HEAL_ORB, ASPECT_TUNE } from './subclass.js';
 import { sfx } from './audio.js';
+import { buildVoidAxe } from './models.js';
 import * as ui from './ui.js';
 
 // Every ability effect lives here once. The caster runs it with local = true
@@ -22,6 +23,35 @@ const hex = (el) => ELEMENTS[el]?.hex ?? 0xffffff;
 const orbs = new Map(); // live Orbs of Power (and Twilight Arsenal axes) by id, so a claim on one screen removes them everywhere
 
 /** Run an ability effect locally and tell the fireteam about it. */
+/** Hellion (U9): a burning bolt lobbed in an arc that bursts where it lands. Only the caster's screen deals the damage. */
+function lobBolt(from, to, local, target) {
+  const A = ASPECT_TUNE.hellion, col = hex('solar');
+  const bolt = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), new THREE.MeshBasicMaterial({ color: 0xffd27a }));
+  bolt.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 0), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })));
+  const a = from.clone(), b = to.clone(), T = A.flight;
+  bolt.position.copy(a);
+  G.scene.add(bolt);
+  let t = 0;
+  addTicker({
+    update(dt) {
+      t += dt;
+      const k = Math.min(1, t / T);
+      bolt.position.lerpVectors(a, b, k).setY(a.y + (b.y - a.y) * k + Math.sin(k * Math.PI) * A.arc);
+      if (Math.random() < 0.7) ember(bolt.position.clone(), Math.random() < 0.5 ? col : 0xffd27a, 0.06, 0.35, 0.3);
+      if (k >= 1) {
+        if (local) {
+          // a direct hit on the target it was aimed at, then a small burning splash around it
+          if (target?.alive && target.center(new THREE.Vector3()).distanceTo(b) < target.radius + 1.2) dealDamage(target, A.dmg, { element: 'solar', source: 'ability', pos: b.clone(), burn: A.burn, companion: true });
+          explode(b, A.r, A.splash, 'solar', { source: 'ability', small: true, companion: true, debuffs: { burn: A.burn } });
+        }
+        return false;
+      }
+      return true;
+    },
+    dispose() { G.scene?.remove(bolt); },
+  });
+}
+
 export function castFx(kind, o) {
   const wire = {};
   for (const [k, v] of Object.entries(o)) wire[k] = v instanceof THREE.Vector3 ? arr(v) : Array.isArray(v) && v[0] instanceof THREE.Vector3 ? v.map(arr) : v;
@@ -93,15 +123,16 @@ export function abilityFx(kind, o, local) {
       const p = V(o.p), col = hex('void');
       const R = o.big ? 7.5 : 5.5; // Chaos Accelerant
       const zone = zoneMesh(p, R, col, true);
-      shockwave(p.clone().setY(0.05), R, col, 0.7);
-      flare(p, 0xe6d0ff, 2.5, 0.3);
+      voidRing(p.clone().setY(0.05), R, 0.7);
+      flare(p, VOID_FX.hi, 2.5, 0.3);
       let life = (o.big ? 5.5 : 4) * (o.linger || 1), tick = 0; // Echo of Remnants: linger
       addTicker({
         update(dt) {
           life -= dt; tick -= dt;
           zone.rotation.y += dt * 4;
           zone.children[0].scale.setScalar(1 + Math.sin(G.time * 10) * 0.12);
-          for (let i = 0; i < 4; i++) swirl(p, R, i % 2 ? col : 0xe6d0ff, 0.7, true, 0.09, 2.4);
+          for (let i = 0; i < 4; i++) swirl(p, R, i % 2 ? col : VOID_FX.hi, 0.7, true, 0.09, 2.4);
+          if (Math.random() < 0.5) voidMote(p.clone().setY(p.y + 0.8), R * 0.9, 0.6);
           if (local) {
             const c = new THREE.Vector3();
             for (const e of enemiesNear(p, R + 1)) if (!e.isBoss && !e.remote) { const d = c.copy(p).sub(e.pos).setY(0); if (d.length() > 0.5) e.knock.addScaledVector(d.normalize(), dt * 14); }
@@ -228,7 +259,8 @@ export function abilityFx(kind, o, local) {
     }
     case 'rift': { // Healing Rift / Empowering Rift: affects whoever stands inside, on their own screen
       const p = V(o.p), empower = o.kind === 'empower';
-      const col = empower ? hex('arc') : 0xb07cff, glow = empower ? 0xe0f6ff : 0xe6d0ff;
+      // U9: the rift takes the caster's subclass color (Solar, Arc or Void); its particles are white
+      const col = hex(riftElement(o.el, o.kind)), glow = 0xffffff;
       const zone = zoneMesh(p, 4.5, col);
       shockwave(p.clone().setY(0.05), 5, col, 0.7);
       pillar(p, 4.3, 0.6, col, 10, 0.12);
@@ -237,7 +269,7 @@ export function abilityFx(kind, o, local) {
       addTicker({
         update(dt) {
           life -= dt; pulse -= dt; zone.rotation.y += dt;
-          for (let i = 0; i < 2; i++) swirl(p, 4.3, i ? col : glow, 1.4, false, 0.07, 3.5);
+          if (Math.random() < 0.7) swirl(p, 4.3, glow, 1.4, false, 0.035, 3.5); // small white motes (U9), so standing inside stays readable
           if (pulse <= 0) { pulse = 1; ringFx(p, 4.5, col, 0.8); }
           const P = G.player;
           const inside = P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 4.7 && Math.abs(P.pos.y - p.y) < 3;
@@ -364,11 +396,7 @@ export function abilityFx(kind, o, local) {
     }
     case 'voidaxe': { // Twilight Arsenal: an axe that waits where it landed; the first Guardian to touch it can throw it (left-click)
       const p = V(o.p), col = hex('void');
-      const axe = new THREE.Group();
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.06), new THREE.MeshBasicMaterial({ color: col }));
-      head.position.y = 0.5;
-      const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 5), new THREE.MeshBasicMaterial({ color: 0xe6d0ff }));
-      axe.add(head, haft);
+      const axe = buildVoidAxe(1.15);
       axe.position.copy(p).setY(p.y + 0.6);
       G.scene.add(axe);
       const rec = { dead: false };
@@ -517,7 +545,8 @@ export function abilityFx(kind, o, local) {
             tick = child ? 0.5 : A ? A.tick : ARC_SOUL.tick;
             for (const tgt of enemiesNear(orb.position, 14, sentry ? A.n : 1)) {
               const c = tgt.center(new THREE.Vector3());
-              if (child || hell) beam(orb.position, c, col, 0.05, 0.2); else lightning(orb.position, c, col, 0.04);
+              if (hell) { lobBolt(orb.position, c, local, tgt); continue; } // U9: Hellion lobs burning bolts
+              if (child) beam(orb.position, c, col, 0.05, 0.2); else lightning(orb.position, c, col, 0.04);
               flare(c, col, 0.6, 0.15);
               if (local) {
                 dealDamage(tgt, child ? 24 : A ? A.dmg : ARC_SOUL.dmg, { element: el, source: 'ability', pos: c, weaken: child ? 1 : 0, burn: hell ? 1.5 : 0, jolt: sentry ? 3 : 0, companion: true });
@@ -577,6 +606,7 @@ export function abilityFx(kind, o, local) {
     }
     case 'blast': { // Hammer of Sol / Nova Bomb impacts
       const p = V(o.p), col = hex(o.el), r = o.r || 5, g0 = p.clone().setY(0.05);
+      if (o.el === 'void') { voidBurst(p, r * 0.8); voidRing(g0, r * 1.4, 0.8); } // U9: Void implodes first, with a dark core
       shockwave(g0, r * 1.3, col, 0.7);
       pillar(g0, r * 0.3, r * 1.6, col, 0.6, 0.4);
       flare(p, 0xffffff, r * 0.8, 0.4);
@@ -584,7 +614,8 @@ export function abilityFx(kind, o, local) {
       if (o.big) {
         let n = 2;
         addTicker({ t: 0.18, update(dt) { this.t -= dt; if (this.t <= 0) { this.t = 0.18; shockwave(g0, r + n * 4, n % 2 ? 0xffffff : col, 0.7); n--; } return n > 0; } });
-        for (let i = 0; i < 20; i++) swirl(p, r, i % 2 ? col : 0xffffff, 0.9, true, 0.15, 3);
+        for (let i = 0; i < 20; i++) swirl(p, r, i % 2 ? col : o.el === 'void' ? VOID_FX.hi : 0xffffff, 0.9, true, 0.15, 3);
+        if (o.el === 'void') for (let i = 0; i < 10; i++) voidMote(p, r, 0.6, 0.2);
         const d = G.player.pos.distanceTo(p);
         if (d < 40) { ui.screenFlash(ELEMENTS[o.el].color, 0.5 * (1 - d / 40)); G.player.shake = Math.max(G.player.shake, 0.6 * (1 - d / 40)); }
       }
@@ -595,12 +626,13 @@ export function abilityFx(kind, o, local) {
       const anchor = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), new THREE.MeshBasicMaterial({ color: col }));
       anchor.position.copy(p).setY(Math.max(1.2, p.y));
       G.scene.add(anchor);
-      shockwave(p.clone().setY(0.05), 8, col, 0.6);
+      voidRing(p.clone().setY(0.05), 8, 0.6);
       let life = 6, tick = 0, fx = 0;
       addTicker({
         update(dt) {
           life -= dt; tick -= dt; fx -= dt;
           anchor.rotation.y += dt * 3; anchor.rotation.x += dt * 2;
+          if (Math.random() < 0.4) voidMote(anchor.position, 2.5, 0.4, 0.1);
           const near = enemiesNear(anchor.position, 8);
           if (fx <= 0) { fx = 0.25; for (const e of near.slice(0, 6)) lightning(anchor.position, e.center(new THREE.Vector3()), col, 0.03); }
           if (local) {
@@ -616,13 +648,14 @@ export function abilityFx(kind, o, local) {
     case 'novafield': { // Nova Bomb's lingering void field: damages, weakens and suppresses enemies inside
       const p = V(o.p), col = hex('void'), F = NOVA_FIELD;
       const zone = zoneMesh(p, F.radius, col);
-      shockwave(p.clone().setY(0.05), F.radius, col, 0.6);
+      voidRing(p.clone().setY(0.05), F.radius, 0.6);
       let life = F.life, tick = 0, pulse = 0;
       addTicker({
         update(dt) {
           life -= dt; tick -= dt; pulse -= dt; zone.rotation.y -= dt * 0.8;
-          if (pulse <= 0) { pulse = 0.5; ringFx(p, F.radius, col, 0.6); }
-          if (Math.random() < 0.6) swirl(p, F.radius * 0.9, Math.random() < 0.5 ? col : 0xe6d0ff, 1.2, false, 0.06, 2);
+          if (pulse <= 0) { pulse = 0.5; voidRing(p, F.radius, 0.6); }
+          if (Math.random() < 0.6) swirl(p, F.radius * 0.9, Math.random() < 0.5 ? col : VOID_FX.hi, 1.2, false, 0.06, 2);
+          if (Math.random() < 0.3) voidMote(p.clone().setY(p.y + 0.6), F.radius * 0.8, 0.8);
           if (local && tick <= 0) {
             tick = F.tick;
             for (const e of G.enemies) if (e.alive && inXZ(e, p, F.radius)) dealDamage(e, o.dmg, { element: 'void', source: 'super', weaken: F.weaken, suppress: F.suppress });

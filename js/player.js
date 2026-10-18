@@ -5,20 +5,20 @@ import { clamp, lerp, damp } from './util.js';
 import { moveBody, hasLOS, pointInColliders } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
 import { sfx } from './audio.js';
-import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage } from './effects.js';
+import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage, voidMote, VOID_FX } from './effects.js';
 import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh } from './game.js';
 import { getEquipped, activeKit, playerLevel, wornAppearance } from './save.js';
 import { activeSets, encodeAppearance, SET_TUNE } from './style.js';
 import { net } from './net.js';
-import { MODS_LEVEL, MODS_TUNE, ORB, CHARGE, STAT_KEYS, STAT_CAP, CLASS_STAT, COOLDOWN_FLOOR, armorStats, modCounts, cooldownMult, superRateMult, speedMult, jumpBonus, shieldMax, regenDelay, regenRate } from './armor.js';
-import { fxTracer, requestLife, DOWN_TIME } from './coop.js';
+import { MODS_LEVEL, MODS_TUNE, ORB, CHARGE, STAT_KEYS, STAT_CAP, CLASS_STAT, COOLDOWN_FLOOR, armorStats, modCounts, cooldownMult, superRateMult, speedMult, jumpBonus, shieldMax, regenDelay, regenRate, FONT_STAT, usesCharge } from './armor.js';
+import { fxTracer, requestLife, DOWN_TIME, sendHit } from './coop.js';
 import { castFx } from './abilities.js';
-import { buildCharacter } from './characters.js';
+import { buildCharacter, SUPER_POSES } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
 import { weaponHandling } from './frames.js';
-import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER } from './combat.js';
+import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
@@ -59,11 +59,6 @@ function makeWeapon(item) {
 // Supers hit hard and keep pace with the mission: their damage scales with the same
 // multiplier as enemy health, so a super feels as strong in the last mission as the first.
 const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
-// damage taken while each super is active
-// H3: every roaming super takes 70% less damage (ROAM_ARMOR); burst supers keep their own value until U9's cast hold
-const ROAM_ARMOR = 0.3;
-const SUPER_ARMOR = { hammers: ROAM_ARMOR, fists: ROAM_ARMOR, stormtrance: ROAM_ARMOR, revolver: ROAM_ARMOR, tether: 0.6, staff: ROAM_ARMOR, sentinel: ROAM_ARMOR, songflame: ROAM_ARMOR,
-  maul: ROAM_ARMOR, thundercrash: ROAM_ARMOR, wardofdawn: 0.6, twilight: 0.6, bladebarrage: 0.6, spectral: ROAM_ARMOR, gathering: 0.6, stormsedge: ROAM_ARMOR, well: 0.6, novawarp: ROAM_ARMOR, chaosreach: ROAM_ARMOR, daybreak: ROAM_ARMOR };
 const OVERSHIELD_MAX = 60;
 // Daybreak (H3): the first jump goes 2.5x as high (speed x sqrt 2.5), then the wings sink at this speed
 const DAYBREAK_JUMP = Math.sqrt(2.5), DAYBREAK_FALL = -1.2;
@@ -171,7 +166,10 @@ export class Player {
     if (this.cur === i) { this.switchT = this.switchMax; this.adsT = 0; }
     this.showModel();
   }
-  get thirdPerson() { return !!this.superActive && !this.dead && TPS_SUPERS.has(this.superActive.type); }
+  get holdingAxe() { return !this.superActive && !this.dead && this.status.has('voidaxe'); } // U9: a picked-up Twilight Arsenal axe
+  get thirdPerson() { return !this.dead && ((!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe); }
+  /** The prop held in third person: the super's id, or 'twilight' for a picked-up axe. */
+  get tpsProp() { return !this.thirdPerson ? null : this.superActive ? this.superActive.type : 'twilight'; }
 
   /** Aim direction from the eye. In third person: toward whatever is under the crosshair, so shots land where you aim. */
   aimForward(out) {
@@ -202,12 +200,23 @@ export class Player {
     if (b.parent !== G.scene) G.scene.add(b);
     b.visible = k > 0.3;
     this.viewmodel.visible = !this.dead && k < 0.3;
-    const prop = this.thirdPerson ? this.superActive.type : null;
+    const prop = this.tpsProp;
     if (this.bodyProp !== prop) { this.bodyProp = prop; this.body.setProp(prop); }
     b.position.copy(this.pos);
     b.rotation.y = this.yaw + Math.PI;
-    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, guard: prop === 'sentinel' && !!this.superActive.guard });
+    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
   }
+
+  /** U9: the held pose of the active third-person super (characters.js SUPER_POSES), or null. Burst supers drop it once released. */
+  get superPose() {
+    const S = this.superActive;
+    if (!S || !this.thirdPerson) return null;
+    if (S.slam) return 'slam';
+    if ((S.type === 'nova' || S.type === 'gathering' || S.type === 'bladebarrage') && S.launched) return null;
+    if (S.type === 'novawarp' && S.charge <= 0) return null;
+    return SUPER_POSES[S.type] || null;
+  }
+  get superHover() { return this.superActive?.hoverY !== undefined && !this.dead; }
 
   get keepsGuns() { return this.superActive?.type === 'songflame'; }
   activeModel() { return this.superActive && !this.keepsGuns ? this.superModel : this.weapon.model; }
@@ -1081,9 +1090,7 @@ export class Player {
     const st = { ...this.statBase };
     this.fonted = this.armorCharge > 0;
     if (this.fonted) {
-      st.int += CHARGE.font * (this.ap.fontwisdom || 0);
-      st.str += CHARGE.font * (this.ap.fontmight || 0);
-      st.rec += CHARGE.font * (this.ap.fontendurance || 0);
+      for (const [id, k] of Object.entries(FONT_STAT)) st[k] += CHARGE.font * (this.ap[id] || 0);
       for (const k of STAT_KEYS) st[k] = Math.min(STAT_CAP, st[k]);
     }
     this.stats = st;
@@ -1103,11 +1110,12 @@ export class Player {
   }
 
   chargeDur() { return CHARGE.decay * (1 + CHARGE.timeDil * (this.ap.timedil || 0)); }
+  chargeMax() { return CHARGE.max + (this.ap.chargedup || 0); }
 
   /** Armor charge: up to 3 stacks (Charged Up adds more); one stack decays at a time. */
   addCharge(n) {
     if (!this.modsOn) return;
-    this.armorCharge = Math.min(CHARGE.max + (this.ap.chargedup || 0), this.armorCharge + n);
+    this.armorCharge = Math.min(this.chargeMax(), this.armorCharge + n);
     this.armorChargeT = this.chargeDur();
     if (!this.fonted) this.applyStats();
   }
@@ -1118,8 +1126,6 @@ export class Player {
       if (this.armorChargeT <= 0) { this.armorCharge--; this.armorChargeT = this.chargeDur(); }
     }
     if ((this.armorCharge > 0) !== this.fonted) this.applyStats();
-    if (this.armorCharge > 0) this.status.apply('charge', { stacks: this.armorCharge, t: this.armorChargeT, set: true }).max = this.chargeDur();
-    else this.status.remove('charge');
   }
 
   /** Surge mods: weapon damage of that element while armor is charged. */
@@ -1148,7 +1154,9 @@ export class Player {
   pickupOrb() {
     const ap = (k) => this.ap[k] || 0;
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + ORB.super);
-    this.addCharge(ORB.charge + ap('stacks') + (this.sets.has('mars') ? SET_TUNE.orbCharge : 0)); // Meridian Legion: Rally the Line
+    this.heal(ORB.heal); // U9: every orb heals a little, with or without charge mods
+    // U9: armor charge only when a mod uses it (Fonts, Surges, Charged Up, Time Dilation, Stacks on Stacks)
+    if (usesCharge(this.ap)) this.addCharge(ORB.charge + ap('stacks') + (this.sets.has('mars') ? SET_TUNE.orbCharge : 0)); // Meridian Legion: Rally the Line
     for (const [k, mod] of [['grenade', 'innervation'], ['melee', 'invigoration'], ['class', 'insulation']]) {
       if (ap(mod)) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * ORB.energy * ap(mod));
     }
@@ -1955,13 +1963,14 @@ export class Player {
     } else if (id === 'marksman' || id === 'gambler') {
       this.dodge(id, airborne);
     } else if (id === 'rift' || id === 'empower') {
-      castFx('rift', { p: this.pos.clone(), kind: id === 'empower' ? 'empower' : 'heal', luna: this.exo.has('lunafaction') }); // Lunafaction Boots: for everyone inside
-      ui.screenFlash(id === 'empower' ? '#5fd3ff' : '#b07cff', 0.2);
+      castFx('rift', { p: this.pos.clone(), kind: id === 'empower' ? 'empower' : 'heal', el: this.cls.element, luna: this.exo.has('lunafaction') }); // Lunafaction Boots: for everyone inside
+      ui.screenFlash(ELEMENTS[this.cls.element].color, 0.2);
       this.status.apply('riftup', { t: CLASS_FX_LIFE.rift, set: true });
       if (this.asp.has('childgods')) castFx('companion', { p: this.pos.clone(), kind: 'child', life: 8 });
       if (this.asp.has('arcsoul')) castFx('companion', { p: this.pos.clone(), kind: 'soul', life: ARC_SOUL.life });
-      if (this.asp.has('hellion')) castFx('companion', { p: this.pos.clone(), kind: 'hellion', life: ASPECT_TUNE.hellion.life, fixed: true });
     }
+    // Hellion (U9): any class ability summons it, and it follows you
+    if (this.asp.has('hellion')) castFx('companion', { p: this.pos.clone(), kind: 'hellion', life: ASPECT_TUNE.hellion.life });
   }
 
   /** Hunter dodges. Marksman's reloads, Gambler's recharges the melee; aspects add the rest. */
@@ -2134,7 +2143,9 @@ export class Player {
       if (S.shots <= 0) S.t = Math.min(S.t, 0.5);
     }
     if (S.type === 'nova') {
-      if (!S.launched) for (let i = 0; i < 3; i++) swirl(hand, 0.8, i ? ELEMENTS.void.hex : 0xe6d0ff, 0.4, true, 0.04, 0.3);
+      // the ball gathers over the raised hands in third person (U9), in the hand in first person
+      const ball = this.thirdPerson ? _v2.set(this.pos.x, this.pos.y + 2.45, this.pos.z) : hand;
+      if (!S.launched) { for (let i = 0; i < 3; i++) swirl(ball, 0.8, i ? ELEMENTS.void.hex : VOID_FX.hi, 0.4, true, 0.04, 0.3); if (Math.random() < 0.5) voidMote(ball, 1, 0.3, 0.07); }
       if (!S.launched && S.t < 0.45) {
         S.launched = true;
         spawnPlayerProjectile({
@@ -2253,6 +2264,7 @@ export class Player {
       S.bashCd -= dt;
       S.guard = inp.mouse.right;
       this.superModel.position.x = S.guard ? -0.12 : 0;
+      if (S.guard) this.barrierBlind();
       if (inp.mouse.leftPressed && S.cd <= 0 && !S.guard) {
         S.cd = 0.9;
         this.throwShield(this.eye.clone().addScaledVector(fwd, 0.6), fwd, 4, [380, 300, 240, 200], 'super');
@@ -2286,16 +2298,47 @@ export class Player {
     const id = S.type;
     if (id === 'thundercrash') { this.vel.set(0, 15, 0); this.onGround = false; S.dir = this.aimForward(new THREE.Vector3()); }
     if (id === 'spectral') this.goInvisible(3);
-    if (id === 'wardofdawn') {
+    // U9: Well and Ward slam to the ground first (a dive from the air), then cast where you land
+    if (SLAM_SUPERS.includes(id)) { S.slam = true; if (this.onGround) { this.vel.set(0, SUPER_HOVER.hop, 0); this.onGround = false; } }
+    // U9: burst supers lift the caster and hold them in the air while casting
+    if (BURST_SUPERS.includes(id)) { S.hoverY = this.pos.y + SUPER_HOVER.lift; this.onGround = false; }
+  }
+
+  /** Well of Radiance / Ward of Dawn, once the caster has slammed into the ground. */
+  castSlamSuper(S) {
+    S.slam = false;
+    this.shake = 0.5;
+    castFx('slam', { p: this.pos.clone().setY(this.pos.y + 0.3), el: this.cls.element, r: 4 });
+    if (S.type === 'wardofdawn') {
       castFx('ward', { p: this.pos.clone(), r: SUPER_TUNE.ward.r, life: SUPER_TUNE.ward.life, wol: true });
       this.addOvershield(OVERSHIELD_MAX, 4);
     }
-    if (id === 'well') {
-      // leap and plant the sword: a blast, then the well
+    if (S.type === 'well') {
+      // plant the sword: a blast, then the well
       const p = this.pos.clone().setY(Math.max(0.6, this.pos.y + 0.6));
       explode(p, SUPER_TUNE.well.r, superDmg(SUPER_TUNE.well.blast), 'solar', { source: 'super' });
       castFx('well', { p: this.pos.clone(), r: SUPER_TUNE.well.r, life: SUPER_TUNE.well.life });
       this.throwFist(0.4, true);
+    }
+  }
+
+  get guarding() { return this.superActive?.type === 'sentinel' && !!this.superActive.guard && !this.dead; }
+  /** U9: enemy shots that reach the Sentinel Shield barrier stop there. */
+  barrierBlocks(p) { return this.guarding && barrierStops(this.pos.x, this.pos.y, this.pos.z, this.yaw, p); }
+  barrierBlocked(dmg) {
+    if (this.exo.has('ursa')) this.superActive.blocked = (this.superActive.blocked || 0) + dmg; // Ursa Furiosa counts what the barrier stops
+    this.guardHits++; this.body?.blockHit(); sfx.block();
+  }
+  /** Enemies that touch the barrier are blinded (they cannot attack for a few seconds). */
+  barrierBlind() {
+    const B = SENTINEL_BARRIER, fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    for (const e of G.enemies) {
+      if (!e.alive || e.status.has('blind')) continue;
+      const x = e.pos.x - this.pos.x, z = e.pos.z - this.pos.z, d = x * fx + z * fz, l = -x * fz + z * fx;
+      if (d < -0.2 || d > B.z + e.radius + 0.3 || Math.abs(l) > B.w / 2 + e.radius) continue;
+      e.status.apply('blind', { t: SENTINEL_GUARD.blind });
+      if (e.remote) sendHit(e, 0, { source: 'super', element: 'void', blind: SENTINEL_GUARD.blind });
+      sparks(e.headPos(new THREE.Vector3()), 0xe6d0ff, 6, 3, 0.06, 0.4);
     }
   }
 
@@ -2312,6 +2355,22 @@ export class Player {
   updateSuperMove(dt, wx, wz, speed, jumpPressed) {
     const S = this.superActive;
     if (!S || this.dead) return false;
+    if (S.slam) {
+      // Well / Ward: dive straight down, then cast on landing (the super's timer waits)
+      S.t = S.max;
+      if (S.age < SUPER_HOVER.hopT) return true; // a short leap from the ground first
+      if (!this.onGround && S.age < SUPER_HOVER.slamMax) { this.vel.set(0, -SUPER_HOVER.slamSpeed, 0); return true; }
+      this.castSlamSuper(S);
+      return true;
+    }
+    if (S.hoverY !== undefined) {
+      // burst supers: rise to the hover height and hold there, drifting slowly
+      this.vel.y = (S.hoverY - this.pos.y) * SUPER_HOVER.rise;
+      this.vel.x = damp(this.vel.x, wx * speed * SUPER_HOVER.move, 6, dt);
+      this.vel.z = damp(this.vel.z, wz * speed * SUPER_HOVER.move, 6, dt);
+      this.onGround = false;
+      return true;
+    }
     if (S.type === 'thundercrash' && !S.crashed) {
       // up for a moment, then fly where you look
       if (S.age < 0.35) { this.vel.y = 15; return true; }
@@ -2466,7 +2525,7 @@ export class Player {
     if (S.type === 'novawarp') {
       // Nova Warp: hold fire to charge, release to detonate around you
       if (Math.random() < 0.5) swirl(this.pos.clone().setY(this.pos.y + 1), 1.4, ELEMENTS.void.hex, 0.5, true, 0.05, 1);
-      if (inp.mouse.left && S.cd <= 0) S.charge = Math.min(1, S.charge + dt / T.novawarp.chargeT);
+      if (inp.mouse.left && S.cd <= 0) { S.charge = Math.min(1, S.charge + dt / T.novawarp.chargeT); if (Math.random() < 0.6) voidMote(this.pos.clone().setY(this.pos.y + 1.1), 1 + S.charge * 1.5, 0.3, 0.08); }
       else if (S.charge > 0 || (inp.mouse.leftPressed && S.cd <= 0)) {
         const k = S.charge, r = T.novawarp.r0 + (T.novawarp.r1 - T.novawarp.r0) * k;
         S.charge = 0; S.cd = 0.35;

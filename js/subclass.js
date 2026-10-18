@@ -35,56 +35,56 @@ export const CLASS_ABILITIES = {
   },
 };
 
-// slots: fragment slots the aspect opens. unlockLevel: Guardian level beyond the subclass's own.
+// slots: fragment slots the aspect opens (U9: 2 or 3; was 1 or 2). unlockLevel: Guardian level beyond the subclass's own.
 // cd: cooldown multipliers this aspect applies.
 export const ASPECTS = {
   // Titan
-  solinvictus: { cls: 'vanguard', sub: 'sunbreaker', name: 'Sol Invictus', slots: 1, desc: 'Solar ability kills leave a Sunspot for 6s. Standing in one heals you and speeds ability recharge by 50%.' },
-  roaring: { cls: 'vanguard', sub: 'sunbreaker', name: 'Roaring Flames', slots: 2, desc: 'Solar ability kills grant Roaring Flames: +20% ability damage per stack, up to 3, for 10s.' },
-  consecration: { cls: 'vanguard', sub: 'sunbreaker', name: 'Consecration', slots: 1, desc: 'Your powered melee also sends a wave of solar fire along the ground that scorches enemies.' },
-  knockout: { cls: 'vanguard', sub: 'striker', name: 'Knockout', slots: 2, desc: 'Breaking a shield or a powered melee kill heals you. For 5s your quick melee hits twice as hard and lunges farther.' },
-  juggernaut: { cls: 'vanguard', sub: 'striker', name: 'Juggernaut', slots: 2, desc: 'After sprinting for 1s you raise a frontal shield: take 50% less damage while you keep sprinting.' },
-  thunder: { cls: 'vanguard', sub: 'striker', name: 'Touch of Thunder', slots: 1, desc: 'Arc grenades are upgraded: Pulse pulses 8 times, Storm lasts 50% longer, Flux jolts the enemy it sticks to.' },
-  demolition: { cls: 'vanguard', sub: 'sentinel', name: 'Controlled Demolition', slots: 2, desc: 'Weakened or suppressed enemies you defeat explode in void energy, and you heal.' },
-  bulwark: { cls: 'vanguard', sub: 'sentinel', name: 'Offensive Bulwark', slots: 1, unlockLevel: 13, desc: 'While your overshield is up, grenades recharge 50% faster and powered melees hit 50% harder.' },
-  tempered: { cls: 'vanguard', sub: 'sunbreaker', name: 'Tempered Metal', slots: 2, desc: 'Solar ability kills temper your armor for 6s: you move 15% faster and reload 25% faster.' },
-  aftershocks: { cls: 'vanguard', sub: 'striker', name: 'Aftershocks', slots: 2, desc: 'Hits with your Arc abilities and super recharge your grenade and melee by 4% (at most every quarter second).' },
-  pyre: { cls: 'vanguard', sub: 'sunbreaker', name: 'Explosive Pyre', slots: 1, desc: 'Solar grenade and melee hits scorch enemies for 3s. Scorched enemies you defeat spread scorch to enemies within 4m.' },
-  amplitude: { cls: 'vanguard', sub: 'striker', name: 'Amplitude', slots: 2, desc: 'Arc ability kills make you Amplified for 6s: you move faster and reload faster.' },
-  resolve: { cls: 'vanguard', sub: 'sentinel', name: "Defender's Resolve", slots: 2, desc: 'Your grenade, melee and class ability grant you an overshield.' },
-  unbreakable: { cls: 'vanguard', sub: 'sentinel', name: 'Unbreakable', slots: 1, desc: 'Your grenade becomes a void shield: Q raises it for 2s (90% less damage), then it explodes and weakens enemies around you.' },
+  solinvictus: { cls: 'vanguard', sub: 'sunbreaker', name: 'Sol Invictus', slots: 2, desc: 'Solar ability kills leave a Sunspot for 6s. Standing in one heals you and speeds ability recharge by 50%.' },
+  roaring: { cls: 'vanguard', sub: 'sunbreaker', name: 'Roaring Flames', slots: 3, desc: 'Solar ability kills grant Roaring Flames: +20% ability damage per stack, up to 3, for 10s.' },
+  consecration: { cls: 'vanguard', sub: 'sunbreaker', name: 'Consecration', slots: 2, desc: 'Your powered melee also sends a wave of solar fire along the ground that scorches enemies.' },
+  knockout: { cls: 'vanguard', sub: 'striker', name: 'Knockout', slots: 3, desc: 'Breaking a shield or a powered melee kill heals you. For 5s your quick melee hits twice as hard and lunges farther.' },
+  juggernaut: { cls: 'vanguard', sub: 'striker', name: 'Juggernaut', slots: 3, desc: 'After sprinting for 1s you raise a frontal shield: take 50% less damage while you keep sprinting.' },
+  thunder: { cls: 'vanguard', sub: 'striker', name: 'Touch of Thunder', slots: 2, desc: 'Arc grenades are upgraded: Pulse pulses 8 times, Storm lasts 50% longer, Flux jolts the enemy it sticks to.' },
+  demolition: { cls: 'vanguard', sub: 'sentinel', name: 'Controlled Demolition', slots: 3, desc: 'Weakened or suppressed enemies you defeat explode in void energy, and you heal.' },
+  bulwark: { cls: 'vanguard', sub: 'sentinel', name: 'Offensive Bulwark', slots: 2, unlockLevel: 13, desc: 'While your overshield is up, grenades recharge 50% faster and powered melees hit 50% harder.' },
+  tempered: { cls: 'vanguard', sub: 'sunbreaker', name: 'Tempered Metal', slots: 3, desc: 'Solar ability kills temper your armor for 6s: you move 15% faster and reload 25% faster.' },
+  aftershocks: { cls: 'vanguard', sub: 'striker', name: 'Aftershocks', slots: 3, desc: 'Hits with your Arc abilities and super recharge your grenade and melee by 4% (at most every quarter second).' },
+  pyre: { cls: 'vanguard', sub: 'sunbreaker', name: 'Explosive Pyre', slots: 2, desc: 'Solar grenade and melee hits scorch enemies for 3s. Scorched enemies you defeat spread scorch to enemies within 4m.' },
+  amplitude: { cls: 'vanguard', sub: 'striker', name: 'Amplitude', slots: 3, desc: 'Arc ability kills make you Amplified for 6s: you move faster and reload faster.' },
+  resolve: { cls: 'vanguard', sub: 'sentinel', name: "Defender's Resolve", slots: 3, desc: 'Your grenade, melee and class ability grant you an overshield.' },
+  unbreakable: { cls: 'vanguard', sub: 'sentinel', name: 'Unbreakable', slots: 2, desc: 'Your grenade becomes a void shield: Q raises it for 2s (90% less damage), then it explodes and weakens enemies around you.' },
   // Hunter
-  knockemdown: { cls: 'stalker', sub: 'gunslinger', name: "Knock 'Em Down", slots: 1, desc: 'Golden Gun gains 2 shots, each dealing 15% less damage. Dodging refunds half of your melee.' },
-  gunpowder: { cls: 'stalker', sub: 'gunslinger', name: 'Gunpowder Gamble', slots: 2, desc: 'Five kills charge an explosive. While your grenade is recharging, Q throws it instead.' },
-  onyourmark: { cls: 'stalker', sub: 'gunslinger', name: 'On Your Mark', slots: 2, desc: 'Dodging grants a stack of On Your Mark: reload 15% faster per stack, up to 3, for 6s.' },
-  crackshot: { cls: 'stalker', sub: 'gunslinger', name: 'Crackshot', slots: 1, desc: 'Dodging fires three scorching shots at the nearest enemies in front of you. If all three land, you heal.' },
-  prowl: { cls: 'stalker', sub: 'nightstalker', name: 'On the Prowl', slots: 1, desc: 'While invisible you move 15% faster and your melee recharges 50% faster. Your first weapon hit out of invisibility weakens the target.' },
-  fasttwitch: { cls: 'stalker', sub: 'arcstrider', name: 'Fast Twitch', slots: 2, desc: 'Powered melee kills fully recharge your dodge and make you Amplified for 4s.' },
-  vanishing: { cls: 'stalker', sub: 'nightstalker', name: 'Vanishing Step', slots: 1, cd: { class: 1.2 }, desc: 'Dodging turns you invisible for 4s. Enemies lose track of you.' },
-  executioner: { cls: 'stalker', sub: 'nightstalker', name: 'Stylish Executioner', slots: 2, desc: 'Defeating a weakened enemy turns you invisible for 3s and heals you.' },
-  trapper: { cls: 'stalker', sub: 'nightstalker', name: "Trapper's Ambush", slots: 1, desc: 'Dodging leaves a cloud of void smoke that slows and weakens enemies.' },
-  lethal: { cls: 'stalker', sub: 'arcstrider', name: 'Lethal Current', slots: 1, desc: 'After a dodge, your next powered melee within 4s hits twice as hard and jolts nearby enemies.' },
-  flowstate: { cls: 'stalker', sub: 'arcstrider', name: 'Flow State', slots: 2, desc: 'Arc ability kills grant Flow State for 6s: your dodge recharges 50% faster and you reload 25% faster.' },
-  ascension: { cls: 'stalker', sub: 'arcstrider', name: 'Ascension', slots: 2, unlockLevel: 16, desc: 'Dodging in the air launches you upward and jolts nearby enemies.' },
-  chainofwoe: { cls: 'stalker', sub: 'gunslinger', name: 'Chain of Woe', slots: 2, desc: 'Weapon precision kills give you 15% melee energy and 10% grenade energy.' },
-  abyssal: { cls: 'stalker', sub: 'nightstalker', name: 'Abyssal Edge', slots: 1, desc: 'Melee hits weaken enemies for 6s. A melee hit on an enemy that is already weakened spreads weaken to enemies within 5m.' },
-  crackling: { cls: 'stalker', sub: 'arcstrider', name: 'Crackling Blade', slots: 1, desc: 'Dodging recharges your melee. Melee kills fully heal you.' },
+  knockemdown: { cls: 'stalker', sub: 'gunslinger', name: "Knock 'Em Down", slots: 2, desc: 'Golden Gun gains 2 shots, each dealing 15% less damage. Dodging refunds half of your melee.' },
+  gunpowder: { cls: 'stalker', sub: 'gunslinger', name: 'Gunpowder Gamble', slots: 3, desc: 'Five kills charge an explosive. While your grenade is recharging, Q throws it instead.' },
+  onyourmark: { cls: 'stalker', sub: 'gunslinger', name: 'On Your Mark', slots: 3, desc: 'Dodging grants a stack of On Your Mark: reload 15% faster per stack, up to 3, for 6s.' },
+  crackshot: { cls: 'stalker', sub: 'gunslinger', name: 'Crackshot', slots: 2, desc: 'Dodging fires three scorching shots at the nearest enemies in front of you. If all three land, you heal.' },
+  prowl: { cls: 'stalker', sub: 'nightstalker', name: 'On the Prowl', slots: 2, desc: 'While invisible you move 15% faster and your melee recharges 50% faster. Your first weapon hit out of invisibility weakens the target.' },
+  fasttwitch: { cls: 'stalker', sub: 'arcstrider', name: 'Fast Twitch', slots: 3, desc: 'Powered melee kills fully recharge your dodge and make you Amplified for 4s.' },
+  vanishing: { cls: 'stalker', sub: 'nightstalker', name: 'Vanishing Step', slots: 2, cd: { class: 1.2 }, desc: 'Dodging turns you invisible for 4s. Enemies lose track of you.' },
+  executioner: { cls: 'stalker', sub: 'nightstalker', name: 'Stylish Executioner', slots: 3, desc: 'Defeating a weakened enemy turns you invisible for 3s and heals you.' },
+  trapper: { cls: 'stalker', sub: 'nightstalker', name: "Trapper's Ambush", slots: 2, desc: 'Dodging leaves a cloud of void smoke that slows and weakens enemies.' },
+  lethal: { cls: 'stalker', sub: 'arcstrider', name: 'Lethal Current', slots: 2, desc: 'After a dodge, your next powered melee within 4s hits twice as hard and jolts nearby enemies.' },
+  flowstate: { cls: 'stalker', sub: 'arcstrider', name: 'Flow State', slots: 3, desc: 'Arc ability kills grant Flow State for 6s: your dodge recharges 50% faster and you reload 25% faster.' },
+  ascension: { cls: 'stalker', sub: 'arcstrider', name: 'Ascension', slots: 3, unlockLevel: 16, desc: 'Dodging in the air launches you upward and jolts nearby enemies.' },
+  chainofwoe: { cls: 'stalker', sub: 'gunslinger', name: 'Chain of Woe', slots: 3, desc: 'Weapon precision kills give you 15% melee energy and 10% grenade energy.' },
+  abyssal: { cls: 'stalker', sub: 'nightstalker', name: 'Abyssal Edge', slots: 2, desc: 'Melee hits weaken enemies for 6s. A melee hit on an enemy that is already weakened spreads weaken to enemies within 5m.' },
+  crackling: { cls: 'stalker', sub: 'arcstrider', name: 'Crackling Blade', slots: 2, desc: 'Dodging recharges your melee. Melee kills fully heal you.' },
   // Warlock
-  feedvoid: { cls: 'arcanist', sub: 'voidwalker', name: 'Feed the Void', slots: 2, desc: 'Ability kills grant Devour for 8s: every kill fully heals you and extends Devour.' },
-  chaos: { cls: 'arcanist', sub: 'voidwalker', name: 'Chaos Accelerant', slots: 1, desc: 'Void grenades are overcharged: Vortex is bigger and lasts longer, Axion fires 3 bolts, Suppressor reaches farther.' },
-  angel: { cls: 'arcanist', sub: 'voidwalker', name: 'Angel of Light', slots: 2, desc: 'Aim down sights in the air to hover for up to 3s. Weapon kills while hovering give 10% grenade energy.' },
-  childgods: { cls: 'arcanist', sub: 'voidwalker', name: 'Child of the Old Gods', slots: 1, desc: 'Your rift summons a Child of the Old Gods for 8s. It drains the nearest enemy, weakening it and healing you.' },
-  electrostatic: { cls: 'arcanist', sub: 'stormcaller', name: 'Electrostatic Mind', slots: 1, desc: 'Arc ability kills release an Ionic Trace that returns to you and recharges every ability by 8% (at most one trace every half second; not from jolt chains).' },
-  arcsoul: { cls: 'arcanist', sub: 'stormcaller', name: 'Arc Soul', slots: 1, desc: 'Your rift summons an Arc Soul for 10s that fires lightning at nearby enemies.' },
-  surge: { cls: 'arcanist', sub: 'stormcaller', name: 'Lightning Surge', slots: 2, unlockLevel: 19, desc: 'Powered melee while sprinting surges you forward and calls lightning down along your path.' },
-  ionicsentry: { cls: 'arcanist', sub: 'stormcaller', name: 'Ionic Sentry', slots: 1, desc: 'Every third Ionic Trace or Arc ability kill deploys an Ionic Sentry at your feet for 8s. It zaps up to 3 enemies and jolts them.' },
-  bloom: { cls: 'arcanist', sub: 'voidwalker', name: 'Bloom', slots: 1, desc: 'Void grenade and melee hits make enemies unstable for 5s: they slowly lose health and you gain it. An unstable enemy that dies detonates and weakens enemies nearby.' },
-  unlimitedpower: { cls: 'arcanist', sub: 'stormcaller', name: 'Unlimited Power', slots: 1, desc: 'Powered melee hits jolt the target and arc lightning to 2 more enemies nearby.' },
-  giftsun: { cls: 'arcanist', sub: 'dawnblade', name: 'Gift of the Sun', slots: 1, cd: { grenade: 0.7 }, desc: 'Solar grenade and melee kills leave a Firesprite. Walk over it for 15% grenade energy (at most 3 at a time). Grenades recharge 30% faster.' },
-  touchflame: { cls: 'arcanist', sub: 'dawnblade', name: 'Touch of Flame', slots: 1, desc: 'Solar grenades are upgraded: Solar Grenade pulses 8 times and scorches, Swarm fires 6 seekers, Healing leaves a stronger orb.' },
-  heatrises: { cls: 'arcanist', sub: 'dawnblade', name: 'Heat Rises', slots: 2, desc: 'While airborne your grenade and melee recharge 50% faster, and kills in the air grant Restoration.' },
-  icarus: { cls: 'arcanist', sub: 'dawnblade', name: 'Icarus Dash', slots: 2, desc: 'In the air, press Shift to dash in your movement direction. 2 charges, each recharging in 6s.' },
-  hellion: { cls: 'arcanist', sub: 'dawnblade', name: 'Hellion', slots: 2, desc: 'Your rift also summons a Hellion for 8s: a solar turret that fires scorching bolts at nearby enemies.' },
+  feedvoid: { cls: 'arcanist', sub: 'voidwalker', name: 'Feed the Void', slots: 3, desc: 'Ability kills grant Devour for 8s: every kill fully heals you and extends Devour.' },
+  chaos: { cls: 'arcanist', sub: 'voidwalker', name: 'Chaos Accelerant', slots: 2, desc: 'Void grenades are overcharged: Vortex is bigger and lasts longer, Axion fires 3 bolts, Suppressor reaches farther.' },
+  angel: { cls: 'arcanist', sub: 'voidwalker', name: 'Angel of Light', slots: 3, desc: 'Aim down sights in the air to hover for up to 3s. Weapon kills while hovering give 10% grenade energy.' },
+  childgods: { cls: 'arcanist', sub: 'voidwalker', name: 'Child of the Old Gods', slots: 2, desc: 'Your rift summons a Child of the Old Gods for 8s. It drains the nearest enemy, weakening it and healing you.' },
+  electrostatic: { cls: 'arcanist', sub: 'stormcaller', name: 'Electrostatic Mind', slots: 2, desc: 'Arc ability kills release an Ionic Trace that returns to you and recharges every ability by 8% (at most one trace every half second; not from jolt chains).' },
+  arcsoul: { cls: 'arcanist', sub: 'stormcaller', name: 'Arc Soul', slots: 2, desc: 'Your rift summons an Arc Soul for 10s that fires lightning at nearby enemies.' },
+  surge: { cls: 'arcanist', sub: 'stormcaller', name: 'Lightning Surge', slots: 3, unlockLevel: 19, desc: 'Powered melee while sprinting surges you forward and calls lightning down along your path.' },
+  ionicsentry: { cls: 'arcanist', sub: 'stormcaller', name: 'Ionic Sentry', slots: 2, desc: 'Every third Ionic Trace or Arc ability kill deploys an Ionic Sentry at your feet for 8s. It zaps up to 3 enemies and jolts them.' },
+  bloom: { cls: 'arcanist', sub: 'voidwalker', name: 'Bloom', slots: 2, desc: 'Void grenade and melee hits make enemies unstable for 5s: they slowly lose health and you gain it. An unstable enemy that dies detonates and weakens enemies nearby.' },
+  unlimitedpower: { cls: 'arcanist', sub: 'stormcaller', name: 'Unlimited Power', slots: 2, desc: 'Powered melee hits jolt the target and arc lightning to 2 more enemies nearby.' },
+  giftsun: { cls: 'arcanist', sub: 'dawnblade', name: 'Gift of the Sun', slots: 2, cd: { grenade: 0.7 }, desc: 'Solar grenade and melee kills leave a Firesprite. Walk over it for 15% grenade energy (at most 3 at a time). Grenades recharge 30% faster.' },
+  touchflame: { cls: 'arcanist', sub: 'dawnblade', name: 'Touch of Flame', slots: 2, desc: 'Solar grenades are upgraded: Solar Grenade pulses 8 times and scorches, Swarm fires 6 seekers, Healing leaves a stronger orb.' },
+  heatrises: { cls: 'arcanist', sub: 'dawnblade', name: 'Heat Rises', slots: 3, desc: 'While airborne your grenade and melee recharge 50% faster, and kills in the air grant Restoration.' },
+  icarus: { cls: 'arcanist', sub: 'dawnblade', name: 'Icarus Dash', slots: 3, desc: 'In the air, press Shift to dash in your movement direction. 2 charges, each recharging in 6s.' },
+  hellion: { cls: 'arcanist', sub: 'dawnblade', name: 'Hellion', slots: 3, desc: 'Any class ability summons a Hellion for 8s: a solar turret that follows you and lobs burning bolts at nearby enemies.' },
 };
 
 // Tuning for the Light Ascendant aspects and fragments.
@@ -97,7 +97,7 @@ export const ASPECT_TUNE = {
   fasttwitch: { amplified: 4 },
   angel: { hover: 3, refund: 0.1 },
   ionicsentry: { every: 3, life: 8, tick: 0.8, dmg: 30, n: 3 },
-  hellion: { life: 8, tick: 0.9, dmg: 40 },
+  hellion: { life: 8, tick: 0.9, dmg: 30, splash: 15, r: 2, burn: 4, flight: 0.55, arc: 2.2 }, // U9: follows you; lobbed bolts hit, splash and burn (burn 1.5 s before U9)
   icarus: { charges: 2, cd: 6, t: 0.2, speed: 22 },
   // Former subclass traits (H3)
   pyre: { burnTick: 18, burnTicks: 3, spreadR: 4, spreadDps: 18, spreadT: 3 },
@@ -158,13 +158,13 @@ export const FRAGMENTS = {
 export const SUPERS = {
   maul: { cls: 'vanguard', sub: 'sunbreaker', name: 'Burning Maul', camera: 'third', unlockLevel: 14, desc: 'For 15s wield a burning maul: click to swing, right-click to slam and send a solar tornado rolling forward. Take 70% less damage.' },
   thundercrash: { cls: 'vanguard', sub: 'striker', name: 'Thundercrash', camera: 'third', unlockLevel: 17, desc: 'Launch into the air and fly where you look for up to 3s, then crash down in a massive arc blast. Click to crash early.' },
-  wardofdawn: { cls: 'vanguard', sub: 'sentinel', name: 'Ward of Dawn', camera: 'first', unlockLevel: 23, desc: 'Raise a void dome for 14s that destroys enemy shots. Guardians inside gain an overshield and Weapons of Light: +25% weapon damage.' },
+  wardofdawn: { cls: 'vanguard', sub: 'sentinel', name: 'Ward of Dawn', camera: 'third', unlockLevel: 23, desc: 'Raise a void dome for 14s that destroys enemy shots. Guardians inside gain an overshield and Weapons of Light: +25% weapon damage.' },
   twilight: { cls: 'vanguard', sub: 'sentinel', name: 'Twilight Arsenal', camera: 'third', unlockLevel: 26, desc: 'Throw three void axes that explode and weaken. Each axe stays where it lands for 10s; any Guardian can pick it up and throw it with a click.' },
-  bladebarrage: { cls: 'stalker', sub: 'gunslinger', name: 'Blade Barrage', camera: 'first', unlockLevel: 14, desc: 'Launch a volley of explosive solar knives that seek enemies and scorch them.' },
+  bladebarrage: { cls: 'stalker', sub: 'gunslinger', name: 'Blade Barrage', camera: 'third', unlockLevel: 14, desc: 'Launch a volley of explosive solar knives that seek enemies and scorch them.' },
   spectral: { cls: 'stalker', sub: 'nightstalker', name: 'Spectral Blades', camera: 'third', unlockLevel: 17, desc: 'For 12s turn invisible and slash with void blades. Kills keep you hidden. Take 70% less damage.' },
-  gathering: { cls: 'stalker', sub: 'arcstrider', name: 'Gathering Storm', camera: 'first', unlockLevel: 23, desc: 'Throw your staff. A second later lightning strikes it in a huge arc blast, and it keeps jolting enemies around it for 5s.' },
-  stormsedge: { cls: 'stalker', sub: 'arcstrider', name: "Storm's Edge", camera: 'first', unlockLevel: 26, desc: 'Throw an arc dagger, teleport to it and slash everything around you. Throw up to three times.' },
-  well: { cls: 'arcanist', sub: 'dawnblade', name: 'Well of Radiance', camera: 'first', unlockLevel: 14, desc: 'Plant a solar sword that blasts enemies and makes a well for 25s. Guardians inside gain a strong Restoration, take 25% less damage and gain +25% weapon damage. Enemies inside burn.' },
+  gathering: { cls: 'stalker', sub: 'arcstrider', name: 'Gathering Storm', camera: 'third', unlockLevel: 23, desc: 'Throw your staff. A second later lightning strikes it in a huge arc blast, and it keeps jolting enemies around it for 5s.' },
+  stormsedge: { cls: 'stalker', sub: 'arcstrider', name: "Storm's Edge", camera: 'third', unlockLevel: 26, desc: 'Throw an arc dagger, teleport to it and slash everything around you. Throw up to three times.' },
+  well: { cls: 'arcanist', sub: 'dawnblade', name: 'Well of Radiance', camera: 'third', unlockLevel: 14, desc: 'Plant a solar sword that blasts enemies and makes a well for 25s. Guardians inside gain a strong Restoration, take 25% less damage and gain +25% weapon damage. Enemies inside burn.' },
   novawarp: { cls: 'arcanist', sub: 'voidwalker', name: 'Nova Warp', camera: 'third', unlockLevel: 17, desc: 'For 10s: press Space to warp a short distance and release Void seekers that weaken enemies; click to detonate (hold to charge a bigger blast). Take 70% less damage.' },
   chaosreach: { cls: 'arcanist', sub: 'stormcaller', name: 'Chaos Reach', camera: 'third', unlockLevel: 23, desc: 'Channel a long arc beam that pierces and jolts for up to 9s. Press F again to end it early and keep some of your super energy.' },
   daybreak: { cls: 'arcanist', sub: 'dawnblade', name: 'Daybreak', camera: 'third', unlockLevel: 26, desc: 'For 12s soar on solar wings: your jump goes far higher and you hover, sinking slowly. Hurl solar blades that explode and scorch. Take 70% less damage.' },
@@ -226,8 +226,10 @@ export function aspectLevel(id) {
 }
 export const fragmentLevel = (id) => FRAGMENTS[id].unlockLevel ?? 1;
 
+// U9: every aspect opens one more fragment slot (2 or 3, as in Destiny 2), up to 5 in all.
+export const FRAGMENT_CAP = 5;
 /** Fragment slots opened by a set of aspects. */
-export const fragmentSlots = (aspects) => aspects.reduce((n, id) => n + (ASPECTS[id]?.slots ?? 0), 0);
+export const fragmentSlots = (aspects) => Math.min(FRAGMENT_CAP, aspects.reduce((n, id) => n + (ASPECTS[id]?.slots ?? 0), 0));
 
 /** What each subclass equips before the player changes anything (matches v1.2 behavior). */
 export function defaultLoadout(classId, subId) {

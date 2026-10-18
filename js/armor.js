@@ -46,7 +46,7 @@ export const REGEN_SCALE = 0.75;
 export const regenRate = (rec) => (40 + rec * 1.0) * REGEN_SCALE;
 
 // ---------- orbs of power and armor charge ----------
-export const ORB = { life: 20, r: 1.7, super: 4, charge: 1, weaponKills: 3, window: 4, superMax: 4, harmonicKills: 2, harmonicWindow: 3, harmonicGap: 5, energy: 0.1 };
+export const ORB = { life: 20, r: 1.7, super: 4, heal: 15, charge: 1, weaponKills: 3, window: 4, superMax: 4, harmonicKills: 2, harmonicWindow: 3, harmonicGap: 5, energy: 0.1 };
 export const CHARGE = { max: 3, decay: 10, timeDil: 0.5, font: 20, surge: [1, 1.1, 1.17, 1.22] };
 export const MODS_TUNE = {
   grenadier: 0.15, brawler: 0.15, kickstart: 0.2, plating: 0.08, reserves: 0.2, recuperation: 15,
@@ -79,7 +79,7 @@ Object.assign(MODS, {
   targets: m('helmet', 'Special Targeting', 2, 10, 'Special weapons: 10% tighter aimed spread and faster aim-in.'),
   targeth: m('helmet', 'Heavy Targeting', 2, 15, 'Heavy weapons: 10% tighter aimed spread and faster aim-in.'),
   betteralready: m('helmet', 'Better Already', 2, S, 'Picking up an Orb of Power starts your shield recharging at once.'),
-  fontwisdom: m('helmet', 'Font of Wisdom', 3, 27, `+${CHARGE.font} Intellect while you have armor charge.`),
+  fontwisdom: m('helmet', 'Font of Intellect', 3, 27, `+${CHARGE.font} Intellect while you have armor charge.`),
   // arms
   grenadier: m('arms', 'Grenade Kickstart', 4, S, 'Grenade recharges 15% faster.'),
   brawler: m('arms', 'Melee Kickstart', 4, S, 'Powered melee recharges 15% faster.'),
@@ -92,7 +92,8 @@ Object.assign(MODS, {
   loaderp: m('arms', 'Primary Loader', 2, 8, '15% faster reload for Primary weapons.'),
   loaders: m('arms', 'Special Loader', 2, 11, '15% faster reload for Special weapons.'),
   loaderh: m('arms', 'Heavy Loader', 3, 16, '15% faster reload for Heavy weapons.'),
-  fontmight: m('arms', 'Font of Might', 3, 20, `+${CHARGE.font} Strength while you have armor charge.`),
+  fontmight: m('arms', 'Font of Strength', 3, 20, `+${CHARGE.font} Strength while you have armor charge.`),
+  fontdiscipline: m('arms', 'Font of Discipline', 3, 24, `+${CHARGE.font} Discipline while you have armor charge.`),
   // chest
   plating: m('chest', 'Resilient Plating', 3, S, 'Take 8% less damage.'),
   reserves: m('chest', 'Ammo Reserves', 2, S, '+20% reserve ammo for Special and Heavy weapons.'),
@@ -104,7 +105,8 @@ Object.assign(MODS, {
   timedil: m('chest', 'Time Dilation', 2, 19, 'Armor charge lasts 50% longer.'),
   scavs: m('chest', 'Special Ammo Scavenger', 2, 14, 'Special ammo bricks give 50% more ammo.'),
   scavh: m('chest', 'Heavy Ammo Scavenger', 3, 21, 'Heavy ammo bricks give 50% more ammo.'),
-  fontendurance: m('chest', 'Font of Endurance', 3, 30, `+${CHARGE.font} Recovery while you have armor charge.`),
+  fontendurance: m('chest', 'Font of Recovery', 3, 30, `+${CHARGE.font} Recovery while you have armor charge.`),
+  fontresilience: m('chest', 'Font of Resilience', 3, 29, `+${CHARGE.font} Resilience while you have armor charge.`),
   // legs
   kickstart: m('legs', 'Utility Kickstart', 4, S, 'Class ability recharges 20% faster.'),
   recuperation: m('legs', 'Recuperation', 3, S, 'Kills restore 15 health.'),
@@ -112,6 +114,7 @@ Object.assign(MODS, {
   invigoration: m('legs', 'Invigoration', 2, S, 'Picking up an Orb of Power gives 10% melee energy.'),
   insulation: m('legs', 'Insulation', 2, S, 'Picking up an Orb of Power gives 10% class ability energy.'),
   stacks: m('legs', 'Stacks on Stacks', 3, S, 'Orbs of Power give one more stack of armor charge.'),
+  fontmobility: m('legs', 'Font of Mobility', 3, 26, `+${CHARGE.font} Mobility while you have armor charge.`),
 });
 export const SURGE_ELEMENTS = ['kinetic', 'solar', 'arc', 'void', 'stasis', 'strand'];
 const SURGE_UNLOCK = { solar: S, arc: S, void: S, kinetic: 23, stasis: 28, strand: 29 };
@@ -121,6 +124,12 @@ for (const el of SURGE_ELEMENTS) {
 }
 for (const id of Object.keys(MODS)) MODS[id].id = id;
 export const MOD_IDS = Object.keys(MODS);
+/** U9: one Font per stat, named after the stat (ids kept from v1.5 so saves are unchanged). */
+export const FONT_STAT = { fontwisdom: 'int', fontmight: 'str', fontendurance: 'rec', fontdiscipline: 'dis', fontmobility: 'mob', fontresilience: 'res' };
+/** U9: mods that use armor charge. Orbs of Power give armor charge only when at least one of these is socketed. */
+export const CHARGE_MODS = [...Object.keys(FONT_STAT), ...SURGE_ELEMENTS.map((el) => `surge_${el}`), 'chargedup', 'timedil', 'stacks'];
+/** ap: socketed mod counts by id (Player.ap). */
+export const usesCharge = (ap) => CHARGE_MODS.some((id) => (ap?.[id] || 0) > 0);
 /** The eight former legendary perks keep their ids as mods. */
 export const FORMER_PERKS = ['grenadier', 'brawler', 'kickstart', 'dynamo', 'recuperation', 'handson', 'plating', 'reserves'];
 
