@@ -1008,7 +1008,7 @@ export class Player {
       if (A.has('electrostatic') && !o.jolted && !o.companion) this.ionicTrace(c, IONIC.electrostatic);
     }
     if (abil && o.element === 'void' && F.has('expulsion')) explode(c, 3, 100, 'void', { source: 'perk', small: true });
-    if (this.status.has('devour')) { this.heal(1000); this.status.apply('devour', { t: this.voidT(8), set: true }); }
+    if (this.status.has('devour')) { this.heal(1000); this.cd.grenade = Math.max(0, this.cd.grenade - this.cdMax.grenade * 0.1); this.status.apply('devour', { t: this.voidT(8), set: true }); } // Devour: +10% grenade energy per kill
     else if (abil && A.has('feedvoid')) { this.heal(1000); this.status.apply('devour', { t: this.voidT(8), set: true }); }
     if (A.has('demolition') && (weakened || suppressed)) { explode(c, 3.5, 120, 'void', { source: 'perk' }); this.heal(20); }
     if (A.has('executioner') && weakened) { this.goInvisible(3, false); this.heal(30); }
