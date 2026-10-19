@@ -16,7 +16,7 @@ import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './s
 import { frameDef, weaponHandling } from './frames.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets } from './game.js';
 import { dmgDrift, HUD_SCALE, ABILITY_CD } from './combat.js';
-import { initAudio, setVolume, sfx } from './audio.js';
+import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
@@ -188,6 +188,7 @@ export function showOrbit(tab) {
   showOnly('orbit');
   setVolume(G.save.settings.volume);
   setMusicVolume(G.save.settings.musicVolume ?? 0.5);
+  setEffectsVolume(G.save.settings.effectsVolume ?? 1);
   playMusic('orbit');
   if (selLoc === null) {
     let last = 0;
@@ -1457,6 +1458,7 @@ export function showPause() {
         <label class="toggle-row">Full Auto <span class="hint">Hold the trigger on semi-auto weapons (fires at the weapon's own rate)</span><input type="checkbox" id="s-auto" ${s.fullAuto ? 'checked' : ''}></label>
         <label>HUD scale <span id="v-hud">${Math.round((s.hudScale ?? 1) * 100)}%</span><input type="range" id="s-hud" min="${HUD_SCALE.min}" max="${HUD_SCALE.max}" step="${HUD_SCALE.step}" value="${s.hudScale ?? 1}"></label>
         <label>Music <span id="v-mus">${Math.round((s.musicVolume ?? 0.5) * 100)}%</span><input type="range" id="s-mus" min="0" max="1" step="0.05" value="${s.musicVolume ?? 0.5}"></label>
+        <label>Effects <span id="v-fx">${Math.round((s.effectsVolume ?? 1) * 100)}%</span><input type="range" id="s-fx" min="0" max="1" step="0.05" value="${s.effectsVolume ?? 1}"></label>
         <label>Volume <span id="v-vol">${Math.round(s.volume * 100)}%</span><input type="range" id="s-vol" min="0" max="1" step="0.05" value="${s.volume}"></label>
       </div>
       <div class="row-btns">
@@ -1471,6 +1473,7 @@ export function showPause() {
   $('#s-auto').addEventListener('change', (e) => { s.fullAuto = e.target.checked; writeSave(G.save); });
   $('#s-hud').addEventListener('input', (e) => { s.hudScale = +e.target.value; $('#v-hud').textContent = `${Math.round(s.hudScale * 100)}%`; applyHudScale(); writeSave(G.save); });
   $('#s-mus').addEventListener('input', (e) => { s.musicVolume = +e.target.value; $('#v-mus').textContent = `${Math.round(s.musicVolume * 100)}%`; setMusicVolume(s.musicVolume); writeSave(G.save); });
+  $('#s-fx').addEventListener('input', (e) => { s.effectsVolume = +e.target.value; $('#v-fx').textContent = `${Math.round(s.effectsVolume * 100)}%`; setEffectsVolume(s.effectsVolume); writeSave(G.save); });
   $('#s-vol').addEventListener('input', (e) => { s.volume = +e.target.value; $('#v-vol').textContent = `${Math.round(s.volume * 100)}%`; setVolume(s.volume); writeSave(G.save); });
   $('#p-resume').addEventListener('click', resumeGame);
   $('#p-abandon').addEventListener('click', () => { el.classList.add('hidden'); G.mpMenu = false; abandonMission(); });

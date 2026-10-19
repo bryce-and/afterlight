@@ -381,7 +381,7 @@ export class Player {
           explode(c, 3, 100, 'arc', { source: 'ability' });
           castFx('slam', { p: c, el: 'arc', r: 4 });
           this.shake = 0.3;
-          sfx.melee();
+          sfx.melee(this.cls.element);
         }
       }
     } else this.charge = null;
@@ -576,14 +576,14 @@ export class Player {
   startReload(w) {
     if (w.has('fundamentals') && w.ammo >= w.mag) { // Dead Messenger: reload on a full magazine cycles the element
       w.el = VOLATILE_CYCLE[(VOLATILE_CYCLE.indexOf(wEl(w)) + 1) % VOLATILE_CYCLE.length];
-      sfx.reloadDone();
+      sfx.reloadDone(w.A.id);
       return;
     }
     if (w.has('honed') && !w.honed && w.mag > 1 && w.ammo >= w.mag) {
       // Honed Edge: load the whole magazine into one shot
       w.honed = w.ammo; w.ammo = 1;
       this.status.apply('honed', { scope: w.idx, stacks: w.honed, set: true });
-      sfx.reloadDone();
+      sfx.reloadDone(w.A.id);
       return;
     }
     if (w.reloading || w.ammo >= w.mag || w.reserve <= 0) return;
@@ -608,7 +608,7 @@ export class Player {
     if (w.killclipWindow > 0) w.killclipArm = true;
     if (w.voltWin > 0) w.voltArm = true;
     w.burstLeft = 0;
-    sfx.reload();
+    sfx.reload(w.A.id);
   }
 
   finishReload(w) {
@@ -623,7 +623,7 @@ export class Player {
       w.el = VOLATILE_CYCLE[(VOLATILE_CYCLE.indexOf(wEl(w)) + 1) % VOLATILE_CYCLE.length];
       this.status.apply('hardlight', { scope: w.idx, set: true });
     }
-    sfx.reloadDone();
+    sfx.reloadDone(w.A.id);
   }
 
   instantReload(w) {
@@ -803,7 +803,7 @@ export class Player {
     w.model.userData.flash.visible = true;
     w.model.userData.flash.rotation.z = Math.random() * Math.PI;
     flashLight(muzzle, el.id === 'kinetic' ? 0xffc870 : el.hex, 6, 7, 0.05);
-    sfx.shot(A.id);
+    sfx.shot(A.id, null, el.id);
   }
 
   hitscan(origin, dir, w, dmg, from, o = {}) {
@@ -1068,6 +1068,7 @@ export class Player {
     const full = !this.status.has('shadowcd'); // Heartshadow: Vanishing Step is on a 15s cooldown
     if (w.has('tesseract') && this.sprinting && w.ammo >= ARSENAL.tesseract.cost) { this.tesseractBlink(w, false); return; } // Destiny 2: sprint and heavy attack
     if (w.has('exhumation') && full) { this.exhume(w); return; }
+    sfx.sword('heavy');
     this.swordHeavyAttack(w, w.A.sword.heavyKind || 'cleave');
   }
 
@@ -1089,7 +1090,7 @@ export class Player {
     }
     if (w.has('exhumation') && (this.shadowT || 0) >= ARSENAL.exhume.shadowT) dmg *= ARSENAL.exhume.shadowMult;
     this.swingMax = this.swingT = T.dur; this.swingHeavy = true; this.swingKind = kind; this.swingDir = 1;
-    sfx.melee();
+    sfx.melee(this.cls.element);
     const el = ELEMENTS[wEl(w)], reach = S.reach * 1.25;
     const strike = (center, radius, mult, knock, cone = null) => { // everything within `radius` of `center` (optionally inside a forward cone from the eye)
       const c = new THREE.Vector3(); let hits = 0;
@@ -1152,6 +1153,7 @@ export class Player {
   }
 
   swordSwing(w, heavy = false) {
+    if (!heavy) sfx.sword('swing');
     const S = w.A.sword, fwd = this.getForward(new THREE.Vector3());
     if (!(!heavy && w.has('thrift') && Math.random() < 0.25)) w.ammo = Math.max(0, w.ammo - (heavy ? 2 : 1)); // Thrifty Strikes
     w.fireCd = (60 / w.s.rpm) * (heavy ? 1.5 : 1);
@@ -1203,7 +1205,7 @@ export class Player {
     if (S.cone <= -1) shockwave(this.pos.clone().setY(0.2), reach, el.hex, 0.3);
     this.swingMax = this.swingT = 0.34; this.swingHeavy = false; this.swingKind = 'light'; this.swingDir = w.combo % 2 ? -1 : 1;
     this.shake = Math.max(this.shake, heavy ? 0.14 : 0.06);
-    sfx.melee();
+    sfx.melee(this.cls.element);
   }
 
   /** Caster Frame: a wave of energy travels down range. */
@@ -1244,7 +1246,7 @@ export class Player {
     lightning(from.clone().setY(from.y + 1), to.clone().setY(to.y + 1), el.hex, 0.1);
     shockwave(to.clone().setY(0.2), 4, el.hex, 0.35);
     this.swingMax = this.swingT = 0.32; this.swingHeavy = false; this.swingDir = 1;
-    sfx.melee();
+    sfx.melee(this.cls.element);
   }
 
   /** Heartshadow: Exhumation. A heavy swing at near-full ammo cloaks you and fires exploding void bolts. */
@@ -1263,7 +1265,7 @@ export class Player {
       after(0.05 + i * 0.1, () => this.seekerSwarm(from, target, ELEMENTS.void.hex, 0.1, (q) => explode(q, 2.6, dmg, 'void', { weapon: w, source: 'weapon', small: true, debuffs: weak ? { weaken: weak } : {} })));
     }
     this.swingMax = this.swingT = 0.32; this.swingHeavy = false; this.swingDir = -1;
-    sfx.melee();
+    sfx.melee(this.cls.element);
   }
 
   // ---- Glaives ----
@@ -1274,7 +1276,7 @@ export class Player {
     const slam = this.wGuard;
     this.meleeLock = 0.5; w.meleeCd = g.meleeCd; this.meleeT = 0.6;
     this.glaiveT = this.glaiveMax = slam ? 0.6 : 0.5; this.glaiveSlam = slam; // custom Glaive animation (no fist)
-    sfx.melee();
+    sfx.melee(this.cls.element);
     const fwd = this.getForward(new THREE.Vector3()), flat = fwd.clone().setY(0).normalize();
     const from = this.pos.clone(), reach = g.thrust + 1.5;
     const step = flat.clone().multiplyScalar((slam ? g.thrust * 0.5 : g.thrust) / 6);
@@ -1733,7 +1735,7 @@ export class Player {
     this.empowerOthers('grenade');
     this.status.apply('unbreakable', { t: U.t, set: true });
     castFx('ward', { p: this.pos.clone(), r: 1.6, life: U.t });
-    sfx.ability();
+    sfx.ability(this.cls.element);
     after(U.t, () => {
       if (this.dead) return;
       const p = this.pos.clone().setY(this.pos.y + 0.8);
@@ -2178,7 +2180,7 @@ export class Player {
     flare(start, ELEMENTS[el].hex, 0.4, 0.15);
     this.abilityAspects();
     this.throwFist(0.32);
-    sfx.throw();
+    sfx.throw(this.cls.element);
   }
 
   /** Forerunner's frag: replaces the grenade ability for one throw and leaves the grenade cooldown alone. */
@@ -2195,7 +2197,7 @@ export class Player {
       },
     });
     this.throwFist(0.32);
-    sfx.throw();
+    sfx.throw(this.cls.element);
   }
 
   /** Gunpowder Gamble: an explosive charged by kills, thrown while the grenade recharges. */
@@ -2213,7 +2215,7 @@ export class Player {
       },
     });
     this.throwFist(0.32);
-    sfx.throw();
+    sfx.throw(this.cls.element);
   }
 
   detonateGrenade(g, pt, hitEnemy = null) {
@@ -2312,7 +2314,7 @@ export class Player {
     this.meleeT = 0.6;
     this.meleeLock = 0.6;
     this.throwFist(0.3, true);
-    sfx.melee();
+    sfx.melee(this.cls.element);
     this.discharge();
     const ko = this.status.has('knockout'), lunge = this.lungeMul * (ko ? 1.5 : 1); // Knockout
     const t = this.findMeleeTarget(4.5 * lunge, 0.55);
@@ -2348,7 +2350,7 @@ export class Player {
     this.empowerOthers('melee');
     this.abilityAspects();
     this.discharge();
-    sfx.melee();
+    sfx.melee(this.cls.element);
     if (this.frag.has('torches')) this.status.apply('radiant', { set: true }); // Ember of Torches
     if (this.frag.has('frequency')) this.status.apply('frequency', { set: true }); // Spark of Frequency
     if (this.asp.has('consecration')) this.consecrate(fwd);
@@ -2367,7 +2369,7 @@ export class Player {
           onHit: (p) => castFx('snare', { p: p.setY(Math.max(0.3, p.y)), linger: this.frag.has('remnants') ? FRAGMENT_TUNE.remnants : 1 }),
         });
       }
-      sfx.throw();
+      sfx.throw(this.cls.element);
       return;
     }
     if (id === 'hammerthrow') {
@@ -2382,7 +2384,7 @@ export class Player {
           this.dropHammer(p, fwd);
         },
       });
-      sfx.throw();
+      sfx.throw(this.cls.element);
       return;
     }
     if (id === 'combo') {
@@ -2421,7 +2423,7 @@ export class Player {
       this.throwFist(0.32);
       this.addOvershield(40);
       this.throwShield(this.eye.clone().addScaledVector(fwd, 0.6), fwd, 3, [220, 160, 120], 'ability');
-      sfx.throw();
+      sfx.throw(this.cls.element);
       return;
     }
     if (id === 'fist') {
@@ -2605,7 +2607,7 @@ export class Player {
     for (const e of enemiesNear(p, 3.2)) dealDamage(e, superDmg(300), { element: 'void', source: 'super', pos: e.center(new THREE.Vector3()), knock: fwd.clone().multiplyScalar(12) });
     castFx('slam', { p, el: 'void', r: 4 });
     this.shake = Math.max(this.shake, 0.2);
-    sfx.melee();
+    sfx.melee(this.cls.element);
   }
 
   knifeHit(p, e, dir) {
@@ -2665,7 +2667,7 @@ export class Player {
     this.cd.class = this.cdMax.class;
     this.classWin = G.time + 2; this.classOrbUsed = false; // Reaper
     this.empowerOthers('class');
-    sfx.ability();
+    sfx.ability(this.cls.element);
     this.abilityAspects();
     if (id === 'barricade' || id === 'rally') {
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
@@ -2783,7 +2785,7 @@ export class Player {
     this.superCharge = 0;
     const ab = this.cls.abilities.super;
     const el = ELEMENTS[this.cls.element];
-    sfx.superStart();
+    sfx.superStart(el.id);
     castFx('superStart', { p: this.pos.clone(), el: el.id });
     flashLight(this.eye, el.hex, 120, 25, 0.6);
     ui.screenFlash(el.color, 0.55);
@@ -2972,7 +2974,7 @@ export class Player {
         castFx(finisher ? 'slam' : 'chain', finisher ? { p: center, el: 'arc', r: 5 } : { pts: [hand.clone(), center.clone().add(new THREE.Vector3(-flat.z * 1.5, 0, flat.x * 1.5)), center.clone().add(new THREE.Vector3(flat.z * 1.5, 0, -flat.x * 1.5))], el: 'arc', w: 0.06 });
         this.throwFist(0.25, true);
         this.superModel.rotation.z = S.combo === 2 ? 0.9 : S.combo === 1 ? -0.9 : 0;
-        if (finisher) { this.shake = 0.25; sfx.explosion(4); } else sfx.melee();
+        if (finisher) { this.shake = 0.25; sfx.explosion(4); } else sfx.melee(this.cls.element);
       }
     }
     if (S.type === 'sentinel') {
@@ -2985,7 +2987,7 @@ export class Player {
         S.cd = 0.9;
         this.throwShield(this.eye.clone().addScaledVector(fwd, 0.6), fwd, 4, [380, 300, 240, 200], 'super');
         this.throwFist(0.3);
-        sfx.throw();
+        sfx.throw(this.cls.element);
       }
     }
     if (S.type === 'songflame') {
@@ -3147,7 +3149,7 @@ export class Player {
           this.ignite(e, T.maul.burn, 2);
         }
         castFx('slam', { p: c, el: 'solar', r: 3.5 });
-        this.throwFist(0.3, true); sfx.melee();
+        this.throwFist(0.3, true); sfx.melee(this.cls.element);
       }
     }
     if (S.type === 'thundercrash' && !S.crashed) {
@@ -3187,7 +3189,7 @@ export class Player {
             onHit: (p) => { explode(p, T.blades.r, superDmg(T.blades.dmg), 'solar', { source: 'super', debuffs: { burn: 2 } }); },
           });
         }
-        this.throwFist(0.25); sfx.throw();
+        this.throwFist(0.25); sfx.throw(this.cls.element);
       });
     }
     if (S.type === 'spectral') {
@@ -3210,7 +3212,7 @@ export class Player {
         const c = this.pos.clone().addScaledVector(flat, 2).setY(1);
         for (const e of enemiesNear(c, fin ? 3.6 : 3)) dealDamage(e, superDmg(fin ? T.spectral.fin : T.spectral.hit), { element: 'void', source: 'super', pos: e.center(new THREE.Vector3()), weaken: fin ? 4 : 0 });
         castFx('chain', { pts: [hand.clone(), c.clone().add(new THREE.Vector3(-flat.z * 1.4, 0.3, flat.x * 1.4)), c.clone().add(new THREE.Vector3(flat.z * 1.4, -0.3, -flat.x * 1.4))], el: 'void', w: 0.07 });
-        this.throwFist(0.22, true); sfx.melee();
+        this.throwFist(0.22, true); sfx.melee(this.cls.element);
       }
     }
     if (S.type === 'gathering' && !S.launched && S.age > 0.25) {
@@ -3220,7 +3222,7 @@ export class Player {
         kind: 'seeker', pos: this.eye.clone().addScaledVector(fwd, 0.8), vel: fwd.clone().multiplyScalar(38), gravity: 9, size: 0.14, color: ELEMENTS.arc.hex, life: 3,
         onHit: (p) => castFx('gatherstorm', { p: p.clone().setY(restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass))), dmg: superDmg(T.gathering.dmg), tick: superDmg(T.gathering.tick) }),
       });
-      this.throwFist(0.35); sfx.throw();
+      this.throwFist(0.35); sfx.throw(this.cls.element);
     }
     if (S.type === 'stormsedge' && inp.mouse.leftPressed && S.cd <= 0 && S.shots > 0) {
       // Storm's Edge: throw the dagger, teleport to it, slash around you
@@ -3282,7 +3284,7 @@ export class Player {
           for (const e of enemiesNear(p, T.daybreak.r)) this.ignite(e, T.daybreak.burn, 2);
         },
       });
-      this.throwFist(0.25); sfx.throw();
+      this.throwFist(0.25); sfx.throw(this.cls.element);
     }
   }
 
@@ -3297,7 +3299,7 @@ export class Player {
         if (leave) castFx('voidaxe', { p: p.clone().setY(restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass))), id: `${net.myId || 'solo'}-${++this.orbN}` });
       },
     });
-    sfx.throw();
+    sfx.throw(this.cls.element);
   }
 
   // -------------------------------------------------------------------------

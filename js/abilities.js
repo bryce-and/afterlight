@@ -601,7 +601,7 @@ export function abilityFx(kind, o, local) {
       shockwave(feet, 5, 0xffffff, 0.5);
       pillar(p, 1.6, 14, col, 0.9, 0.45);
       glowBurst(p.clone().setY(p.y + 1), col, 40, 12, 0.14, 0.9, 3, 0.6);
-      if (!local) sfx.superStart();
+      if (!local) sfx.superStart(o.el);
       break;
     }
     case 'blast': { // Hammer of Sol / Nova Bomb impacts

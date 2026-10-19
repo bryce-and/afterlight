@@ -6,12 +6,13 @@ import { decodeAppearance } from './style.js';
 import { Enemy, fireEnemyShot } from './enemies.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
-import { classKit } from './data.js';
+import { classKit, ARCHETYPES } from './data.js';
 import { startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
 import { XP } from './progression.js';
 import { barrierStops } from './combat.js';
 import { playerPower } from './save.js';
 import { sfx } from './audio.js';
+import { stinger } from './music.js';
 import * as ui from './ui.js';
 
 // Glue between the network layer and the game.
@@ -315,6 +316,12 @@ function updateAvatars(dt) {
       const [arch, rarity, element, name] = gunKey.split('|');
       r.avatar.setGun(gunKey ? { arch, rarity, element, name } : null);
     }
+    // a fireteam member's gunfire, placed in the world; they only send an is-firing flag, so pace it by the weapon's rate
+    if (st.f && gunKey && r.avatar && G.time - (r.shotSfxT || 0) > 60 / Math.min(600, ARCHETYPES[gunKey.split('|')[0]]?.rpm || 300)) {
+      r.shotSfxT = G.time;
+      const [a, , el] = gunKey.split('|');
+      sfx.shot(a, r.pos, el);
+    }
     // super prop in hand (hammer, gauntlets, staff, shield, storm orbs)
     const prop = st.sp || null;
     if (r.prop !== prop) { r.prop = prop; r.avatar.setProp(prop); }
@@ -467,6 +474,7 @@ net.on('loot', (m) => {
   G.player.health = G.player.maxHealth; G.player.shield = G.player.maxShield;
   ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
   sfx.missionComplete();
+  stinger('complete');
 });
 
 // activities

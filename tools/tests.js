@@ -19,6 +19,8 @@ import { readyState } from '../js/net.js';
 import * as AR from '../js/armor.js';
 import { makeArmor } from '../js/loot.js';
 import * as ST from '../js/style.js';
+import { sfx, SHOT_RECIPES, ELEMENT_TINT, ABILITY_RECIPES, FACTION_SOUND, spatial } from '../js/audio.js';
+import { musicSectionFor } from '../js/music.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1272,6 +1274,44 @@ test('dev console: /give grants one item through the grant hook', () => {
   fresh(); const s = S.createSave('vanguard'); const got = [];
   ok(DC.runCommand('/give Sunshot', { save: s, grant: (i) => got.push(i) }).ok);
   eq(got.length, 1); eq(got[0].name, 'Sunshot');
+});
+
+// ---------- U12 Resonance: audio ----------
+test('audio: every weapon archetype has a shot recipe (swords use sfx.sword)', () => {
+  for (const id of Object.keys(ARCHETYPES)) if (id !== 'sword') ok(SHOT_RECIPES[id], `no shot recipe for ${id}`);
+});
+test('audio: recipe layers are well formed and heavy weapons have more body than light ones', () => {
+  const all = [...Object.values(SHOT_RECIPES).map((r) => r.layers), ...Object.values(ABILITY_RECIPES).map((r) => r.layers), ...Object.values(ELEMENT_TINT)];
+  for (const layers of all) for (const L of layers) { const p = L.n || L.t; ok(!!L.n !== !!L.t, 'a layer is noise or tone'); ok(p.dur > 0 && p.gain > 0, 'positive dur and gain'); }
+  const bodyGain = (id) => Math.max(...SHOT_RECIPES[id].layers.filter((L) => L.t && L.t.freq < 200).map((L) => L.t.gain));
+  ok(bodyGain('sniper') > bodyGain('smg') && bodyGain('shotgun') > bodyGain('pulse'), 'sniper and shotgun thump harder than smg and pulse');
+});
+test('audio: every non-kinetic element and enemy faction has a sound', () => {
+  for (const id of Object.keys(ELEMENTS)) if (id !== 'kinetic') ok(ELEMENT_TINT[id]?.length, `no tint for ${id}`);
+  for (const f of ['scrappers', 'hollow', 'legion']) ok(FACTION_SOUND[f].shot && FACTION_SOUND[f].die, f);
+});
+test('audio: every sfx call is safe before audio has started', () => {
+  for (const [k, fn] of Object.entries(sfx)) { try { fn(); fn('auto'); } catch (e) { throw new Error(`sfx.${k}: ${e.message}`); } }
+});
+test('audio: stereo pan follows the side a sound is on and loudness falls with distance', () => {
+  const cam = { position: { x: 0, y: 0, z: 0 }, quaternion: { x: 0, y: 0, z: 0, w: 1 } }; // looking down -z, right is +x
+  const R = spatial({ x: 10, y: 0, z: 0 }, cam), L = spatial({ x: -10, y: 0, z: 0 }, cam), F = spatial({ x: 0, y: 0, z: -10 }, cam);
+  ok(R.pan > 0.5 && L.pan < -0.5 && Math.abs(F.pan) < 0.05, 'pan');
+  ok(spatial({ x: 5, y: 0, z: 0 }, cam).gain > spatial({ x: 60, y: 0, z: 0 }, cam).gain, 'distance');
+  eq(spatial(null, cam).pan, 0);
+});
+test('music: sections need a closer approach to enter than to stay in, and the boss wins', () => {
+  eq(musicSectionFor('explore', 100, Infinity), 'explore');
+  eq(musicSectionFor('explore', 60, Infinity), 'tense');
+  eq(musicSectionFor('tense', 30, Infinity), 'combat');
+  eq(musicSectionFor('explore', 45, Infinity), 'tense');   // 45 m is not close enough to start combat...
+  eq(musicSectionFor('combat', 45, Infinity), 'combat');   // ...but is close enough to stay in it
+  eq(musicSectionFor('combat', 70, Infinity), 'tense');
+  eq(musicSectionFor('tense', 90, Infinity), 'tense');
+  eq(musicSectionFor('explore', 90, Infinity), 'explore');
+  eq(musicSectionFor('combat', 10, 60), 'boss');
+  eq(musicSectionFor('boss', 10, 80), 'boss');
+  eq(musicSectionFor('boss', 10, 100), 'combat');
 });
 
 // ---------- runner ----------

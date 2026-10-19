@@ -4,6 +4,20 @@
 
 export const RELEASES = [
   {
+    version: '2.2', name: 'Resonance', date: '2026-10-19', accent: '#5fe0d0', glyph: '♫',
+    summary: 'The whole game gets a new sound: a score that moves from ambient to tense to orchestral, heavier guns and abilities with their own element sounds, quiet enemies placed in the world around you, and a new Effects volume slider.',
+    notes: [
+      'Music: four moods per destination. Exploring is sparse and ambient; enemies in the distance bring in low strings and a heartbeat; combat is orchestral with string stabs, brass and timpani; boss fights are the heaviest. Each mood needs you to get closer to start than to stay, so it does not flip back and forth',
+      'Longer phrasing: every eight bars the melody changes and the chords rotate, and short stingers mark a mission start, a cleared wave or area, a boss arriving and a mission complete',
+      'Guns: every weapon family now has a layered shot (a crack, a low thump and a room tail), so Snipers, Shotguns, Fusion and Rockets hit hard and Pulse Rifles and SMGs stay tight. Shots vary a little each time. Reloads clunk on heavy weapons and click on light ones. Swords have their own swing and heavy swing sounds',
+      'Abilities: grenade throws, melee, casts, supers and explosions pick up a tint from their element (Solar, Arc, Void, Stasis, Strand). Big explosions, supers and boss arrivals briefly pull the music down so they land',
+      'Enemies: quiet shots and death sounds per faction, a shield-break crack, and a heavy footfall on big units. They come from where they are: panned left or right and fading with distance. Teammates\' gunfire is now heard too',
+      'Mix: separate Music, Effects and Volume sliders in the pause menu, a cap on how many sounds can play at once, and a limiter so a big fight stays clear instead of clipping',
+      'No save changes. Your Music and Volume settings carry over; Effects starts at 100%',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="rsBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06121a"/><stop offset="1" stop-color="#1b1233"/></linearGradient><radialGradient id="rsGlow" cx="0.5" cy="0.5" r="0.55"><stop offset="0" stop-color="#5fe0d0" stop-opacity="0.5"/><stop offset="1" stop-color="#5fe0d0" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#rsBg)"/><rect width="320" height="180" fill="url(#rsGlow)"/><g fill="none" stroke="#5fe0d0"><circle cx="160" cy="90" r="18" stroke-opacity="0.9" stroke-width="2.5"/><circle cx="160" cy="90" r="36" stroke-opacity="0.65" stroke-width="2"/><circle cx="160" cy="90" r="58" stroke-opacity="0.4" stroke-width="1.5"/><circle cx="160" cy="90" r="84" stroke-opacity="0.22" stroke-width="1.2"/><circle cx="160" cy="90" r="114" stroke-opacity="0.1" stroke-width="1"/></g><path d="M0 90 L34 90 L44 70 L54 112 L64 56 L76 124 L88 78 L98 100 L110 90 L210 90 L222 100 L232 78 L244 124 L256 56 L266 112 L276 70 L286 90 L320 90" fill="none" stroke="#e8fffb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><path d="M0 90 L34 90 L44 70 L54 112 L64 56 L76 124 L88 78 L98 100 L110 90 L210 90 L222 100 L232 78 L244 124 L256 56 L266 112 L276 70 L286 90 L320 90" fill="none" stroke="#5fe0d0" stroke-opacity="0.35" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><circle cx="160" cy="90" r="6" fill="#e8fffb"/><g fill="#b07cff"><circle cx="50" cy="34" r="2"/><circle cx="270" cy="148" r="2.4"/><circle cx="112" cy="150" r="1.6"/><circle cx="238" cy="30" r="1.6"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+  },
+  {
     version: '2.1.2', name: 'Hotfix', date: '2026-10-19', accent: '#ffb547', glyph: '✚',
     summary: 'Sword heavy attacks and guard rebuilt after Destiny 2, Glaives get their own melee and a visible shield, and Forerunner, Witherhoard and the other Arsenal II exotics are brought closer to their Destiny 2 originals.',
     notes: [

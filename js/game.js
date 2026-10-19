@@ -12,7 +12,7 @@ import { rollShader, SHADERS } from './style.js';
 import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP, capRarity, maxRarityIndex } from './progression.js';
 import { sfx } from './audio.js';
-import { playMusic, setSection } from './music.js';
+import { playMusic, setSection, getSection, musicSectionFor, stinger } from './music.js';
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
@@ -58,6 +58,7 @@ export function startMission(li, mi) {
   G.player.spawn(level.spawn);
   G.state = 'playing';
   playMusic(loc.id);
+  stinger('start');
   ui.enterMission();
   ui.centerMessage(def.name, `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
   if (delta < -4) setTimeout(() => ui.feed(`Underpowered by ${-delta}: enemies hit harder and take less damage`, '#ff7a6b'), 1500);
@@ -208,7 +209,7 @@ function updateMission(dt) {
         M.phase = 'combat';
         spawnWave(z, 0);
         z.waveIdx = 1;
-        if (z.isBoss) banner(M.def.boss.name, `${M.loc.faction} champion`, 3, 'bossIntro');
+        if (z.isBoss) { banner(M.def.boss.name, `${M.loc.faction} champion`, 3, 'bossIntro'); stinger('boss'); }
         else banner(z.name, `${M.loc.faction} presence detected`, 2.2, 'alert');
       }
     } else if (z.state === 'active') {
@@ -266,6 +267,7 @@ function zoneCleared(z) {
     reviveForCompletion();
     ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
     sfx.missionComplete();
+    stinger('complete');
     P.health = P.maxHealth; P.shield = P.maxShield;
   } else {
     banner('Area Secured', '', 2, 'areaClear');
@@ -504,6 +506,7 @@ export function killEnemy(e, o = {}) {
   }
   gainXp(XP.kill[e.typeId] ?? 0); // the whole fireteam shares kill XP
   sfx.kill();
+  sfx.enemyDie(e.pos, e.faction);
   rollDrops(e);
   if (e.isBoss) {
     G.player.shake = 0.5;
@@ -546,7 +549,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
   else explosionFx(pos, radius, col);
   // teammates see every explosion; only this machine applies its damage
   sendFx({ t: 'fx', k: 'boom', p: [Math.round(pos.x * 100) / 100, Math.round(pos.y * 100) / 100, Math.round(pos.z * 100) / 100], r: radius, c: col, s: o.small ? 1 : 0 });
-  sfx.explosion(radius);
+  sfx.explosion(radius, pos, element);
   const c = new THREE.Vector3();
   for (const e of G.enemies) {
     if (!e.alive) continue;
@@ -812,6 +815,7 @@ export function startActivity(actId, seed) {
   ui.enterMission();
   ui.centerMessage(act.name, `${G.mission.loc.name}  ·  Wave 1 incoming`, 3.5);
   sfx.areaClear();
+  stinger('start');
 }
 
 /** Builds arena i (a mission map's boss arena) and puts the player at its edge. */
@@ -876,7 +880,7 @@ function startWave() {
   spawnWave(z, 0);
   z.waveIdx = 1;
   M.phase = 'combat';
-  if (n % M.act.arenaEvery === 0) { ui.centerMessage(M.arenaDef.boss.name, `Wave ${n}  ·  ${M.loc.faction} champion`, 3); sfx.bossIntro(); }
+  if (n % M.act.arenaEvery === 0) { ui.centerMessage(M.arenaDef.boss.name, `Wave ${n}  ·  ${M.loc.faction} champion`, 3); sfx.bossIntro(); stinger('boss'); }
   else { ui.centerMessage(`Wave ${n}`, M.act.waves === Infinity ? '' : `of ${M.act.waves}`, 2); sfx.alert(); }
 }
 
@@ -925,6 +929,7 @@ function activityWaveCleared() {
   const final = n >= act.waves;
   ui.centerMessage(final ? `${act.name} Complete` : `Wave ${n} Cleared`, '', 2.5);
   sfx.areaClear();
+  stinger('clear');
   if (act.id === 'endless') {
     G.save.records = G.save.records || {};
     if (n > (G.save.records.endless || 0)) { G.save.records.endless = n; writeSave(G.save); }
@@ -953,6 +958,7 @@ export function moveArena(i) {
   M.interT = 6;
   ui.centerMessage(M.zones[0].name, `${M.loc.name}  ·  Enemies are gathering in greater numbers`, 3);
   sfx.areaClear();
+  stinger('clear');
 }
 
 /** Everyone: a cache for this wave (each player opens and rolls their own). */
@@ -1029,12 +1035,12 @@ function updateMusic(dt) {
   if (musicT > 0) return;
   musicT = 0.5;
   const P = G.player;
-  let boss = false, combat = false;
+  let nearest = Infinity, bossDist = Infinity;
   for (const e of G.enemies) {
     if (!e.alive) continue;
     const d = Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z);
-    if (e.isBoss && d < 70) boss = true;
-    else if (d < 45) combat = true;
+    if (e.isBoss) bossDist = Math.min(bossDist, d);
+    else nearest = Math.min(nearest, d);
   }
-  setSection(boss ? 'boss' : combat ? 'combat' : 'explore');
+  setSection(musicSectionFor(getSection(), nearest, bossDist));
 }

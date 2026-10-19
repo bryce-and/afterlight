@@ -384,7 +384,7 @@ export class Enemy {
 
   breakShield(matched) {
     if (this.model.shield) this.model.shield.visible = false;
-    sfx.shieldBreak();
+    sfx.shieldBreak(this.pos);
     const c = this.center(_v);
     sparks(c, ELEMENTS[this.shieldEl].hex, 16, 7, 0.1, 0.5);
   }
@@ -543,7 +543,7 @@ export class Enemy {
           if (this.lunge <= 0 && m.torso.userData.rx !== undefined) m.torso.rotation.x = m.torso.userData.rx;
         } else if (dist < 3.4 && vdy < 2.2 && this.meleeT <= 0 && this.los) {
           this.windup = 0.22; this.meleeT = 1.2;
-          sfx.enemyShot();
+          sfx.enemyShot(this.pos, this.faction);
         }
         if (this.windup <= 0 && this.lunge <= 0) m.arms.forEach((a) => (a.rotation.x += (-1.3 - a.rotation.x) * Math.min(1, dt * 6)));
       } else {
@@ -592,6 +592,9 @@ export class Enemy {
     this.yaw += dy * k;
     const sp = Math.hypot(this.pos.x - ox, this.pos.z - oz) / Math.max(dt, 1e-3);
     this.walk += dt * sp * 2.2;
+    const ph = Math.floor(this.walk / Math.PI); // heavy units thud on each footfall
+    if (sp > 0.3 && this.scale >= 1.35 && ph !== this.stepPh) sfx.step(this.pos);
+    this.stepPh = ph;
     const sw = Math.sin(this.walk) * (sp > 0.3 ? 0.6 : 0);
     m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
     this.flash = Math.max(0, this.flash - dt);
@@ -655,7 +658,7 @@ export class Enemy {
     }
     fireEnemyShot(from, dir, def.projSpeed, def.dmg * this.dmgMult, G.mission.loc.colors.eye, def.shotSize, def.splash);
     flashLight(from, G.mission.loc.colors.eye, 6, 6, 0.06);
-    sfx.enemyShot();
+    sfx.enemyShot(this.pos, this.faction);
   }
 
   bossUpdate(dt, dist) {
