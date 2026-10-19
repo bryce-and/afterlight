@@ -77,9 +77,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F08 | Campaign progress per Guardian (today `cleared` is one account-wide map in the save); lands with the campaign reset | U15 | Planned |
 | F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U19 | Planned |
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
-| F11 | Swords, Sidearms, special Grenade Launchers, Glaives (shield; glaive melee replaces B while equipped, with its own behavior), Trace Rifles, each with distinct behavior | U11 | Planned |
-| F12 | Role balance pass before adding them; ammo type by archetype (Rocket-Assisted Sidearms and Rocket-Assisted Pulse Rifles special) | U11 | Planned |
-| F13 | More exotic weapons with unique perks and models (24 today) | U11 | Planned |
 | F14 | A patrol zone on every destination | U17 | Planned |
 | F16 | Exotic Kiosk in the Tower: retrieve earned exotics at your current Light; armor rolls random stats, exotic weapons have fixed stats | U16 | Planned |
 | F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13 (variants), U19 (difficulty scaling) | Planned |

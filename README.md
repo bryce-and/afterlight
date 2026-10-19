@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v2.1 "Arsenal II"**: Swords, Sidearms, Glaives, Trace Rifles and special-ammo Grenade Launchers, 14 more Destiny 2 exotics, heavier hits with leaner heavy ammo.
 - **v2.0 "Decrypted"**: every weapon is named, perks come in Destiny 2 columns, rarity is gated by your level, and the right-click inspect screen and Exotic Collection are new.
 - **v1.9 "Eyes Up, Guardian"**: burst supers hover while they cast, the Sentinel barrier blocks enemy shots for your whole team, Hellion lobs burning bolts, Void VFX are reworked, a D2-style Modify screen, and Fonts for every stat.
 - **3 Guardians, 9 subclasses**: play a Titan, a Hunter and a Warlock on one account. Each has its own gear, inventory and Light; your level, glimmer, shaders and vault are shared, and gear moves between Guardians through the vault.

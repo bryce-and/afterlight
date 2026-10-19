@@ -62,6 +62,12 @@ The module map is in the README. These notes cover systems added during the over
 - A new archetype: add a `FRAMES` entry (and its behavior in `Player.fire` / `weaponExplosion` if it needs one); a test keeps each family's damage per second within 15%.
 - Elements: `ELEMENTS` carries a `symbol` (SVG) used by `elementIcon` (`icons.js`). `ENERGY` (what weapons roll) includes Stasis and Strand; `SHIELD_ELEMENTS` (enemy shields) stays Light-only.
 - Icons: `weaponIcon` renders the viewmodel at a diagonal into a square, cached per family, rarity, element (and exotic name).
+- U11 families: `sword` (`mode: 'sword'`), `glaive` (hitscan bolts plus `w.energy`), `trace` (`mode: 'beam'`), `sidearm`. The behavior is in the Arsenal block of `Player` (`updateSword`, `swordSwing`, `guardReduce`, `glaiveMelee`, `fireBeam`/`beamHold`, `rocketRound`, `blightZone`, `plantTurret`); `ARSENAL` (top of `player.js`) holds the exotic numbers. `wGuard` is the weapon guard (the older `guarding` getter is the Sentinel super).
+- Ammo slot per frame: `frameSlot(arch, frame)`; a `FRAMES` entry with `slot` and ammo set in `handling.set` (`reserve`, `brick`). `archesForSlot(slot)` and `makeWeapon` only draw named weapons that sit in the asked slot. `ARCHETYPES[x].noPerks` keeps perks that do not fit a family out of its pools.
+- Exotic `mods`: dmg, rpm, mag, reload, spread and range multiply the roll; every other key replaces the handling value (reserve, brick, pellets, rocketRound, projectile, fan...). An exotic can also set `slot`.
+- Hit perks must go through `Player.lootPerksOnHit`: `applyHit` calls it for bullets, `weaponExplosion` for explosions, and swings and beams use `applyHit`.
+- `refreshWeapons` (`save.js`) recomputes derived weapon stats on load so balance changes reach owned weapons.
+- Dev check: in the preview console, `(await import('/tools/arsenaltest.js')).run()` fires every new family and exotic at a dummy and reports errors, ammo and damage; `env(make)` gives scripted scenarios.
 - Tracking rounds use the `swarm` projectile kind (a cluster of particles that homes on `target`); `Player.seekerSwarm` spawns one.
 
 ## Combat rules (`js/combat.js`)
