@@ -1,4 +1,4 @@
-// Secret dev console. Hold Cmd or Alt + Shift and tap / three times to open it, Esc to close it.
+// Secret dev console. Tap / three times to open it, Esc to close it.
 // Not mentioned in the Update Log or Roadmap on purpose. Commands live in devcommands.js.
 import { G, unlockPointer } from './state.js';
 import { addItem, writeSave } from './save.js';
@@ -93,7 +93,8 @@ addEventListener('keydown', (e) => {
     if (e.code === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); box.close(); }
     return;
   }
-  if (e.code !== 'Slash' || e.repeat || !e.shiftKey || !(e.metaKey || e.altKey)) return;
+  if (e.code !== 'Slash' || e.repeat || e.shiftKey || e.metaKey || e.altKey || e.ctrlKey) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) || e.target?.isContentEditable) { taps = []; return; } // typing a name or code is not the gesture
   const now = performance.now();
   taps = taps.filter((t) => now - t < TAP_WINDOW_MS);
   taps.push(now);
