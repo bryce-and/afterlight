@@ -4,6 +4,20 @@
 
 export const RELEASES = [
   {
+    version: '2.1.1', name: 'Hotfix', date: '2026-10-19', accent: '#ffb547', glyph: '✚',
+    summary: 'Swords are fought in third person with light and heavy swing animations, Glaives hold 4 to 8 shots and get their own swing, plus Eager Edge, Witherhoard and Divinity fixes, break-action special launchers and bigger heavy ammo reserves.',
+    notes: [
+      'Swords: you now fight in third person with a blade in hand. A tap is a quick sideways slash; a held attack raises the sword and chops down hard. Blocking holds the blade across your body',
+      'New sword perk, Eager Edge: the first swing within a second of drawing the sword lunges much farther',
+      'Glaives: 4 to 8 shots per magazine depending on the weapon (Lightweight 8, Adaptive 6, Precision 5, Aggressive 4; Edge of Concurrence 8, Edge of Action 6, Edge of Intent 5). Each bolt hits about twice as hard and fires slower to match',
+      'Glaive melee hits much harder, and the thrust and shield slam have their own animations instead of the fist',
+      'Witherhoard: a direct hit sticks to the enemy and poisons it. If the enemy dies with the round attached, the pool drops where it fell. The pool is now a bright glowing disc you can see on the ground',
+      'Divinity: a sustained beam wraps the target in a visible Judgment bubble. While it lasts, every weapon hit on that enemy from any fireteam member counts as a precision hit',
+      'Light Launcher and Double-Fire Grenade Launchers are single-shot (one in the magazine; Double-Fire still fires two grenades per shot), with a compact break-action model and a reload where the barrel breaks open and a shell drops in',
+      'Heavy reserves: Rocket Launcher 8, Linear Fusion 14, Grenade Launcher 16, Machine Gun 210',
+    ],
+  },
+  {
     version: '2.1', name: 'Arsenal II', date: '2026-10-19', accent: '#7fd8ff', glyph: '⌖',
     summary: 'Five new ways to fight: Swords, Sidearms, Glaives, Trace Rifles and special-ammo Grenade Launchers, plus 14 real Destiny exotics to chase and heavier hits with leaner heavy ammo.',
     notes: [

@@ -20,7 +20,7 @@ import * as ui from './ui.js';
 //  - Everyone rolls their own loot from kill events (client-side loot).
 
 const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss'];
-const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind']; // snapshot bit order
+const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged']; // snapshot bit order
 /** Host: an enemy's debuffs as a bitmask. */
 const debuffBits = (en) => DEBUFF_BITS.reduce((b, k, i) => (en.status.has(k) ? b | (1 << i) : b), 0);
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -180,7 +180,7 @@ export function damageRemote(r, dmg, from) {
 /** Member: report a hit on a host-owned enemy. */
 export function sendHit(e, dmg, o) {
   lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source });
-  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, sb: o.shieldBreaker ? 1 : 0 });
+  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, sb: o.shieldBreaker ? 1 : 0 });
 }
 
 export function sendFx(msg) { if (net.active && G.state === 'playing') send(msg); }
@@ -384,7 +384,7 @@ net.on('p', (m, from) => { if (inMission()) ensureRemote({ ...m, id: from }); })
 net.on('hit', (m, from) => {
   if (!inMission()) return;
   const e = getEnemyByNetId(m.id);
-  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, shieldBreaker: !!m.sb });
+  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, judged: m.jg, shieldBreaker: !!m.sb });
 });
 
 // both: effects

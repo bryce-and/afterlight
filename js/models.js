@@ -353,6 +353,28 @@ function buildBaseGun(item, look) {
       return finish(g, { muzzleF: 0.7, muzzleY: 0.01, S, hip: [0.22, -0.22, -0.5], ads: 0.31, flash: fc });
     }
     case 'glauncher': {
+      if (item.frame === 'lite' || item.frame === 'double') { // Special-ammo launchers: a compact break-action, one shell in the breech
+        S = 0.07;
+        P([[-0.16, 0.04], [0.1, 0.045], [0.14, 0.03], [0.14, -0.035], [0.0, -0.045], [-0.16, -0.03]], 0.05, body); // receiver and stock block
+        P([[-0.02, -0.04], [0.04, -0.04], [0.0, -0.15], [-0.07, -0.145]], 0.03, gripM);
+        triggerGuard(k, dark, steel, 0.0, -0.04);
+        B(0.045, 0.012, 0.06, 0, 0.045, 0.11, steel); // hinge
+        const bar = new THREE.Group(); // the barrel pivots down at the hinge to load
+        bar.position.set(0, 0.0, -0.15);
+        const part = (m) => { m.position.sub(bar.position); bar.add(m); return m; };
+        part(T(0.052, 0.34, 0, 0.0, 0.32, mid, 12)); // fat 40mm tube
+        part(T(0.058, 0.03, 0, 0.0, 0.5, dark, 12));
+        part(T(0.036, 0.012, 0, 0.0, 0.52, glow, 12));
+        part(B(0.012, 0.012, 0.1, 0, 0.065, 0.3, steel));
+        part(B(0.07, 0.01, 0.12, 0, 0.05, 0.3, glow));
+        g.add(bar);
+        const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.09, 10).rotateX(Math.PI / 2), glow);
+        shell.visible = false; g.add(shell);
+        ironSights(k, dark, S, -0.02, 0.05, 0.2, 0.05, 0xff9a3c);
+        const out = finish(g, { muzzleF: 0.54, muzzleY: 0.0, S, hip: [0.2, -0.19, -0.46], ads: 0.32, flash: fc });
+        out.userData.barrel = bar; out.userData.shell = shell; out.userData.shellHome = new THREE.Vector3(0, 0.0, -0.1);
+        return out;
+      }
       S = 0.088;
       P([[-0.1, 0.045], [0.14, 0.045], [0.14, -0.04], [-0.1, -0.04]], 0.06, body);
       T(0.085, 0.12, 0, -0.03, 0.2, mid, 6);

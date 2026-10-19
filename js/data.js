@@ -49,14 +49,14 @@ export const ARCHETYPES = {
   shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 22, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.05, zoom: 1.15, prec: 1.4, range: 9, recoil: 0.08, falloff: { close: 4, bonus: 1.15, min: 0.15, span: 1 } },
   sniper: { id: 'sniper', name: 'Sniper Rifle', slot: 'special', dmg: 360, rpm: 50, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.5, spread: 0.07, ads: 0.0, zoom: 4.5, prec: 2.6, range: 150, recoil: 0.09 },
   fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 80, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.026, ads: 0.011, falloff: { close: 8, bonus: 1.15, min: 0.3, span: 1 }, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
-  linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 580, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 13, brick: 3, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
-  rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 1210, rpm: 40, mode: 'semi', mag: 1, reserve: 6, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
-  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 41, rpm: 720, mode: 'auto', mag: 70, reserve: 180, brick: 50, reload: 3.0, spread: 0.032, ads: 0.0072, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
-  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 510, rpm: 110, mode: 'semi', mag: 4, reserve: 11, brick: 3, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
+  linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 580, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 14, brick: 3, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
+  rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 1210, rpm: 40, mode: 'semi', mag: 1, reserve: 8, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
+  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 41, rpm: 720, mode: 'auto', mag: 70, reserve: 210, brick: 50, reload: 3.0, spread: 0.032, ads: 0.0072, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
+  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 510, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 3, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
   // U11 Arsenal II: five new behaviors. Sidearms are a primary; Swords are melee heavies; Glaives and Trace Rifles are special.
   sidearm: { id: 'sidearm', name: 'Sidearm', slot: 'primary', dmg: 26, rpm: 360, mode: 'semi', mag: 15, reload: 1.5, spread: 0.02, ads: 0.0016, zoom: 1.25, prec: 1.7, range: 20, recoil: 0.014 },
   sword: { id: 'sword', name: 'Sword', slot: 'heavy', dmg: 520, rpm: 90, mode: 'sword', mag: 12, reserve: 10, brick: 3, reload: 0.6, spread: 0, ads: 0, zoom: 1, prec: 1.3, range: 4, recoil: 0, sword: { reach: 3.8, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.7, heavy: 2.2 }, noPerks: ['precise', 'opening', 'outlaw', 'killclip', 'tremors', 'jolting', 'rapidhit', 'reconstruction', 'killingwind', 'feeding', 'hotswap', 'envious', 'firefly'] },
-  glaive: { id: 'glaive', name: 'Glaive', slot: 'special', dmg: 52, rpm: 300, mode: 'auto', mag: 24, reserve: 28, brick: 6, reload: 1.8, spread: 0.02, ads: 0.004, zoom: 1.25, prec: 1.5, range: 28, recoil: 0.01, glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 3.2, meleeCd: 1.6, thrust: 6 }, noPerks: ['tremors', 'jolting', 'reconstruction'] },
+  glaive: { id: 'glaive', name: 'Glaive', slot: 'special', dmg: 110, rpm: 160, mode: 'auto', mag: 6, reserve: 28, brick: 6, reload: 1.8, spread: 0.02, ads: 0.004, zoom: 1.25, prec: 1.5, range: 28, recoil: 0.01, glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 5.5, meleeCd: 1.6, thrust: 6 }, noPerks: ['tremors', 'jolting', 'reconstruction'] },
   trace: { id: 'trace', name: 'Trace Rifle', slot: 'special', dmg: 15, rpm: 1020, mode: 'beam', mag: 140, reserve: 280, brick: 70, reload: 2.0, spread: 0.006, ads: 0.002, zoom: 1.4, prec: 1.4, range: 30, recoil: 0.0025, noPerks: ['tremors', 'jolting', 'rapidhit', 'adrenaline', 'reconstruction', 'envious', 'feeding'] },
 };
 
@@ -73,6 +73,7 @@ export const PERKS = {
   firefly: { name: 'Firefly', desc: 'Precision kills cause a solar explosion.' },
   leech: { name: 'Vampire Touch', desc: 'Kills restore 20 health.' },
   steady: { name: 'Steady Hands', desc: '35% less spread and recoil.' },
+  eager: { name: 'Eager Edge', desc: 'The first swing within a second of drawing this sword lunges much farther.' },
   hotswap: { name: 'Quickdraw', desc: 'Much faster weapon swap and 15% faster reload.' },
   highcal: { name: 'High-Caliber Rounds', desc: '+10% damage.' },
   precise: { name: 'Precision Instrument', desc: '+20% precision damage.' },
@@ -162,7 +163,7 @@ export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabiliz
 export const PERK_COLUMNS = {
   mag: ['extmag', 'alloymag', 'highcal', 'overflow', 'outlaw', 'feeding', 'reconstruction', 'rapidhit', 'subsistence', 'envious', 'hotswap', 'scavenger'],
   damage: ['rampage', 'killclip', 'frenzy', 'surrounded', 'opening', 'precise', 'adrenaline', 'oneforall', 'baitswitch'],
-  effect: ['firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting'],
+  effect: ['eager', 'firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting'],
 };
 export const PERK_COLUMN_NAMES = { mag: 'Magazine or Reload', damage: 'Damage', effect: 'Effect' };
 /** The column a perk belongs to, or null (Steady Hands, Snapshot Sights). */
@@ -174,6 +175,8 @@ export function perksByColumn(perks = []) {
   for (const p of perks) out[perkColumn(p) || 'other'].push(p);
   return out;
 }
+// Perks that only roll on certain weapon families.
+export const PERK_ARCH = { eager: ['sword'] };
 // Perks that only roll in some ammo slots (the rest roll everywhere).
 export const PERK_SLOTS = {
   scavenger: ['special', 'heavy'], overflow: ['special', 'heavy'], chainreaction: ['special', 'heavy'], envious: ['special', 'heavy'],
@@ -218,9 +221,9 @@ export const EXOTIC_WEAPONS = [
   { name: 'Forerunner', arch: 'sidearm', element: 'kinetic', perks: ['fullstop', 'pace'], mods: { mode: 'auto', rpm: 1.35, dmg: 0.74, range: 1.1 }, look: { body: 0x7a6a4a, accent: 0xffd27a, parts: ['stripes'] }, flavor: 'Made to stop whatever is in the way.' },
   { name: 'Witherhoard', arch: 'glauncher', element: 'kinetic', slot: 'special', perks: ['torment'], mods: { dmg: 0.26, rpm: 0.9, mag: 1.25, reserve: 12, brick: 3, projectile: { speed: 30, gravity: 14, radius: 4.2, size: 0.14 } }, look: { body: 0x4a3a1e, accent: 0xb8c24a, parts: ['spikes'] }, flavor: 'Where it lands, nothing grows back.' },
   { name: 'Dead Messenger', arch: 'glauncher', element: 'void', slot: 'special', perks: ['trinary', 'fundamentals'], mods: { dmg: 0.18, rpm: 0.85, mag: 1, reserve: 10, brick: 3, fan: 3, projectile: { speed: 36, gravity: 9, radius: 2.6, size: 0.1 } }, look: { body: 0x23283a, accent: 0xb07cff, parts: ['skull'] }, flavor: 'Some news is better left undelivered.' },
-  { name: 'Edge of Concurrence', arch: 'glaive', element: 'arc', perks: ['concurrence'], look: { body: 0xe8e4da, accent: 0x5fd3ff, parts: ['fins'] }, flavor: 'Many blades, one purpose.' },
+  { name: 'Edge of Concurrence', arch: 'glaive', element: 'arc', perks: ['concurrence'], mods: { mag: 1.33 }, look: { body: 0xe8e4da, accent: 0x5fd3ff, parts: ['fins'] }, flavor: 'Many blades, one purpose.' },
   { name: 'Edge of Action', arch: 'glaive', element: 'void', perks: ['action'], mods: { dmg: 0.95 }, look: { body: 0x2c3a4a, accent: 0xb07cff, parts: ['coils'] }, flavor: 'The wall that walks.' },
-  { name: 'Edge of Intent', arch: 'glaive', element: 'solar', perks: ['intent'], look: { body: 0xd8b24a, accent: 0xff8b2b, parts: ['sun'] }, flavor: 'Wherever it points, light follows.' },
+  { name: 'Edge of Intent', arch: 'glaive', element: 'solar', perks: ['intent'], mods: { mag: 0.83 }, look: { body: 0xd8b24a, accent: 0xff8b2b, parts: ['sun'] }, flavor: 'Wherever it points, light follows.' },
   { name: 'Coldheart', arch: 'trace', element: 'arc', perks: ['coldfusion', 'longestwinter'], mods: { dmg: 0.85 }, look: { body: 0xcfd6e0, accent: 0x5fd3ff, parts: ['stripes'] }, flavor: 'The cold gets in through the cracks.' },
   { name: 'Prometheus Lens', arch: 'trace', element: 'solar', perks: ['inferno', 'retraction'], mods: { dmg: 0.9 }, look: { body: 0xb8742a, accent: 0xffc04a, parts: ['coils'] }, flavor: 'Steal fire. Keep stealing.' },
   { name: 'Wavesplitter', arch: 'trace', element: 'void', perks: ['harmonic', 'supercharged'], mods: { dmg: 0.85 }, look: { body: 0x2a2236, accent: 0xb07cff, parts: ['fins'] }, flavor: 'Every wave breaks eventually.' },

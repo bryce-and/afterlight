@@ -402,6 +402,7 @@ export function enemiesNear(pos, r, n = 99, exclude = null) {
 export function dealDamage(e, amount, o = {}) {
   if (!e.alive) return { killed: false, dealt: 0 };
   const M = G.mission;
+  if (!o.raw && !o.crit && o.source === 'weapon' && e.status.has('judged')) o.crit = true; // Divinity's Judgment bubble: every weapon hit on it is a precision hit
   let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
   // grenades and melees hit 40% harder than their listed numbers and keep pace with enemy health
   if (!o.raw && (o.source === 'ability' || o.source === 'melee')) dmg *= ABILITY_POWER * M.hpMult;
@@ -427,9 +428,11 @@ export function dealDamage(e, amount, o = {}) {
     else e.hp = Math.max(1, e.hp - dmg);
     e.flash = 0.12;
     const weak = e.status.has('weaken'); // weakened targets show yellow hits
-    ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dmg, { crit: o.crit, weak, shield: shieldHit ? e.shieldEl : null });
-    ui.hitmarker(!!o.crit, false, weak);
-    sfx.hit(o.crit);
+    if (dmg > 0) {
+      ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), dmg, { crit: o.crit, weak, shield: shieldHit ? e.shieldEl : null });
+      ui.hitmarker(!!o.crit, false, weak);
+      sfx.hit(o.crit);
+    }
     return { killed: false, dealt: dmg };
   }
   const weak = e.status.has('weaken'); // +30% from every source, and the hit shows yellow
@@ -467,7 +470,7 @@ export function dealDamage(e, amount, o = {}) {
   return { killed, dealt };
 }
 
-const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind'];
+const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged'];
 
 /** Jolt: a hit on a jolted enemy arcs lightning into it and up to JOLT.n enemies nearby. */
 function joltFrom(e) {

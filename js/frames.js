@@ -2,7 +2,7 @@
 // archetype fixes the weapon's stats: every drop of a weapon shoots the same, only perks roll.
 // Named legendaries always have the same archetype and element (sourced from Destinypedia,
 // see docs/DECISIONS.md). Pure data and functions, shared by loot, the Player, the UI and tests.
-import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, HEAVY_VERSION, PERK_COLUMNS, PERK_ELEMENT, PERK_SLOTS } from './data.js';
+import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, HEAVY_VERSION, PERK_COLUMNS, PERK_ELEMENT, PERK_SLOTS, PERK_ARCH } from './data.js';
 
 // stats: multipliers on the family's base stats. handling: `mult` multiplies the family's
 // handling, `set` replaces it (burst size, charge time...), `projectile` multiplies projectile values.
@@ -77,8 +77,8 @@ export const FRAMES = {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced blast radius and velocity.', stats: {} },
     rapid: { name: 'Rapid-Fire Frame', desc: 'Fires faster with a smaller blast and a deeper magazine.', stats: { rpm: 1.25, dmg: 0.8, mag: 1.25 }, handling: { projectile: { radius: 0.9 } } },
     wave: { name: 'Compressed Wave Frame', desc: 'Grenades fly flat and burst into a wave that rolls along the ground, hitting everything in its path.', stats: { dmg: 0.34 }, handling: { set: { wave: 5 }, projectile: { gravity: 0, speed: 1.3 } } },
-    lite: { name: 'Light Launcher Frame', desc: 'Special ammo. Small, fast grenades with a tighter blast and a deeper magazine.', slot: 'special', stats: { dmg: 0.22, rpm: 1.2, mag: 1.5 }, handling: { set: { reserve: 14, brick: 3 }, projectile: { radius: 0.6, speed: 1.15 } } },
-    double: { name: 'Double-Fire Frame', desc: 'Special ammo. Launches two grenades in a short spread with every shot.', slot: 'special', stats: { dmg: 0.125, rpm: 1.0, mag: 1.25 }, handling: { set: { grenades: 2, reserve: 14, brick: 3 }, projectile: { radius: 0.55 } } },
+    lite: { name: 'Light Launcher Frame', desc: 'Special ammo. Small, fast grenades with a tighter blast. Single-shot: one grenade in the magazine.', slot: 'special', single: true, stats: { dmg: 0.22, rpm: 1.2, mag: 0.25 }, handling: { set: { reserve: 14, brick: 3 }, projectile: { radius: 0.6, speed: 1.15 } } },
+    double: { name: 'Double-Fire Frame', desc: 'Special ammo. Launches two grenades in a short spread with every shot.', slot: 'special', single: true, stats: { dmg: 0.125, rpm: 1.0, mag: 0.25 }, handling: { set: { grenades: 2, reserve: 14, brick: 3 }, projectile: { radius: 0.55 } } },
   },
   sidearm: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced damage and rate of fire.', stats: {} },
@@ -96,9 +96,9 @@ export const FRAMES = {
   },
   glaive: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced shots, shield and thrust.', stats: {} },
-    aggressive: { name: 'Aggressive Frame', desc: 'Heavier bolts, slower to fire, and a harder thrust.', stats: { dmg: 1.3, rpm: 0.77 }, handling: { set: { glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 3.8, meleeCd: 1.8, thrust: 6 } } } },
-    precision: { name: 'Precision Frame', desc: 'Tight, accurate bolts that reward precision hits.', stats: { dmg: 1.25, rpm: 0.8, range: 1.1 }, handling: { set: { prec: 2.2 }, mult: { spread: 0.6 } } },
-    lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility and a faster thrust.', stats: { dmg: 0.9, rpm: 1.11 }, handling: { set: { move: 1.06, glaive: { block: 0.75, drain: 9, gain: 2.5, meleeDmg: 3.0, meleeCd: 1.2, thrust: 6.5 } } } },
+    aggressive: { name: 'Aggressive Frame', desc: 'Heavier bolts, slower to fire, and a harder thrust.', stats: { dmg: 1.3, rpm: 0.77, mag: 0.67 }, handling: { set: { glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 6.5, meleeCd: 1.8, thrust: 6 } } } },
+    precision: { name: 'Precision Frame', desc: 'Tight, accurate bolts that reward precision hits.', stats: { dmg: 1.25, rpm: 0.8, range: 1.1, mag: 0.83 }, handling: { set: { prec: 2.2 }, mult: { spread: 0.6 } } },
+    lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility and a faster thrust.', stats: { dmg: 0.9, rpm: 1.11, mag: 1.33 }, handling: { set: { move: 1.06, glaive: { block: 0.75, drain: 9, gain: 2.5, meleeDmg: 4.6, meleeCd: 1.2, thrust: 6.5 } } } },
   },
   trace: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: a steady beam.', stats: {} },
@@ -342,7 +342,7 @@ export const findNamed = (name, arch) => findLegendary(name, arch) || NAMED_WEAP
 /** Every perk of a column that can roll on this archetype and element. */
 export function eligiblePerks(col, arch, element, frame = null) {
   const A = ARCHETYPES[arch], slot = frameSlot(arch, frame);
-  return PERK_COLUMNS[col].filter((p) => (!PERK_SLOTS[p] || PERK_SLOTS[p].includes(slot)) && !A.noPerks?.includes(p) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element) && !(p === 'extmag' && A.mag === 1));
+  return PERK_COLUMNS[col].filter((p) => (!PERK_ARCH[p] || PERK_ARCH[p].includes(arch)) && (!PERK_SLOTS[p] || PERK_SLOTS[p].includes(slot)) && !A.noPerks?.includes(p) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element) && !(p === 'extmag' && (A.mag === 1 || FRAMES[arch]?.[frame]?.single)));
 }
 
 export const POOL_PER_COLUMN = 3;

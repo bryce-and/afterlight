@@ -305,7 +305,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
       b.torso.add(gun);
     },
     /** Super props held in third person (the third-person supers' ids), or null. */
-    setProp(type) {
+    setProp(type, hex = 0x9fe8ff) {
       for (const p of props) p.parent?.remove(p);
       props.length = 0;
       shield = null; barrier = null;
@@ -316,6 +316,13 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         // Burning Maul: a long two-handed maul
         put(R, new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x4a2e1a, flatShading: true })), 0, -0.45, 0.5);
         put(R, new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.62), glow(0xff8b2b, 3)), 0, -0.45, 1.2);
+      } else if (type === 'sword') {
+        // a held Sword: grip in the right hand, blade along the forearm's +z (upright at rest), edge glowing in the weapon's element
+        const sw = put(R, new THREE.Group(), 0, -0.46, 0);
+        sw.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.26), new THREE.MeshStandardMaterial({ color: 0x2a2d33, flatShading: true })));
+        const guard = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.07), new THREE.MeshStandardMaterial({ color: 0x9aa3ad, flatShading: true })); guard.position.z = 0.15; sw.add(guard);
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 1.25), new THREE.MeshStandardMaterial({ color: 0xdfe6ee, metalness: 0.5, roughness: 0.35, flatShading: true })); blade.position.z = 0.8; sw.add(blade);
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.17, 1.2), glow(hex, 2.2)); edge.position.z = 0.8; sw.add(edge);
       } else if (type === 'twilight') {
         // Twilight Arsenal (U9): the axe held raised in the right hand, haft along the forearm's +z
         const ax = put(R, buildVoidAxe(1.1), 0, -0.48, 0.05);
@@ -492,6 +499,25 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         b.arms[0].rotation.z = 0.1 + sw * 0.25;
         b.torso.rotation.y = -sw * 0.35;
       } else b.torso.rotation.y = towards(b.torso.rotation.y, SP ? -(SP.twist || 0) * poseT : 0, k);
+      if (pose.swordGuard && !pose.swing) { // blade held up across the body
+        b.arms[0].rotation.x = -1.7; b.arms[0].rotation.z = -0.7; b.torso.rotation.y = 0.35;
+      }
+      if (pose.swing) { // Sword: a light attack is a quick sideways slash, a heavy one a raised overhead cleave
+        const s = pose.swing, u = s.k;
+        if (!s.heavy) {
+          const e = 1 - Math.pow(1 - u, 2);
+          b.arms[0].rotation.x = -1.4 - Math.sin(u * Math.PI) * 0.15;
+          b.arms[0].rotation.z = s.dir * (0.2 + (0.9 - 1.9 * e));
+          b.torso.rotation.y = s.dir * (0.5 - 1.0 * e);
+        } else if (u < 0.4) { // wind up: the blade rises overhead
+          const w = u / 0.4;
+          b.arms[0].rotation.x = -1.4 - 1.6 * w; b.arms[0].rotation.z = 0.1; b.torso.rotation.x = -0.18 * w; b.torso.rotation.y = 0.2 * w;
+        } else { // chop down hard, then settle
+          const d = (u - 0.4) / 0.6, e = 1 - Math.pow(1 - Math.min(1, d * 1.6), 3);
+          b.arms[0].rotation.x = -3.0 + 2.6 * e; b.arms[0].rotation.z = 0.1; b.torso.rotation.x = -0.18 + 0.62 * Math.sin(Math.min(1, d * 1.6) * Math.PI * 0.6); b.torso.rotation.y = 0.2 - 0.2 * e;
+        }
+        elbow(b.arms[0]).rotation.x = -0.1;
+      }
       elbow(b.arms[0]).rotation.x = towards(elbow(b.arms[0]).rotation.x, pose.punch ? -0.1 : pose.sprint ? -0.9 : -0.15, k);
       elbow(b.arms[1]).rotation.x = towards(elbow(b.arms[1]).rotation.x, pose.sprint && gd < 0.5 ? -0.9 : -0.35, k);
       if (gun) {

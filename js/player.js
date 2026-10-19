@@ -82,7 +82,7 @@ const ARSENAL = {
   inferno: { r0: 2, r1: 5, t: 3, dmg: 0.3 }, // Prometheus Lens
   harmonic: [1, 1.35, 1.7], harmonicT: 0.8, supercharged: 6, // Wavesplitter
   judgment: { t: 1.4, stun: 1.2, penance: 2.5, burst: 40, cd: 6 }, // Divinity
-  blight: { t: 6, r: 4, tick: 0.5, dps: 0.3 }, // Witherhoard
+  blight: { t: 6, r: 4, tick: 0.5, dps: 0.3, attach: 5, attachDps: 0.12 }, // Witherhoard: the pool, and the round that sticks to a target
   quarrelHeal: 5, reanimate: 4, fan: [-0.4, 0, 0.4], fullStop: 1.25, paceGap: 0.35,
   assistCos: 0.985, beamGrace: 0.25,
 };
@@ -193,9 +193,10 @@ export class Player {
     this.showModel();
   }
   get holdingAxe() { return !this.superActive && !this.dead && this.status.has('voidaxe'); } // U9: a picked-up Twilight Arsenal axe
-  get thirdPerson() { return !this.dead && ((!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe); }
+  get holdingSword() { return !this.superActive && !this.dead && !!this.weapon?.A?.sword; } // Swords are fought in third person
+  get thirdPerson() { return !this.dead && ((!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe || this.holdingSword); }
   /** The prop held in third person: the super's id, or 'twilight' for a picked-up axe. */
-  get tpsProp() { return !this.thirdPerson ? null : this.superActive ? this.superActive.type : 'twilight'; }
+  get tpsProp() { return !this.thirdPerson ? null : this.superActive ? this.superActive.type : this.holdingAxe ? 'twilight' : 'sword'; }
 
   /** Aim direction from the eye. In third person: toward whatever is under the crosshair, so shots land where you aim. */
   aimForward(out) {
@@ -227,10 +228,12 @@ export class Player {
     b.visible = k > 0.3;
     this.viewmodel.visible = !this.dead && k < 0.3;
     const prop = this.tpsProp;
-    if (this.bodyProp !== prop) { this.bodyProp = prop; this.body.setProp(prop); }
+    const swordHex = prop === 'sword' ? ELEMENTS[wEl(this.weapon)].hex : 0, propKey = prop === 'sword' ? `sword${swordHex}` : prop;
+    if (this.bodyProp !== propKey) { this.bodyProp = propKey; this.body.setProp(prop, swordHex); }
+    const swinging = this.swingT > 0 && prop === 'sword';
     b.position.copy(this.pos);
     b.rotation.y = this.yaw + Math.PI;
-    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
+    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, swing: swinging ? { k: 1 - this.swingT / this.swingMax, heavy: !!this.swingHeavy, dir: this.swingDir || 1 } : null, swordGuard: prop === 'sword' && !!this.wGuard, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
   }
 
   /** U9: the held pose of the active third-person super (characters.js SUPER_POSES), or null. Burst supers drop it once released. */
@@ -445,12 +448,15 @@ export class Player {
       ww.bloom = Math.max(0, ww.bloom - dt * 0.06);
       if (G.time - this.lastFire > 0.5) ww.spin = Math.max(0, (ww.spin || 0) - dt * 2);
       ww.queued = Math.max(0, ww.queued - dt);
+      if (ww.eagerT > 0) ww.eagerT -= dt;
     }
     this.fightT = G.time - this.lastFire < 3 ? this.fightT + dt : 0; // Frenzy
     for (const ww of this.weapons) if (ww.has('frenzy')) { if (this.fightT >= 6) this.status.apply('frenzy', { scope: ww.idx }); else this.status.remove('frenzy', ww.idx); }
     this.kick = damp(this.kick, 0, 14, dt);
     this.punchT = Math.max(0, this.punchT - dt);
     this.swingT = Math.max(0, (this.swingT || 0) - dt);
+    this.glaiveT = Math.max(0, (this.glaiveT || 0) - dt);
+    this.updateJudgment();
     w.model.userData.flash.visible = false;
     this.superModel.userData.flash.visible = false;
 
@@ -535,6 +541,7 @@ export class Player {
       const n = Math.max(0, Math.min(nw.envy, nw.reserve, nw.mag * 2 - nw.ammo));
       nw.ammo += n; if (nw.reserve !== Infinity) nw.reserve -= n; nw.envy = 0;
     }
+    nw.eagerT = 1;
     this.switchT = this.switchMax = (this.weapon.has('hotswap') ? 0.2 : 0.42) * (peace && this.weapon.item.arch === 'smg' ? 0.5 : 1);
     this.showModel();
     sfx.swap();
@@ -937,7 +944,9 @@ export class Player {
         for (let i = 1; i <= 4; i++) after(i * 0.07, () => explode(at.clone().addScaledVector(d, i * WAVE_STEP), WAVE_RADIUS * 0.8, dmg * 0.45, wEl(w), { weapon: w, source: 'weapon', small: true }));
       }
     } else explode(p, w.A.projectile.radius, dmg, wEl(w), { weapon: w, source: 'weapon' });
-    if (w.has('torment')) this.blightZone(p, w, 1); // Witherhoard: Primeval's Torment
+    if (w.has('torment')) { // Witherhoard: Primeval's Torment. A direct hit sticks to the target; the pool lands where it dies. A miss pools where it lands.
+      if (enemy && enemy.alive) this.attachBlight(enemy, w); else this.blightZone(p, w, 1);
+    }
     // explosive hits count as weapon hits for hit perks (Bait and Switch, One for All...); applyHit never sees them
     const struck = (enemy && enemy.alive ? enemy : null) ?? enemiesNear(p, w.A.projectile.radius, 1)[0];
     if (struck) this.lootPerksOnHit(w, struck, false);
@@ -1040,6 +1049,8 @@ export class Player {
     w.ammo = Math.max(0, w.ammo - (heavy ? 2 : 1));
     w.fireCd = (60 / w.s.rpm) * (heavy ? 1.5 : 1);
     this.lastFire = G.time;
+    const eagerLunge = w.has('eager') && w.eagerT > 0; // Eager Edge: the first swing after drawing lunges much farther
+    w.eagerT = 0;
     if (this.status.has('invisible') && !w.has('exhumation')) this.status.remove('invisible');
     w.combo = G.time - (w.swingAt ?? -9) < 1.2 ? ((w.combo ?? -1) + 1) % S.combo : 0;
     w.swingAt = G.time;
@@ -1051,11 +1062,11 @@ export class Player {
     }
     if (w.has('exhumation') && (this.shadowT || 0) >= ARSENAL.exhume.shadowT) dmg *= ARSENAL.exhume.shadowMult;
     const reach = S.reach * (heavy ? 1.25 : 1);
-    const near = this.findMeleeTarget(reach * 1.7, 0.5); // lunge toward the closest target
+    const near = this.findMeleeTarget(reach * (eagerLunge ? 3.2 : 1.7), 0.5); // lunge toward the closest target
     if (near) {
       const c0 = near.center(new THREE.Vector3()), dir0 = c0.sub(this.pos).setY(0), dist = dir0.length();
       dir0.normalize();
-      const step = Math.min(S.lunge * (heavy ? 1.3 : 1), dist - near.radius - 1.2);
+      const step = Math.min(S.lunge * (heavy ? 1.3 : 1) * (eagerLunge ? 2.6 : 1), dist - near.radius - 1.2);
       if (dist > 1.8 && step > 0) this.pos.addScaledVector(dir0, step);
     }
     const flat = fwd.clone().setY(0).normalize(), c = new THREE.Vector3();
@@ -1077,7 +1088,7 @@ export class Player {
     sparks(at, el.hex, hits ? 10 : 5, 5, 0.05, 0.25);
     flare(at, el.hex, heavy ? 1.1 : 0.7, 0.14);
     if (S.cone <= -1) shockwave(this.pos.clone().setY(0.2), reach, el.hex, 0.3);
-    this.swingT = 0.32; this.swingDir = w.combo % 2 ? -1 : 1;
+    this.swingMax = this.swingT = heavy ? 0.6 : 0.34; this.swingHeavy = heavy; this.swingDir = w.combo % 2 ? -1 : 1;
     this.shake = Math.max(this.shake, heavy ? 0.14 : 0.06);
     sfx.melee();
   }
@@ -1119,7 +1130,7 @@ export class Player {
     }
     lightning(from.clone().setY(from.y + 1), to.clone().setY(to.y + 1), el.hex, 0.1);
     shockwave(to.clone().setY(0.2), 4, el.hex, 0.35);
-    this.swingT = 0.32; this.swingDir = 1;
+    this.swingMax = this.swingT = 0.32; this.swingHeavy = false; this.swingDir = 1;
     sfx.melee();
   }
 
@@ -1137,7 +1148,7 @@ export class Player {
       const from = this.eye.clone().add(new THREE.Vector3((i - 1) * 0.3, -0.2, 0));
       after(0.05 + i * 0.1, () => this.seekerSwarm(from, target, ELEMENTS.void.hex, 0.1, (q) => explode(q, 2.6, dmg, 'void', { weapon: w, source: 'weapon', small: true, debuffs: weak ? { weaken: weak } : {} })));
     }
-    this.swingT = 0.32; this.swingDir = -1;
+    this.swingMax = this.swingT = 0.32; this.swingHeavy = false; this.swingDir = -1;
     sfx.melee();
   }
 
@@ -1148,7 +1159,7 @@ export class Player {
     if (this.meleeLock > 0 || w.meleeCd > 0) { if (w.meleeCd > 0) sfx.denied(); return; }
     const slam = this.wGuard;
     this.meleeLock = 0.5; w.meleeCd = g.meleeCd; this.meleeT = 0.6;
-    this.throwFist(0.3, true);
+    this.glaiveT = this.glaiveMax = slam ? 0.6 : 0.5; this.glaiveSlam = slam; // custom Glaive animation (no fist)
     sfx.melee();
     const fwd = this.getForward(new THREE.Vector3()), flat = fwd.clone().setY(0).normalize();
     const from = this.pos.clone(), reach = g.thrust + 1.5;
@@ -1240,6 +1251,7 @@ export class Player {
     }
     if (this.status.has('supercharged', w.idx) && t > 1) e.status.apply('suppress', { t: 1 }); // Wavesplitter: sustained fire suppresses
     if (w.has('judgment') && t >= ARSENAL.judgment.t) { // Divinity: Judgment
+      if (e.remote) dealDamage(e, 0, { raw: true, judged: 1.2, element: 'arc', source: 'perk', pos: c }); else e.status.apply('judged', { t: 1.2 }); // Judgment: the bubble (precision for every player)
       if (!e.judged) { e.judged = G.time; e.status.apply('weaken', { t: 5 }); glowBurst(c, ELEMENTS.arc.hex, 12, 5, 0.1, 0.5); }
       e.status.apply('suppress', { t: ARSENAL.judgment.stun });
       if (t >= ARSENAL.judgment.penance && G.time - (e.penanceAt ?? -99) > ARSENAL.judgment.cd) { // Penance
@@ -1264,8 +1276,16 @@ export class Player {
     let life = B.t * (scale < 1 ? 0.6 : 1), tick = 0;
     const at = p.clone().setY(Math.max(0.1, p.y)), col = 0xb8c24a;
     shockwave(at.clone().setY(0.1), r, col, 0.5);
-    addTicker({ update: (dt) => {
+    // a visible pool on the ground: a glowing disc with a bright rim, pulsing until it fades
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(r, 36).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const rim = new THREE.Mesh(new THREE.RingGeometry(r * 0.92, r, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xeaff7a, transparent: true, opacity: 0.85, depthWrite: false }));
+    disc.position.copy(at).setY(at.y + 0.06); rim.position.copy(disc.position);
+    G.scene.add(disc, rim);
+    const life0 = life;
+    addTicker({ dispose() { G.scene.remove(disc, rim); disc.geometry.dispose(); rim.geometry.dispose(); disc.material.dispose(); rim.material.dispose(); }, update: (dt) => {
       life -= dt; tick -= dt;
+      const fade = Math.min(1, life / 1.2), pulse = 0.85 + Math.sin(G.time * 5) * 0.15;
+      disc.material.opacity = 0.4 * fade * pulse; rim.material.opacity = 0.85 * fade;
       if (tick <= 0) {
         tick = B.tick;
         for (const x of enemiesNear(at, r, 8)) { x.blightT = G.time + 2; dealDamage(x, dmg, { element: 'kinetic', source: 'perk', pos: x.center(new THREE.Vector3()), poison: 1.1 }); }
@@ -1273,6 +1293,41 @@ export class Player {
       }
       return life > 0;
     } });
+  }
+
+  /** Witherhoard: the round sticks to the enemy it hit and poisons it; the pool drops where it dies, or where the round runs out. */
+  attachBlight(e, w) {
+    const B = ARSENAL.blight, dmg = w.s.dmg * B.attachDps * B.tick * this.weaponDmgMult(w, false);
+    if (e.blightRound) { e.blightRound.life = B.attach; return; } // a second round only refreshes the first
+    const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), new THREE.MeshBasicMaterial({ color: 0xcfff5a }));
+    G.scene.add(orb);
+    const st = { life: B.attach }; let tick = 0;
+    e.blightRound = st;
+    const drop = () => { e.blightRound = null; this.blightZone(e.pos.clone(), w, 1); };
+    addTicker({ dispose() { G.scene.remove(orb); orb.geometry.dispose(); orb.material.dispose(); }, update: (dt) => {
+      if (!e.alive) { drop(); return false; }
+      st.life -= dt; tick -= dt;
+      e.center(orb.position); orb.position.y += 0.3; orb.rotation.y += dt * 4; orb.scale.setScalar(1 + Math.sin(G.time * 9) * 0.2);
+      if (tick <= 0) { tick = B.tick; dealDamage(e, dmg, { element: 'kinetic', source: 'perk', pos: e.center(new THREE.Vector3()), poison: 1.1 }); sparks(orb.position, 0xb8c24a, 2, 1.5, 0.05, 0.3); if (!e.alive) { drop(); return false; } }
+      if (st.life <= 0) { drop(); return false; }
+      return true;
+    } });
+  }
+
+  /** Divinity: Judgment bubbles. Every enemy with the judged debuff shows a bubble (for every player), and hits on it land as precision. */
+  updateJudgment() {
+    this.bubbles ??= new Map();
+    for (const e of G.enemies) {
+      if (!e.alive || !e.status.has('judged') || this.bubbles.has(e)) continue;
+      const r = Math.max(1.4, (e.radius || 0.6) * 2.2);
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      const ring = new THREE.Mesh(new THREE.SphereGeometry(r * 1.01, 20, 14), new THREE.MeshBasicMaterial({ color: 0xfff1c9, wireframe: true, transparent: true, opacity: 0.35, depthWrite: false }));
+      m.add(ring); G.scene.add(m); this.bubbles.set(e, m);
+    }
+    for (const [e, m] of this.bubbles) {
+      if (!e.alive || !e.status.has('judged')) { G.scene.remove(m); m.geometry.dispose(); m.material.dispose(); m.children[0].geometry.dispose(); m.children[0].material.dispose(); this.bubbles.delete(e); continue; }
+      e.center(m.position); m.rotation.y += 0.02; m.material.opacity = 0.2 + Math.sin(G.time * 6) * 0.05;
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -3106,17 +3161,35 @@ export class Player {
     let rx = this.kick * 0.1, ry = 0, rz = 0;
     if (!this.superActive) {
       if (w.reloading) {
-        const r = Math.sin(Math.PI * (1 - w.reloadT / w.reloadMax));
-        rx -= r * 0.6; vm.position.y -= r * 0.08; rz += r * 0.4;
-      }
+        const prog = 1 - w.reloadT / w.reloadMax, r = Math.sin(Math.PI * prog);
+        if (ud.barrel) { // break-action launcher: tilt, snap the barrel down, drop in a shell, close it
+          const open = prog < 0.2 ? prog / 0.2 : prog < 0.75 ? 1 : Math.max(0, 1 - (prog - 0.75) / 0.18);
+          ud.barrel.rotation.x = -0.75 * open;
+          const ins = prog > 0.3 && prog < 0.62 ? (prog - 0.3) / 0.32 : -1;
+          ud.shell.visible = ins >= 0;
+          if (ins >= 0) ud.shell.position.set(ud.shellHome.x + 0.06 * (1 - ins), ud.shellHome.y - 0.2 * (1 - ins), ud.shellHome.z);
+          rx += r * 0.35; vm.position.y -= r * 0.04; rz += r * 0.9; ry += r * 0.25; vm.position.x -= r * 0.05;
+          if (prog > 0.8 && prog < 0.86) this.kick = Math.max(this.kick, 0.08); // snap shut
+        } else { rx -= r * 0.6; vm.position.y -= r * 0.08; rz += r * 0.4; }
+      } else if (ud.barrel) { ud.barrel.rotation.x = 0; ud.shell.visible = false; }
       if (this.switchT > 0) vm.position.y -= (this.switchT / this.switchMax) * 0.35;
       if (w.A.mode === 'charge' && w.charge > 0) { vm.position.x += (Math.random() - 0.5) * 0.006 * w.charge; vm.position.y += (Math.random() - 0.5) * 0.006 * w.charge; }
     }
     ry += this.sprintT * 0.5; rx -= this.sprintT * 0.15; vm.position.x -= this.sprintT * 0.04;
     if (this.swingT > 0 && !this.superActive) { // Sword swing
-      const k = 1 - this.swingT / 0.32, p = Math.sin(k * Math.PI);
+      const k = 1 - this.swingT / (this.swingMax || 0.32), p = Math.sin(k * Math.PI);
       vm.position.x += this.swingDir * (0.18 - k * 0.36) * p; vm.position.y += p * 0.04; vm.position.z -= p * 0.2;
       rz += this.swingDir * (0.9 - k * 1.8) * p; rx -= p * 0.3;
+    }
+    if (this.glaiveT > 0 && !this.superActive && w.A.glaive) { // Glaive: a coiled-back spear thrust, or an overhead shield slam
+      const k = 1 - this.glaiveT / this.glaiveMax;
+      if (this.glaiveSlam) {
+        const up = k < 0.35 ? k / 0.35 : 0, dn = k < 0.35 ? 0 : Math.sin(Math.min(1, (k - 0.35) / 0.65) * Math.PI * 0.5);
+        vm.position.y += up * 0.14 - dn * 0.22; vm.position.z += dn * 0.1; rx += up * 0.7 - dn * 1.3;
+      } else {
+        const wind = k < 0.3 ? k / 0.3 : 0, thrust = k < 0.3 ? 0 : Math.sin(Math.min(1, (k - 0.3) / 0.7) * Math.PI);
+        vm.position.z += wind * 0.14 - thrust * 0.55; vm.position.x -= wind * 0.06; vm.position.y += thrust * 0.04; ry += wind * 0.25 - thrust * 0.3; rz -= thrust * 0.12;
+      }
     }
     if (this.wGuard && w.A.sword) { vm.position.x -= 0.12; vm.position.y += 0.05; rz -= 0.6; ry += 0.3; }
     if (this.punchT > 0) {

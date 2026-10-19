@@ -962,7 +962,7 @@ test('v1.8.2: elemental perks roll only on their element', () => {
 test('v1.8.2: weapon tuning', () => {
   eq([ARCHETYPES.auto.rpm, ARCHETYPES.fusion.rpm, ARCHETYPES.smg.range, ARCHETYPES.shotgun.range, ARCHETYPES.shotgun.dmg, ARCHETYPES.shotgun.falloff.bonus], [650, 80, 15, 9, 22, 1.15]);
   eq([ARCHETYPES.linear.dmg, ARCHETYPES.rocket.dmg, ARCHETYPES.mg.dmg, ARCHETYPES.glauncher.dmg], [580, 1210, 41, 510], 'U11: heavy damage up about 22%');
-  eq([ARCHETYPES.linear.reserve, ARCHETYPES.rocket.reserve, ARCHETYPES.mg.reserve, ARCHETYPES.glauncher.reserve], [13, 6, 180, 11], 'U11: heavy reserves cut');
+  eq([ARCHETYPES.linear.reserve, ARCHETYPES.rocket.reserve, ARCHETYPES.mg.reserve, ARCHETYPES.glauncher.reserve], [14, 8, 210, 16], 'heavy reserves (hotfix: raised)');
   // ranges: SMG short, Auto and Pulse medium, Scout long
   ok(ARCHETYPES.smg.range < ARCHETYPES.auto.range && ARCHETYPES.auto.range <= ARCHETYPES.pulse.range && ARCHETYPES.pulse.range < ARCHETYPES.scout.range, 'range bands');
 });
@@ -1183,7 +1183,7 @@ test('U11: re-slotted weapons are not double-adjusted (Acrius keeps the heavy ve
   eq(bb.slot, 'special'); eq(weaponHandling(bb).pellets, 2, 'two bolts');
 });
 test('U11: heavy ammo: reserves down, damage up, bricks a little more common (Bryce, 2026-10-19)', () => {
-  eq([ARCHETYPES.rocket.reserve, ARCHETYPES.linear.reserve, ARCHETYPES.glauncher.reserve, ARCHETYPES.mg.reserve], [6, 13, 11, 180]);
+  eq([ARCHETYPES.rocket.reserve, ARCHETYPES.linear.reserve, ARCHETYPES.glauncher.reserve, ARCHETYPES.mg.reserve], [8, 14, 16, 210]);
   eq([HEAVY_VERSION.dmg, HEAVY_VERSION.reserve], [1.7, 7]);
   eq(C.AMMO_DROP, { special: [0.10, 0.50], heavy: [0.07, 0.35] });
   ok(C.AMMO_DROP.heavy[0] > 0.05 && C.AMMO_DROP.heavy[1] > 0.30, 'heavy bricks come up from 5% and 30%');
