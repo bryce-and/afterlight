@@ -58,7 +58,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | V22 | Suicide units: Cursed Thrall (Hive), Explosive Shanks (Fallen) | U13 | Planned |
 | V23 | Harder with 3 players (retune) | U13 | Planned |
 | V24 | Taken and Scorn as full factions | U14 | Planned |
-| V25 | Music and SFX overhaul: ambient/tense/orchestral music, weightier guns and abilities, light enemy SFX | U12 | Planned |
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U21 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U25 (optional) | Planned |

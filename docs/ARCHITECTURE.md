@@ -104,6 +104,13 @@ The module map is in the README. These notes cover systems added during the over
 - `js/progression.js` holds `RARITY_GATE`, `canUseRarity`, `capRarity`, `maxRarityIndex` and `convertXp`.
 - `js/save.js` has `enforceGates` and `canEquipLevel`. Save version is 8.
 
+## Audio (`js/audio.js`, `js/music.js`) (v2.2)
+- `js/audio.js` is synthesis only. `SHOT_RECIPES` (per archetype), `ELEMENT_TINT`, `ABILITY_RECIPES` and `FACTION_SOUND` are data; new weapons, elements and factions plug into them. Group buses (weapons 22, abilities 14, enemies 8, ui 10 voice caps) feed a shared room reverb and a compressor limiter. `spatial()` gives stereo pan and distance falloff from the camera.
+- `sfx` takes an optional world position and element or faction: `sfx.shot(arch, at, el)`, `enemyShot(at, faction)`, `enemyDie`, `step` (heavy units at scale 1.35 or more), `explosion(r, at, el)`, `sword(kind)`, `reload(arch)`. Calls are safe before audio starts.
+- `js/music.js` has four sections (explore, tense, combat, boss) chosen by the pure `musicSectionFor(prev, nearest, bossDist)` with hysteresis: combat enters under 35 m and stays under 50 m; tense enters under 70 m and stays under 95 m; boss enters under 70 m and stays under 85 m. A motif variant plays every 8 bars. `stinger(kind)` covers start, clear, boss and complete. Layers only schedule while audible. Music routes through the ducking gain `musicDest`, which `duck()` drives.
+- `setEffectsVolume` drives `settings.effectsVolume` (pause menu, default 1, read with `??`, so no save version change).
+- Co-op: teammates' gunfire is placed in the world and paced by archetype rpm (capped at 600).
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
