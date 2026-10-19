@@ -120,6 +120,20 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | V69 | Twilight Arsenal axe model and third-person hold | U9 | Complete and published (v1.9): shared `buildVoidAxe` model in `js/models.js`; held in third person by the caster and when picked up; no weapon fire until thrown |
 | V70 | Hellion follows the player, lobs burning bolts, procs on any class ability; Phoenix Dive a Dawnblade class ability; Icarus Dash aspect | U9 (Phoenix Dive and Icarus Dash shipped early in H4) | Complete and published (v1.9): Hellion follows and lobs bolts: 30 direct hit, 15 splash (radius 2), burn 4 s (was 1.5), procs on any class ability. Phoenix Dive and Icarus Dash shipped in v1.8.3 |
 | V71 | Void VFX rework | U9 | Complete and published (v1.9): `voidBurst`, `voidRing` and `voidMote` in `js/effects.js`; every Void explosion implodes with a dark core and purple shell |
+| V72 | Slower leveling; rarity gates for use and drops | U10 | Complete and published (v2.0) |
 | V73 | Orbs: armor charge only with charge mods, own counter; missing Font mods | U9 | Complete and published (v1.9): armor charge only with a charge-using mod (`usesCharge` in `js/armor.js`); every orb heals 15; armor charge counter above the ability bar; Fonts for all six stats |
 | V74 | UI pass: Modify screen, more fragment slots, weapon silhouettes, wider character layout | U9 | Complete and published (v1.9): D2-style Modify screen from the subclass panel; aspects +1 fragment slot, cap 5; generic white weapon-family silhouettes in the mission HUD; character columns spaced at 50% minus 400px |
 | V79 | Warlock rifts take the subclass element color, with white particles | U9 | Complete and published (v1.9): rifts take the subclass element color, with white motes |
+
+## Future Update Implementation (Bryce, 2026-10-15)
+
+| ID | Requirement | Update | Status |
+|---|---|---|---|
+| F01 | Destination exotics replaced by level-appropriate drops (today each destination's third mission guarantees an exotic on first clear, `openChest` in `game.js`); the base-clear menu is the campaign's exotic reward | U10 | Complete and published (v2.0) |
+| F15 | Collection screen for every exotic weapon found | U10 | Complete and published (v2.0) |
+| F19 | Legendary perk columns: Magazine or Reload, Damage, Effect (enemy effects, explosions and kill payoffs); a 9-perk pool per named weapon, 3 per column; uncommon rolls column 1, rare adds one Damage or Effect perk, legendary all three; new Destiny 2 perks (today one pool per ammo slot, `PERK_POOL`) | U10 | Complete and published (v2.0) |
+| F20 | Reward-track engram rarity matches what is usable at that level (today a legendary every 3 levels, below U9's level 10 legendary gate) | U10 | Complete and published (v2.0) |
+| F21 | Named weapons at every rarity, not only legendary (today commons to rares get generated names) | U10 | Complete and published (v2.0) |
+| F22 | D2-style weapon inspect screen on right-click: the model behind, the perks that dropped | U10 | Complete and published (v2.0) |
+| F26 | Split Loot 2.0 out of Arsenal II; U9's leveling, rarity gate and reward-track work moves into it | U10 | Complete and published (v2.0) |
+| F27 | Steady Hands and Snapshot Sights leave the random rolls (no column fits them); Vampire Touch, Demolitionist and Killing Wind join the Effect column | U10 | Complete and published (v2.0) |

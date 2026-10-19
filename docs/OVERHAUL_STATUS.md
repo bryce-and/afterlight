@@ -62,14 +62,12 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U21 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U25 (optional) | Planned |
-| V72 | Slower leveling; rarity gates for use and drops | U10 | Planned |
 | V75 | Enemy cover AI: heavies never, smaller units only when not outnumbered and no heavy is near, peek and return | U13 (moved from U9) | Planned |
 
 ## Future Update Implementation (Bryce, 2026-10-15)
 
 | ID | Requirement | Update | Status |
 |---|---|---|---|
-| F01 | Destination exotics replaced by level-appropriate drops (today each destination's third mission guarantees an exotic on first clear, `openChest` in `game.js`); the base-clear menu is the campaign's exotic reward | U10 | Planned |
 | F02 | Legendary unlock animation opens a reward menu: 3 exotic armor (your class) and 3 exotic weapons, keep 1 of each | U19 | Planned |
 | F03 | Legendary: a random exotic after the final mission's boss | U19 | Planned |
 | F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U19 | Planned |
@@ -83,16 +81,9 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F12 | Role balance pass before adding them; ammo type by archetype (Rocket-Assisted Sidearms and Rocket-Assisted Pulse Rifles special) | U11 | Planned |
 | F13 | More exotic weapons with unique perks and models (24 today) | U11 | Planned |
 | F14 | A patrol zone on every destination | U17 | Planned |
-| F15 | Collection screen for every exotic weapon found | U10 | Planned |
 | F16 | Exotic Kiosk in the Tower: retrieve earned exotics at your current Light; armor rolls random stats, exotic weapons have fixed stats | U16 | Planned |
 | F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13 (variants), U19 (difficulty scaling) | Planned |
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U27 (optional) | Planned |
-| F19 | Legendary perk columns: Magazine or Reload, Damage, Effect (enemy effects, explosions and kill payoffs); a 9-perk pool per named weapon, 3 per column; uncommon rolls column 1, rare adds one Damage or Effect perk, legendary all three; new Destiny 2 perks (today one pool per ammo slot, `PERK_POOL`) | U10 | Planned |
-| F20 | Reward-track engram rarity matches what is usable at that level (today a legendary every 3 levels, below U9's level 10 legendary gate) | U10 | Planned |
-| F21 | Named weapons at every rarity, not only legendary (today commons to rares get generated names) | U10 | Planned |
-| F22 | D2-style weapon inspect screen on right-click: the model behind, the perks that dropped | U10 | Planned |
 | F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U19 | Planned |
 | F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U18, U19 | Planned |
 | F25 | Full progress reset for everyone when the campaign launches; old save backed up, settings kept | U15 | Planned |
-| F26 | Split Loot 2.0 out of Arsenal II; U9's leveling, rarity gate and reward-track work moves into it | U10 | Planned |
-| F27 | Steady Hands and Snapshot Sights leave the random rolls (no column fits them); Vampire Touch, Demolitionist and Killing Wind join the Effect column | U10 | Planned |

@@ -3,7 +3,7 @@
 The module map is in the README. These notes cover systems added during the overhaul and the rules for extending them.
 
 ## Save (`js/save.js`)
-- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 7: v3 added loadouts, v4 weapon archetypes, v5 armor stats and mods, v6 sets, shaders and characters, v7 `exoticsFound`).
+- Key `afterlight_save_v2`, `version: SAVE_VERSION` (currently 8: v3 added loadouts, v4 weapon archetypes, v5 armor stats and mods, v6 sets, shaders and characters, v7 `exoticsFound`, v8 XP on the v2.0 curve).
 - Changing the save shape means: add `MIGRATIONS[n]` (upgrades version n to n + 1 in place), bump `SAVE_VERSION`, and add a fixture test in `tools/tests.js`. `loadSave` runs the steps in order and refuses saves from a newer version without touching them.
 - Pre-overhaul saves (`afterlight_save_v1`) are copied once to `afterlight_backup_v1`, then removed. A new Guardian takes only its settings.
 - Storage is swappable (`useStorage`) so tests never touch the real save.
@@ -90,6 +90,13 @@ The module map is in the README. These notes cover systems added during the over
 
 ## Update Log / Roadmap (`js/releases.js`)
 - `RELEASES` holds shipped updates only, newest first. The title card shows `titleRelease()`, the newest major update (x.y); hotfixes (x.y.z) only add an Update Log entry and need no `art`. `ROADMAP` holds curated teasers with a status from `ROADMAP_STATUSES` and no dates. The title screen renders both; adding an entry needs no UI change. Tests check ordering, statuses and the absence of dates.
+
+## Loot 2.0 (v2.0)
+- `js/loot-ui.js` holds the Inspect and Exotic Collection screens.
+- `js/frames.js` holds `NAMED_WEAPONS`, `perkPoolFor` and `rollPerks`.
+- `js/data.js` holds `PERK_COLUMNS`, `PERK_SLOTS` and `perkColumn`.
+- `js/progression.js` holds `RARITY_GATE`, `canUseRarity`, `capRarity`, `maxRarityIndex` and `convertXp`.
+- `js/save.js` has `enforceGates` and `canEquipLevel`. Save version is 8.
 
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
