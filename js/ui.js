@@ -281,7 +281,7 @@ function renderDirector(main) {
               <div class="m-top"><span class="m-name">${mm.name}</span><span class="m-power">◆ ${mm.power}</span></div>
               <div class="m-desc">${un ? mm.desc : 'Clear the previous mission to unlock.'}</div>
               <div class="m-foot">${cl ? '<span class="tag done">Cleared</span>' : un ? '<span class="tag new">New</span>' : '<span class="tag">Locked</span>'}
-                <span class="m-boss">Boss: ${mm.boss.name}</span>${mi === 2 && !cl ? '<span class="tag exo">Exotic on first clear</span>' : ''}</div>
+                <span class="m-boss">Boss: ${mm.boss.name}</span></div>
             </button>`;
           }).join('')}
         </div>
@@ -1151,6 +1151,10 @@ export function updateHUD(dt) {
     setText(r.mag, 'wm' + i, String(w.ammo));
     setText(r.res, 'wr' + i, w.reserve === Infinity ? '∞' : String(w.reserve));
     setClass(r.el, 'wl' + i, 'low', w.ammo <= Math.ceil(w.mag * 0.25));
+    if (w.A.glaive) { // U11: the Glaive's shield energy, and a broken shield
+      r.type ??= r.el.querySelector('.w-type');
+      setText(r.type, 'wt' + i, `${ARCHETYPES[w.item.arch].name}  ·  ${w.shieldBrk > 0 ? 'Shield broken' : `Energy ${Math.round(w.energy)}%`}`);
+    }
   });
   const w = P.weapon;
   setClass(hud.reload, 'rl', 'show', !S && !w.reloading && w.ammo <= Math.ceil(w.mag * 0.25) && w.reserve > 0);

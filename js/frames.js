@@ -26,6 +26,7 @@ export const FRAMES = {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced damage and rate of fire.', stats: {} },
     highimpact: { name: 'High-Impact Frame', desc: 'Slower bursts that hit harder and reach farther.', stats: { dmg: 1.15, range: 1.15 }, handling: { set: { burstDelay: 0.36 } } },
     aggressive: { name: 'Aggressive Frame', desc: 'Fires a four-round burst. Heavy recoil.', stats: { dmg: 1.05 }, handling: { set: { burst: 4, burstDelay: 0.4 }, mult: { recoil: 1.3 } } },
+    rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Each round is rocket-propelled and bursts on impact. Slower, harder-hitting bursts.', slot: 'special', stats: { rpm: 0.667, dmg: 2.4, mag: 0.8 }, handling: { set: { burstDelay: 0.45, rocketRound: { radius: 2.0, splash: 0.45 }, reserve: 21, brick: 6 } } },
   },
   scout: {
     rapid: { name: 'Rapid-Fire Frame', desc: 'Fast rate of fire, deep magazine, lower damage per round.', stats: { rpm: 1.3, dmg: 0.78, mag: 1.25, range: 0.9 }, handling: { mult: { recoil: 0.85 } } },
@@ -76,6 +77,33 @@ export const FRAMES = {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced blast radius and velocity.', stats: {} },
     rapid: { name: 'Rapid-Fire Frame', desc: 'Fires faster with a smaller blast and a deeper magazine.', stats: { rpm: 1.25, dmg: 0.8, mag: 1.25 }, handling: { projectile: { radius: 0.9 } } },
     wave: { name: 'Compressed Wave Frame', desc: 'Grenades fly flat and burst into a wave that rolls along the ground, hitting everything in its path.', stats: { dmg: 0.34 }, handling: { set: { wave: 5 }, projectile: { gravity: 0, speed: 1.3 } } },
+    lite: { name: 'Light Launcher Frame', desc: 'Special ammo. Small, fast grenades with a tighter blast and a deeper magazine.', slot: 'special', stats: { dmg: 0.22, rpm: 1.2, mag: 1.5 }, handling: { set: { reserve: 14, brick: 3 }, projectile: { radius: 0.6, speed: 1.15 } } },
+    double: { name: 'Double-Fire Frame', desc: 'Special ammo. Launches two grenades in a short spread with every shot.', slot: 'special', stats: { dmg: 0.125, rpm: 1.0, mag: 1.25 }, handling: { set: { grenades: 2, reserve: 14, brick: 3 }, projectile: { radius: 0.55 } } },
+  },
+  sidearm: {
+    adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced damage and rate of fire.', stats: {} },
+    lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility while this weapon is held.', stats: { rpm: 1.07, dmg: 0.93, range: 0.95 }, handling: { set: { move: 1.06 } } },
+    rapid: { name: 'Rapid-Fire Frame', desc: 'Fires full-auto: fast rate of fire, deep magazine, lower damage per round.', stats: { rpm: 1.5, dmg: 0.65, mag: 1.3, range: 0.85 }, handling: { set: { mode: 'auto' }, mult: { recoil: 0.85 } } },
+    aggressive: { name: 'Aggressive Frame', desc: 'High damage, slow to fire, heavy recoil.', stats: { rpm: 0.8, dmg: 1.25, range: 1.1, mag: 0.8 }, handling: { mult: { recoil: 1.3 } } },
+    burst: { name: 'Burst Frame', desc: 'Fires a three-round burst with a pause between bursts.', stats: { rpm: 2.222, dmg: 0.94, range: 1.05 }, handling: { set: { mode: 'burst', burst: 3, burstDelay: 0.32 } } },
+    rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Rocket-propelled rounds burst on impact. Slow, heavy-hitting shots.', slot: 'special', stats: { rpm: 0.5, dmg: 2.75, mag: 0.75 }, handling: { set: { rocketRound: { radius: 2.2, splash: 0.5 }, reserve: 22, brick: 5 } } },
+  },
+  sword: {
+    aggressive: { name: 'Aggressive Frame', desc: 'A wide three-swing combo with a long lunge. Hits hard.', stats: { dmg: 1.15, rpm: 0.87 }, handling: { set: { sword: { reach: 3.9, cone: 0.5, combo: 3, lunge: 4.5, guard: 0.7, heavy: 2.2 } } } },
+    lightweight: { name: 'Lightweight Frame', desc: 'Quick swings and superior mobility while this weapon is held.', stats: { dmg: 0.85, rpm: 1.18 }, handling: { set: { move: 1.06, sword: { reach: 3.6, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.6, heavy: 2.2 } } } },
+    caster: { name: 'Caster Frame', desc: 'Every third swing throws an energy wave that travels far down range.', stats: { dmg: 0.8, rpm: 1.25 }, handling: { set: { sword: { reach: 3.6, cone: 0.55, combo: 3, lunge: 3.0, guard: 0.7, heavy: 2.2, wave: true } } } },
+    vortex: { name: 'Vortex Frame', desc: 'Spinning cuts hit everything around you, for less damage per target.', stats: { dmg: 0.62, rpm: 1.6 }, handling: { set: { sword: { reach: 3.4, cone: -1, combo: 2, lunge: 2.0, guard: 0.65, heavy: 2.0 } } } },
+  },
+  glaive: {
+    adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced shots, shield and thrust.', stats: {} },
+    aggressive: { name: 'Aggressive Frame', desc: 'Heavier bolts, slower to fire, and a harder thrust.', stats: { dmg: 1.3, rpm: 0.77 }, handling: { set: { glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 3.8, meleeCd: 1.8, thrust: 6 } } } },
+    precision: { name: 'Precision Frame', desc: 'Tight, accurate bolts that reward precision hits.', stats: { dmg: 1.25, rpm: 0.8, range: 1.1 }, handling: { set: { prec: 2.2 }, mult: { spread: 0.6 } } },
+    lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility and a faster thrust.', stats: { dmg: 0.9, rpm: 1.11 }, handling: { set: { move: 1.06, glaive: { block: 0.75, drain: 9, gain: 2.5, meleeDmg: 3.0, meleeCd: 1.2, thrust: 6.5 } } } },
+  },
+  trace: {
+    adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: a steady beam.', stats: {} },
+    rapid: { name: 'Rapid-Fire Frame', desc: 'A faster beam with a deeper battery, weaker per tick.', stats: { rpm: 1.25, dmg: 0.8, mag: 1.2 } },
+    precision: { name: 'Precision Frame', desc: 'A tight, accurate beam that rewards precision hits.', stats: { rpm: 0.87, dmg: 1.15, range: 1.1 }, handling: { set: { prec: 2.0 }, mult: { spread: 0.5 } } },
   },
 };
 
@@ -168,6 +196,32 @@ export const LEGENDARY_WEAPONS = [
   { name: 'Edge Transit', arch: 'glauncher', frame: 'adaptive', element: 'void' },
   { name: 'Regnant', arch: 'glauncher', frame: 'adaptive', element: 'void' },
   { name: 'Hullabaloo', arch: 'glauncher', frame: 'wave', element: 'arc' },
+  // U11 Arsenal II. Drang, Indebted Kindness, Falling Guillotine, Eternity's Edge, Lubrae's Ruin, Forthcoming Deviance, Judgment of Kelgorath, Backfang, Albedo Wing,
+  // Retraced Path, Hollow Denial and Path of Least Resistance are Destiny 2 names; `orig: true` marks original names where Destiny ran out.
+  { name: 'Drang', arch: 'sidearm', frame: 'burst', element: 'solar' },
+  { name: 'Indebted Kindness', arch: 'sidearm', frame: 'rocket', element: 'void' },
+  { name: 'Hollowpoint Vow', arch: 'sidearm', frame: 'rapid', element: 'arc', orig: true },
+  { name: 'Ardent Rebuke', arch: 'sidearm', frame: 'lightweight', element: 'solar', orig: true },
+  { name: 'Cinder Verdict', arch: 'sidearm', frame: 'aggressive', element: 'kinetic', orig: true },
+  { name: 'Falling Guillotine', arch: 'sword', frame: 'vortex', element: 'void' },
+  { name: "Eternity's Edge", arch: 'sword', frame: 'vortex', element: 'solar' },
+  { name: 'Wraithcleaver', arch: 'sword', frame: 'aggressive', element: 'arc', orig: true },
+  { name: 'Larkspur Edge', arch: 'sword', frame: 'caster', element: 'void', orig: true },
+  { name: 'Hearthblade', arch: 'sword', frame: 'lightweight', element: 'solar', orig: true },
+  { name: "Lubrae's Ruin", arch: 'glaive', frame: 'aggressive', element: 'solar' },
+  { name: 'Forthcoming Deviance', arch: 'glaive', frame: 'adaptive', element: 'void' },
+  { name: 'Judgment of Kelgorath', arch: 'glaive', frame: 'precision', element: 'arc' },
+  { name: 'Backfang', arch: 'glaive', frame: 'lightweight', element: 'void' },
+  { name: 'Albedo Wing', arch: 'glaive', frame: 'adaptive', element: 'solar' },
+  { name: 'Retraced Path', arch: 'trace', frame: 'adaptive', element: 'arc' },
+  { name: 'Hollow Denial', arch: 'trace', frame: 'precision', element: 'solar' },
+  { name: 'Path of Least Resistance', arch: 'trace', frame: 'rapid', element: 'void' },
+  { name: 'Fathom Line', arch: 'trace', frame: 'adaptive', element: 'void', orig: true },
+  { name: 'Kindred Salvo', arch: 'glauncher', frame: 'lite', element: 'arc', orig: true },
+  { name: 'Twin Gravity', arch: 'glauncher', frame: 'double', element: 'void', orig: true },
+  { name: 'Blightpipe', arch: 'glauncher', frame: 'lite', element: 'solar', orig: true },
+  { name: 'Ember Cadence', arch: 'pulse', frame: 'rocket', element: 'solar', orig: true },
+  { name: 'Ruinous Pace', arch: 'pulse', frame: 'rocket', element: 'arc', orig: true },
 ];
 
 // Loot 2.0 (U10): named weapons below legendary. Like legendaries, a name fixes the archetype and element.
@@ -249,6 +303,35 @@ export const NAMED_WEAPONS = [
   { name: 'Hadrian-A', rarity: 'uncommon', arch: 'glauncher', frame: 'rapid', element: 'arc' },
   { name: 'Harsh Language', rarity: 'rare', arch: 'glauncher', frame: 'adaptive', element: 'arc' },
   { name: 'Salvo GL4', rarity: 'rare', arch: 'glauncher', frame: 'adaptive', element: 'solar', orig: true },
+  // U11 Arsenal II (original names)
+  { name: 'Hollis SD1', rarity: 'common', arch: 'sidearm', frame: 'adaptive', element: 'kinetic', orig: true },
+  { name: 'Quill SD2', rarity: 'uncommon', arch: 'sidearm', frame: 'lightweight', element: 'arc', orig: true },
+  { name: 'Vanta SD3', rarity: 'uncommon', arch: 'sidearm', frame: 'burst', element: 'void', orig: true },
+  { name: 'Calder SDu', rarity: 'rare', arch: 'sidearm', frame: 'rapid', element: 'solar', orig: true },
+  { name: 'Marrow SDv', rarity: 'rare', arch: 'sidearm', frame: 'aggressive', element: 'arc', orig: true },
+  { name: 'Bellwether SDr', rarity: 'rare', arch: 'sidearm', frame: 'rocket', element: 'void', orig: true },
+  { name: 'Gladius SW1', rarity: 'common', arch: 'sword', frame: 'aggressive', element: 'arc', orig: true },
+  { name: 'Falchion SW2', rarity: 'uncommon', arch: 'sword', frame: 'lightweight', element: 'void', orig: true },
+  { name: 'Estoc SW3', rarity: 'uncommon', arch: 'sword', frame: 'caster', element: 'solar', orig: true },
+  { name: 'Claymore SWu', rarity: 'rare', arch: 'sword', frame: 'vortex', element: 'arc', orig: true },
+  { name: 'Sabre SWv', rarity: 'rare', arch: 'sword', frame: 'aggressive', element: 'void', orig: true },
+  { name: 'Pike GV1', rarity: 'common', arch: 'glaive', frame: 'adaptive', element: 'arc', orig: true },
+  { name: 'Halberd GV2', rarity: 'uncommon', arch: 'glaive', frame: 'lightweight', element: 'solar', orig: true },
+  { name: 'Partisan GV3', rarity: 'uncommon', arch: 'glaive', frame: 'aggressive', element: 'void', orig: true },
+  { name: 'Naginata GVu', rarity: 'rare', arch: 'glaive', frame: 'precision', element: 'arc', orig: true },
+  { name: 'Voulge GVv', rarity: 'rare', arch: 'glaive', frame: 'adaptive', element: 'solar', orig: true },
+  { name: 'Lumen TR1', rarity: 'common', arch: 'trace', frame: 'adaptive', element: 'arc', orig: true },
+  { name: 'Filament TR2', rarity: 'uncommon', arch: 'trace', frame: 'rapid', element: 'solar', orig: true },
+  { name: 'Strand TR3', rarity: 'uncommon', arch: 'trace', frame: 'precision', element: 'void', orig: true },
+  { name: 'Aperture TRu', rarity: 'rare', arch: 'trace', frame: 'adaptive', element: 'void', orig: true },
+  { name: 'Prism TRv', rarity: 'rare', arch: 'trace', frame: 'rapid', element: 'arc', orig: true },
+  { name: 'Mortar GLs1', rarity: 'common', arch: 'glauncher', frame: 'lite', element: 'solar', orig: true },
+  { name: 'Culver GLs2', rarity: 'uncommon', arch: 'glauncher', frame: 'double', element: 'arc', orig: true },
+  { name: 'Tamper GLs3', rarity: 'uncommon', arch: 'glauncher', frame: 'lite', element: 'void', orig: true },
+  { name: 'Parley GLsu', rarity: 'rare', arch: 'glauncher', frame: 'double', element: 'solar', orig: true },
+  { name: 'Cinder RP1', rarity: 'common', arch: 'pulse', frame: 'rocket', element: 'solar', orig: true },
+  { name: 'Kiln RP2', rarity: 'uncommon', arch: 'pulse', frame: 'rocket', element: 'arc', orig: true },
+  { name: 'Forge RPu', rarity: 'rare', arch: 'pulse', frame: 'rocket', element: 'void', orig: true },
 ];
 
 /** Named weapons of an archetype at a rarity below exotic (legendaries included). */
@@ -257,9 +340,9 @@ export const namedFor = (arch, rarity) => (rarity === 'legendary' ? legendariesF
 export const findNamed = (name, arch) => findLegendary(name, arch) || NAMED_WEAPONS.find((n) => n.name === name && n.arch === arch) || null;
 
 /** Every perk of a column that can roll on this archetype and element. */
-export function eligiblePerks(col, arch, element) {
-  const A = ARCHETYPES[arch];
-  return PERK_COLUMNS[col].filter((p) => (!PERK_SLOTS[p] || PERK_SLOTS[p].includes(A.slot)) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element) && !(p === 'extmag' && A.mag === 1));
+export function eligiblePerks(col, arch, element, frame = null) {
+  const A = ARCHETYPES[arch], slot = frameSlot(arch, frame);
+  return PERK_COLUMNS[col].filter((p) => (!PERK_SLOTS[p] || PERK_SLOTS[p].includes(slot)) && !A.noPerks?.includes(p) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element) && !(p === 'extmag' && A.mag === 1));
 }
 
 export const POOL_PER_COLUMN = 3;
@@ -274,7 +357,7 @@ export function perkPoolFor(named) {
   const rnd = () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const out = {};
   for (const col of Object.keys(PERK_COLUMNS)) {
-    const list = eligiblePerks(col, named.arch, named.element);
+    const list = eligiblePerks(col, named.arch, named.element, named.frame);
     for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
     out[col] = list.slice(0, POOL_PER_COLUMN);
   }
@@ -290,6 +373,10 @@ export function rollPerks(pool, rarity, rnd = Math.random) {
   return [];
 }
 
+/** The ammo slot a family's frame uses: Rocket-Assisted frames and special Grenade Launchers move to Special. */
+export const frameSlot = (arch, frame) => FRAMES[arch]?.[frame]?.slot ?? ARCHETYPES[arch].slot;
+/** Every family with a weapon that sits in this ammo slot. */
+export const archesForSlot = (slot) => Object.values(ARCHETYPES).filter((a) => a.slot === slot || Object.values(FRAMES[a.id] || {}).some((f) => f.slot === slot)).map((a) => a.id);
 export const framesFor = (arch) => Object.keys(FRAMES[arch] || {});
 export const legendariesFor = (arch) => LEGENDARY_WEAPONS.filter((l) => l.arch === arch);
 export const findLegendary = (name, arch) => LEGENDARY_WEAPONS.find((l) => l.name === name && l.arch === arch) || null;
@@ -305,7 +392,7 @@ export function frameFor(item) {
   return ids[h % ids.length];
 }
 
-const MOD_REPLACE = ['mode', 'burst', 'burstDelay', 'pellets', 'charge'];
+const STAT_KEYS = ['dmg', 'rpm', 'mag', 'reload', 'spread', 'range'];
 
 /** The weapon's stats: family base x archetype x rarity (exotics: x their own mods). No randomness. */
 export function weaponStats(item) {
@@ -316,7 +403,7 @@ export function weaponStats(item) {
   if (fr) Object.assign(f, fr.stats);
   if (item.rarity === 'exotic') {
     const tpl = EXOTIC_WEAPONS.find((e) => e.name === item.name);
-    for (const [k, v] of Object.entries(tpl?.mods || {})) if (!MOD_REPLACE.includes(k) && k in f) f[k] *= v;
+    for (const [k, v] of Object.entries(tpl?.mods || {})) if (STAT_KEYS.includes(k)) f[k] *= v;
   }
   const stats = {
     dmg: +(A.dmg * rar.mult * f.dmg).toFixed(1),
@@ -326,7 +413,8 @@ export function weaponStats(item) {
     spread: +(A.spread * f.spread).toFixed(4),
     range: Math.round(A.range * f.range),
   };
-  if (item.slot && item.slot !== A.slot) stats.dmg = +(stats.dmg * HEAVY_VERSION.dmg).toFixed(1);
+  // a special-ammo type re-slotted as Heavy (Acrius, old saves) hits harder; frames and exotics that set their own slot tune their own damage
+  if (item.slot === 'heavy' && A.slot !== 'heavy' && !fr?.slot) stats.dmg = +(stats.dmg * HEAVY_VERSION.dmg).toFixed(1);
   return stats;
 }
 

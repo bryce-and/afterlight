@@ -166,6 +166,8 @@ export function waveStep(alive, waveIdx, waveCount, isBoss = false) {
 // ---------- drops ----------
 // Engram chance per kill (v1.3: grunt 0.06, rusher 0.05, captain 0.3, heavy 0.45). Bosses always drop one.
 export const ENGRAM_CHANCE = { grunt: 0.02, rusher: 0.02, captain: 0.05, heavy: 0.08, boss: 1 };
+/** Ammo brick chances per kill, [normal enemy, heavy enemy]. U11: heavy bricks came up from 5% and 30%. A roll is one number: special first, then heavy. */
+export const AMMO_DROP = { special: [0.10, 0.50], heavy: [0.07, 0.35] };
 
 // ---------- thrown hammer ----------
 /**

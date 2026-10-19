@@ -1,4 +1,4 @@
-import { SLOTS, WEAPON_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, rarityIndex } from './data.js';
+import { SLOTS, WEAPON_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
@@ -101,6 +101,23 @@ function backupSettings() {
   try { return JSON.parse(store.getItem(BACKUP_KEY))?.settings ?? {}; } catch { return {}; }
 }
 
+/**
+ * U11: a weapon's stats are derived (family x archetype x rarity), so balance changes reach weapons already owned.
+ * Heavy versions made before U11 (10 reserve, bricks of 3) take the new heavy-version ammo. Returns how many weapons changed.
+ */
+export function refreshWeapons(s) {
+  let n = 0;
+  for (const it of [...(s.inventory || []), ...(s.vault || [])]) {
+    if (it.kind !== 'weapon' || !ARCHETYPES[it.arch]) continue;
+    const st = weaponStats(it);
+    let changed = JSON.stringify(st) !== JSON.stringify(it.stats);
+    if (changed) it.stats = st;
+    if (it.slot === 'heavy' && it.reserve === 10 && it.brick === 3) { it.reserve = HEAVY_VERSION.reserve; it.brick = HEAVY_VERSION.brick; changed = true; }
+    if (changed) n++;
+  }
+  return n;
+}
+
 export function loadSave() {
   if (!store) { console.error('localStorage unavailable; progress will not be saved.'); return null; }
   let raw;
@@ -124,7 +141,8 @@ export function loadSave() {
       writeSave(s);
     }
     s.settings = { ...DEFAULT_SETTINGS, ...(s.settings || {}) };
-    if (enforceGates(s)) writeSave(s);
+    const refreshed = refreshWeapons(s);
+    if (enforceGates(s) || refreshed) writeSave(s);
     return s;
   } catch (e) {
     console.error('Save file is corrupt; ignoring it.', e);

@@ -44,6 +44,11 @@ const SILHOUETTES = {
   rocket: [R(3, 5, 58, 9), R(26, 0.5, 10, 4), Pg('20 14', '25 14', '24 21', '19 21'), Pg('36 14', '41 14', '40 21', '35 21')],
   mg: [STOCK, R(12, 5, 28, 10), R(40, 8, 22, 3), R(22, 15, 11, 8), R(26, 1.5, 10, 3), GRIP],
   glauncher: [STOCK, R(12, 6, 20, 8), R(32, 6, 20, 6), 'M30 17a6 6 0 1 0 0.01 0z', GRIP],
+  // U11 Arsenal II
+  sidearm: [R(18, 5, 30, 6), R(20, 11, 22, 2.5), Pg('20 11', '27 11', '24 21', '17 21'), R(48, 6.5, 8, 2.5), R(22, 3, 3, 2), R(44, 3, 2, 2)],
+  sword: [R(2, 10, 6, 4), R(8, 10.5, 12, 3), R(20, 5, 3, 14), Pg('23 9', '54 9', '62 12', '54 15', '23 15')],
+  glaive: [R(2, 11, 40, 2.5), R(16, 8, 4, 8), Pg('42 12.25', '48 5', '62 12.25', '48 19.5')],
+  trace: [STOCK, R(12, 6, 24, 8), R(36, 7.5, 18, 5), Pg('54 6', '63 10', '54 14'), R(22, 3, 12, 3), GRIP],
 };
 /** Generic silhouette of a weapon family (an inline SVG). Throws on a family without one. */
 export function weaponSilhouette(arch) {

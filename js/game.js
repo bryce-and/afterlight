@@ -17,7 +17,7 @@ import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
-import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE } from './combat.js';
+import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, AMMO_DROP } from './combat.js';
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
@@ -515,8 +515,9 @@ export function rollDrops(e) {
   const r = Math.random();
   const heavy = e.typeId === 'heavy';
   const fs = G.player?.finderS ?? 0, fh = G.player?.finderH ?? 0; // Ammo Finder mods
-  if (r < (heavy ? 0.5 : 0.1) + fs) spawnPickup('special', pos);
-  else if (r < (heavy ? 0.8 : 0.15) + fs + fh) spawnPickup('heavy', pos);
+  const pSpecial = AMMO_DROP.special[heavy ? 1 : 0], pHeavy = AMMO_DROP.heavy[heavy ? 1 : 0];
+  if (r < pSpecial + fs) spawnPickup('special', pos);
+  else if (r < pSpecial + pHeavy + fs + fh) spawnPickup('heavy', pos);
   if (Math.random() < (ENGRAM_CHANCE[e.typeId] ?? 0)) dropEngram(pos);
   if (e.isBoss) {
     dropEngram(pos); dropEngram(pos);

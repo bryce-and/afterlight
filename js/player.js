@@ -21,7 +21,7 @@ import { weaponHandling } from './frames.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
-const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3();
+const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3(), _UP = new THREE.Vector3(0, 1, 0);
 const ray = new THREE.Raycaster();
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -52,7 +52,7 @@ function makeWeapon(item) {
     item, A, s: item.stats, has: (p) => perks.has(p), mag, ammo: mag,
     reserve: primary ? Infinity : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : Math.round(reserveBase * 1.5), brick,
     fireCd: 0, reloading: false, reloadT: 0, reloadMax: 1, burstLeft: 0, charge: 0, queued: 0, bloom: 0,
-    hitCount: 0, precHits: 0, honed: 0, el: null, voltWin: 0, voltArm: false, reconT: 0, killclipWindow: 0, killclipArm: false, model: null,
+    energy: A.glaive ? 60 : 0, beamT: 0, revStacks: 0, hitCount: 0, precHits: 0, honed: 0, el: null, voltWin: 0, voltArm: false, reconT: 0, killclipWindow: 0, killclipArm: false, model: null,
   };
 }
 
@@ -68,6 +68,22 @@ const LOOT_PERKS = {
   repulsor: 30, // Repulsor Brace overshield
   envy: 0.2, // Envious Assassin: share of the magazine banked per kill with another weapon (up to 1 magazine)
   subsistence: 0.2, alloy: 0.6, rapidHit: 0.06, adrenaline: 0.065, oneForAll: 1.35, baitSwitch: 1.35,
+};
+// U11 Arsenal II: Swords, Glaives, Trace Rifles and their exotics
+const ARSENAL = {
+  heavyT: 0.65, // hold the attack this long for a heavy swing
+  revT: 0.6, revMult: 1.3, revStacks: 5, revDmg: 0.08, revRes: 0.04, // The Lament: Banshee's Wail
+  tesseract: { need: 0.9, cost: 4, dist: 11, dmg: 3, window: 1.5, width: 2.2 }, // Worldline Zero
+  exhume: { need: 0.9, cost: 3, bolts: 3, dmg: 0.9, shadowT: 2.5, shadowMult: 1.4, invis: 8 }, // Heartshadow
+  shieldBreak: 1.5, actionDrain: 0.5, actionOver: 25, glaiveKill: 8, // Glaives
+  intent: { r: 6, hps: 6, t: 8 },
+  cold: { t: 2.5, mult: 2, trace: 1.5, frac: 0.05 }, // Coldheart
+  inferno: { r0: 2, r1: 5, t: 3, dmg: 0.3 }, // Prometheus Lens
+  harmonic: [1, 1.35, 1.7], harmonicT: 0.8, supercharged: 6, // Wavesplitter
+  judgment: { t: 1.4, stun: 1.2, penance: 2.5, burst: 40, cd: 6 }, // Divinity
+  blight: { t: 6, r: 4, tick: 0.5, dps: 0.3 }, // Witherhoard
+  quarrelHeal: 5, reanimate: 4, fan: [-0.4, 0, 0.4], fullStop: 1.25, paceGap: 0.35,
+  assistCos: 0.985, beamGrace: 0.25,
 };
 // Daybreak (H3): the first jump goes 2.5x as high (speed x sqrt 2.5), then the wings sink at this speed
 const DAYBREAK_JUMP = Math.sqrt(2.5), DAYBREAK_FALL = -1.2;
@@ -419,7 +435,9 @@ export class Player {
   updateCombat(dt) {
     const inp = G.input;
     const w = this.weapon;
+    this.wGuard = false;
     for (const ww of this.weapons) {
+      this.tickArsenal(ww, dt);
       ww.fireCd = Math.max(0, ww.fireCd - dt);
       ww.killclipWindow = Math.max(0, ww.killclipWindow - dt);
       ww.voltWin = Math.max(0, ww.voltWin - dt);
@@ -431,6 +449,7 @@ export class Player {
     for (const ww of this.weapons) if (ww.has('frenzy')) { if (this.fightT >= 6) this.status.apply('frenzy', { scope: ww.idx }); else this.status.remove('frenzy', ww.idx); }
     this.kick = damp(this.kick, 0, 14, dt);
     this.punchT = Math.max(0, this.punchT - dt);
+    this.swingT = Math.max(0, (this.swingT || 0) - dt);
     w.model.userData.flash.visible = false;
     this.superModel.userData.flash.visible = false;
 
@@ -449,6 +468,15 @@ export class Player {
       if (w.reloadT <= 0) this.finishReload(w);
     }
     const wantAds = inp.mouse.right && !w.reloading && this.punchT <= 0;
+    if (wantAds && this.canGuard(w)) this.wGuard = true; // Sword guard and Glaive shield
+    if (this.wGuard && w.A.glaive) { // the raised shield burns energy
+      w.energy = Math.max(0, w.energy - w.A.glaive.drain * (w.has('action') ? ARSENAL.actionDrain : 1) * dt);
+      if (w.energy <= 0) { w.shieldBrk = ARSENAL.shieldBreak; this.wGuard = false; sfx.playerShieldBreak(); }
+    }
+    if (w.A.sword && w.has('wail')) { // The Lament: hold Block to rev the blade
+      if (this.wGuard) { w.revT = (w.revT || 0) + dt; w.revved = w.revT >= ARSENAL.revT; }
+      else { if (w.revved) w.revHold = 1.2; w.revT = 0; w.revved = false; }
+    }
     this.adsT = damp(this.adsT, wantAds ? 1 : 0, (w.has('snapshot') ? 28 : 14) * (1 + MODS_TUNE.targetAim * (this.ap[TARGET_MOD[w.idx]] || 0)), dt);
     if (w.has('reconstruction') && !w.reloading && w.ammo < w.mag && w.reserve > 0 && G.time - this.lastFire > 4) {
       w.reconT += dt;
@@ -464,7 +492,8 @@ export class Player {
     }
     if (pressed) w.queued = 0.18;
     if (w.reloading && pressed && w.ammo > 0) w.reloading = false;
-    if (w.reloading || this.punchT > 0) { w.charge = 0; w.cburst = 0; return; }
+    if (w.reloading || this.punchT > 0) { w.charge = 0; w.cburst = 0; w.beamT = 0; return; }
+    if (A.mode === 'beam' && !held) this.beamIdle(w);
     // Aggressive Frame linear fusions: the rest of the burst follows the first bolt on the same round
     if (w.cburst > 0) {
       if (w.fireCd <= 0) { w.cburst--; w.ammo++; this.fire(w, true); }
@@ -476,7 +505,9 @@ export class Player {
       if (w.reserve > 0 && w.fireCd <= 0 && !this.sprinting) this.startReload(w); // a sprint that cancelled the reload waits
       return;
     }
-    if (A.mode === 'auto') { if (held && w.fireCd <= 0) this.fire(w); }
+    if (A.mode === 'sword') this.updateSword(w, dt, held, pressed);
+    else if (A.mode === 'beam') { if (held) this.beamHold(w, dt); }
+    else if (A.mode === 'auto') { if (held && w.fireCd <= 0) this.fire(w); }
     else if (A.mode === 'semi') {
       const auto = G.save.settings.fullAuto && held; // Full Auto setting: holding fires at the weapon's own rate
       if ((w.queued > 0 || auto) && w.fireCd <= 0) { w.queued = 0; this.fire(w); }
@@ -509,6 +540,11 @@ export class Player {
   }
 
   startReload(w) {
+    if (w.has('fundamentals') && w.ammo >= w.mag) { // Dead Messenger: reload on a full magazine cycles the element
+      w.el = VOLATILE_CYCLE[(VOLATILE_CYCLE.indexOf(wEl(w)) + 1) % VOLATILE_CYCLE.length];
+      sfx.reloadDone();
+      return;
+    }
     if (w.has('honed') && !w.honed && w.mag > 1 && w.ammo >= w.mag) {
       // Honed Edge: load the whole magazine into one shot
       w.honed = w.ammo; w.ammo = 1;
@@ -620,6 +656,7 @@ export class Player {
     if (this.status.has('oneforall', w.idx)) m *= LOOT_PERKS.oneForAll;
     if (this.status.has('baitswitch', w.idx)) m *= LOOT_PERKS.baitSwitch;
     if (crit && w.has('precise')) m *= 1.2;
+    if (w.has('fundamentals') && wEl(w) === this.cls.element) m *= 1.3; // Dead Messenger: The Fundamentals
     if (this.status.has('empower')) m *= 1.25;
     if (this.keepsGuns) m *= 1.3; // Song of Flame
     if (w.mementoShot) m *= 1.5;
@@ -665,7 +702,9 @@ export class Player {
     // firing breaks invisibility (On the Prowl still weakens with this shot); Spectral Blades keeps its own
     if (this.status.has('invisible') && this.superActive?.type !== 'spectral') { this.prowlShot = !this.prowlUsed; this.status.remove('invisible'); }
     // Opening Shot: the first shot after a pause
-    w.openShot = w.has('opening') && G.time - (w.lastShotT ?? -99) > 2;
+    const gap = G.time - (w.lastShotT ?? -99);
+    w.openShot = w.has('opening') && gap > 2;
+    w.tapShot = w.has('pace') && gap > ARSENAL.paceGap; // Forerunner: Pace Yourself
     w.lastShotT = G.time;
     // Spinning Up: sustained fire ramps the rate of fire
     if (w.has('spinup')) w.spin = Math.min(1, (w.spin || 0) + 60 / w.s.rpm * 0.9);
@@ -688,28 +727,37 @@ export class Player {
     if (this.status.has('wolves', w.idx)) w.fireCd /= 2;
     const eye = this.eye;
     const fwd = this.getForward(_fwd);
-    const spread = this.getSpread(w) * (w.openShot ? 0.4 : 1);
+    const spread = this.getSpread(w) * (w.openShot ? 0.4 : 1) * (w.tapShot ? 0.5 : 1);
     const muzzle = this.muzzlePos(new THREE.Vector3());
     const el = ELEMENTS[wEl(w)];
     if (A.projectile) {
-      const dir = applySpread(fwd.clone(), spread);
-      const flat = dir.clone().setY(0).normalize();
-      const start = eye.clone().addScaledVector(dir, 0.7).add(new THREE.Vector3(0, -0.15, 0));
-      spawnPlayerProjectile({
-        kind: A.id, pos: start, vel: dir.multiplyScalar(A.projectile.speed), gravity: A.projectile.gravity,
-        size: A.projectile.size, color: el.hex, life: 6, tracking: w.has('tracking') || !!A.tracking,
-        onHit: (p, enemy) => this.weaponExplosion(w, p, enemy, flat),
-      });
+      const n = A.grenades || 1; // Double-Fire Frame: a short spread of grenades
+      for (let gi = 0; gi < n; gi++) {
+        const dir = applySpread(fwd.clone(), spread + (n > 1 ? 0.012 : 0));
+        if (n > 1) dir.applyAxisAngle(_UP, (gi - (n - 1) / 2) * 0.05).normalize();
+        const flat = dir.clone().setY(0).normalize();
+        const start = eye.clone().addScaledVector(dir, 0.7).add(new THREE.Vector3(0, -0.15, 0));
+        spawnPlayerProjectile({
+          kind: A.id, pos: start, vel: dir.multiplyScalar(A.projectile.speed), gravity: A.projectile.gravity,
+          size: A.projectile.size, color: el.hex, life: 6, tracking: w.has('tracking') || !!A.tracking,
+          onHit: (p, enemy) => this.weaponExplosion(w, p, enemy, flat),
+        });
+      }
     } else {
       const pellets = A.pellets || 1;
+      const assist = w.has('quarrel') || w.has('concurrence'); // tracking bolts
       for (let i = 0; i < pellets; i++) {
-        const dir = applySpread(fwd.clone(), spread);
-        this.hitscan(eye, dir, w, s.dmg, muzzle, A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : {});
+        let dir = applySpread(fwd.clone(), spread);
+        if (assist) dir = this.assistDir(dir);
+        const o = A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : assist ? { tracerWidth: 0.03, tracerColor: el.hex } : {};
+        const end = this.hitscan(eye, dir, w, s.dmg, muzzle, o);
+        if (A.rocketRound) this.rocketRound(w, end, o); // Rocket-Assisted rounds burst on impact
+        if (w.has('intent') && w.energy >= 100) { w.energy = 0; this.plantTurret(end); } // Edge of Intent
       }
     }
     w.honed = 0;
     if (A.bloom) w.bloom = Math.min(0.025, w.bloom + A.bloom);
-    const rec = A.recoil * (w.has('steady') ? 0.65 : 1) * lerp(1, 0.7, this.adsT);
+    const rec = A.recoil * (w.has('steady') ? 0.65 : 1) * lerp(1, 0.7, this.adsT) * (w.tapShot ? 0.5 : 1);
     this.pitch += rec; this.recoilAcc += rec * 0.7;
     this.yaw += (Math.random() - 0.5) * rec * 0.5;
     this.kick = Math.min(1, this.kick + 0.35 + rec * 6);
@@ -759,13 +807,14 @@ export class Player {
   }
 
   applyHit(w, e, dmg, crit, point, o = {}) {
+    if (crit && w.has('fullstop') && !(e.shield > 0)) dmg *= ARSENAL.fullStop; // Forerunner: Full Stop
     const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit);
     const element = o.element ?? wEl(w);
     const prowl = !o.isSuper && this.asp.has('prowl') && !this.prowlUsed && (this.status.has('invisible') || this.prowlShot); // On the Prowl
     if (prowl) this.prowlUsed = true;
     this.prowlShot = false;
     const jolt = !o.isSuper && w.has('jolting') && this.joltingHit(w, e) ? LOOT_PERKS.joltT : 0; // Jolting Feedback
-    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt });
+    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...o.deal });
     if (o.isSuper) return res;
     w.hitCount++;
     this.lootPerksOnHit(w, e, crit);
@@ -786,6 +835,15 @@ export class Player {
         dealDamage(other, dmg * m * 0.5, { element: 'arc', source: 'perk', pos: c });
       }
     }
+    if (w.has('concurrence')) { // Edge of Concurrence: the bolt chains lightning
+      for (const other of enemiesNear(e.pos, 9, 2, e)) {
+        const c = other.center(new THREE.Vector3());
+        lightning(point, c, ELEMENTS.arc.hex, 0.03);
+        dealDamage(other, dmg * m * 0.5, { element: 'arc', source: 'perk', pos: c });
+      }
+    }
+    if (w.has('quarrel')) this.heal(ARSENAL.quarrelHeal); // Buried Bloodline: Hungering Quarrel
+    if (w.A.glaive) this.glaiveGain(w, w.A.glaive.gain);
     if (conducting && w.hitCount % 2 === 0) w.ammo = Math.min(w.mag, w.ammo + 1);
     if (w.has('regime') && w.ammo < w.mag / 2) this.heal(2);
     if (w.has('payday') && (w.spin || 0) >= 1 && Math.random() < 0.5) w.ammo = Math.min(w.mag, w.ammo + 1);
@@ -867,9 +925,21 @@ export class Player {
       const at = p.clone().setY(Math.max(0.3, restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass)) + 0.3));
       for (let i = 0; i < w.A.wave; i++) {
         const q = at.clone().addScaledVector(dir, i * WAVE_STEP);
-        after(i * 0.07, () => explode(q, WAVE_RADIUS, dmg, w.item.element, { weapon: w, source: 'weapon', small: i % 2 === 1 }));
+        after(i * 0.07, () => explode(q, WAVE_RADIUS, dmg, wEl(w), { weapon: w, source: 'weapon', small: i % 2 === 1 }));
       }
-    } else explode(p, w.A.projectile.radius, dmg, w.item.element, { weapon: w, source: 'weapon' });
+    } else if (w.A.fan && dir) {
+      // Trinary Vision: three waves roll out in a fan
+      const at = p.clone().setY(Math.max(0.3, restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass)) + 0.3));
+      explode(p, w.A.projectile.radius, dmg * 0.7, wEl(w), { weapon: w, source: 'weapon' });
+      for (const ang of ARSENAL.fan) {
+        const d = dir.clone().applyAxisAngle(_UP, ang);
+        for (let i = 1; i <= 4; i++) after(i * 0.07, () => explode(at.clone().addScaledVector(d, i * WAVE_STEP), WAVE_RADIUS * 0.8, dmg * 0.45, wEl(w), { weapon: w, source: 'weapon', small: true }));
+      }
+    } else explode(p, w.A.projectile.radius, dmg, wEl(w), { weapon: w, source: 'weapon' });
+    if (w.has('torment')) this.blightZone(p, w, 1); // Witherhoard: Primeval's Torment
+    // explosive hits count as weapon hits for hit perks (Bait and Switch, One for All...); applyHit never sees them
+    const struck = (enemy && enemy.alive ? enemy : null) ?? enemiesNear(p, w.A.projectile.radius, 1)[0];
+    if (struck) this.lootPerksOnHit(w, struck, false);
     if (w.has('cluster')) {
       for (let i = 0; i < 4; i++) {
         const off = new THREE.Vector3(Math.cos(i * 1.57) * 3, 0.5, Math.sin(i * 1.57) * 3).add(p);
@@ -886,6 +956,322 @@ export class Player {
         after(0.1 + i * 0.08, () => this.seekerSwarm(from, target, ELEMENTS[w.item.element].hex, 0.08, (q) => explode(q, 2.5, dmg * 0.35, w.item.element, { source: 'perk' })));
       }
     }
+  }
+
+
+  // -------------------------------------------------------------------------
+  // U11 Arsenal II: Swords, Glaives, Trace Rifles, and the exotics that bend them
+  // -------------------------------------------------------------------------
+  /** Per-frame upkeep for each carried weapon. */
+  tickArsenal(w, dt) {
+    w.revHold = Math.max(0, (w.revHold || 0) - dt);
+    w.tessT = Math.max(0, (w.tessT || 0) - dt);
+    w.meleeCd = Math.max(0, (w.meleeCd || 0) - dt);
+    w.shieldBrk = Math.max(0, (w.shieldBrk || 0) - dt);
+    if (w.revStackT > 0) { w.revStackT -= dt; if (w.revStackT <= 0) w.revStacks = 0; }
+    if (w === this.weapon && w.has('exhumation')) { // Heartshadow: Shot in the Dark
+      this.shadowT = this.status.has('invisible') ? (this.shadowT || 0) + dt : 0;
+    }
+  }
+
+  /** Right-click raises the Sword guard (needs ammo) or the Glaive shield (needs energy). */
+  canGuard(w) {
+    if (this.superActive) return false;
+    if (w.A.sword) return w.ammo > 0;
+    if (w.A.glaive) return w.energy > 0 && w.shieldBrk <= 0;
+    return false;
+  }
+
+  /** What the Sword guard or Glaive shield lets through from a hit in front of you. */
+  guardReduce(amount, from) {
+    const w = this.weapon;
+    if (!this.wGuard || !w || amount <= 0) return amount;
+    if (from && from.x !== undefined) { // attacks from behind get past the guard
+      const to = _v2.set(from.x - this.pos.x, 0, from.z - this.pos.z).normalize();
+      if (to.dot(this.getForward(_f).setY(0).normalize()) < 0.1) return amount;
+    }
+    sfx.block();
+    if (w.A.sword) { // each blocked hit costs one swing's worth of ammo
+      w.ammo = Math.max(0, w.ammo - 1);
+      return amount * (1 - w.A.sword.guard);
+    }
+    const g = w.A.glaive, blocked = amount * g.block;
+    w.energy = Math.max(0, w.energy - blocked * 0.1 * (w.has('action') ? ARSENAL.actionDrain : 1));
+    if (w.has('action')) this.addOvershield(Math.min(ARSENAL.actionOver, blocked * 0.5), 5); // Edge of Action
+    if (w.energy <= 0) { w.shieldBrk = ARSENAL.shieldBreak; sfx.playerShieldBreak(); }
+    return amount - blocked;
+  }
+
+  glaiveGain(w, n) { w.energy = Math.min(100, (w.energy || 0) + n); }
+
+  /** Nudges a shot toward the nearest enemy near the crosshair (tracking bolts). */
+  assistDir(dir) {
+    let best = null, bd = Infinity;
+    const c = new THREE.Vector3();
+    for (const e of G.enemies) {
+      if (!e.alive) continue;
+      e.center(c);
+      const to = c.clone().sub(this.eye), d = to.length();
+      if (d > 45 || to.normalize().dot(dir) < ARSENAL.assistCos || !hasLOS(this.eye, c)) continue;
+      if (d < bd) { bd = d; best = to; }
+    }
+    return best ? dir.lerp(best, 0.75).normalize() : dir;
+  }
+
+  // ---- Swords ----
+  updateSword(w, dt, held, pressed) {
+    if (w.has('tesseract') && pressed && w.tessT > 0 && w.tessFrom) { this.tesseractBlink(w, true); return; }
+    if (held) w.swHold = (w.swHold || 0) + dt; else w.swHold = 0;
+    if (w.queued > 0 && w.fireCd <= 0) { w.queued = 0; w.swHold = 0; this.swordSwing(w, false); return; }
+    if (held && w.swHold >= ARSENAL.heavyT && w.fireCd <= 0 && w.ammo >= 2) { w.swHold = 0; this.swordHeavy(w); }
+  }
+
+  /** A held attack: Worldline Zero blinks (sprinting) and Heartshadow vanishes (full ammo); the rest swing hard. */
+  swordHeavy(w) {
+    const full = w.ammo >= w.mag * (w.has('tesseract') ? ARSENAL.tesseract.need : ARSENAL.exhume.need);
+    if (w.has('tesseract') && this.sprinting && full) { this.tesseractBlink(w, false); return; }
+    if (w.has('exhumation') && full) { this.exhume(w); return; }
+    this.swordSwing(w, true);
+  }
+
+  swordSwing(w, heavy = false) {
+    const S = w.A.sword, fwd = this.getForward(new THREE.Vector3());
+    w.ammo = Math.max(0, w.ammo - (heavy ? 2 : 1));
+    w.fireCd = (60 / w.s.rpm) * (heavy ? 1.5 : 1);
+    this.lastFire = G.time;
+    if (this.status.has('invisible') && !w.has('exhumation')) this.status.remove('invisible');
+    w.combo = G.time - (w.swingAt ?? -9) < 1.2 ? ((w.combo ?? -1) + 1) % S.combo : 0;
+    w.swingAt = G.time;
+    const revved = w.has('wail') && (w.revved || w.revHold > 0);
+    let dmg = w.s.dmg * (heavy ? S.heavy : 1) * (revved ? ARSENAL.revMult : 1);
+    if (heavy && w.has('wail') && w.revStacks) { // Banshee's Wail: stacks power up heavy swings and harden you
+      dmg *= 1 + ARSENAL.revDmg * w.revStacks;
+      this.wailRes = ARSENAL.revRes * w.revStacks; this.wailResT = G.time + 4;
+    }
+    if (w.has('exhumation') && (this.shadowT || 0) >= ARSENAL.exhume.shadowT) dmg *= ARSENAL.exhume.shadowMult;
+    const reach = S.reach * (heavy ? 1.25 : 1);
+    const near = this.findMeleeTarget(reach * 1.7, 0.5); // lunge toward the closest target
+    if (near) {
+      const c0 = near.center(new THREE.Vector3()), dir0 = c0.sub(this.pos).setY(0), dist = dir0.length();
+      dir0.normalize();
+      const step = Math.min(S.lunge * (heavy ? 1.3 : 1), dist - near.radius - 1.2);
+      if (dist > 1.8 && step > 0) this.pos.addScaledVector(dir0, step);
+    }
+    const flat = fwd.clone().setY(0).normalize(), c = new THREE.Vector3();
+    let hits = 0;
+    for (const e of G.enemies) {
+      if (!e.alive) continue;
+      e.center(c);
+      const d = c.clone().sub(this.eye), dist = d.length();
+      if (dist > reach + e.radius) continue;
+      if (S.cone > -1 && d.normalize().dot(fwd) < S.cone) continue;
+      if (!hasLOS(this.eye, c)) continue;
+      hits++;
+      this.applyHit(w, e, dmg, false, c.clone(), { precMult: 1, deal: { knock: flat.clone().multiplyScalar(heavy ? 9 : 5), shieldBreaker: revved } });
+    }
+    if (revved && hits) { w.revStacks = Math.min(ARSENAL.revStacks, (w.revStacks || 0) + 1); w.revStackT = 6; }
+    if (S.wave && w.combo === S.combo - 1) this.swordWave(w, fwd, dmg * 0.8); // Caster Frame
+    const el = ELEMENTS[wEl(w)];
+    const at = this.eye.clone().addScaledVector(fwd, reach * 0.55);
+    sparks(at, el.hex, hits ? 10 : 5, 5, 0.05, 0.25);
+    flare(at, el.hex, heavy ? 1.1 : 0.7, 0.14);
+    if (S.cone <= -1) shockwave(this.pos.clone().setY(0.2), reach, el.hex, 0.3);
+    this.swingT = 0.32; this.swingDir = w.combo % 2 ? -1 : 1;
+    this.shake = Math.max(this.shake, heavy ? 0.14 : 0.06);
+    sfx.melee();
+  }
+
+  /** Caster Frame: a wave of energy travels down range. */
+  swordWave(w, fwd, dmg) {
+    const el = ELEMENTS[wEl(w)], c = new THREE.Vector3(), start = this.eye.clone();
+    shockwave(this.pos.clone().setY(0.2), 3, el.hex, 0.3);
+    beam(start, start.clone().addScaledVector(fwd, 22), el.hex, 0.12, 0.2);
+    for (const e of G.enemies) {
+      if (!e.alive) continue;
+      e.center(c);
+      const to = c.clone().sub(start), along = to.dot(fwd);
+      if (along < 0 || along > 22 || to.addScaledVector(fwd, -along).length() > 2 + e.radius) continue;
+      dealDamage(e, dmg, { element: wEl(w), source: 'weapon', weapon: w, pos: c.clone() });
+    }
+  }
+
+  /** Worldline Zero: Tesseract. Blink forward through a line of enemies; strike again within the window to blink back. */
+  tesseractBlink(w, back) {
+    const T = ARSENAL.tesseract, from = this.pos.clone();
+    let dx, dz, dist = T.dist;
+    if (back) { dx = w.tessFrom.x - from.x; dz = w.tessFrom.z - from.z; dist = Math.max(2, Math.hypot(dx, dz)); w.tessFrom = null; w.tessT = 0; }
+    else {
+      const f = this.getForward(new THREE.Vector3()).setY(0).normalize(); dx = f.x; dz = f.z;
+      w.ammo = Math.max(0, w.ammo - T.cost); w.tessFrom = from.clone(); w.tessT = T.window;
+    }
+    w.fireCd = 0.5;
+    const len = Math.hypot(dx, dz) || 1;
+    this.blink(dx / len, dz / len, dist);
+    const to = this.pos.clone(), seg = to.clone().sub(from).setY(0), segLen = seg.length() || 1, segDir = seg.clone().divideScalar(segLen);
+    const c = new THREE.Vector3(), el = ELEMENTS.arc;
+    for (const e of G.enemies) {
+      if (!e.alive) continue;
+      e.center(c);
+      const rel = c.clone().sub(from).setY(0), along = rel.dot(segDir);
+      if (along < -1 || along > segLen + 1 || rel.addScaledVector(segDir, -along).length() > T.width + e.radius) continue;
+      this.applyHit(w, e, w.s.dmg * T.dmg, false, c.clone(), { precMult: 1, deal: { knock: segDir.clone().multiplyScalar(8) } });
+    }
+    lightning(from.clone().setY(from.y + 1), to.clone().setY(to.y + 1), el.hex, 0.1);
+    shockwave(to.clone().setY(0.2), 4, el.hex, 0.35);
+    this.swingT = 0.32; this.swingDir = 1;
+    sfx.melee();
+  }
+
+  /** Heartshadow: Exhumation. A heavy swing at near-full ammo cloaks you and fires exploding void bolts. */
+  exhume(w) {
+    const X = ARSENAL.exhume;
+    w.ammo = Math.max(0, w.ammo - X.cost); w.fireCd = 0.8;
+    this.goInvisible(X.invis, true);
+    const weak = (this.shadowT || 0) >= X.shadowT ? 4 : 0; // Shot in the Dark: bolts fired after a long cloak weaken
+    this.shadowT = 0;
+    const dmg = w.s.dmg * X.dmg * this.weaponDmgMult(w, false);
+    const prey = enemiesNear(this.pos, 28, X.bolts);
+    for (let i = 0; i < X.bolts; i++) {
+      const target = prey.length ? prey[i % prey.length] : null;
+      const from = this.eye.clone().add(new THREE.Vector3((i - 1) * 0.3, -0.2, 0));
+      after(0.05 + i * 0.1, () => this.seekerSwarm(from, target, ELEMENTS.void.hex, 0.1, (q) => explode(q, 2.6, dmg, 'void', { weapon: w, source: 'weapon', small: true, debuffs: weak ? { weaken: weak } : {} })));
+    }
+    this.swingT = 0.32; this.swingDir = -1;
+    sfx.melee();
+  }
+
+  // ---- Glaives ----
+  /** B with a Glaive in hand: a thrust that drives through enemies; with the shield up it is a shield slam. */
+  glaiveMelee() {
+    const w = this.weapon, g = w.A.glaive;
+    if (this.meleeLock > 0 || w.meleeCd > 0) { if (w.meleeCd > 0) sfx.denied(); return; }
+    const slam = this.wGuard;
+    this.meleeLock = 0.5; w.meleeCd = g.meleeCd; this.meleeT = 0.6;
+    this.throwFist(0.3, true);
+    sfx.melee();
+    const fwd = this.getForward(new THREE.Vector3()), flat = fwd.clone().setY(0).normalize();
+    const from = this.pos.clone(), reach = g.thrust + 1.5;
+    const step = flat.clone().multiplyScalar((slam ? g.thrust * 0.5 : g.thrust) / 6);
+    for (let i = 0; i < 6; i++) moveBody(this.pos, _v2.copy(step).multiplyScalar(20), 0.05, this.radius, this.height);
+    const c = new THREE.Vector3();
+    let hits = 0;
+    for (const e of G.enemies) {
+      if (!e.alive) continue;
+      e.center(c);
+      const rel = c.clone().sub(from).setY(0), along = rel.dot(flat), side = rel.addScaledVector(flat, -along).length();
+      if (along < -0.5 || along > reach || side > (slam ? 3 : 1.8) + e.radius) continue;
+      hits++;
+      this.applyHit(w, e, w.s.dmg * g.meleeDmg * (slam ? 1.6 : 1), false, c.clone(), { element: 'kinetic', precMult: 1, deal: { knock: flat.clone().multiplyScalar(slam ? 14 : 7), ...(slam ? { suppress: 1.5 } : {}) } });
+    }
+    if (hits) this.glaiveGain(w, 10 + (slam ? 10 : 0));
+    const at = this.eye.clone().addScaledVector(fwd, 2);
+    sparks(at, ELEMENTS[wEl(w)].hex, 8, 5, 0.06, 0.3);
+    if (slam) shockwave(this.pos.clone().setY(0.2), 4, ELEMENTS[wEl(w)].hex, 0.3);
+    this.shake = Math.max(this.shake, 0.1);
+  }
+
+  /** Edge of Intent: a Healing Turret that mends you while you stay near it. */
+  plantTurret(at) {
+    const I = ARSENAL.intent, p = at.clone().setY(Math.max(0.1, at.y));
+    let life = I.t, pulse = 0;
+    glowBurst(p, ELEMENTS.solar.hex, 20, 6, 0.1, 0.6);
+    addTicker({ update: (dt) => {
+      life -= dt; pulse -= dt;
+      if (this.pos.distanceTo(p) < I.r) this.heal(I.hps * dt);
+      if (pulse <= 0) { pulse = 1; shockwave(p.clone().setY(0.1), I.r, ELEMENTS.solar.hex, 0.5); flare(p.clone().setY(p.y + 0.6), ELEMENTS.solar.hex, 0.6, 0.2); }
+      return life > 0;
+    } });
+  }
+
+  // ---- Trace Rifles ----
+  beamIdle(w) { w.beamT = 0; w.beamTarget = null; w.beamSfx = 0; w.beamAcc = 60 / w.s.rpm; }
+
+  /** Holding the trigger: ticks are paid out of elapsed time, so the damage rate does not depend on the frame rate. */
+  beamHold(w, dt) {
+    const tick = 60 / w.s.rpm;
+    w.beamAcc = Math.min((w.beamAcc ?? tick) + dt, tick * 4);
+    for (let n = 0; w.beamAcc >= tick && w.ammo > 0 && n < 4; n++) { w.beamAcc -= tick; this.fireBeam(w); }
+  }
+
+  /** One tick of a held beam: a hitscan that costs a round and gets stronger the longer it stays on a target. */
+  fireBeam(w) {
+    const A = w.A, tick = 60 / w.s.rpm;
+    if (this.status.has('invisible') && this.superActive?.type !== 'spectral') { this.prowlShot = !this.prowlUsed; this.status.remove('invisible'); }
+    w.ammo--; w.fireCd = tick; this.lastFire = G.time;
+    const fwd = this.getForward(_fwd), muzzle = this.muzzlePos(new THREE.Vector3());
+    const dir = applySpread(fwd.clone(), this.getSpread(w) * 0.5);
+    const el = ELEMENTS[wEl(w)];
+    let mult = 1;
+    if (w.has('coldfusion')) mult = 1 + (ARSENAL.cold.mult - 1) * Math.min(1, w.beamT / ARSENAL.cold.t);
+    if (w.has('harmonic')) mult = ARSENAL.harmonic[this.status.has('supercharged', w.idx) ? 2 : Math.floor(w.beamT / ARSENAL.harmonicT) % 3];
+    const o = { tracerWidth: 0.035, tracerColor: el.hex };
+    const end = this.hitscan(this.eye, dir, w, w.s.dmg * mult, muzzle, o);
+    const e = o.hit;
+    if (e && e.alive) {
+      w.beamMiss = 0;
+      if (w.beamTarget === e) w.beamT += tick; else { w.beamTarget = e; w.beamT = 0; }
+      this.beamEffects(w, e, end, mult, tick);
+    } else { // a beam that slips off its target loses its charge only after a moment
+      w.beamMiss = (w.beamMiss || 0) + tick;
+      if (w.beamMiss > ARSENAL.beamGrace) { w.beamT = 0; w.beamTarget = null; }
+    }
+    w.bloom = 0;
+    const rec = A.recoil * (w.has('steady') ? 0.65 : 1) * lerp(1, 0.7, this.adsT);
+    this.pitch += rec; this.recoilAcc += rec * 0.7; // recoilAcc is what the view settles back out of
+    this.yaw += (Math.random() - 0.5) * rec * 0.5;
+    this.kick = Math.min(1, this.kick + 0.1);
+    w.model.userData.flash.visible = true;
+    if (G.time - (w.beamSfx || 0) > 0.12) { w.beamSfx = G.time; sfx.shot('trace'); }
+  }
+
+  /** Exotic beam behavior, once per tick on the target being burned. */
+  beamEffects(w, e, end, mult, tick) {
+    const t = w.beamT, c = e.center(new THREE.Vector3());
+    if (w.has('longestwinter') && t >= ARSENAL.cold.t) { // Coldheart: Longest Winter
+      w.traceAt = w.traceAt ?? 0;
+      if (G.time >= w.traceAt) { w.traceAt = G.time + ARSENAL.cold.trace; this.ionicTrace(end, ARSENAL.cold.frac); }
+    }
+    if (w.has('inferno')) { // Prometheus Lens: a heat field grows around the target
+      const heat = Math.min(1, t / ARSENAL.inferno.t), r = ARSENAL.inferno.r0 + (ARSENAL.inferno.r1 - ARSENAL.inferno.r0) * heat;
+      for (const x of enemiesNear(e.pos, r, 6, e)) dealDamage(x, w.s.dmg * ARSENAL.inferno.dmg, { element: 'solar', source: 'perk', pos: x.center(new THREE.Vector3()), burn: heat > 0.5 ? 2.5 : 0 });
+      if (Math.random() < 0.3) shockwave(e.pos.clone().setY(0.1), r, ELEMENTS.solar.hex, 0.25);
+      if (heat > 0.5) e.status.apply('burn', { t: 2.5 });
+    }
+    if (this.status.has('supercharged', w.idx) && t > 1) e.status.apply('suppress', { t: 1 }); // Wavesplitter: sustained fire suppresses
+    if (w.has('judgment') && t >= ARSENAL.judgment.t) { // Divinity: Judgment
+      if (!e.judged) { e.judged = G.time; e.status.apply('weaken', { t: 5 }); glowBurst(c, ELEMENTS.arc.hex, 12, 5, 0.1, 0.5); }
+      e.status.apply('suppress', { t: ARSENAL.judgment.stun });
+      if (t >= ARSENAL.judgment.penance && G.time - (e.penanceAt ?? -99) > ARSENAL.judgment.cd) { // Penance
+        e.penanceAt = G.time;
+        explode(c, 3, w.s.dmg * ARSENAL.judgment.burst, 'arc', { weapon: w, source: 'weapon' });
+        lightning(c.clone().add(new THREE.Vector3(0, 12, 0)), c, ELEMENTS.arc.hex, 0.12);
+      }
+    }
+  }
+
+  /** Rocket-Assisted rounds: a burst where the round lands. */
+  rocketRound(w, end, o) {
+    const R = w.A.rocketRound, dmg = w.s.dmg * R.splash * this.weaponDmgMult(w, false);
+    explode(end, R.radius, dmg, wEl(w), { weapon: w, source: 'weapon', small: true });
+    if (!o.hit) { const near = enemiesNear(end, R.radius, 1)[0]; if (near) this.lootPerksOnHit(w, near, false); }
+  }
+
+  /** Witherhoard: a patch of blight that eats enemies standing in it. */
+  blightZone(p, w, scale = 1) {
+    const B = ARSENAL.blight, r = B.r * scale, dmg = w.s.dmg * B.dps * B.tick * this.weaponDmgMult(w, false);
+    this.blightW = w;
+    let life = B.t * (scale < 1 ? 0.6 : 1), tick = 0;
+    const at = p.clone().setY(Math.max(0.1, p.y)), col = 0xb8c24a;
+    shockwave(at.clone().setY(0.1), r, col, 0.5);
+    addTicker({ update: (dt) => {
+      life -= dt; tick -= dt;
+      if (tick <= 0) {
+        tick = B.tick;
+        for (const x of enemiesNear(at, r, 8)) { x.blightT = G.time + 2; dealDamage(x, dmg, { element: 'kinetic', source: 'perk', pos: x.center(new THREE.Vector3()), poison: 1.1 }); }
+        sparks(at.clone().add(new THREE.Vector3((Math.random() - 0.5) * r, 0.2, (Math.random() - 0.5) * r)), col, 3, 2, 0.06, 0.4);
+      }
+      return life > 0;
+    } });
   }
 
   // -------------------------------------------------------------------------
@@ -916,6 +1302,7 @@ export class Player {
     if (!chain && o.source === 'ability' && G.time < this.grenadeWin && this.meleeT <= 0) { // a grenade kill: Adrenaline Junkie at full stacks
       for (const ww of this.weapons) if (ww.has('adrenaline')) this.status.apply('adrenaline', { scope: ww.idx, stacks: 5, set: true });
     }
+    if (e.blightT > G.time && this.blightW) this.blightZone(e.pos.clone(), this.blightW, 0.6); // blighted enemies leave blight behind
     const w = o.weapon;
     if (!w) return;
     if (w.has('rampage')) this.status.apply('rampage', { add: 1, set: true });
@@ -928,7 +1315,14 @@ export class Player {
       w.ammo = Math.max(w.ammo, w.mag); w.reloading = false; this.status.apply('memento', { scope: w.idx, stacks: 6 });
     }
     if (w.has('voidheart')) explode(c, 4, 180, w.item.element === 'kinetic' ? 'void' : w.item.element, { source: 'perk' });
-    const shot = w.s.dmg * (w.A.pellets || 1); // one full shot's damage
+    const shot = w.s.dmg * (w.A.pellets || 1) * (w.A.mode === 'beam' ? 14 : 1); // one full shot's damage (a beam: about a second of it)
+    if (w.A.glaive) this.glaiveGain(w, ARSENAL.glaiveKill);
+    if (w.has('retraction')) w.ammo = Math.min(w.mag, w.ammo + Math.ceil(w.mag / 3)); // Prometheus Lens: Frame Retraction
+    if (w.has('reanimate')) { // Buried Bloodline: Violent Reanimation
+      w.killTimes = (w.killTimes || []).filter((t) => G.time - t < ARSENAL.reanimate);
+      w.killTimes.push(G.time);
+      if (w.killTimes.length >= 2) this.status.apply('devour', { t: this.voidT(8), set: true });
+    }
     if (w.has('feeding')) this.status.apply('feeding', { scope: w.idx });
     if (w.has('voltshot')) w.voltWin = 4;
     if (w.has('incandescent')) for (const x of enemiesNear(c, 5, 6)) this.dot(x, shot * 0.2, 3, 'solar', ELEMENTS.solar.hex);
@@ -1228,6 +1622,10 @@ export class Player {
       if (ap(mod)) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * ORB.energy * ap(mod));
     }
     if (ap('betteralready')) this.regenT = 0;
+    for (const ww of this.weapons) if (ww.has('supercharged')) { // Wavesplitter: Supercharged Battery
+      this.instantReload(ww);
+      this.status.apply('supercharged', { scope: ww.idx, t: ARSENAL.supercharged, set: true });
+    }
     sfx.pickupAmmo();
   }
 
@@ -1302,6 +1700,9 @@ export class Player {
       if (this.over <= 0) this.status.remove('overshield');
       if (amount <= 0) { sfx.hurt(); return; }
     }
+    amount = this.guardReduce(amount, from);
+    if (G.time < (this.wailResT || 0)) amount *= 1 - this.wailRes; // The Lament: stacks resist after a heavy swing
+    if (amount <= 0) return;
     if (this.dash > 0) amount *= 0.5;
     if (this.status.has('juggernaut')) amount *= 0.5; // Juggernaut: frontal shield while sprinting
     if (this.status.has('contraverse')) amount *= 0.8; // Contraverse Hold
@@ -1660,6 +2061,7 @@ export class Player {
   /** B: plain melee. Lunges a short way toward a close target. */
   basicMelee() {
     if (this.meleeLock > 0 || this.superActive?.type === 'nova') return;
+    if (this.weapon.A.glaive && !this.superActive) { this.glaiveMelee(); return; } // U11: a held Glaive has its own melee
     this.meleeT = 0.6;
     this.meleeLock = 0.6;
     this.throwFist(0.3, true);
@@ -2702,6 +3104,12 @@ export class Player {
       if (w.A.mode === 'charge' && w.charge > 0) { vm.position.x += (Math.random() - 0.5) * 0.006 * w.charge; vm.position.y += (Math.random() - 0.5) * 0.006 * w.charge; }
     }
     ry += this.sprintT * 0.5; rx -= this.sprintT * 0.15; vm.position.x -= this.sprintT * 0.04;
+    if (this.swingT > 0 && !this.superActive) { // Sword swing
+      const k = 1 - this.swingT / 0.32, p = Math.sin(k * Math.PI);
+      vm.position.x += this.swingDir * (0.18 - k * 0.36) * p; vm.position.y += p * 0.04; vm.position.z -= p * 0.2;
+      rz += this.swingDir * (0.9 - k * 1.8) * p; rx -= p * 0.3;
+    }
+    if (this.wGuard && w.A.sword) { vm.position.x -= 0.12; vm.position.y += 0.05; rz -= 0.6; ry += 0.3; }
     if (this.punchT > 0) {
       const k = 1 - this.punchT / this.punchMax;
       const p = Math.sin(k * Math.PI);

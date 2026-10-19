@@ -49,10 +49,15 @@ export const ARCHETYPES = {
   shotgun: { id: 'shotgun', name: 'Shotgun', slot: 'special', dmg: 22, pellets: 10, rpm: 70, mode: 'semi', mag: 5, reserve: 20, brick: 4, reload: 2.2, spread: 0.075, ads: 0.05, zoom: 1.15, prec: 1.4, range: 9, recoil: 0.08, falloff: { close: 4, bonus: 1.15, min: 0.15, span: 1 } },
   sniper: { id: 'sniper', name: 'Sniper Rifle', slot: 'special', dmg: 360, rpm: 50, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.5, spread: 0.07, ads: 0.0, zoom: 4.5, prec: 2.6, range: 150, recoil: 0.09 },
   fusion: { id: 'fusion', name: 'Fusion Rifle', slot: 'special', dmg: 52, pellets: 7, charge: 0.6, rpm: 80, mode: 'charge', mag: 5, reserve: 20, brick: 5, reload: 2.3, spread: 0.026, ads: 0.011, falloff: { close: 8, bonus: 1.15, min: 0.3, span: 1 }, zoom: 1.3, prec: 1.3, range: 28, recoil: 0.06 },
-  linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 473, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 18, brick: 4, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
-  rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 990, rpm: 40, mode: 'semi', mag: 1, reserve: 8, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
-  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 35, rpm: 720, mode: 'auto', mag: 70, reserve: 210, brick: 60, reload: 3.0, spread: 0.032, ads: 0.0072, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
-  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 418, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 4, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
+  linear: { id: 'linear', name: 'Linear Fusion Rifle', slot: 'heavy', dmg: 580, charge: 0.55, rpm: 70, mode: 'charge', mag: 6, reserve: 13, brick: 3, reload: 2.6, spread: 0.045, ads: 0.0, zoom: 2.6, prec: 2.4, range: 120, recoil: 0.07, pierce: true },
+  rocket: { id: 'rocket', name: 'Rocket Launcher', slot: 'heavy', dmg: 1210, rpm: 40, mode: 'semi', mag: 1, reserve: 6, brick: 2, reload: 2.4, spread: 0.004, ads: 0.0, zoom: 1.4, prec: 1, range: 200, recoil: 0.08, projectile: { speed: 42, gravity: 0, radius: 6.5, size: 0.18 } },
+  mg: { id: 'mg', name: 'Machine Gun', slot: 'heavy', dmg: 41, rpm: 720, mode: 'auto', mag: 70, reserve: 180, brick: 50, reload: 3.0, spread: 0.032, ads: 0.0072, zoom: 1.35, prec: 1.5, range: 45, recoil: 0.012, bloom: 0.002 },
+  glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 510, rpm: 110, mode: 'semi', mag: 4, reserve: 11, brick: 3, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
+  // U11 Arsenal II: five new behaviors. Sidearms are a primary; Swords are melee heavies; Glaives and Trace Rifles are special.
+  sidearm: { id: 'sidearm', name: 'Sidearm', slot: 'primary', dmg: 26, rpm: 360, mode: 'semi', mag: 15, reload: 1.5, spread: 0.02, ads: 0.0016, zoom: 1.25, prec: 1.7, range: 20, recoil: 0.014 },
+  sword: { id: 'sword', name: 'Sword', slot: 'heavy', dmg: 520, rpm: 90, mode: 'sword', mag: 12, reserve: 10, brick: 3, reload: 0.6, spread: 0, ads: 0, zoom: 1, prec: 1.3, range: 4, recoil: 0, sword: { reach: 3.8, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.7, heavy: 2.2 }, noPerks: ['precise', 'opening', 'outlaw', 'killclip', 'tremors', 'jolting', 'rapidhit', 'reconstruction', 'killingwind', 'feeding', 'hotswap', 'envious', 'firefly'] },
+  glaive: { id: 'glaive', name: 'Glaive', slot: 'special', dmg: 52, rpm: 300, mode: 'auto', mag: 24, reserve: 28, brick: 6, reload: 1.8, spread: 0.02, ads: 0.004, zoom: 1.25, prec: 1.5, range: 28, recoil: 0.01, glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 3.2, meleeCd: 1.6, thrust: 6 }, noPerks: ['tremors', 'jolting', 'reconstruction'] },
+  trace: { id: 'trace', name: 'Trace Rifle', slot: 'special', dmg: 15, rpm: 1020, mode: 'beam', mag: 140, reserve: 280, brick: 70, reload: 2.0, spread: 0.006, ads: 0.002, zoom: 1.4, prec: 1.4, range: 30, recoil: 0.0025, noPerks: ['tremors', 'jolting', 'rapidhit', 'adrenaline', 'reconstruction', 'envious', 'feeding'] },
 };
 
 // Damage falloff: full damage out to the weapon's range, then it drops to `min` over
@@ -127,6 +132,28 @@ export const EXOTIC_PERKS = {
   xeno: { name: 'Scorched Earth', desc: 'Every round is a solar explosion that leaves enemies burning for 3s.' },
   wolfpack: { name: 'Wolfpack Rounds', desc: 'Explosions release 4 wolfpack rounds that hunt down nearby enemies.' },
   truth: { name: "Hunter's Trace", desc: 'Rocket kills instantly reload the launcher from reserves.' },
+  // U11 Arsenal II: Destiny 2 exotics, one signature each
+  tesseract: { name: 'Tesseract', desc: 'Sprint, then swing with a full ammo reserve: blink through enemies for heavy arc damage. Swing again within 1.5s to blink back.' },
+  exhumation: { name: 'Exhumation', desc: 'A heavy swing with 90% ammo makes you invisible and fires exploding void bolts. Staying invisible for 2.5s boosts damage and makes void bolts weaken.' },
+  wail: { name: "Banshee's Wail", desc: 'Hold Block to rev the blade. Revved swings pierce shields and deal 30% more; each hit stacks (5) damage and resistance for heavy swings.' },
+  quarrel: { name: 'Hungering Quarrel', desc: 'Fires two tracking bolts per shot. Bolts that land heal you for a share of the damage.' },
+  reanimate: { name: 'Violent Reanimation', desc: 'Two kills within 4s grant Devour.' },
+  fullstop: { name: 'Full Stop', desc: 'Fires full-auto at a higher rate of fire. Precision hits deal 25% more damage to unshielded targets.' },
+  pace: { name: 'Pace Yourself', desc: 'Tap-firing (a gap of 0.35s) cuts recoil and spread by half.' },
+  torment: { name: "Primeval's Torment", desc: 'Each grenade blights the area for 6s: enemies take damage over time, and blighted enemies that die leave blight behind.' },
+  trinary: { name: 'Trinary Vision', desc: 'Grenades split into three energy waves in a fan when they hit the ground.' },
+  fundamentals: { name: 'The Fundamentals', desc: 'Reload with a full magazine to cycle Void, Solar and Arc. 30% more damage when the element matches your subclass.' },
+  concurrence: { name: 'Edge of Concurrence', desc: 'Bolts track the nearest enemy and each hit chains lightning to 2 enemies nearby for 50% damage.' },
+  action: { name: 'Edge of Action', desc: 'The shield drains half as fast, and blocked damage becomes overshield.' },
+  intent: { name: 'Edge of Intent', desc: 'At full energy, a shot plants a Healing Turret that heals you and allies within 6m for 8s.' },
+  coldfusion: { name: 'Cold Fusion', desc: 'The longer the beam stays on a target, the harder it hits, up to double damage after 2.5s.' },
+  longestwinter: { name: 'Longest Winter', desc: 'At maximum damage the beam sheds an Ionic Trace every 1.5s that restores ability energy.' },
+  inferno: { name: 'Prismatic Inferno', desc: 'A heat field grows around the target while you keep firing, burning enemies in it and applying Scorch.' },
+  retraction: { name: 'Frame Retraction', desc: 'Kills return a third of the magazine.' },
+  harmonic: { name: 'Harmonic Laser', desc: 'Damage cycles through three power levels (100%, 135%, 170%) while the trigger is held.' },
+  supercharged: { name: 'Supercharged Battery', desc: 'Picking up an Orb of Power reloads the weapon and holds maximum power for 6s. Sustained fire suppresses.' },
+  judgment: { name: 'Judgment', desc: 'Sustained fire wraps the target in a field that weakens and stuns it.' },
+  penance: { name: 'Penance', desc: 'A target held in Judgment for 2.5s is struck by a burst of arc damage.' },
 };
 // Elemental perks roll only on weapons of their element (H3).
 export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void', tremors: 'kinetic', repulsor: 'void', jolting: 'arc' };
@@ -183,9 +210,24 @@ export const EXOTIC_WEAPONS = [
   { name: 'Gjallarhorn', arch: 'rocket', element: 'solar', perks: ['wolfpack', 'tracking'], look: { body: 0xc9a046, accent: 0xff8b2b, parts: ['wolf'] }, flavor: 'Wolves run in packs.' },
   { name: 'Truth', arch: 'rocket', element: 'void', perks: ['truth', 'tracking'], look: { body: 0x2a2d33, accent: 0xb07cff, parts: ['skull'] }, flavor: 'It finds you.' },
   { name: 'The Prospector', arch: 'glauncher', element: 'arc', perks: ['cluster'], mods: { mag: 2 }, look: { body: 0xe8c840, accent: 0x5fd3ff, parts: ['hazard'] }, flavor: 'Strike it rich.' },
+  // U11 Arsenal II: real Destiny 2 exotics for the new families (perks follow Destinypedia)
+  { name: 'Worldline Zero', arch: 'sword', element: 'arc', perks: ['tesseract'], mods: { dmg: 1.05 }, look: { body: 0xcfd6e0, accent: 0x5fd3ff, parts: ['stripes'] }, flavor: 'A sword that has been everywhere you will ever stand.' },
+  { name: 'Heartshadow', arch: 'sword', element: 'void', perks: ['exhumation'], look: { body: 0x2a2236, accent: 0xb07cff, parts: ['crystal'] }, flavor: 'Whatever it cuts forgets to bleed.' },
+  { name: 'The Lament', arch: 'sword', element: 'solar', perks: ['wail'], mods: { dmg: 0.95, rpm: 1.05 }, look: { body: 0x3a2a24, accent: 0xff8b2b, parts: ['stripes'] }, flavor: 'Wield it long enough and you will hear it sing.' },
+  { name: 'Buried Bloodline', arch: 'sidearm', element: 'void', slot: 'special', perks: ['quarrel', 'reanimate'], mods: { dmg: 2.0, pellets: 2, rpm: 0.28, mag: 0.6, reserve: 18, brick: 4, rocketRound: { radius: 1.8, splash: 0.4 } }, look: { body: 0x3a2a4a, accent: 0xb07cff, parts: ['jaw'] }, flavor: 'It hunts, and it feeds.' },
+  { name: 'Forerunner', arch: 'sidearm', element: 'kinetic', perks: ['fullstop', 'pace'], mods: { mode: 'auto', rpm: 1.35, dmg: 0.74, range: 1.1 }, look: { body: 0x7a6a4a, accent: 0xffd27a, parts: ['stripes'] }, flavor: 'Made to stop whatever is in the way.' },
+  { name: 'Witherhoard', arch: 'glauncher', element: 'kinetic', slot: 'special', perks: ['torment'], mods: { dmg: 0.26, rpm: 0.9, mag: 1.25, reserve: 12, brick: 3, projectile: { speed: 30, gravity: 14, radius: 4.2, size: 0.14 } }, look: { body: 0x4a3a1e, accent: 0xb8c24a, parts: ['spikes'] }, flavor: 'Where it lands, nothing grows back.' },
+  { name: 'Dead Messenger', arch: 'glauncher', element: 'void', slot: 'special', perks: ['trinary', 'fundamentals'], mods: { dmg: 0.18, rpm: 0.85, mag: 1, reserve: 10, brick: 3, fan: 3, projectile: { speed: 36, gravity: 9, radius: 2.6, size: 0.1 } }, look: { body: 0x23283a, accent: 0xb07cff, parts: ['skull'] }, flavor: 'Some news is better left undelivered.' },
+  { name: 'Edge of Concurrence', arch: 'glaive', element: 'arc', perks: ['concurrence'], look: { body: 0xe8e4da, accent: 0x5fd3ff, parts: ['fins'] }, flavor: 'Many blades, one purpose.' },
+  { name: 'Edge of Action', arch: 'glaive', element: 'void', perks: ['action'], mods: { dmg: 0.95 }, look: { body: 0x2c3a4a, accent: 0xb07cff, parts: ['coils'] }, flavor: 'The wall that walks.' },
+  { name: 'Edge of Intent', arch: 'glaive', element: 'solar', perks: ['intent'], look: { body: 0xd8b24a, accent: 0xff8b2b, parts: ['sun'] }, flavor: 'Wherever it points, light follows.' },
+  { name: 'Coldheart', arch: 'trace', element: 'arc', perks: ['coldfusion', 'longestwinter'], mods: { dmg: 0.85 }, look: { body: 0xcfd6e0, accent: 0x5fd3ff, parts: ['stripes'] }, flavor: 'The cold gets in through the cracks.' },
+  { name: 'Prometheus Lens', arch: 'trace', element: 'solar', perks: ['inferno', 'retraction'], mods: { dmg: 0.9 }, look: { body: 0xb8742a, accent: 0xffc04a, parts: ['coils'] }, flavor: 'Steal fire. Keep stealing.' },
+  { name: 'Wavesplitter', arch: 'trace', element: 'void', perks: ['harmonic', 'supercharged'], mods: { dmg: 0.85 }, look: { body: 0x2a2236, accent: 0xb07cff, parts: ['fins'] }, flavor: 'Every wave breaks eventually.' },
+  { name: 'Divinity', arch: 'trace', element: 'arc', perks: ['judgment', 'penance'], mods: { dmg: 0.9 }, look: { body: 0xf2ecdc, accent: 0xffd27a, parts: ['crystal'] }, flavor: 'The verdict is the light.' },
 ];
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
-export const HEAVY_VERSION = { dmg: 1.4, reserve: 10, brick: 3 };
+export const HEAVY_VERSION = { dmg: 1.7, reserve: 7, brick: 2 };
 // What each exotic armor piece does. Exotic armor belongs to one class, like Destiny 2.
 export const EXOTIC_ARMOR_PERKS = {
   // Titan

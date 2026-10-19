@@ -83,6 +83,9 @@ export const sfx = {
       case 'rocket': noise({ dur: 0.6, freq: 800, freqEnd: 200, gain: 0.5 }); tone({ freq: 200, freqEnd: 80, dur: 0.4, type: 'sawtooth', gain: 0.1 }); break;
       case 'mg': noise({ dur: 0.1, freq: 2000, freqEnd: 400, gain: 0.38 }); tone({ freq: 110, freqEnd: 50, dur: 0.08, type: 'square', gain: 0.12 }); break;
       case 'glauncher': tone({ freq: 300, freqEnd: 120, dur: 0.12, type: 'square', gain: 0.16 }); noise({ dur: 0.12, freq: 900, gain: 0.3 }); break;
+      case 'sidearm': noise({ dur: 0.08, freq: 2800, freqEnd: 800, gain: 0.3 }); tone({ freq: 220, freqEnd: 90, dur: 0.06, type: 'square', gain: 0.09 }); break;
+      case 'glaive': tone({ freq: 1100, freqEnd: 400, dur: 0.09, type: 'triangle', gain: 0.14 }); noise({ dur: 0.06, freq: 4200, freqEnd: 1500, type: 'bandpass', gain: 0.18 }); break;
+      case 'trace': tone({ freq: 520, freqEnd: 480, dur: 0.14, type: 'sawtooth', gain: 0.05 }); noise({ dur: 0.1, freq: 5200, freqEnd: 3500, type: 'bandpass', gain: 0.12 }); break;
       case 'revolver': noise({ dur: 0.6, freq: 3000, freqEnd: 200, gain: 0.8 }); tone({ freq: 1400, freqEnd: 300, dur: 0.4, type: 'sawtooth', gain: 0.18 }); break;
       case 'hammer': noise({ dur: 0.25, freq: 600, freqEnd: 1800, type: 'bandpass', gain: 0.5 }); break;
       default: noise({ dur: 0.1, freq: 2000, gain: 0.3 });

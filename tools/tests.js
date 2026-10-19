@@ -11,7 +11,7 @@ import * as C from '../js/combat.js';
 import * as SC from '../js/subclass.js';
 import { ENEMY_STATUS, WEAKEN_MULT } from '../js/status.js';
 import { abilityIcon } from '../js/ability-icons.js';
-import { FRAMES, LEGENDARY_WEAPONS, framesFor, weaponStats, weaponHandling, frameFor, NAMED_WEAPONS, namedFor, perkPoolFor, rollPerks, eligiblePerks, POOL_PER_COLUMN } from '../js/frames.js';
+import { FRAMES, LEGENDARY_WEAPONS, framesFor, frameSlot, archesForSlot, weaponStats, weaponHandling, frameFor, NAMED_WEAPONS, namedFor, perkPoolFor, rollPerks, eligiblePerks, POOL_PER_COLUMN } from '../js/frames.js';
 import * as PG from '../js/progression.js';
 import { PERKS, PERK_COLUMNS, PERK_ELEMENT, PERK_SLOTS, perkColumn, perksByColumn } from '../js/data.js';
 import { ENERGY, SHIELD_ELEMENTS } from '../js/data.js';
@@ -537,14 +537,17 @@ test('lower rarities roll an archetype once and their stats follow it exactly', 
 });
 test('archetypes keep damage per second within 15% of each other in a family (Compressed Wave excepted)', () => {
   const dps = (item) => {
-    const A = weaponHandling(item), s = weaponStats(item), shot = s.dmg * (A.pellets || 1) * (A.chargeBurst || 1);
+    const A = weaponHandling(item), s = weaponStats(item), shot = s.dmg * (A.pellets || 1) * (A.chargeBurst || 1) * (A.grenades || 1);
     const cycle = A.mode === 'burst' ? ((A.burst - 1) * 60 / s.rpm + A.burstDelay) / A.burst : A.mode === 'charge' ? A.charge + 60 / s.rpm : 60 / s.rpm;
     return shot / cycle;
   };
   for (const arch of Object.keys(ARCHETYPES)) {
-    const vals = framesFor(arch).filter((f) => f !== 'wave').map((f) => [f, dps({ arch, frame: f, rarity: 'legendary', slot: ARCHETYPES[arch].slot })]);
-    const mid = vals.reduce((a, [, v]) => a + v, 0) / vals.length;
-    for (const [f, v] of vals) ok(Math.abs(v / mid - 1) <= 0.15, `${arch} ${f}: ${(v / mid).toFixed(2)}x the family average`);
+    for (const slot of ['primary', 'special', 'heavy']) { // U11: frames in another ammo slot (Rocket-Assisted, special Grenade Launchers) are balanced against their own slot
+      const vals = framesFor(arch).filter((f) => f !== 'wave' && frameSlot(arch, f) === slot).map((f) => [f, dps({ arch, frame: f, rarity: 'legendary', slot })]);
+      if (!vals.length) continue;
+      const mid = vals.reduce((a, [, v]) => a + v, 0) / vals.length;
+      for (const [f, v] of vals) ok(Math.abs(v / mid - 1) <= 0.15, `${arch} ${f} (${slot}): ${(v / mid).toFixed(2)}x the family average`);
+    }
   }
 });
 test('frame behaviors: slug fires one pellet, wave and tracking flags, lightweight moves faster, aggressive linear bursts', () => {
@@ -958,7 +961,8 @@ test('v1.8.2: elemental perks roll only on their element', () => {
 });
 test('v1.8.2: weapon tuning', () => {
   eq([ARCHETYPES.auto.rpm, ARCHETYPES.fusion.rpm, ARCHETYPES.smg.range, ARCHETYPES.shotgun.range, ARCHETYPES.shotgun.dmg, ARCHETYPES.shotgun.falloff.bonus], [650, 80, 15, 9, 22, 1.15]);
-  eq([ARCHETYPES.linear.dmg, ARCHETYPES.rocket.dmg, ARCHETYPES.mg.dmg, ARCHETYPES.glauncher.dmg], [473, 990, 35, 418], 'heavy +10%');
+  eq([ARCHETYPES.linear.dmg, ARCHETYPES.rocket.dmg, ARCHETYPES.mg.dmg, ARCHETYPES.glauncher.dmg], [580, 1210, 41, 510], 'U11: heavy damage up about 22%');
+  eq([ARCHETYPES.linear.reserve, ARCHETYPES.rocket.reserve, ARCHETYPES.mg.reserve, ARCHETYPES.glauncher.reserve], [13, 6, 180, 11], 'U11: heavy reserves cut');
   // ranges: SMG short, Auto and Pulse medium, Scout long
   ok(ARCHETYPES.smg.range < ARCHETYPES.auto.range && ARCHETYPES.auto.range <= ARCHETYPES.pulse.range && ARCHETYPES.pulse.range < ARCHETYPES.scout.range, 'range bands');
 });
@@ -1099,7 +1103,7 @@ test('U10 named weapons at every rarity: each archetype has named commons, uncom
 });
 test('U10 perk pools: 9 perks per named weapon, 3 per column, fit its slot and element, stable', () => {
   for (const n of [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS]) {
-    const pool = perkPoolFor(n), slot = ARCHETYPES[n.arch].slot;
+    const pool = perkPoolFor(n), slot = frameSlot(n.arch, n.frame);
     eq(Object.keys(pool), ['mag', 'damage', 'effect'], n.name);
     for (const c of Object.keys(pool)) {
       eq(pool[c].length, POOL_PER_COLUMN, `${n.name} ${c}`);
@@ -1137,6 +1141,93 @@ test('U10 new perk statuses exist', () => {
   eq(STATUS.adrenaline.maxStacks, 5); eq(STATUS.rapidhit.maxStacks, 5);
 });
 
+// ---------------------------------------------------------------------------
+// U11 Arsenal II
+// ---------------------------------------------------------------------------
+import { makeWeapon as makeWeaponT, makeExotic as makeExoticT } from '../js/loot.js';
+import { EXOTIC_PERKS, HEAVY_VERSION } from '../js/data.js';
+test('U11: five new behaviors in the right ammo slots; Rocket-Assisted and light Grenade Launchers sit in Special', () => {
+  eq([ARCHETYPES.sidearm.slot, ARCHETYPES.sword.slot, ARCHETYPES.glaive.slot, ARCHETYPES.trace.slot], ['primary', 'heavy', 'special', 'special']);
+  eq([ARCHETYPES.sword.mode, ARCHETYPES.trace.mode], ['sword', 'beam']);
+  ok(ARCHETYPES.glaive.glaive.block > 0 && ARCHETYPES.glaive.glaive.meleeDmg > 0, 'glaive shield and melee');
+  eq(frameSlot('pulse', 'rocket'), 'special', 'Rocket-Assisted Pulse Rifle');
+  eq(frameSlot('sidearm', 'rocket'), 'special', 'Rocket-Assisted Sidearm');
+  eq([frameSlot('glauncher', 'lite'), frameSlot('glauncher', 'double'), frameSlot('glauncher', 'adaptive')], ['special', 'special', 'heavy']);
+  eq(frameSlot('pulse', 'adaptive'), 'primary');
+  ok(weaponHandling({ arch: 'sidearm', frame: 'rocket' }).rocketRound, 'rocket rounds');
+  ok(weaponHandling({ arch: 'pulse', frame: 'rocket' }).rocketRound, 'rocket pulse rounds');
+  eq(weaponHandling({ arch: 'sidearm', frame: 'rapid' }).mode, 'auto');
+  eq(weaponHandling({ arch: 'sidearm', frame: 'burst' }).burst, 3);
+  eq(weaponHandling({ arch: 'glauncher', frame: 'double' }).grenades, 2);
+  ok(weaponHandling({ arch: 'sword', frame: 'caster' }).sword.wave, 'caster wave');
+  eq(weaponHandling({ arch: 'sword', frame: 'vortex' }).sword.cone, -1, 'vortex hits all around');
+});
+test('U11: every slot and rarity drops a weapon that really sits in that slot (no throw), for every family', () => {
+  for (const slot of ['primary', 'special', 'heavy']) for (let r = 0; r < 4; r++) for (let i = 0; i < 120; i++) {
+    const it = makeWeaponT(slot, 50, r);
+    eq(it.slot, slot, `${it.name} in ${slot}`);
+    eq(frameSlot(it.arch, it.frame), slot, `${it.name} frame slot`);
+    ok(it.stats.dmg > 0 && it.stats.mag >= 1, it.name);
+  }
+  const seen = new Set();
+  for (let i = 0; i < 600; i++) { const it = makeWeaponT('special', 50, 3); seen.add(it.arch); }
+  for (const a of ['glaive', 'trace', 'pulse', 'sidearm', 'glauncher', 'shotgun']) ok(seen.has(a), `special slot can drop ${a}`);
+  for (const [slot, arch] of [['primary', 'sidearm'], ['special', 'glaive'], ['special', 'trace'], ['heavy', 'sword']]) for (let r = 0; r < 4; r++) ok(makeWeaponT(slot, 50, r, arch).arch === arch, `${arch} at rarity ${r}`);
+});
+test('U11: re-slotted weapons are not double-adjusted (Acrius keeps the heavy version; special Grenade Launchers and Rocket-Assisted do not)', () => {
+  const acrius = makeExoticT('Legend of Acrius', 50);
+  eq(acrius.slot, 'heavy'); eq(acrius.reserve, HEAVY_VERSION.reserve, 'Acrius reserve');
+  const wh = makeExoticT('Witherhoard', 50);
+  eq(wh.slot, 'special'); ok(wh.reserve === undefined, 'no heavy-version reserve'); ok(wh.stats.dmg < ARCHETYPES.glauncher.dmg, 'special grenades hit lighter');
+  const bb = makeExoticT('Buried Bloodline', 50);
+  eq(bb.slot, 'special'); eq(weaponHandling(bb).pellets, 2, 'two bolts');
+});
+test('U11: heavy ammo: reserves down, damage up, bricks a little more common (Bryce, 2026-10-19)', () => {
+  eq([ARCHETYPES.rocket.reserve, ARCHETYPES.linear.reserve, ARCHETYPES.glauncher.reserve, ARCHETYPES.mg.reserve], [6, 13, 11, 180]);
+  eq([HEAVY_VERSION.dmg, HEAVY_VERSION.reserve], [1.7, 7]);
+  eq(C.AMMO_DROP, { special: [0.10, 0.50], heavy: [0.07, 0.35] });
+  ok(C.AMMO_DROP.heavy[0] > 0.05 && C.AMMO_DROP.heavy[1] > 0.30, 'heavy bricks come up from 5% and 30%');
+});
+test('U11: the 14 new exotics are real Destiny 2 exotics with a signature perk each, in the Exotic Collection', () => {
+  const real = {
+    'Worldline Zero': 'sword', Heartshadow: 'sword', 'The Lament': 'sword', 'Buried Bloodline': 'sidearm', Forerunner: 'sidearm', Witherhoard: 'glauncher', 'Dead Messenger': 'glauncher',
+    'Edge of Concurrence': 'glaive', 'Edge of Action': 'glaive', 'Edge of Intent': 'glaive', Coldheart: 'trace', 'Prometheus Lens': 'trace', Wavesplitter: 'trace', Divinity: 'trace',
+  };
+  eq(EXOTIC_WEAPONS.length, 24 + 14, '24 before U11');
+  for (const [name, arch] of Object.entries(real)) {
+    const e = EXOTIC_WEAPONS.find((x) => x.name === name);
+    ok(e, name); eq(e.arch, arch, `${name} family`);
+    ok(e.perks.length >= 1 && e.perks.every((p) => EXOTIC_PERKS[p]), `${name} perks defined`);
+    ok(e.look && e.look.parts.length, `${name} has its own look`);
+    const it = makeExoticT(name, 70);
+    eq(it.rarity, 'exotic'); ok(it.stats.dmg > 0, `${name} stats`);
+    eq(it.slot, e.slot || ARCHETYPES[arch].slot, `${name} slot`);
+  }
+  eq(new Set(EXOTIC_WEAPONS.map((e) => e.name)).size, EXOTIC_WEAPONS.length, 'names unique');
+  const sig = EXOTIC_WEAPONS.map((e) => e.perks[0]);
+  eq(new Set(sig).size, sig.length, 'every exotic has its own signature perk');
+});
+test('U11: new families keep ammo-bound perks off weapons they do not fit', () => {
+  for (const n of [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS].filter((x) => ['sword', 'trace', 'glaive'].includes(x.arch))) {
+    const pool = perkPoolFor(n), A = ARCHETYPES[n.arch];
+    for (const c of Object.keys(pool)) for (const p of pool[c]) ok(!A.noPerks?.includes(p), `${n.name} ${p}`);
+  }
+  const tr = ['tremors', 'jolting', 'rapidhit'];
+  for (const col of Object.keys(PERK_COLUMNS)) for (const p of eligiblePerks(col, 'trace', 'arc', 'adaptive')) ok(!tr.includes(p), `trace ${p}`);
+});
+
+
+test('U11: weapons you already own take new balance (stats are derived), and old heavy versions take the new heavy ammo', () => {
+  const old = makeWeaponT('heavy', 50, 3, 'rocket');
+  old.stats = { ...old.stats, dmg: 990 }; // stored before the U11 buff
+  const acrius = makeExoticT('Legend of Acrius', 50);
+  acrius.reserve = 10; acrius.brick = 3; // a pre-U11 heavy version
+  const save = { inventory: [old, acrius], vault: [] };
+  eq(S.refreshWeapons(save), 2);
+  eq(old.stats.dmg, weaponStats(old).dmg); ok(old.stats.dmg > 990, 'the rocket launcher hits harder');
+  eq([acrius.reserve, acrius.brick], [HEAVY_VERSION.reserve, HEAVY_VERSION.brick]);
+  eq(S.refreshWeapons(save), 0, 'stable the second time');
+});
 // ---------- runner ----------
 const out = document.getElementById('out');
 let pass = 0, fail = 0;
@@ -1146,6 +1237,7 @@ for (const t of tests) {
   catch (e) { fail++; row.className = 'fail'; row.textContent = `FAIL  ${t.name}: ${e.message}`; console.error(t.name, e); }
   out.appendChild(row);
 }
+
 const sum = document.getElementById('summary');
 sum.textContent = `${pass} passed, ${fail} failed`;
 sum.className = fail ? 'fail' : 'pass';

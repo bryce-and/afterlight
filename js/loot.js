@@ -2,7 +2,7 @@ import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLO
 import { pick, randInt } from './util.js';
 import { LIGHT_CAP } from './progression.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
-import { namedFor, perkPoolFor, rollPerks, weaponStats } from './frames.js';
+import { namedFor, perkPoolFor, rollPerks, weaponStats, frameSlot, archesForSlot } from './frames.js';
 import { SETS, setForDrop } from './style.js';
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
@@ -22,7 +22,7 @@ export function newId() {
 
 const clampPower = (p) => Math.max(1, Math.min(LIGHT_CAP, Math.round(p)));
 
-const MOD_REPLACE = ['mode', 'burst', 'burstDelay', 'pellets', 'charge'];
+const STAT_KEYS = ['dmg', 'rpm', 'mag', 'reload', 'spread', 'range'];
 
 export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
   const rar = RARITIES[rIdx];
@@ -32,9 +32,11 @@ export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
     tpl = (exoticName && EXOTIC_WEAPONS.find((e) => e.name === exoticName)) || pick(pool);
     arch = tpl.arch; element = tpl.element; name = tpl.name; exotic = tpl.perks[0]; flavor = tpl.flavor;
   } else {
-    arch = archOverride || pick(Object.values(ARCHETYPES).filter((a) => a.slot === slot)).id;
+    // U11: a frame can use another ammo slot (Rocket-Assisted, special Grenade Launchers), so a slot draws from the named weapons that really sit in it
+    const inSlot = (a) => namedFor(a, rar.id).filter((n) => frameSlot(a, n.frame) === slot);
+    arch = archOverride || pick(archesForSlot(slot).filter((a) => inSlot(a).length));
     // Loot 2.0: every rarity is a named weapon with a fixed archetype and element
-    named = pick(namedFor(arch, rar.id));
+    named = pick(inSlot(arch));
     if (!named) throw new Error(`makeWeapon: no ${rar.id} named weapon for ${arch}`);
     ({ name, frame, element } = named);
   }
@@ -44,14 +46,14 @@ export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
   if (tpl) {
     // exotics: fixed signature perks and their own handling
     mods = {};
-    for (const [k, v] of Object.entries(tpl.mods || {})) if (MOD_REPLACE.includes(k)) mods[k] = v;
+    for (const [k, v] of Object.entries(tpl.mods || {})) if (!STAT_KEYS.includes(k)) mods[k] = v;
   } else {
     perks = rollPerks(perkPoolFor(named), rar.id);
   }
   const item = { id: newId(), kind: 'weapon', slot: tpl?.slot || slot, arch, frame, element, rarity: rar.id, name, power: clampPower(power), stats: null, perks, exotic, flavor, isNew: true };
   if (tpl) { item.exoticPerks = [...tpl.perks]; item.mods = mods; }
   item.stats = weaponStats(item); // includes the heavy-slot damage bonus
-  if (item.slot !== A.slot) heavyVersion(item);
+  if (item.slot === 'heavy' && A.slot !== 'heavy' && frameSlot(arch, frame) === A.slot) heavyVersion(item);
   return item;
 }
 

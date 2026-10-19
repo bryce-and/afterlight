@@ -4,6 +4,24 @@
 
 export const RELEASES = [
   {
+    version: '2.1', name: 'Arsenal II', date: '2026-10-19', accent: '#7fd8ff', glyph: '⌖',
+    summary: 'Five new ways to fight: Swords, Sidearms, Glaives, Trace Rifles and special-ammo Grenade Launchers, plus 14 real Destiny exotics to chase and heavier hits with leaner heavy ammo.',
+    notes: [
+      'Swords (Heavy): tap to swing, hold for a heavy swing, hold Block to guard. A blocked hit costs one swing of ammo. Frames: Aggressive, Lightweight, Caster (every third swing throws a wave) and Vortex (spinning cuts hit everything around you)',
+      'Sidearms (Primary): fast, short-range, in Adaptive, Lightweight, Rapid-Fire, Aggressive, Burst and Rocket-Assisted frames. Rocket-Assisted Sidearms and Pulse Rifles use Special ammo and burst on impact',
+      'Glaives (Special): short-range bolts that build energy, with a frontal shield on Block. While a Glaive is in your hands, B is a glaive thrust instead of the quick melee, and a shield slam with the shield up',
+      'Trace Rifles (Special): hold the trigger for a continuous beam that spends a round per tick',
+      'Light Launcher and Double-Fire Grenade Launchers use Special ammo. Ammo type now belongs to the archetype, not the family',
+      'Every new weapon has named Common to Legendary versions with the Magazine, Damage and Effect perk columns',
+      '14 new exotics, all from Destiny 2: Worldline Zero, Heartshadow, The Lament, Buried Bloodline, Forerunner, Witherhoard, Dead Messenger, Edge of Concurrence, Edge of Action, Edge of Intent, Coldheart, Prometheus Lens, Wavesplitter and Divinity. Each has its own perk and model, and the Exotic Collection lists them',
+      'Heavy weapons hit about 20% harder but carry less ammo: Rocket Launcher 6, Linear Fusion 13, Grenade Launcher 11, Machine Gun 180. Heavy ammo drops a little more often',
+      'Weapons you already own take the new heavy numbers when you load the game',
+      'Fixed: Bait and Switch now counts rocket and grenade hits, so it can trigger with an explosive Heavy',
+      'The destination screen no longer says an exotic comes on the first clear',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="a2Bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#08101c"/><stop offset="1" stop-color="#2a1530"/></linearGradient><radialGradient id="a2Glow" cx="0.72" cy="0.38" r="0.6"><stop offset="0" stop-color="#7fd8ff" stop-opacity="0.45"/><stop offset="1" stop-color="#7fd8ff" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#a2Bg)"/><rect width="320" height="180" fill="url(#a2Glow)"/><g stroke-linecap="round"><path d="M28 138 L292 52" stroke="#7fd8ff" stroke-opacity="0.18" stroke-width="12"/><path d="M28 138 L292 52" stroke="#7fd8ff" stroke-opacity="0.5" stroke-width="5"/><path d="M28 138 L292 52" stroke="#e8fbff" stroke-width="2"/></g><g><path d="M64 150 L136 54 L146 60 L78 156 Z" fill="#c9d3e2"/><path d="M136 54 L150 34 L146 60 Z" fill="#fff"/><path d="M58 146 L84 164 L80 168 L54 150 Z" fill="#ff8b2b"/><path d="M70 152 L82 160" stroke="#3a2418" stroke-width="5"/></g><g><path d="M196 164 L262 82" stroke="#8a93a6" stroke-width="5"/><path d="M262 82 L290 56 L274 96 Z" fill="#ffd27a"/><circle cx="214" cy="140" r="11" fill="none" stroke="#b07cff" stroke-width="3" stroke-opacity="0.85"/></g><g fill="#ff8b2b"><circle cx="232" cy="118" r="2.4"/><circle cx="246" cy="132" r="1.8"/><circle cx="120" cy="40" r="2"/><circle cx="96" cy="30" r="1.4"/></g></svg>',
+  },
+  {
     version: '2.0', name: 'Decrypted', date: '2026-10-19', accent: '#a066ea', glyph: '⬢',
     summary: 'Loot 2.0. Every weapon has a name, perks come in Destiny 2 columns, rarity is tied to your level, and you can finally take a proper look at what dropped.',
     notes: [

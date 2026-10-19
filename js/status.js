@@ -74,6 +74,7 @@ export const STATUS = {
   memento: { name: 'Memento Mori', group: 'weapon', glyph: '♠', color: '#ffffff', t: Infinity, maxStacks: 99, exotic: true },
   wolves: { name: 'Release the Wolves', group: 'weapon', glyph: '◆', color: '#f4c542', t: 6, exotic: true },
   merciless: { name: 'Merciless', group: 'weapon', glyph: '◆', color: '#f4c542', t: 4, exotic: true },
+  supercharged: { name: 'Max Power', group: 'weapon', glyph: '◆', color: '#b07cff', t: 6, exotic: true },
   conductor: { name: 'Arc Conductor', group: 'weapon', glyph: '◆', color: '#f4c542', t: 6, exotic: true },
   // weapon procs (short flash)
   whitenail: { name: 'White Nail', group: 'weapon', glyph: '◆', color: '#f4c542', t: 1.5, exotic: true },

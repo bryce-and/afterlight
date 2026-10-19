@@ -366,6 +366,56 @@ function buildBaseGun(item, look) {
       ironSights(k, dark, S, -0.02, 0.045, 0.47, 0.054, 0xff9a3c);
       return finish(g, { muzzleF: 0.5, muzzleY: 0.02, S, hip: [0.22, -0.2, -0.5], ads: 0.34, flash: fc });
     }
+    case 'sidearm': {
+      S = 0.052;
+      P([[-0.05, 0.03], [0.14, 0.03], [0.15, 0.012], [0.15, -0.015], [-0.05, -0.02]], 0.03, body);
+      P([[0.0, -0.015], [0.13, -0.015], [0.13, -0.032], [0.0, -0.032]], 0.026, mid);
+      P([[-0.035, -0.025], [0.015, -0.025], [-0.01, -0.12], [-0.07, -0.115]], 0.032, gripM);
+      triggerGuard(k, dark, steel, 0.0, -0.028);
+      for (let i = 0; i < 4; i++) B(0.034, 0.02, 0.006, 0, 0.012, -0.045 + i * 0.012, dark);
+      B(0.032, 0.005, 0.1, 0, 0.032, 0.06, glow);
+      T(0.008, 0.05, 0, 0.008, 0.172, steel, 6);
+      ironSights(k, dark, S, -0.04, 0.03, 0.14, 0.032);
+      return finish(g, { muzzleF: 0.2, muzzleY: 0.008, S, hip: [0.17, -0.18, -0.4], ads: 0.3, flash: fc });
+    }
+    case 'sword': {
+      S = 0.06;
+      B(0.03, 0.03, 0.2, 0, 0, -0.06, gripM); // grip
+      B(0.04, 0.04, 0.05, 0, 0, -0.18, steel); // pommel
+      B(0.2, 0.026, 0.035, 0, 0, 0.06, mid); // crossguard
+      B(0.045, 0.045, 0.05, 0, 0, 0.06, body);
+      P([[0.09, 0.04], [0.8, 0.036], [1.02, 0.0], [0.8, -0.036], [0.09, -0.04]], 0.014, body); // tapered blade, edge toward the camera
+      B(0.016, 0.012, 0.66, 0, 0.034, 0.44, glow); // edge glow
+      B(0.016, 0.012, 0.66, 0, -0.034, 0.44, glow);
+      B(0.018, 0.022, 0.6, 0, 0.0, 0.42, dark); // fuller
+      return finish(g, { muzzleF: 1.02, muzzleY: 0, S, hip: [0.2, -0.2, -0.42], ads: 0.36, flash: fc, gripF: -0.06 });
+    }
+    case 'glaive': {
+      S = 0.07;
+      B(0.026, 0.026, 1.0, 0, 0, 0.28, mid); // haft
+      B(0.03, 0.03, 0.34, 0, 0, 0.1, gripM);
+      T(0.075, 0.03, 0, 0, 0.2, mid, 12); // shield emitter
+      T(0.06, 0.034, 0, 0, 0.2, glow, 12);
+      B(0.034, 0.034, 0.12, 0, 0, 0.74, steel); // collar
+      P([[0.76, 0.085], [1.08, 0.0], [0.76, -0.085], [0.84, 0.0]], 0.014, body); // blade head
+      P([[0.8, 0.045], [1.0, 0.0], [0.8, -0.045], [0.86, 0.0]], 0.016, glow);
+      B(0.04, 0.012, 0.16, 0, 0.0, 0.0, glow);
+      ironSights(k, dark, S, -0.02, 0.026, 0.3, 0.03, 0xffd27a);
+      return finish(g, { muzzleF: 1.0, muzzleY: 0, S, hip: [0.22, -0.2, -0.5], ads: 0.36, flash: fc, gripF: -0.02 });
+    }
+    case 'trace': {
+      S = 0.09;
+      P([[-0.12, 0.05], [0.2, 0.05], [0.24, 0.025], [0.24, -0.035], [0.06, -0.045], [-0.12, -0.04]], 0.056, body);
+      P([[0.2, 0.034], [0.46, 0.028], [0.5, 0.0], [0.46, -0.026], [0.2, -0.034]], 0.044, mid);
+      B(0.03, 0.03, 0.22, 0, 0.0, 0.3, glow); // lens channel
+      const prism = new THREE.Mesh(new THREE.OctahedronGeometry(0.03, 0), glow);
+      prism.position.set(0, 0.0, -0.53); prism.scale.set(0.8, 0.8, 1.6); g.add(prism);
+      for (let i = 0; i < 3; i++) B(0.06, 0.006, 0.02, 0, 0.048, 0.0 + i * 0.05, dark);
+      grip(k, gripM); triggerGuard(k, dark, steel);
+      rail(k, dark, mid, 0.056, -0.06, 0.18);
+      holo(k, dark, S, 0.0, 0.056);
+      return finish(g, { muzzleF: 0.56, muzzleY: 0, S, hip: [0.2, -0.2, -0.5], ads: 0.36, flash: fc });
+    }
     default:
       throw new Error(`buildGunModel: unknown archetype ${item.arch}`);
   }
