@@ -85,6 +85,17 @@ export const PERKS = {
   snapshot: { name: 'Snapshot Sights', desc: 'Aim down sights twice as fast.' },
   reconstruction: { name: 'Reconstruction', desc: 'After 4s without firing, the magazine refills itself from reserves.' },
   killingwind: { name: 'Killing Wind', desc: 'Kills give +15% movement speed and +25% range for 5s.' },
+  // Loot 2.0 (U10): Destiny 2 perks added with the perk columns
+  alloymag: { name: 'Alloy Magazine', desc: 'Reloading from an empty magazine is 40% faster.' },
+  rapidhit: { name: 'Rapid Hit', desc: 'Precision hits grant stacking reload speed (x5, 6% each) for 2s.' },
+  subsistence: { name: 'Subsistence', desc: 'Kills load 20% of the magazine from reserves.' },
+  envious: { name: 'Envious Assassin', desc: 'Kills with your other weapons bank rounds for this one. Switching to it loads them from reserves, overfilling up to 2x.' },
+  adrenaline: { name: 'Adrenaline Junkie', desc: 'Weapon kills grant stacking +6.5% damage (x5) for 4.5s. A grenade kill grants all five stacks.' },
+  oneforall: { name: 'One for All', desc: 'Hitting three different enemies within 3s grants +35% damage for 10s.' },
+  baitswitch: { name: 'Bait and Switch', desc: 'Dealing damage with all three weapons within 3s grants this weapon +35% damage for 10s.' },
+  tremors: { name: 'Kinetic Tremors', desc: 'Landing repeated hits on one target within 3s sends out 3 shockwaves that damage enemies around it.' },
+  repulsor: { name: 'Repulsor Brace', desc: 'Killing a weakened enemy grants an overshield.' },
+  jolting: { name: 'Jolting Feedback', desc: 'Every 4th hit on the same target within 2s jolts it.' },
 };
 export const EXOTIC_PERKS = {
   chain: { name: 'Lightning Rod', desc: 'Every hit arcs to a nearby enemy for 50% damage.' },
@@ -118,11 +129,31 @@ export const EXOTIC_PERKS = {
   truth: { name: "Hunter's Trace", desc: 'Rocket kills instantly reload the launcher from reserves.' },
 };
 // Elemental perks roll only on weapons of their element (H3).
-export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void' };
-export const PERK_POOL = {
-  primary: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'precise', 'surrounded', 'opening', 'frenzy', 'feeding', 'incandescent', 'voltshot', 'destabilizing', 'demolitionist', 'snapshot', 'reconstruction', 'killingwind'],
-  special: ['rampage', 'killclip', 'outlaw', 'extmag', 'firefly', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow', 'surrounded', 'opening', 'frenzy', 'feeding', 'incandescent', 'voltshot', 'chainreaction', 'demolitionist', 'snapshot', 'killingwind'],
-  heavy: ['rampage', 'killclip', 'extmag', 'leech', 'steady', 'hotswap', 'highcal', 'scavenger', 'overflow', 'frenzy', 'incandescent', 'voltshot', 'chainreaction', 'demolitionist', 'reconstruction'],
+export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void', tremors: 'kinetic', repulsor: 'void', jolting: 'arc' };
+// Loot 2.0 (U10): three perk columns, Destiny 2 style. A perk goes by its payoff (docs/DECISIONS.md 2026-10-17).
+// Steady Hands and Snapshot Sights no longer roll (no column fits them); old weapons keep them.
+export const PERK_COLUMNS = {
+  mag: ['extmag', 'alloymag', 'highcal', 'overflow', 'outlaw', 'feeding', 'reconstruction', 'rapidhit', 'subsistence', 'envious', 'hotswap', 'scavenger'],
+  damage: ['rampage', 'killclip', 'frenzy', 'surrounded', 'opening', 'precise', 'adrenaline', 'oneforall', 'baitswitch'],
+  effect: ['firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting'],
+};
+export const PERK_COLUMN_NAMES = { mag: 'Magazine or Reload', damage: 'Damage', effect: 'Effect' };
+/** The column a perk belongs to, or null (Steady Hands, Snapshot Sights). */
+export const perkColumn = (p) => Object.keys(PERK_COLUMNS).find((c) => PERK_COLUMNS[c].includes(p)) || null;
+/** Perks grouped by column for the inspect screen (perks from before the columns go under "other"). */
+export function perksByColumn(perks = []) {
+  const out = Object.fromEntries(Object.keys(PERK_COLUMNS).map((c) => [c, []]));
+  out.other = [];
+  for (const p of perks) out[perkColumn(p) || 'other'].push(p);
+  return out;
+}
+// Perks that only roll in some ammo slots (the rest roll everywhere).
+export const PERK_SLOTS = {
+  scavenger: ['special', 'heavy'], overflow: ['special', 'heavy'], chainreaction: ['special', 'heavy'], envious: ['special', 'heavy'],
+  precise: ['primary'], reconstruction: ['primary', 'heavy'],
+  outlaw: ['primary', 'special'], firefly: ['primary', 'special'], surrounded: ['primary', 'special'], opening: ['primary', 'special'],
+  feeding: ['primary', 'special'], destabilizing: ['primary', 'special'], killingwind: ['primary', 'special'],
+  rapidhit: ['primary', 'special'], subsistence: ['primary', 'special'], tremors: ['primary', 'special'], jolting: ['primary', 'special'],
 };
 // Exotics: perks (first one is the signature), stat mods (numbers multiply the roll,
 // mode/burst/pellets/charge replace the archetype), and a unique look for the model.

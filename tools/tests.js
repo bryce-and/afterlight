@@ -11,7 +11,9 @@ import * as C from '../js/combat.js';
 import * as SC from '../js/subclass.js';
 import { ENEMY_STATUS, WEAKEN_MULT } from '../js/status.js';
 import { abilityIcon } from '../js/ability-icons.js';
-import { FRAMES, LEGENDARY_WEAPONS, framesFor, weaponStats, weaponHandling, frameFor } from '../js/frames.js';
+import { FRAMES, LEGENDARY_WEAPONS, framesFor, weaponStats, weaponHandling, frameFor, NAMED_WEAPONS, namedFor, perkPoolFor, rollPerks, eligiblePerks, POOL_PER_COLUMN } from '../js/frames.js';
+import * as PG from '../js/progression.js';
+import { PERKS, PERK_COLUMNS, PERK_ELEMENT, PERK_SLOTS, perkColumn, perksByColumn } from '../js/data.js';
 import { ENERGY, SHIELD_ELEMENTS } from '../js/data.js';
 import { readyState } from '../js/net.js';
 import * as AR from '../js/armor.js';
@@ -47,11 +49,14 @@ test('a first clear of every campaign mission lands mid-track, not at the cap', 
   const L = levelInfo(xp).level;
   ok(L >= 18 && L <= 32, `campaign lands at level ${L}`);
 });
-test('reward track: legendary every 3 levels, exotic at 20 and 40', () => {
-  const leg = [], exo = [];
-  for (let L = 1; L <= LEVEL_CAP; L++) { if (rewardAt(L) === 'legendary') leg.push(L); if (rewardAt(L) === 'exotic') exo.push(L); }
-  eq(exo, [20, 40]);
-  eq(leg, [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39]);
+test('reward track: an engram every 3 levels in the best rarity usable there, exotic at 20 and 40 (U10)', () => {
+  const by = {};
+  for (let L = 1; L <= LEVEL_CAP; L++) { const r = rewardAt(L); if (r) (by[r] = by[r] || []).push(L); }
+  eq(by.exotic, [20, 40]);
+  eq(by.uncommon, [3]);
+  eq(by.rare, [6, 9]);
+  eq(by.legendary, [12, 15, 18, 21, 24, 27, 30, 33, 36, 39]);
+  eq(by.common, undefined);
 });
 test('starter subclasses match the spec; the third unlocks at 10', () => {
   const starters = (c) => Object.keys(CLASSES[c].subclasses).filter((id) => subclassLevel(c, id) === 1).sort();
@@ -135,7 +140,7 @@ test('level rewards: locked, then claimable once', () => {
   eq(S.claimLevelReward(s, 3).error, 'Reach level 3 first.');
   S.addXp(s, xpForLevel(3));
   const r = S.claimLevelReward(s, 3);
-  ok(r.item && r.item.rarity === 'legendary', 'legendary at 3');
+  ok(r.item && r.item.rarity === 'uncommon', 'uncommon at 3 (U10: the best rarity usable at that level)');
   eq(S.claimLevelReward(s, 3).error, 'Already claimed.');
   eq(S.rewardState(s, 4), null);
   S.addXp(s, xpForLevel(20));
@@ -330,9 +335,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = fresh({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, 7); eq(S.SAVE_VERSION, 7);
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 8);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 7, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 8, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -424,7 +429,7 @@ test('a v1.7 loadout (no super or jump) keeps working and gets the original supe
   s.loadout = { stalker: { gunslinger: { grenade: 'healing', class: 'gambler', aspects: ['gunpowder'], fragments: ['torches'] } } };
   const lo = S.getLoadout(s, 'stalker', 'gunslinger');
   eq(lo, { super: 'revolver', jump: 'double', grenade: 'healing', class: 'gambler', aspects: ['gunpowder'], fragments: ['torches'] });
-  eq(S.SAVE_VERSION, 7, 'no save version bump');
+  eq(S.SAVE_VERSION, 8, 'loadouts did not need a save bump (v8 is Loot 2.0)');
 });
 test('new super damage stays in the band of the originals', () => {
   const T = C.SUPER_TUNE;
@@ -579,7 +584,7 @@ test('elements: six with distinct symbols; Stasis and Strand roll on weapons; en
   ok(ENERGY.includes('stasis') && ENERGY.includes('strand'), 'energy pool');
   eq(SHIELD_ELEMENTS, ['solar', 'arc', 'void']);
   const els = new Set();
-  for (let i = 0; i < 400; i++) els.add(rollItem(50, 1, 'special').element);
+  for (let i = 0; i < 400; i++) els.add(rollItem(50, 3, 'primary').element); // U10: named legendaries carry Stasis and Strand
   ok(els.has('stasis') && els.has('strand'), 'rolled');
 });
 test('subclass traits are aspects now (H3): no passives, each subclass defaults to its former trait', () => {
@@ -913,7 +918,7 @@ test('save v6 upgrades to v7: exoticsFound is seeded from every Guardian and the
     shaders: { owned: [], applied: {} }, chars: { stalker: { inventory: [ex('d', 'Raiden Flux')], equipped: {} } }, progression: { xp: 0, claimed: [] }, settings: {} };
   fresh({ afterlight_save_v2: JSON.stringify(v6) });
   const s = S.loadSave();
-  eq(s.version, 7);
+  eq(s.version, S.SAVE_VERSION);
   eq(s.exoticsFound.sort(), ['Raiden Flux', 'Synthoceps', 'Thorn']);
   eq(s.inventory.map((i) => i.id), ['a', 'b']); eq(s.vault[0].name, 'Synthoceps');
   // new exotics are noted once, other rarities never
@@ -1012,6 +1017,126 @@ test('v1.9: aspects open 2 or 3 fragment slots, up to 5', () => {
   ok(Object.values(SC.FRAGMENTS).filter((f) => f.element === 'void').length >= 5, 'enough fragments to fill 5 slots');
 });
 
+// ---------- Loot 2.0 (U10) ----------
+test('U10 leveling: steeper curve; a clean solo campaign run lands near 27, about 30 with replays', () => {
+  ok(PG.xpForLevel(30) > PG.xpForLevel(30, PG.xpToNextV1), 'level 30 takes more XP than in v1.9');
+  ok(PG.xpForLevel(LEVEL_CAP) > PG.xpForLevel(LEVEL_CAP, PG.xpToNextV1) * 1.2, 'level 40 takes much more');
+  const L = levelInfo(53000).level; ok(L >= 25 && L <= 29, `clean run lands at ${L}`);
+  const R = levelInfo(65000).level; ok(R >= 29 && R <= 31, `with replays lands at ${R}`);
+  for (let l = 1; l < LEVEL_CAP; l++) ok(xpToNext(l + 1) > xpToNext(l), `curve rises at ${l}`);
+});
+test('U10 save v8: XP moves to the new curve keeping the level and progress', () => {
+  for (const L of [1, 4, 10, 19, 27, 39]) {
+    const oldXp = PG.xpForLevel(L, PG.xpToNextV1) + Math.floor(PG.xpToNextV1(L) / 2);
+    const nx = PG.convertXp(oldXp), info = levelInfo(nx);
+    eq(info.level, L, `level ${L}`);
+    ok(Math.abs(info.into / info.need - 0.5) < 0.01, `half way at ${L}`);
+  }
+  eq(levelInfo(PG.convertXp(PG.xpForLevel(LEVEL_CAP, PG.xpToNextV1) + 5000)).level, LEVEL_CAP);
+  const v7 = { version: 7, classId: 'vanguard', glimmer: 5, inventory: [], vault: [], equipped: {}, cleared: {}, subclass: {}, loadout: {},
+    shaders: { owned: [], applied: {} }, chars: {}, exoticsFound: [], progression: { xp: PG.xpForLevel(12, PG.xpToNextV1), claimed: [3, 6, 9, 12] }, settings: {} };
+  fresh({ afterlight_save_v2: JSON.stringify(v7) });
+  const s = S.loadSave();
+  eq(s.version, 8); eq(S.playerLevel(s), 12); eq(s.progression.claimed, [3, 6, 9, 12]);
+});
+test('U10 rarity gates: rare 5, legendary 10, exotic 20; drops never roll above the gate', () => {
+  eq(PG.RARITY_GATE, { common: 1, uncommon: 1, rare: 5, legendary: 10, exotic: 20 });
+  const top = { 1: 1, 4: 1, 5: 2, 9: 2, 10: 3, 19: 3, 20: 4, 40: 4 };
+  for (const [L, idx] of Object.entries(top)) {
+    eq(PG.maxRarityIndex(+L), idx, `max at ${L}`);
+    const w = rarityWeights(+L + 10, +L); // bonus levels still stop at the gate
+    ok(w.every((x, k) => k <= idx || x === 0), `weights at ${L}`);
+    const r = mulberry32(+L * 31);
+    for (let i = 0; i < 2000; i++) ok(rollRarity(+L, 5, r) <= idx, `roll at ${L}`);
+    eq(PG.capRarity(4, +L), idx);
+  }
+});
+test('U10 gates: gear above your level cannot be equipped, with the exact message', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  const leg = rollItem(20, 3, 'primary'); s.inventory.push(leg);
+  eq(S.equipItem(s, leg.id), 'Cannot equip. Player level too low.');
+  ok(s.equipped.primary !== leg.id, 'not equipped');
+  S.addXp(s, xpForLevel(10));
+  eq(S.equipItem(s, leg.id), null);
+  eq(s.equipped.primary, leg.id);
+});
+test('U10 gates: a loaded save with gated gear equipped swaps it for the best usable item', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  const leg = rollItem(60, 3, 'primary'), exo = rollItem(60, 4, 'helmet', null, 'vanguard');
+  const rare = rollItem(30, 2, 'primary');
+  s.inventory.push(leg, exo, rare);
+  s.equipped.primary = leg.id; s.equipped.helmet = exo.id;
+  S.addXp(s, xpForLevel(6)); // level 6: rares only
+  S.writeSave(s);
+  const t = S.loadSave();
+  eq(S.getEquipped(t, 'primary').id, rare.id, 'best usable primary');
+  ok(['common', 'uncommon', 'rare'].includes(S.getEquipped(t, 'helmet').rarity), 'helmet swapped down');
+  ok(t.inventory.some((i) => i.id === leg.id) && t.inventory.some((i) => i.id === exo.id), 'gated gear kept');
+});
+test('U10 final mission drop is the best usable rarity, not a guaranteed exotic', () => {
+  eq(PG.maxRarityIndex(8), 2); eq(PG.maxRarityIndex(15), 3); eq(PG.maxRarityIndex(22), 4);
+});
+test('U10 perk columns: every perk sits in one column; Steady Hands and Snapshot Sights leave the rolls', () => {
+  const all = Object.values(PERK_COLUMNS).flat();
+  eq(new Set(all).size, all.length, 'no perk in two columns');
+  for (const p of all) ok(PERKS[p], `${p} has a description`);
+  eq(perkColumn('steady'), null); eq(perkColumn('snapshot'), null);
+  for (const [p, c] of [['killclip', 'damage'], ['frenzy', 'damage'], ['voltshot', 'effect'], ['alloymag', 'mag'], ['overflow', 'mag'], ['highcal', 'mag'], ['leech', 'effect'], ['demolitionist', 'effect'], ['killingwind', 'effect']]) eq(perkColumn(p), c, p);
+  for (const p of ['alloymag', 'rapidhit', 'subsistence', 'envious', 'adrenaline', 'oneforall', 'baitswitch', 'tremors', 'repulsor', 'jolting']) ok(perkColumn(p), `new perk ${p}`);
+});
+test('U10 named weapons at every rarity: each archetype has named commons, uncommons, rares and legendaries', () => {
+  for (const arch of Object.keys(ARCHETYPES)) for (const r of ['common', 'uncommon', 'rare', 'legendary']) ok(namedFor(arch, r).length >= 1, `${arch} ${r}`);
+  const names = [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS].map((n) => n.name);
+  for (const n of NAMED_WEAPONS) { ok(FRAMES[n.arch]?.[n.frame], `${n.name} frame`); ok(ELEMENTS[n.element], `${n.name} element`); }
+  const dup = names.filter((n, i) => names.indexOf(n) !== i); eq(dup, [], 'unique names');
+  for (let i = 0; i < 300; i++) {
+    const it = rollItem(30, i % 4, WEAPON_SLOTS_T[i % 3]);
+    const named = [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS].find((n) => n.name === it.name && n.arch === it.arch);
+    ok(named, `${it.name} is named`); eq(it.element, named.element); eq(it.frame, named.frame);
+  }
+});
+test('U10 perk pools: 9 perks per named weapon, 3 per column, fit its slot and element, stable', () => {
+  for (const n of [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS]) {
+    const pool = perkPoolFor(n), slot = ARCHETYPES[n.arch].slot;
+    eq(Object.keys(pool), ['mag', 'damage', 'effect'], n.name);
+    for (const c of Object.keys(pool)) {
+      eq(pool[c].length, POOL_PER_COLUMN, `${n.name} ${c}`);
+      eq(new Set(pool[c]).size, POOL_PER_COLUMN, `${n.name} ${c} unique`);
+      for (const p of pool[c]) {
+        eq(perkColumn(p), c, `${n.name} ${p}`);
+        ok(!PERK_SLOTS[p] || PERK_SLOTS[p].includes(slot), `${n.name} ${p} slot`);
+        ok(!PERK_ELEMENT[p] || PERK_ELEMENT[p] === n.element, `${n.name} ${p} element`);
+        ok(!(p === 'extmag' && ARCHETYPES[n.arch].mag === 1), `${n.name} extmag`);
+      }
+    }
+    eq(perkPoolFor(n), pool, `${n.name} stable`);
+  }
+});
+test('U10 rolls: uncommon one Magazine perk, rare adds Damage or Effect, legendary all three; never Rampage with Kill Clip', () => {
+  const r = mulberry32(99);
+  for (const n of [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS]) {
+    const pool = perkPoolFor(n);
+    for (let i = 0; i < 6; i++) {
+      eq(rollPerks(pool, 'common', r), []);
+      const u = rollPerks(pool, 'uncommon', r); eq(u.length, 1); ok(pool.mag.includes(u[0]), 'uncommon col 1');
+      const ra = rollPerks(pool, 'rare', r); eq(ra.length, 2); ok(pool.mag.includes(ra[0]) && (pool.damage.includes(ra[1]) || pool.effect.includes(ra[1])), 'rare');
+      const l = rollPerks(pool, 'legendary', r); eq(l.map(perkColumn), ['mag', 'damage', 'effect']);
+      ok(!(l.includes('rampage') && l.includes('killclip')), 'no Rampage + Kill Clip');
+    }
+  }
+  for (let i = 0; i < 200; i++) { const it = rollItem(30, 3, WEAPON_SLOTS_T[i % 3]); eq(it.perks.map(perkColumn), ['mag', 'damage', 'effect'], it.name); }
+});
+test('U10 inspect groups the dropped perks by column; old perks go under Other', () => {
+  const g = perksByColumn(['steady', 'extmag', 'rampage', 'firefly']);
+  eq(g.mag, ['extmag']); eq(g.damage, ['rampage']); eq(g.effect, ['firefly']); eq(g.other, ['steady']);
+});
+test('U10 new perk statuses exist', () => {
+  for (const id of ['rapidhit', 'adrenaline', 'oneforall', 'baitswitch']) ok(STATUS[id], id);
+  eq(STATUS.adrenaline.maxStacks, 5); eq(STATUS.rapidhit.maxStacks, 5);
+});
+
 // ---------- runner ----------
 const out = document.getElementById('out');
 let pass = 0, fail = 0;
@@ -1025,3 +1150,4 @@ const sum = document.getElementById('summary');
 sum.textContent = `${pass} passed, ${fail} failed`;
 sum.className = fail ? 'fail' : 'pass';
 window.TEST_RESULTS = { pass, fail };
+

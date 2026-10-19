@@ -66,6 +66,11 @@ export const STATUS = {
   feeding: { name: 'Feeding Frenzy', group: 'weapon', glyph: '↻', color: '#ffd27a', t: 3.5 },
   frenzy: { name: 'Frenzy', group: 'weapon', glyph: '▲', color: '#ff7a6b', t: Infinity },
   voltshot: { name: 'Voltshot', group: 'weapon', glyph: 'ϟ', color: '#7fd8ff', t: Infinity },
+  // Loot 2.0 perks
+  rapidhit: { name: 'Rapid Hit', group: 'weapon', glyph: '↻', color: '#ffd27a', t: 2, maxStacks: 5 },
+  adrenaline: { name: 'Adrenaline Junkie', group: 'weapon', glyph: '▲', color: '#ff7a6b', t: 4.5, maxStacks: 5 },
+  oneforall: { name: 'One for All', group: 'weapon', glyph: '▲', color: '#ff7a6b', t: 10 },
+  baitswitch: { name: 'Bait and Switch', group: 'weapon', glyph: '▲', color: '#ff7a6b', t: 10 },
   memento: { name: 'Memento Mori', group: 'weapon', glyph: '♠', color: '#ffffff', t: Infinity, maxStacks: 99, exotic: true },
   wolves: { name: 'Release the Wolves', group: 'weapon', glyph: '◆', color: '#f4c542', t: 6, exotic: true },
   merciless: { name: 'Merciless', group: 'weapon', glyph: '◆', color: '#f4c542', t: 4, exotic: true },

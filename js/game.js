@@ -10,7 +10,7 @@ import { pointInColliders } from './physics.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
 import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
-import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP } from './progression.js';
+import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP, capRarity, maxRarityIndex } from './progression.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection } from './music.js';
 import * as ui from './ui.js';
@@ -313,8 +313,9 @@ function openChest() {
   const base = Math.max(M.def.power, pp);
   const rewards = [];
   for (let i = 0; i < n; i++) {
-    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), first ? 5 : 2));
-    if (first && M.mi === 2 && i === 0) rIdx = 4;
+    const lvl = playerLevel(G.save);
+    let rIdx = capRarity(Math.max(i === 0 ? 2 : 1, rollRarity(lvl, first ? 5 : 2)), lvl);
+    if (first && M.mi === 2 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
     rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
@@ -366,7 +367,7 @@ export function gainXp(n) {
   sfx.engram(3);
   for (let L = up.from + 1; L <= up.to; L++) {
     const reward = rewardAt(L);
-    ui.feed(`Level ${L}${reward ? `  ·  ${reward === 'exotic' ? 'Exotic' : 'Legendary'} reward ready in Orbit` : ''}`, '#f4c542');
+    ui.feed(`Level ${L}${reward ? `  ·  ${RARITIES[rarityIndex(reward)].name} reward ready in Orbit` : ''}`, '#f4c542');
     const sub = subclassesUnlockedAt(L).find((x) => x.classId === G.save.classId);
     const build = buildUnlocksAt(L, G.save.classId)[0];
     const mod = modsUnlockedAt(L)[0];
@@ -980,9 +981,11 @@ function openActChest() {
   const n = c.final ? 3 : 2;
   const rewards = [];
   for (let i = 0; i < n; i++) {
-    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(playerLevel(G.save), 2 + Math.floor(c.wave / 5)));
+    const lvl = playerLevel(G.save);
+    let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(lvl, 2 + Math.floor(c.wave / 5)));
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
     if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
+    rIdx = capRarity(rIdx, lvl); // never above what this level can use
     rewards.push(rollItem(Math.min(LIGHT_CAP, pp + randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));

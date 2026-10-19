@@ -60,6 +60,15 @@ function makeWeapon(item) {
 // multiplier as enemy health, so a super feels as strong in the last mission as the first.
 const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
 const OVERSHIELD_MAX = 60;
+// Loot 2.0 perks (U10)
+const LOOT_PERKS = {
+  tremorHits: { auto: 12, smg: 14, pulse: 9, scout: 5, hand: 4 }, // Kinetic Tremors: hits on one target within 3s (others: 6)
+  tremorPulses: 3, tremorGap: 0.45, tremorRadius: 4.5, tremorDmg: 2, // pulse damage: x one full shot
+  joltHits: 4, joltWindow: 2, joltT: 4, // Jolting Feedback
+  repulsor: 30, // Repulsor Brace overshield
+  envy: 0.2, // Envious Assassin: share of the magazine banked per kill with another weapon (up to 1 magazine)
+  subsistence: 0.2, alloy: 0.6, rapidHit: 0.06, adrenaline: 0.065, oneForAll: 1.35, baitSwitch: 1.35,
+};
 // Daybreak (H3): the first jump goes 2.5x as high (speed x sqrt 2.5), then the wings sink at this speed
 const DAYBREAK_JUMP = Math.sqrt(2.5), DAYBREAK_FALL = -1.2;
 const SPRINT_CANCEL = 0.5; // H3: seconds of held sprint that cancel a reload
@@ -489,6 +498,11 @@ export class Player {
     const peace = this.exo.has('peacekeepers');
     if (peace && w.item.arch === 'smg') this.instantReload(w); // Peacekeepers: a stowed SMG reloads itself
     this.cur = i;
+    const nw = this.weapon;
+    if (nw.has('envious') && nw.envy > 0) { // Envious Assassin: load the banked rounds, overfilling up to 2x
+      const n = Math.max(0, Math.min(nw.envy, nw.reserve, nw.mag * 2 - nw.ammo));
+      nw.ammo += n; if (nw.reserve !== Infinity) nw.reserve -= n; nw.envy = 0;
+    }
     this.switchT = this.switchMax = (this.weapon.has('hotswap') ? 0.2 : 0.42) * (peace && this.weapon.item.arch === 'smg' ? 0.5 : 1);
     this.showModel();
     sfx.swap();
@@ -507,6 +521,8 @@ export class Player {
     let t = w.s.reload;
     if (this.status.has('outlaw')) t *= 0.55;
     if (w.has('hotswap')) t *= 0.85;
+    if (w.has('alloymag') && w.ammo === 0) t *= LOOT_PERKS.alloy;
+    t *= 1 - LOOT_PERKS.rapidHit * this.status.stacks('rapidhit', w.idx);
     if (this.status.has('feeding', w.idx)) t *= 0.55;
     if (this.status.has('frenzy', w.idx)) t *= 0.7;
     if (this.status.has('rally')) t *= 0.7;
@@ -558,12 +574,51 @@ export class Player {
     return m.userData.muzzle.getWorldPosition(out);
   }
 
+  /** Jolting Feedback: true on every LOOT_PERKS.joltHits-th hit on the same target within the window. */
+  joltingHit(w, e) {
+    const j = w.joltFb;
+    if (j && j.e === e && G.time - j.t < LOOT_PERKS.joltWindow) j.n++; else w.joltFb = { e, n: 1, t: 0 };
+    w.joltFb.t = G.time;
+    if (w.joltFb.n < LOOT_PERKS.joltHits) return false;
+    w.joltFb.n = 0;
+    return true;
+  }
+
+  /** Loot 2.0 perks that react to a weapon hit: Rapid Hit, One for All, Bait and Switch, Kinetic Tremors. */
+  lootPerksOnHit(w, e, crit) {
+    w.lastDmgT = G.time;
+    if (crit && w.has('rapidhit')) this.status.apply('rapidhit', { scope: w.idx, add: 1, set: true });
+    if (w.has('oneforall')) {
+      w.ofa = (w.ofa || []).filter((h) => G.time - h.t < 3 && h.e !== e);
+      w.ofa.push({ e, t: G.time });
+      if (w.ofa.length >= 3) { this.status.apply('oneforall', { scope: w.idx, set: true }); w.ofa = []; }
+    }
+    if (this.weapons.every((ww) => G.time - (ww.lastDmgT ?? -99) < 3)) {
+      for (const ww of this.weapons) if (ww.has('baitswitch')) this.status.apply('baitswitch', { scope: ww.idx, set: true });
+    }
+    if (w.has('tremors')) {
+      const tr = w.trem;
+      if (tr && tr.e === e && G.time - tr.t0 < 3) tr.n++; else w.trem = { e, t0: G.time, n: 1 };
+      if (w.trem.n >= (LOOT_PERKS.tremorHits[w.item.arch] ?? 6)) {
+        w.trem = null;
+        const at = e.pos.clone(), dmg = w.s.dmg * (w.A.pellets || 1) * LOOT_PERKS.tremorDmg;
+        for (let i = 0; i < LOOT_PERKS.tremorPulses; i++) after(i * LOOT_PERKS.tremorGap, () => {
+          shockwave(at.clone().setY(0.1), LOOT_PERKS.tremorRadius, ELEMENTS.kinetic.hex, 0.4);
+          for (const x of enemiesNear(at, LOOT_PERKS.tremorRadius, 8)) dealDamage(x, dmg, { element: 'kinetic', source: 'perk', pos: x.center(new THREE.Vector3()) });
+        });
+      }
+    }
+  }
+
   weaponDmgMult(w, crit) {
     let m = 1;
     if (w.item.slot === 'primary') m *= PRIMARY_BOOST;
     if (w.has('rampage')) m *= 1 + 0.12 * this.status.stacks('rampage');
     if (this.status.has('killclip', w.idx)) m *= 1.3;
     if (w.has('highcal')) m *= 1.1;
+    m *= 1 + LOOT_PERKS.adrenaline * this.status.stacks('adrenaline', w.idx);
+    if (this.status.has('oneforall', w.idx)) m *= LOOT_PERKS.oneForAll;
+    if (this.status.has('baitswitch', w.idx)) m *= LOOT_PERKS.baitSwitch;
     if (crit && w.has('precise')) m *= 1.2;
     if (this.status.has('empower')) m *= 1.25;
     if (this.keepsGuns) m *= 1.3; // Song of Flame
@@ -709,9 +764,11 @@ export class Player {
     const prowl = !o.isSuper && this.asp.has('prowl') && !this.prowlUsed && (this.status.has('invisible') || this.prowlShot); // On the Prowl
     if (prowl) this.prowlUsed = true;
     this.prowlShot = false;
-    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0 });
+    const jolt = !o.isSuper && w.has('jolting') && this.joltingHit(w, e) ? LOOT_PERKS.joltT : 0; // Jolting Feedback
+    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt });
     if (o.isSuper) return res;
     w.hitCount++;
+    this.lootPerksOnHit(w, e, crit);
     if (this.status.has('voltshot', w.idx)) {
       // Voltshot: the charged hit jolts nearby enemies
       this.status.remove('voltshot', w.idx);
@@ -856,6 +913,9 @@ export class Player {
       if (this.exo.has('sunbracers') && o.element === 'solar' && this.meleeT > 0) this.status.apply('sunbracers', { t: SUNBRACERS.t, set: true });
     }
     if (o.source === 'super') this.exoticSuperKill();
+    if (!chain && o.source === 'ability' && G.time < this.grenadeWin && this.meleeT <= 0) { // a grenade kill: Adrenaline Junkie at full stacks
+      for (const ww of this.weapons) if (ww.has('adrenaline')) this.status.apply('adrenaline', { scope: ww.idx, stacks: 5, set: true });
+    }
     const w = o.weapon;
     if (!w) return;
     if (w.has('rampage')) this.status.apply('rampage', { add: 1, set: true });
@@ -900,6 +960,13 @@ export class Player {
     if (w.has('merciless')) this.status.apply('merciless', { scope: w.idx });
     if (w.has('acrius')) explode(c, 7, w.s.dmg * 4, 'arc', { source: 'perk' });
     if (w.has('truth') && w.ammo < w.mag && w.reserve > 0) { this.instantReload(w); this.status.apply('truth', { scope: w.idx, set: true }); }
+    if (w.has('subsistence') && w.reserve > 0 && w.ammo < w.mag) {
+      const n = Math.min(Math.ceil(w.mag * LOOT_PERKS.subsistence), w.mag - w.ammo, w.reserve);
+      w.ammo += n; if (w.reserve !== Infinity) w.reserve -= n;
+    }
+    if (w.has('adrenaline')) this.status.apply('adrenaline', { scope: w.idx, add: 1, set: true });
+    if (w.has('repulsor') && e.status.has('weaken')) this.addOvershield(LOOT_PERKS.repulsor, 5);
+    for (const ww of this.weapons) if (ww !== w && ww.has('envious')) ww.envy = Math.min(ww.mag, (ww.envy || 0) + Math.ceil(ww.mag * LOOT_PERKS.envy));
     if (w.has('scavenger') && w.reserve !== Infinity && Math.random() < 0.4) {
       w.reserve = Math.min(w.maxReserve, w.reserve + (w.item.slot === 'heavy' ? Math.ceil(w.brick / 2) : 1));
     }

@@ -1,15 +1,12 @@
-import { ARCHETYPES, RARITIES, PERK_POOL, PERK_ELEMENT, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, ENERGY, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt } from './util.js';
 import { LIGHT_CAP } from './progression.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
-import { framesFor, legendariesFor, weaponStats } from './frames.js';
+import { namedFor, perkPoolFor, rollPerks, weaponStats } from './frames.js';
 import { SETS, setForDrop } from './style.js';
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
 const NOUN = ['Oath', 'Promise', 'Requiem', 'Verdict', 'Covenant', 'Lament', 'Sentinel', 'Herald', 'Reckoning', 'Psalm', 'Edict', 'Tide', 'Mercy', 'Vow', 'Witness', 'Ruin', 'Hymn', 'Answer', 'Warden', 'Dirge'];
-const PLACE = ['the Deep', 'Dawn', 'the Ninth Sun', 'the Pale Moon', 'the Ash Wastes', 'Quiet Stars', 'the Long Night'];
-const FOUNDRY = ['Häkke', 'Omolon', 'SUROS', 'VEIST', 'Daito', 'Tex Mechanica', 'Field Forged'];
-const CODE = { auto: 'AR', hand: 'HC', pulse: 'PR', scout: 'SR', smg: 'SMG', shotgun: 'SG', sniper: 'SN', fusion: 'FR', linear: 'LFR', rocket: 'RL', mg: 'MG', glauncher: 'GL' };
 const MAKERS = ['Field', 'Scout', 'Patrol', 'Trooper', 'Ranger'];
 const ARMOR_NOUN = {
   helmet: ['Helm', 'Mask', 'Visor', 'Hood', 'Cowl'],
@@ -22,11 +19,6 @@ export function newId() {
   return Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 9);
 }
 
-function weaponName(rIdx, arch) {
-  if (rIdx === 0) return `${pick(FOUNDRY)} ${CODE[arch]}-${randInt(2, 9)}`;
-  if (rIdx === 2 && Math.random() < 0.3) return `${pick(NOUN)} of ${pick(PLACE)}`;
-  return `${pick(ADJ)} ${pick(NOUN)}`;
-}
 
 const clampPower = (p) => Math.max(1, Math.min(LIGHT_CAP, Math.round(p)));
 
@@ -34,36 +26,27 @@ const MOD_REPLACE = ['mode', 'burst', 'burstDelay', 'pellets', 'charge'];
 
 export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
   const rar = RARITIES[rIdx];
-  let arch, element, name, frame = null, exotic = null, flavor = '', tpl = null;
+  let arch, element, name, frame = null, exotic = null, flavor = '', tpl = null, named = null;
   if (rar.id === 'exotic') {
     const pool = EXOTIC_WEAPONS.filter((e) => (e.slot || ARCHETYPES[e.arch].slot) === slot);
     tpl = (exoticName && EXOTIC_WEAPONS.find((e) => e.name === exoticName)) || pick(pool);
     arch = tpl.arch; element = tpl.element; name = tpl.name; exotic = tpl.perks[0]; flavor = tpl.flavor;
   } else {
     arch = archOverride || pick(Object.values(ARCHETYPES).filter((a) => a.slot === slot)).id;
-    if (rar.id === 'legendary') {
-      // named legendaries always have the same archetype and element
-      const leg = pick(legendariesFor(arch));
-      ({ name, frame, element } = leg);
-    } else {
-      element = slot === 'primary' ? (Math.random() < 0.6 ? 'kinetic' : pick(ENERGY)) : pick(ENERGY);
-      name = weaponName(rIdx, arch);
-      frame = pick(framesFor(arch)); // rolled once, then part of the weapon for good
-    }
+    // Loot 2.0: every rarity is a named weapon with a fixed archetype and element
+    named = pick(namedFor(arch, rar.id));
+    if (!named) throw new Error(`makeWeapon: no ${rar.id} named weapon for ${arch}`);
+    ({ name, frame, element } = named);
   }
   const A = ARCHETYPES[arch];
-  const perks = [];
+  let perks = [];
   let mods = null;
   if (tpl) {
     // exotics: fixed signature perks and their own handling
     mods = {};
     for (const [k, v] of Object.entries(tpl.mods || {})) if (MOD_REPLACE.includes(k)) mods[k] = v;
   } else {
-    const pool = PERK_POOL[slot].filter((p) => !(p === 'extmag' && A.mag === 1) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element));
-    while (perks.length < rar.perks && perks.length < pool.length) {
-      const p = pick(pool);
-      if (!perks.includes(p)) perks.push(p);
-    }
+    perks = rollPerks(perkPoolFor(named), rar.id);
   }
   const item = { id: newId(), kind: 'weapon', slot: tpl?.slot || slot, arch, frame, element, rarity: rar.id, name, power: clampPower(power), stats: null, perks, exotic, flavor, isNew: true };
   if (tpl) { item.exoticPerks = [...tpl.perks]; item.mods = mods; }
@@ -136,20 +119,19 @@ export function rollItem(power, rIdx, slot = null, dest = null, classId = null, 
 }
 
 export function starterGear(classId = null) {
-  const p = makeWeapon('primary', 10, 0, 'auto'); p.name = 'Khvostov 7G-02'; p.element = 'kinetic';
-  const s = makeWeapon('special', 8, 0, 'shotgun'); s.name = 'Häkke SG-3';
-  const h = makeWeapon('heavy', 8, 0, 'rocket'); h.name = 'Omolon RL-2';
+  // commons are named weapons since Loot 2.0: Khvostov 7G-02, Häkke SG-3 and Tumbril RL1
+  const p = makeWeapon('primary', 10, 0, 'auto');
+  const s = makeWeapon('special', 8, 0, 'shotgun');
+  const h = makeWeapon('heavy', 8, 0, 'rocket');
   const armor = ['helmet', 'arms', 'chest', 'legs'].map((sl) => makeArmor(sl, 10, 0, null, classId));
   return [p, s, h, ...armor].map((it) => ({ ...it, isNew: false }));
 }
-
-const ARMORY_NAMES = { auto: 'Khvostov 7G-02', hand: 'Häkke HC-4', pulse: 'SUROS PR-3', scout: 'Omolon SR-5', smg: 'VEIST SMG-2', shotgun: 'Häkke SG-3', sniper: 'Daito SN-6', fusion: 'Omolon FR-4', linear: 'Daito LFR-5', rocket: 'Omolon RL-2', mg: 'Häkke MG-6', glauncher: 'Tex Mechanica GL-4' };
 
 /** One common weapon of every archetype the player doesn't already own. */
 export function armoryGear(owned, power) {
   return Object.values(ARCHETYPES)
     .filter((A) => !owned.has(A.id))
-    .map((A) => ({ ...makeWeapon(A.slot, power, 0, A.id), name: ARMORY_NAMES[A.id] ?? A.name }));
+    .map((A) => makeWeapon(A.slot, power, 0, A.id));
 }
 
 /** A special weapon type living in the Heavy slot: more damage, less ammo. */

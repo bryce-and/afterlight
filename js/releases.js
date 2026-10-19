@@ -4,6 +4,23 @@
 
 export const RELEASES = [
   {
+    version: '2.0', name: 'Decrypted', date: '2026-10-19', accent: '#a066ea', glyph: '⬢',
+    summary: 'Loot 2.0. Every weapon has a name, perks come in Destiny 2 columns, rarity is tied to your level, and you can finally take a proper look at what dropped.',
+    notes: [
+      'Leveling is slower: one full campaign run now lands around level 27 to 30, and level 40 takes replays and activities',
+      'Rarity follows your level: Rares from level 5, Legendaries from 10, Exotics from 20. Drops never roll above what you can use, and gear above your level shows its level and cannot be equipped',
+      'Every reward-track engram is the best rarity you can use at that level: Uncommon at 3, Rare at 6 and 9, Legendary from 12, Exotic at 20 and 40',
+      'A destination\'s final mission no longer guarantees an exotic. Its first-clear drop is now the best rarity your level allows',
+      'Every weapon is a named weapon now, from Common to Legendary, with a fixed archetype and element. Destiny 2 names where they exist',
+      'Weapon perks come in three columns: Magazine or Reload, Damage and Effect. Each named weapon has its own 9 possible perks. Uncommons roll a Magazine or Reload perk, Rares add a Damage or Effect perk, Legendaries roll all three',
+      'New perks: Alloy Magazine, Rapid Hit, Subsistence, Envious Assassin, Adrenaline Junkie, One for All, Bait and Switch, Kinetic Tremors, Repulsor Brace and Jolting Feedback. Steady Hands and Snapshot Sights no longer roll, but weapons that have them keep them',
+      'Right-click a weapon to inspect it: the weapon on display beside its stats and the perks it dropped with',
+      'New Exotic Collection on the Character screen: every exotic weapon and your class\'s exotic armor, found or not',
+      'Your level and progress carry over, and the weapons you own keep their perks',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="dcBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#160f26"/><stop offset="0.55" stop-color="#0d1118"/><stop offset="1" stop-color="#1f1708"/></linearGradient><radialGradient id="dcGlow" cx="0.5" cy="0.44" r="0.5"><stop offset="0" stop-color="#a066ea" stop-opacity="0.6"/><stop offset="1" stop-color="#a066ea" stop-opacity="0"/></radialGradient><linearGradient id="dcFace" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6d0ff"/><stop offset="0.5" stop-color="#a066ea"/><stop offset="1" stop-color="#4a2580"/></linearGradient></defs><rect width="320" height="180" fill="url(#dcBg)"/><rect width="320" height="180" fill="url(#dcGlow)"/><g stroke="#ffffff" stroke-opacity="0.06"><path d="M-20 200 200 -20M20 200 240 -20M60 200 280 -20M100 200 320 -20M140 200 360 -20"/></g><g stroke="#a066ea" stroke-opacity="0.35" fill="none"><circle cx="160" cy="74" r="56"/><circle cx="160" cy="74" r="44" stroke-dasharray="4 6"/></g><g stroke="#0a0d12" stroke-width="1.5"><path d="M160 30l38 22v44l-38 22-38-22V52z" fill="url(#dcFace)"/><path d="M160 30v44l38-22M160 74l-38-22M160 74v44" fill="none" stroke="#2a1450" stroke-opacity="0.7"/></g><path d="M160 58l12 7v14l-12 7-12-7V65z" fill="#ffffff" fill-opacity="0.85"/><g stroke="#e6d0ff" stroke-width="1.5" stroke-opacity="0.6"><path d="M122 96L84 136M160 118v18M198 96l38 40"/></g><g stroke="#0a0d12" stroke-width="1.5"><circle cx="84" cy="144" r="10" fill="#2a3448"/><circle cx="160" cy="144" r="10" fill="#2a3448"/><circle cx="236" cy="144" r="10" fill="#2a3448"/></g><g fill="none" stroke-width="2.5"><circle cx="84" cy="144" r="10" stroke="#e9eef5"/><circle cx="160" cy="144" r="10" stroke="#ff7a6b"/><circle cx="236" cy="144" r="10" stroke="#5fd3ff"/></g><g fill="#e9eef5"><path d="M80 140h8v8h-8z" fill-opacity="0.8"/></g><path d="M156 148l4-8 4 8z" fill="#ff7a6b"/><path d="M238 138l-6 7h5l-3 6 6-7h-5z" fill="#5fd3ff"/><g fill-opacity="0.9"><path d="M30 30l6-6 6 6-6 6z" fill="#c9ced4"/><path d="M52 64l6-6 6 6-6 6z" fill="#45b764"/><path d="M262 40l6-6 6 6-6 6z" fill="#4d8fe0"/><path d="M282 80l7-7 7 7-7 7z" fill="#f4c542"/></g><g fill="#ffffff" fill-opacity="0.8"><circle cx="300" cy="24" r="1.3"/><circle cx="20" cy="120" r="1.2"/><circle cx="120" cy="16" r="1"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+  },
+  {
     version: '1.9', name: 'Eyes Up, Guardian', date: '2026-10-18', accent: '#b07cff', glyph: '◉',
     summary: 'Supers get the Destiny treatment: third person, animated, and lifted into the air while you cast. Sentinel Shield throws up a real barrier, Void finally looks like Void, and subclasses get a full Modify screen with more fragment slots.',
     notes: [

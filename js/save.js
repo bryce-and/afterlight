@@ -1,7 +1,7 @@
-import { SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR } from './data.js';
+import { SLOTS, WEAPON_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, rarityIndex } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
-import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP } from './progression.js';
+import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { randInt } from './util.js';
 import { frameFor, weaponStats } from './frames.js';
 import { MODS, blankMods, migrateArmorStats } from './armor.js';
@@ -12,7 +12,7 @@ const KEY = 'afterlight_save_v2';
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
@@ -60,6 +60,10 @@ const MIGRATIONS = {
   // Exotic Hunt (v1.7): the exotics already found, shared by every Guardian (duplicate protection).
   // Seeded from every exotic the player owns: each Guardian's inventory and the vault. Nothing else changes.
   6: (s) => { s.exoticsFound = ownedExotics(s); },
+  // Loot 2.0 (v2.0): the XP curve got steeper. The XP total moves to the new curve so the level and the
+  // progress toward the next one stay the same. Owned weapons keep their perks (no weapon migration until the
+  // campaign reset). Gear above the player's level is swapped out on load by enforceGates.
+  7: (s) => { if (s.progression) s.progression.xp = convertXp(s.progression.xp); },
 };
 
 /** Names of every exotic in any Guardian's inventory or the vault. */
@@ -120,6 +124,7 @@ export function loadSave() {
       writeSave(s);
     }
     s.settings = { ...DEFAULT_SETTINGS, ...(s.settings || {}) };
+    if (enforceGates(s)) writeSave(s);
     return s;
   } catch (e) {
     console.error('Save file is corrupt; ignoring it.', e);
@@ -178,7 +183,7 @@ export function claimLevelReward(s, level) {
   if (state !== 'ready') return { error: state === 'locked' ? `Reach level ${level} first.` : 'No reward at this level.' };
   if (s.inventory.length >= INVENTORY_CAP) return { error: `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.` };
   const power = Math.min(LIGHT_CAP, playerPower(s) + randInt(2, 5));
-  const item = rollItem(power, rewardAt(level) === 'exotic' ? 4 : 3, null, null, s.classId, s.exoticsFound);
+  const item = rollItem(power, rarityIndex(rewardAt(level)), null, null, s.classId, s.exoticsFound);
   s.inventory.push(item);
   noteExotic(s, item);
   s.progression.claimed.push(level);
@@ -252,6 +257,7 @@ export function switchCharacter(s, classId) {
   s.classId = classId;
   s.inventory = next.inventory;
   s.equipped = next.equipped;
+  enforceGates(s);
   writeSave(s);
 }
 /** What the Guardian looks like: the equipped armor's looks and the class's shader (style.js). */
@@ -279,6 +285,7 @@ export function equipItem(s, id) {
   const it = getItem(s, id);
   if (!it) throw new Error(`equipItem: no item ${id}`);
   if (!usableBy(it, s.classId)) return `Only a ${CLASSES[it.classId].name} can wear ${it.name}.`;
+  if (!canEquipLevel(s, it)) return LEVEL_TOO_LOW;
   if (it.rarity === 'exotic') {
     const slots = it.kind === 'weapon' ? ['primary', 'special', 'heavy'] : ['helmet', 'arms', 'chest', 'legs'];
     const other = slots.map((sl) => sl !== it.slot && getEquipped(s, sl)).find((x) => x && x.rarity === 'exotic');
@@ -288,6 +295,31 @@ export function equipItem(s, id) {
   it.isNew = false;
   writeSave(s);
   return null;
+}
+
+/** True when the player's level is high enough for the item's rarity (Loot 2.0 gates). */
+export const canEquipLevel = (s, it) => canUseRarity(it.rarity, playerLevel(s));
+
+/**
+ * Swaps out equipped gear the player's level can't use (saves from before the rarity gates, or another
+ * Guardian's kit after a switch): each such slot gets the best usable item in it, keeping one exotic of each
+ * kind. A slot with nothing usable gets a fresh common. Returns the number of slots changed.
+ */
+export function enforceGates(s) {
+  let changed = 0;
+  for (const slot of SLOTS) {
+    const cur = getEquipped(s, slot);
+    if (!cur || canEquipLevel(s, cur)) continue;
+    const kind = WEAPON_SLOTS.includes(slot) ? WEAPON_SLOTS : ['helmet', 'arms', 'chest', 'legs'];
+    const exoticElsewhere = kind.some((sl) => sl !== slot && getEquipped(s, sl)?.rarity === 'exotic');
+    const options = s.inventory.filter((i) => i.slot === slot && usableBy(i, s.classId) && canEquipLevel(s, i) && !(exoticElsewhere && i.rarity === 'exotic'));
+    options.sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
+    let next = options[0];
+    if (!next) { next = { ...rollItem(cur.power, 0, slot, null, s.classId), isNew: false }; s.inventory.push(next); }
+    s.equipped[slot] = next.id;
+    changed++;
+  }
+  return changed;
 }
 
 /** Moves an unequipped item into the vault. Returns null on success, or why it couldn't. */

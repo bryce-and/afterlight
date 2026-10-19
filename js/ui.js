@@ -7,7 +7,8 @@ import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, c
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice } from './save.js';
-import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt } from './progression.js';
+import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
+import { openInspect, openCollection, lootScreenOpen } from './loot-ui.js';
 import { RELEASES, ROADMAP, titleRelease } from './releases.js';
 import { dismantleValue } from './loot.js';
 import { weaponIcon, weaponSilhouette, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES, setArmorIconContext } from './icons.js';
@@ -429,8 +430,9 @@ function tileHTML(it, equipped = false) {
   const weapon = it.kind === 'weapon';
   const art = weapon ? `<img src="${weaponIcon(it)}" alt="" draggable="false">` : armorIcon(it);
   const other = !weapon && it.classId && it.classId !== G.save.classId;
-  return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}${other ? ' other-class' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
-    ${art}${other ? `<span class="t-cls">${CLASSES[it.classId].name}</span>` : ''}
+  const low = !canUseRarity(it.rarity, playerLevel(G.save)); // Loot 2.0: above the player's level
+  return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}${other ? ' other-class' : ''}${low ? ' lvl-low' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
+    ${art}${other ? `<span class="t-cls">${CLASSES[it.classId].name}</span>` : ''}${low ? `<span class="t-lvl">Lv ${RARITY_GATE[it.rarity]}</span>` : ''}
     ${weapon ? `${elementIcon(it.element, 'el-ico t-el')}<span class="t-ammo ammo-ico" style="--ac:${AMMO[it.slot].color}"></span>` : ''}
     <span class="t-power">${it.power}</span>${it.isNew ? '<i class="t-new"></i>' : ''}
   </button>`;
@@ -449,8 +451,7 @@ function renderLevel(main) {
     const build = buildUnlocksAt(L, s.classId)[0]; // an aspect or fragment that unlocks here
     const reached = info.level >= L;
     let icon = '', label = '';
-    if (kind === 'exotic') { icon = '<i class="lt-engram exo"></i>'; label = 'Exotic'; }
-    else if (kind === 'legendary') { icon = '<i class="lt-engram leg"></i>'; label = 'Legendary'; }
+    if (kind) { const r = RARITIES[rarityIndex(kind)]; icon = `<i class="lt-engram" style="--rc:${r.color}"></i>`; label = r.name; } // the best rarity usable at that level
     else if (sub) { icon = subclassIcon(CLASSES[s.classId].subclasses[sub.subId].color); label = sub.name; }
     else if (build) {
       const color = build.type === 'fragment' ? ELEMENTS[build.element].color : CLASSES[s.classId].subclasses[build.sub].color;
@@ -474,7 +475,7 @@ function renderLevel(main) {
         <div><div class="eyebrow">Guardian Level</div><div class="lvl-big">${info.level}<small>/ ${LEVEL_CAP}</small></div></div>
         <div class="lvl-xp">${info.max ? '<b>Max level</b>' : `<div class="xp-track big"><div class="xp-fill" style="width:${((info.into / info.need) * 100).toFixed(1)}%"></div></div>
           <div class="lvl-xp-t">${info.into.toLocaleString()} / ${info.need.toLocaleString()} XP to level ${info.level + 1}</div>`}</div>
-        <p class="desc">Earn XP from every kill, mission and cache. A Legendary every three levels, Exotics at 20 and 40, your third subclass at level ${third}, then new supers, its last aspect and new fragments. Item rewards wait here until you claim them.</p>
+        <p class="desc">Earn XP from every kill, mission and cache. An engram every three levels in the best rarity you can use there (Rares from 5, Legendaries from 10), Exotics at 20 and 40, your third subclass at level ${third}, then new supers, its last aspect and new fragments. Item rewards wait here until you claim them.</p>
       </div>
       <div class="lt-track" id="lt-track">${Array.from({ length: LEVEL_CAP }, (_, i) => node(i + 1)).join('')}</div>
     </div>`;
@@ -529,10 +530,11 @@ function renderCharScreen(main) {
         <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
         <button class="btn cs-vault-btn cs-switch" id="cs-switch" title="Choose another Guardian">⇄ Characters</button>
         <button class="btn cs-vault-btn" id="cs-vault-btn">Vault <small>${s.vault.length} / ${VAULT_CAP}</small></button>
+        <button class="btn cs-vault-btn" id="cs-coll-btn" title="Every exotic you have found">Collection</button>
         <span class="cs-auto" title="Weapon and armor drops of these rarities are dismantled into glimmer automatically">Auto-dismantle
           ${['common', 'uncommon', 'rare'].map((r) => `<button class="cs-auto-t ${s.settings.autoDismantle?.[r] ? 'on' : ''}" data-r="${r}" style="--rc:${RARITIES[rarityIndex(r)].color}">${{ common: 'White', uncommon: 'Green', rare: 'Blue' }[r]}</button>`).join('')}</span>
         <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
-        <span class="hint">Click a slot to swap  ·  Hover for details  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
+        <span class="hint">Click a slot to swap  ·  Hover for details  ·  Right-click a weapon to inspect  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
       </div>
       <button class="cs-mods-arrow" id="cs-mods-btn" title="${playerLevel(s) < MODS_LEVEL ? `Armor stats (mods unlock at level ${MODS_LEVEL})` : 'Armor stats and mods'}"><span>${playerLevel(s) < MODS_LEVEL ? 'Stats' : 'Mods'}</span><i>❯</i></button>
       <div class="cs-fly hidden" id="cs-fly"></div>
@@ -547,6 +549,13 @@ function renderCharScreen(main) {
     if (t) showTip(t); else if (!e.target.closest('#cs-tip')) hideTip();
   });
   root.addEventListener('mouseleave', hideTip);
+  root.addEventListener('contextmenu', (e) => {
+    const t = e.target.closest('.tile[data-id]');
+    if (!t) return;
+    e.preventDefault();
+    const it = getItem(s, t.dataset.id) || s.vault.find((i) => i.id === t.dataset.id);
+    if (it?.kind === 'weapon') { hideTip(); openInspect(it); }
+  });
   root.addEventListener('click', (e) => {
     if (e.target.closest('#cs-vault')) return; // the vault handles its own clicks
     const opt = e.target.closest('.sh-opt');
@@ -584,6 +593,7 @@ function renderCharScreen(main) {
   }
   $('#cs-switch', main).addEventListener('click', () => { sfx.ui(); closeFly(); closeVault(); showCharacterSelect(true); });
   $('#cs-vault-btn', main).addEventListener('click', () => { sfx.ui(); closeFly(); vaultOpen = true; renderVault(); });
+  $('#cs-coll-btn', main).addEventListener('click', () => { closeFly(); closeVault(); openCollection(); });
   $$('.cs-auto-t', main).forEach((b) => b.addEventListener('click', () => {
     const set = (s.settings.autoDismantle = s.settings.autoDismantle || {});
     set[b.dataset.r] = !set[b.dataset.r];
@@ -762,12 +772,13 @@ function tipHTML(it, side) {
   if (it.kind === 'weapon' && it.rarity === 'exotic') {
     body += '<div class="tt-note">Only one exotic weapon can be equipped.</div>';
   }
+  if (!canUseRarity(it.rarity, playerLevel(s))) body += `<div class="tt-note warn">Requires level ${RARITY_GATE[it.rarity]}. ${LEVEL_TOO_LOW}</div>`;
   const inf = infuseInfo(s, it);
   const foot = side === 'vault' ? '<div class="tt-foot"><span>Click: Move to character</span></div>'
     : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span><span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span><i class="tt-hold"><em></em></i></div>`
     : equipped
     ? '<div class="tt-foot">Equipped</div>'
-    : `<div class="tt-foot"><span>Click: Equip</span><span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
+    : `<div class="tt-foot"><span>Click: Equip</span>${it.kind === 'weapon' ? '<span>Right-click: Inspect</span>' : ''}<span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
   return `<div class="tt-head r-${it.rarity}" style="--rc:${rar.color}"><div class="tt-name">${esc(it.name)}</div><div class="tt-type">${rar.name} ${typeLine(it)}</div></div><div class="tt-body">${body}</div>${foot}`;
 }
 
@@ -1010,7 +1021,7 @@ function closeModify() {
 
 // Hold F to dismantle, Esc to close flyouts (only on the Character screen)
 addEventListener('keydown', (e) => {
-  if (G.state !== 'orbit' || orbitTab !== 'character') return;
+  if (G.state !== 'orbit' || orbitTab !== 'character' || lootScreenOpen()) return;
   if (e.code === 'KeyF' && !e.repeat) startDismantle();
   if (e.code === 'Escape') {
     if ($('#sp-full') && !$('#sp-full').classList.contains('hidden')) { closeModify(); return; } // Modify screen first, then the rest
@@ -1486,6 +1497,7 @@ function renderInventory() {
     const i = +b.dataset.slot, it = getItem(s, b.dataset.id);
     if (!it || P.weapons[i].item.id === it.id) return;
     const blocker = equipItem(s, it.id);
+    if (typeof blocker === 'string') { sfx.denied(); orbitNotice(blocker); return; }
     if (blocker) { sfx.denied(); orbitNotice(`Swap out ${blocker.name} first: only one exotic weapon at a time.`); return; }
     writeSave(s);
     P.swapWeapon(i, it);

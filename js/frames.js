@@ -2,7 +2,7 @@
 // archetype fixes the weapon's stats: every drop of a weapon shoots the same, only perks roll.
 // Named legendaries always have the same archetype and element (sourced from Destinypedia,
 // see docs/DECISIONS.md). Pure data and functions, shared by loot, the Player, the UI and tests.
-import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, HEAVY_VERSION, PERK_COLUMNS, PERK_ELEMENT, PERK_SLOTS } from './data.js';
 
 // stats: multipliers on the family's base stats. handling: `mult` multiplies the family's
 // handling, `set` replaces it (burst size, charge time...), `projectile` multiplies projectile values.
@@ -169,6 +169,126 @@ export const LEGENDARY_WEAPONS = [
   { name: 'Regnant', arch: 'glauncher', frame: 'adaptive', element: 'void' },
   { name: 'Hullabaloo', arch: 'glauncher', frame: 'wave', element: 'arc' },
 ];
+
+// Loot 2.0 (U10): named weapons below legendary. Like legendaries, a name fixes the archetype and element.
+// Destiny 2 world-drop names where they exist (checked on godroll.tv's Red War list, 2026-10-19); `orig: true`
+// marks an original name where Destiny ran out. Frames Afterlight lacks map to the nearest one it has.
+export const NAMED_WEAPONS = [
+  // Auto Rifles
+  { name: 'Khvostov 7G-02', rarity: 'common', arch: 'auto', frame: 'adaptive', element: 'kinetic' },
+  { name: 'Cydonia-AR1', rarity: 'uncommon', arch: 'auto', frame: 'adaptive', element: 'kinetic' },
+  { name: 'Vesper AR3', rarity: 'uncommon', arch: 'auto', frame: 'rapid', element: 'solar', orig: true },
+  { name: 'Cuboid ARu', rarity: 'rare', arch: 'auto', frame: 'precision', element: 'kinetic' },
+  { name: 'Halcyon ARv', rarity: 'rare', arch: 'auto', frame: 'highimpact', element: 'arc', orig: true },
+  // Hand Cannons
+  { name: 'Ostrom HC1', rarity: 'common', arch: 'hand', frame: 'adaptive', element: 'kinetic', orig: true },
+  { name: 'Brevin HC4', rarity: 'uncommon', arch: 'hand', frame: 'precision', element: 'solar', orig: true },
+  { name: 'Tallis-C', rarity: 'uncommon', arch: 'hand', frame: 'lightweight', element: 'void', orig: true },
+  { name: 'Allegro-34', rarity: 'rare', arch: 'hand', frame: 'adaptive', element: 'solar' },
+  { name: 'Azimuth DSu', rarity: 'rare', arch: 'hand', frame: 'aggressive', element: 'kinetic' },
+  { name: 'Ballyhoo Mk.27', rarity: 'rare', arch: 'hand', frame: 'adaptive', element: 'kinetic' },
+  { name: 'Guseva-C', rarity: 'rare', arch: 'hand', frame: 'aggressive', element: 'kinetic' },
+  // Pulse Rifles
+  { name: 'Lumen PR1', rarity: 'common', arch: 'pulse', frame: 'adaptive', element: 'kinetic', orig: true },
+  { name: 'Cadenza-11', rarity: 'uncommon', arch: 'pulse', frame: 'adaptive', element: 'solar' },
+  { name: 'Sonata-9', rarity: 'uncommon', arch: 'pulse', frame: 'rapid', element: 'arc', orig: true },
+  { name: 'Agrona PR2', rarity: 'rare', arch: 'pulse', frame: 'lightweight', element: 'solar' },
+  { name: 'Bayesian MSu', rarity: 'rare', arch: 'pulse', frame: 'adaptive', element: 'kinetic' },
+  { name: 'Encore-25', rarity: 'rare', arch: 'pulse', frame: 'adaptive', element: 'solar' },
+  // Scout Rifles
+  { name: 'Pathfinder SR1', rarity: 'common', arch: 'scout', frame: 'lightweight', element: 'kinetic', orig: true },
+  { name: 'Fare-Thee-Well', rarity: 'uncommon', arch: 'scout', frame: 'lightweight', element: 'kinetic' },
+  { name: 'Meridian SRt', rarity: 'uncommon', arch: 'scout', frame: 'precision', element: 'arc', orig: true },
+  { name: 'Armillary PSu', rarity: 'rare', arch: 'scout', frame: 'precision', element: 'kinetic' },
+  { name: 'Black Tiger-2sr', rarity: 'rare', arch: 'scout', frame: 'rapid', element: 'arc' },
+  // Submachine Guns
+  { name: 'Etude-12', rarity: 'common', arch: 'smg', frame: 'adaptive', element: 'void' },
+  { name: 'Daystar SMG2', rarity: 'uncommon', arch: 'smg', frame: 'lightweight', element: 'solar' },
+  { name: 'Forte-15', rarity: 'uncommon', arch: 'smg', frame: 'adaptive', element: 'void' },
+  { name: 'Furina-2mg', rarity: 'rare', arch: 'smg', frame: 'lightweight', element: 'solar' },
+  { name: 'Harmony-21', rarity: 'rare', arch: 'smg', frame: 'adaptive', element: 'void' },
+  // Shotguns
+  { name: 'Häkke SG-3', rarity: 'common', arch: 'shotgun', frame: 'aggressive', element: 'arc', orig: true },
+  { name: 'Ded Nemoris II', rarity: 'uncommon', arch: 'shotgun', frame: 'aggressive', element: 'arc' },
+  { name: 'Hand in Hand', rarity: 'uncommon', arch: 'shotgun', frame: 'precision', element: 'solar' },
+  { name: 'Botheration Mk.28', rarity: 'rare', arch: 'shotgun', frame: 'aggressive', element: 'solar' },
+  { name: 'Fussed Dark Mk.21', rarity: 'rare', arch: 'shotgun', frame: 'precision', element: 'arc' },
+  // Sniper Rifles
+  { name: 'Dead Zone Rifle', rarity: 'common', arch: 'sniper', frame: 'adaptive', element: 'void' },
+  { name: 'Longwatch SN2', rarity: 'uncommon', arch: 'sniper', frame: 'rapid', element: 'solar', orig: true },
+  { name: 'Steadfast-LR1', rarity: 'uncommon', arch: 'sniper', frame: 'aggressive', element: 'arc', orig: true },
+  { name: 'Aachen-LR2', rarity: 'rare', arch: 'sniper', frame: 'adaptive', element: 'void' },
+  { name: 'Damietta-LR2', rarity: 'rare', arch: 'sniper', frame: 'aggressive', element: 'arc' },
+  // Fusion Rifles
+  { name: 'Corona FR1', rarity: 'common', arch: 'fusion', frame: 'adaptive', element: 'solar', orig: true },
+  { name: 'Equinox Tsu', rarity: 'uncommon', arch: 'fusion', frame: 'precision', element: 'solar' },
+  { name: 'Solstice Fsu', rarity: 'uncommon', arch: 'fusion', frame: 'rapid', element: 'arc', orig: true },
+  { name: 'Parallax Fu', rarity: 'rare', arch: 'fusion', frame: 'highimpact', element: 'void', orig: true },
+  { name: 'Zenith FR4', rarity: 'rare', arch: 'fusion', frame: 'adaptive', element: 'arc', orig: true },
+  // Linear Fusion Rifles
+  { name: 'Lancet LFR1', rarity: 'common', arch: 'linear', frame: 'precision', element: 'void', orig: true },
+  { name: 'Spindle LFR2', rarity: 'uncommon', arch: 'linear', frame: 'precision', element: 'solar', orig: true },
+  { name: 'Needle-6', rarity: 'uncommon', arch: 'linear', frame: 'aggressive', element: 'arc', orig: true },
+  { name: 'Filament LFR4', rarity: 'rare', arch: 'linear', frame: 'aggressive', element: 'void', orig: true },
+  { name: 'Tracer Line-7', rarity: 'rare', arch: 'linear', frame: 'precision', element: 'arc', orig: true },
+  // Rocket Launchers
+  { name: 'Tumbril RL1', rarity: 'common', arch: 'rocket', frame: 'adaptive', element: 'solar', orig: true },
+  { name: 'Butler RS/2', rarity: 'uncommon', arch: 'rocket', frame: 'highimpact', element: 'arc' },
+  { name: 'Porter RS/1', rarity: 'uncommon', arch: 'rocket', frame: 'adaptive', element: 'void', orig: true },
+  { name: 'Cup-Bearer SA/2', rarity: 'rare', arch: 'rocket', frame: 'adaptive', element: 'void' },
+  { name: 'Steward SA/3', rarity: 'rare', arch: 'rocket', frame: 'precision', element: 'solar', orig: true },
+  // Machine Guns
+  { name: 'Ramrod MG1', rarity: 'common', arch: 'mg', frame: 'adaptive', element: 'solar', orig: true },
+  { name: 'Rampart MG2', rarity: 'uncommon', arch: 'mg', frame: 'rapid', element: 'arc', orig: true },
+  { name: 'Palisade MG3', rarity: 'uncommon', arch: 'mg', frame: 'adaptive', element: 'void', orig: true },
+  { name: 'Parapet MG4', rarity: 'rare', arch: 'mg', frame: 'highimpact', element: 'solar', orig: true },
+  { name: 'Embrasure MG5', rarity: 'rare', arch: 'mg', frame: 'rapid', element: 'arc', orig: true },
+  // Grenade Launchers
+  { name: 'Mortar GL1', rarity: 'common', arch: 'glauncher', frame: 'adaptive', element: 'solar', orig: true },
+  { name: 'Gareth-C', rarity: 'uncommon', arch: 'glauncher', frame: 'rapid', element: 'void' },
+  { name: 'Hadrian-A', rarity: 'uncommon', arch: 'glauncher', frame: 'rapid', element: 'arc' },
+  { name: 'Harsh Language', rarity: 'rare', arch: 'glauncher', frame: 'adaptive', element: 'arc' },
+  { name: 'Salvo GL4', rarity: 'rare', arch: 'glauncher', frame: 'adaptive', element: 'solar', orig: true },
+];
+
+/** Named weapons of an archetype at a rarity below exotic (legendaries included). */
+export const namedFor = (arch, rarity) => (rarity === 'legendary' ? legendariesFor(arch) : NAMED_WEAPONS.filter((n) => n.arch === arch && n.rarity === rarity));
+/** The named entry behind an item (any rarity below exotic), or null. */
+export const findNamed = (name, arch) => findLegendary(name, arch) || NAMED_WEAPONS.find((n) => n.name === name && n.arch === arch) || null;
+
+/** Every perk of a column that can roll on this archetype and element. */
+export function eligiblePerks(col, arch, element) {
+  const A = ARCHETYPES[arch];
+  return PERK_COLUMNS[col].filter((p) => (!PERK_SLOTS[p] || PERK_SLOTS[p].includes(A.slot)) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element) && !(p === 'extmag' && A.mag === 1));
+}
+
+export const POOL_PER_COLUMN = 3;
+/**
+ * A named weapon's 9-perk pool: 3 per column, the same for every drop of that weapon. An entry's own
+ * `pool` ({ mag, damage, effect }) wins; otherwise the pool is picked from the eligible perks, seeded by the name.
+ */
+export function perkPoolFor(named) {
+  if (named.pool) return named.pool;
+  let h = 2166136261;
+  for (const ch of named.name) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const rnd = () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const out = {};
+  for (const col of Object.keys(PERK_COLUMNS)) {
+    const list = eligiblePerks(col, named.arch, named.element);
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+    out[col] = list.slice(0, POOL_PER_COLUMN);
+  }
+  return out;
+}
+
+/** The perks a drop rolls from its pool: uncommon one Magazine or Reload perk, rare adds a Damage or Effect perk, legendary all three. */
+export function rollPerks(pool, rarity, rnd = Math.random) {
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  if (rarity === 'uncommon') return [pick(pool.mag)];
+  if (rarity === 'rare') return [pick(pool.mag), pick(rnd() < 0.5 ? pool.damage : pool.effect)];
+  if (rarity === 'legendary') return [pick(pool.mag), pick(pool.damage), pick(pool.effect)];
+  return [];
+}
 
 export const framesFor = (arch) => Object.keys(FRAMES[arch] || {});
 export const legendariesFor = (arch) => LEGENDARY_WEAPONS.filter((l) => l.arch === arch);
