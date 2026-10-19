@@ -90,7 +90,7 @@ export function spatial(at, cam = G.camera) {
   const q = cam.quaternion;
   const rx = 1 - 2 * (q.y * q.y + q.z * q.z), ry = 2 * (q.x * q.y + q.w * q.z), rz = 2 * (q.x * q.z - q.w * q.y);
   const pan = Math.max(-0.9, Math.min(0.9, (dx * rx + dy * ry + dz * rz) / dist * 0.9));
-  return { pan, gain: 1 / (1 + dist / 16), dist };
+  return { pan, gain: 1 / (1 + dist / 40), dist };
 }
 
 function noise({ dur = 0.15, freq = 1500, freqEnd, q = 0.8, type = 'lowpass', gain = 0.5, attack = 0.002, delay = 0 }) {
@@ -206,9 +206,9 @@ export const ABILITY_RECIPES = {
 };
 
 export const FACTION_SOUND = {
-  scrappers: { shot: { t: { freq: 760, freqEnd: 300, dur: 0.1, type: 'triangle', gain: 0.07 } }, die: { n: { dur: 0.25, freq: 1500, freqEnd: 300, type: 'bandpass', gain: 0.14 } } },
-  hollow: { shot: { t: { freq: 380, freqEnd: 150, dur: 0.14, type: 'sawtooth', gain: 0.05, vib: 14 } }, die: { t: { freq: 260, freqEnd: 90, dur: 0.3, type: 'sawtooth', gain: 0.07, vib: 20 } } },
-  legion: { shot: { t: { freq: 540, freqEnd: 240, dur: 0.1, type: 'square', gain: 0.045 } }, die: { n: { dur: 0.28, freq: 900, freqEnd: 150, gain: 0.16 } } },
+  scrappers: { shot: [{ t: { freq: 900, freqEnd: 320, dur: 0.14, type: 'triangle', gain: 0.3 } }, { n: { dur: 0.08, freq: 3200, freqEnd: 900, type: 'bandpass', gain: 0.25 } }], die: [{ n: { dur: 0.35, freq: 1800, freqEnd: 300, type: 'bandpass', gain: 0.4 } }, { t: { freq: 420, freqEnd: 120, dur: 0.3, type: 'triangle', gain: 0.18 } }] },
+  hollow: { shot: [{ t: { freq: 420, freqEnd: 150, dur: 0.2, type: 'sawtooth', gain: 0.22, vib: 14 } }, { n: { dur: 0.12, freq: 1500, freqEnd: 500, type: 'bandpass', gain: 0.2 } }], die: [{ t: { freq: 300, freqEnd: 80, dur: 0.45, type: 'sawtooth', gain: 0.25, vib: 20 } }, { n: { dur: 0.3, freq: 900, freqEnd: 200, gain: 0.25 } }] },
+  legion: { shot: [{ t: { freq: 620, freqEnd: 240, dur: 0.14, type: 'square', gain: 0.18 } }, { n: { dur: 0.1, freq: 2200, freqEnd: 600, gain: 0.3 } }], die: [{ n: { dur: 0.4, freq: 1100, freqEnd: 150, gain: 0.45 } }, { t: { freq: 160, freqEnd: 60, dur: 0.35, type: 'sine', gain: 0.3 } }] },
 };
 
 export const sfx = {
@@ -222,14 +222,14 @@ export const sfx = {
   enemyShot(at, faction) {
     if (throttled('es', 60)) return;
     const f = (FACTION_SOUND[faction] || FACTION_SOUND.scrappers).shot;
-    play('enemies', [f], { at, send: 0.25, vary: 0.12 });
+    play('enemies', f, { at, send: 0.25, vary: 0.12 });
   },
   enemyDie(at, faction) {
     if (throttled('ed', 70)) return;
-    play('enemies', [(FACTION_SOUND[faction] || FACTION_SOUND.scrappers).die], { at, send: 0.3, vary: 0.15 });
+    play('enemies', (FACTION_SOUND[faction] || FACTION_SOUND.scrappers).die, { at, send: 0.3, vary: 0.15 });
   },
   /** Heavy enemy footfall. */
-  step(at) { if (throttled('step', 180)) return; play('enemies', [{ t: { freq: 70, freqEnd: 38, dur: 0.18, type: 'sine', gain: 0.22 } }, { n: { dur: 0.08, freq: 400, gain: 0.1 } }], { at, vary: 0.1 }); },
+  step(at) { if (throttled('step', 180)) return; play('enemies', [{ t: { freq: 70, freqEnd: 38, dur: 0.2, type: 'sine', gain: 0.5 } }, { n: { dur: 0.08, freq: 400, gain: 0.25 } }], { at, vary: 0.1 }); },
   explosion(r = 4, at, el) {
     if (throttled('ex', 40)) return;
     const big = r >= 6;
@@ -247,7 +247,7 @@ export const sfx = {
     else play('weapons', [{ t: { freq: 1100, dur: 0.04, type: 'triangle', gain: 0.07 } }], { vary: 0 });
   },
   kill() { if (throttled('kill', 40)) return; play('weapons', [{ t: { freq: 500, freqEnd: 1200, dur: 0.1, type: 'triangle', gain: 0.1 } }], { vary: 0 }); },
-  shieldBreak(at) { play('enemies', [{ n: { dur: 0.3, freq: 5000, freqEnd: 1500, type: 'highpass', gain: 0.35 } }, { t: { freq: 1500, freqEnd: 500, dur: 0.25, type: 'triangle', gain: 0.12 } }], { at, send: 0.4, gain: 1.6 }); },
+  shieldBreak(at) { play('enemies', [{ n: { dur: 0.3, freq: 5000, freqEnd: 1500, type: 'highpass', gain: 0.35 } }, { t: { freq: 1500, freqEnd: 500, dur: 0.25, type: 'triangle', gain: 0.12 } }], { at, send: 0.4 }); },
   playerShieldBreak() { play('abilities', [{ t: { freq: 600, freqEnd: 150, dur: 0.4, type: 'sawtooth', gain: 0.15 } }, { n: { dur: 0.3, freq: 4500, freqEnd: 1000, type: 'highpass', gain: 0.25 } }], { send: 0.4 }); },
   block() { if (throttled('block', 90)) return; play('abilities', [{ t: { freq: 240, freqEnd: 110, dur: 0.14, type: 'square', gain: 0.1 } }, { n: { dur: 0.1, freq: 1600, type: 'bandpass', gain: 0.25 } }, { t: { freq: 90, freqEnd: 50, dur: 0.15, type: 'sine', gain: 0.25 } }], { send: 0.3 }); },
   shieldRecharge() { play('abilities', [{ t: { freq: 300, freqEnd: 900, dur: 0.5, type: 'sine', gain: 0.08 } }], { send: 0.4 }); },

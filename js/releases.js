@@ -4,6 +4,14 @@
 
 export const RELEASES = [
   {
+    version: '2.2.1', name: 'Hotfix', date: '2026-10-19', accent: '#ffb547', glyph: '✚',
+    summary: 'Enemy sounds were far too quiet to hear. They are now clearly audible while staying lighter than your own weapons.',
+    notes: [
+      'Enemy shots, death sounds, shield breaks and heavy footfalls are several times louder, with a fuller sound per faction (Fallen, Hive, Cabal)',
+      'Sounds fade with distance more gently, so enemies across a room are still heard',
+    ],
+  },
+  {
     version: '2.2', name: 'Resonance', date: '2026-10-19', accent: '#5fe0d0', glyph: '♫',
     summary: 'The whole game gets a new sound: a score that moves from ambient to tense to orchestral, heavier guns and abilities with their own element sounds, quiet enemies placed in the world around you, and a new Effects volume slider.',
     notes: [
