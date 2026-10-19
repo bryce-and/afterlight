@@ -30,6 +30,7 @@ export const STATUS = {
   juggernaut: { name: 'Juggernaut', group: 'general', glyph: '⬢', color: '#5fd3ff', t: Infinity },
   rally: { name: 'Rally', group: 'general', glyph: '↻', color: '#ffb36b', t: 6 },
   onyourmark: { name: 'On Your Mark', group: 'general', glyph: '↻', color: '#ffb547', t: 6, maxStacks: 3 },
+  fragout: { name: 'Frag Out', group: 'general', glyph: '✹', color: '#ffd27a', t: Infinity },
   gunpowder: { name: 'Gunpowder Gamble', group: 'general', glyph: '✹', color: '#ffb547', t: Infinity },
   flowstate: { name: 'Flow State', group: 'general', glyph: '»', color: '#5fd3ff', t: 6 },
   devour: { name: 'Devour', group: 'general', glyph: '◉', color: '#b07cff', t: 8 },
@@ -91,6 +92,7 @@ export const ENEMY_STATUS = {
   slow: { name: 'Slowed', glyph: '≈', color: '#9fb4ff' },
   suppress: { name: 'Suppressed', glyph: '⊘', color: '#c9a6ff' },
   burn: { name: 'Scorched', glyph: '♨', color: '#ff8b2b' },
+  corrosive: { name: 'Corrosive', glyph: '⬣', color: '#c8d84a' }, // Witherhoard only: a round stuck to the target, or standing in its pool
   poison: { name: 'Poisoned', glyph: '☣', color: '#6dff8e' },
   jolt: { name: 'Jolted', glyph: 'ϟ', color: '#5fd3ff' },
   judged: { name: 'Judged', glyph: '◈', color: '#ffd27a' }, // Divinity: weapon hits on the bubble are precision hits

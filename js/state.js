@@ -9,7 +9,7 @@ export const G = {
   player: null, mission: null,
   input: {
     keys: {}, pressed: {},
-    mouse: { left: false, right: false, leftPressed: false, dx: 0, dy: 0, wheel: 0 },
+    mouse: { left: false, right: false, leftPressed: false, rightPressed: false, dx: 0, dy: 0, wheel: 0 },
     locked: false, wasLocked: false,
   },
 };

@@ -388,6 +388,20 @@ function buildBaseGun(item, look) {
       ironSights(k, dark, S, -0.02, 0.045, 0.47, 0.054, 0xff9a3c);
       return finish(g, { muzzleF: 0.5, muzzleY: 0.02, S, hip: [0.22, -0.2, -0.5], ads: 0.34, flash: fc });
     }
+    case 'forerunner': { // the Forerunner: a long, heavy slab-sided Special sidearm with a shrouded barrel and a drum of frag
+      S = 0.056;
+      P([[-0.06, 0.036], [0.16, 0.036], [0.2, 0.02], [0.2, -0.02], [-0.06, -0.022]], 0.04, body);
+      P([[0.14, 0.03], [0.34, 0.03], [0.36, 0.01], [0.36, -0.012], [0.14, -0.018]], 0.034, mid); // shroud
+      for (let i = 0; i < 5; i++) B(0.038, 0.012, 0.014, 0, 0.034, 0.17 + i * 0.035, dark); // vents
+      P([[-0.04, -0.02], [0.02, -0.02], [-0.01, -0.13], [-0.08, -0.125]], 0.036, gripM);
+      triggerGuard(k, dark, steel, 0.0, -0.028);
+      T(0.03, 0.05, 0, -0.045, 0.08, steel, 10); // frag drum under the receiver
+      T(0.034, 0.012, 0, -0.045, 0.1, glow, 10);
+      B(0.036, 0.005, 0.12, 0, 0.04, 0.06, glow);
+      T(0.011, 0.03, 0, 0.008, 0.37, steel, 6);
+      ironSights(k, dark, S, -0.04, 0.036, 0.3, 0.036, 0xffd27a);
+      return finish(g, { muzzleF: 0.38, muzzleY: 0.008, S, hip: [0.17, -0.18, -0.42], ads: 0.3, flash: fc });
+    }
     case 'sidearm': {
       S = 0.052;
       P([[-0.05, 0.03], [0.14, 0.03], [0.15, 0.012], [0.15, -0.015], [-0.05, -0.02]], 0.03, body);
@@ -422,8 +436,9 @@ function buildBaseGun(item, look) {
       P([[0.76, 0.085], [1.08, 0.0], [0.76, -0.085], [0.84, 0.0]], 0.014, body); // blade head
       P([[0.8, 0.045], [1.0, 0.0], [0.8, -0.045], [0.86, 0.0]], 0.016, glow);
       B(0.04, 0.012, 0.16, 0, 0.0, 0.0, glow);
-      ironSights(k, dark, S, -0.02, 0.026, 0.3, 0.03, 0xffd27a);
-      return finish(g, { muzzleF: 1.0, muzzleY: 0, S, hip: [0.22, -0.2, -0.5], ads: 0.36, flash: fc, gripF: -0.02 });
+      const out = finish(g, { muzzleF: 1.0, muzzleY: 0, S, hip: [0.22, -0.2, -0.5], ads: 0.36, flash: fc, gripF: -0.02 });
+      out.userData.ads.copy(out.userData.hip).add(new THREE.Vector3(-0.06, 0.03, 0.02)); // no sights: raising the shield keeps the Glaive out of your view
+      return out;
     }
     case 'trace': {
       S = 0.09;

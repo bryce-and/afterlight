@@ -934,3 +934,10 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
   .ins-panel { right: 16px; left: 16px; width: auto; top: auto; bottom: 16px; transform: none; max-height: 60vh; }
   .ins-name { font-size: 24px; }
 }
+
+/* Glaive shield energy, under the crosshair */
+#glaive-bar { position: absolute; left: 50%; top: calc(50% + 34px); width: 92px; height: 5px; margin-left: -46px; border: 1px solid rgba(255,255,255,0.55); background: rgba(0,0,0,0.45); opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+#glaive-bar.show { opacity: 1; }
+#glaive-bar i { display: block; height: 100%; width: var(--e, 0%); background: var(--c, #fff); box-shadow: 0 0 6px var(--c, #fff); }
+#glaive-bar.broken { animation: gbflash 0.5s steps(2) infinite; }
+@keyframes gbflash { 50% { opacity: 0.35; } }

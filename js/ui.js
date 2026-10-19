@@ -1163,7 +1163,16 @@ export function updateHUD(dt) {
   const spread = S ? 0.004 : P.getSpread(w);
   const px = (spread / Math.tan((cam.fov * Math.PI) / 360)) * (innerHeight / 2);
   setStyle(hud.cross, 'chg', '--gap', `${Math.round(5 + px)}px`);
-  setClass(hud.cross, 'chads', 'ads', P.adsT > 0.5 && !S);
+  setClass(hud.cross, 'chads', 'ads', P.adsT > 0.5 && !S && !w.A.glaive);
+  // Glaive shield energy under the crosshair
+  hud.gbar ??= $('#glaive-bar');
+  const gl = !S && !!w.A.glaive;
+  setClass(hud.gbar, 'gb', 'show', gl);
+  if (gl) {
+    setStyle(hud.gbar, 'gbw', '--e', `${Math.round(w.energy)}%`);
+    setStyle(hud.gbar, 'gbc', '--c', w.shieldBrk > 0 ? '#ff5a4a' : `#${ELEMENTS[w.el || w.item.element].hex.toString(16).padStart(6, '0')}`);
+    setClass(hud.gbar, 'gbb', 'broken', w.shieldBrk > 0);
+  }
   setClass(hud.cross, 'chrl', 'dim', w.reloading || P.switchT > 0);
   // super vignette + screen flash
   const sv = $('#super-vignette');

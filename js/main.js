@@ -49,7 +49,7 @@ addEventListener('blur', () => { inp.keys = {}; inp.mouse.left = inp.mouse.right
 canvas.addEventListener('mousedown', (e) => {
   if (G.state === 'playing' && !document.pointerLockElement) lockPointer();
   if (e.button === 0) { inp.mouse.left = true; inp.mouse.leftPressed = true; }
-  if (e.button === 2) inp.mouse.right = true;
+  if (e.button === 2) { inp.mouse.right = true; inp.mouse.rightPressed = true; }
 });
 addEventListener('mouseup', (e) => {
   if (e.button === 0) inp.mouse.left = false;
@@ -100,7 +100,7 @@ function frame(now) {
     G.lastError = err;
   }
   inp.pressed = {};
-  inp.mouse.leftPressed = false;
+  inp.mouse.leftPressed = false; inp.mouse.rightPressed = false;
   inp.mouse.dx = 0; inp.mouse.dy = 0; inp.mouse.wheel = 0;
 }
 requestAnimationFrame(frame);

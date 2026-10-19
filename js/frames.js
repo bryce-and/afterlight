@@ -89,11 +89,12 @@ export const FRAMES = {
     rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Rocket-propelled rounds burst on impact. Slow, heavy-hitting shots.', slot: 'special', stats: { rpm: 0.5, dmg: 2.75, mag: 0.75 }, handling: { set: { rocketRound: { radius: 2.2, splash: 0.5 }, reserve: 22, brick: 5 } } },
   },
   sword: {
-    aggressive: { name: 'Aggressive Frame', desc: 'A wide three-swing combo with a long lunge. Hits hard.', stats: { dmg: 1.15, rpm: 0.87 }, handling: { set: { sword: { reach: 3.9, cone: 0.5, combo: 3, lunge: 4.5, guard: 0.7, heavy: 2.2 } } } },
-    lightweight: { name: 'Lightweight Frame', desc: 'Quick swings and superior mobility while this weapon is held.', stats: { dmg: 0.85, rpm: 1.18 }, handling: { set: { move: 1.06, sword: { reach: 3.6, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.6, heavy: 2.2 } } } },
-    caster: { name: 'Caster Frame', desc: 'Every third swing throws an energy wave that travels far down range.', stats: { dmg: 0.8, rpm: 1.25 }, handling: { set: { sword: { reach: 3.6, cone: 0.55, combo: 3, lunge: 3.0, guard: 0.7, heavy: 2.2, wave: true } } } },
-    vortex: { name: 'Vortex Frame', desc: 'Spinning cuts hit everything around you, for less damage per target.', stats: { dmg: 0.62, rpm: 1.6 }, handling: { set: { sword: { reach: 3.4, cone: -1, combo: 2, lunge: 2.0, guard: 0.65, heavy: 2.0 } } } },
+    aggressive: { name: 'Aggressive Frame', desc: 'A wide three-swing combo with a long lunge. Heavy attack: a very slow overhead slam with enormous impact.', stats: { dmg: 1.15, rpm: 0.87 }, handling: { set: { sword: { reach: 3.9, cone: 0.5, combo: 3, lunge: 4.5, guard: 0.7, heavy: 2.2, heavyKind: 'slam' } } } },
+    lightweight: { name: 'Lightweight Frame', desc: 'Quick swings and superior mobility while this weapon is held. Heavy attack: a fast dash through your enemies.', stats: { dmg: 0.85, rpm: 1.18 }, handling: { set: { move: 1.06, sword: { reach: 3.6, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.6, heavy: 2.2, heavyKind: 'dash' } } } },
+    caster: { name: 'Caster Frame', desc: 'Balanced swings. Heavy attack: throws a powerful energy wave far down range.', stats: {}, handling: { set: { sword: { reach: 3.6, cone: 0.55, combo: 3, lunge: 3.0, guard: 0.7, heavy: 2.2, heavyKind: 'wave' } } } },
+    vortex: { name: 'Vortex Frame', desc: 'Balanced swings. Heavy attack: a spinning strike that hits everything around you.', stats: {}, handling: { set: { sword: { reach: 3.6, cone: 0.55, combo: 2, lunge: 3.0, guard: 0.65, heavy: 2.0, heavyKind: 'spin' } } } },
   },
+  forerunner: { adaptive: { name: 'Forerunner Frame', desc: 'A heavy-hitting Special sidearm: slow, precise and hard-hitting.', stats: {} } },
   glaive: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced shots, shield and thrust.', stats: {} },
     aggressive: { name: 'Aggressive Frame', desc: 'Heavier bolts, slower to fire, and a harder thrust.', stats: { dmg: 1.3, rpm: 0.77, mag: 0.67 }, handling: { set: { glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 6.5, meleeCd: 1.8, thrust: 6 } } } },

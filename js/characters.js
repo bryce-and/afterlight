@@ -252,6 +252,17 @@ export function ghost() {
   return g;
 }
 
+/** The Glaive's shield: a front-facing energy dome (faces +z) in the weapon's element colour, built for any viewer. */
+export function makeShieldDome(hex, opacity = 0.24) {
+  const g = new THREE.Group();
+  const geo = new THREE.SphereGeometry(1.75, 28, 18, 0, Math.PI, 0, Math.PI);
+  const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const grid = new THREE.Mesh(new THREE.SphereGeometry(1.76, 14, 9, 0, Math.PI, 0, Math.PI), new THREE.MeshBasicMaterial({ color: hex, wireframe: true, transparent: true, opacity: 0.4, depthWrite: false }));
+  g.add(fill, grid);
+  g.userData = { fill, grid, base: opacity };
+  return g;
+}
+
 /** Sentinel Shield guard pose (radians): left arm forward and across, shield twisted to face front. */
 export const GUARD_POSE = { armX: -1.25, armZ: -0.5, twist: 1.5 };
 // U9: held poses of the third-person supers (arm targets: rotation x/z of the right and left arm, torso lean).
@@ -286,6 +297,7 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
   group.add(gh);
   let t = Math.random() * 10, phase = 0, gun = null;
   const props = [];
+  let dome = null, domeHex = 0, domeT = 0;
   let shield = null, barrier = null, guardT = 0, blockT = 0, poseT = 0, poseKind = null; // Sentinel Shield: the shield prop, guard blend 0..1, block flash 1..0
   const knee = (leg) => leg.userData.knee;
   const elbow = (arm) => arm.userData.elbow;
@@ -427,9 +439,16 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
       }
     },
     /** Sentinel Shield took a hit while guarding: flash the shield. */
-    blockHit() { blockT = 1; },
+    blockHit() { blockT = 1; domeT = 1; },
+    /** The Glaive's shield around this figure (hex colour), or 0/false to lower it. */
+    setShield(hex) {
+      if (!hex) { if (dome) dome.visible = false; return; }
+      if (!dome || domeHex !== hex) { if (dome) group.remove(dome); dome = makeShieldDome(hex); dome.position.y = 1.05; group.add(dome); domeHex = hex; }
+      dome.visible = true;
+    },
     /** pose: null = idle on the Character screen; otherwise { speed, sprint, air, pitch, firing, dead, guard }. */
     update(dt, pose = null) {
+      if (dome?.visible) { domeT = Math.max(0, domeT - dt * 4); dome.userData.fill.material.opacity = dome.userData.base + 0.04 * Math.sin(performance.now() * 0.006) + domeT * 0.35; }
       t += dt;
       const br = Math.sin(t * 1.6);
       if (b.cloak) b.cloak.rotation.x = 0.05 + Math.sin(t * 1.3) * 0.03 + (pose ? Math.min(0.5, (pose.speed || 0) * 0.05) : 0);
@@ -509,12 +528,30 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
           b.arms[0].rotation.x = -1.4 - Math.sin(u * Math.PI) * 0.15;
           b.arms[0].rotation.z = s.dir * (0.2 + (0.9 - 1.9 * e));
           b.torso.rotation.y = s.dir * (0.5 - 1.0 * e);
-        } else if (u < 0.4) { // wind up: the blade rises overhead
-          const w = u / 0.4;
-          b.arms[0].rotation.x = -1.4 - 1.6 * w; b.arms[0].rotation.z = 0.1; b.torso.rotation.x = -0.18 * w; b.torso.rotation.y = 0.2 * w;
-        } else { // chop down hard, then settle
-          const d = (u - 0.4) / 0.6, e = 1 - Math.pow(1 - Math.min(1, d * 1.6), 3);
-          b.arms[0].rotation.x = -3.0 + 2.6 * e; b.arms[0].rotation.z = 0.1; b.torso.rotation.x = -0.18 + 0.62 * Math.sin(Math.min(1, d * 1.6) * Math.PI * 0.6); b.torso.rotation.y = 0.2 - 0.2 * e;
+        } else {
+          const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3), smooth = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+          if (s.kind === 'slam') { // Aggressive: a long raise, a pause at the top, then a crushing overhead slam
+            const up = smooth(u / 0.55), down = ease((u - 0.58) / 0.14), rec = smooth((u - 0.8) / 0.2);
+            b.arms[0].rotation.x = -1.4 - 1.65 * up * (1 - rec) + 3.0 * down * (1 - rec); b.arms[0].rotation.z = 0.15;
+            b.torso.rotation.x = (-0.3 * up + 0.95 * down) * (1 - rec); b.torso.rotation.y = 0.15 * up * (1 - down);
+            b.torso.position.y -= 0.18 * down * (1 - rec);
+          } else if (s.kind === 'dash') { // Lightweight: coil back, then lunge forward in a low slash
+            const coil = smooth(u / 0.3), lunge = ease((u - 0.3) / 0.3), rec = smooth((u - 0.75) / 0.25);
+            b.arms[0].rotation.x = -1.4 - 0.4 * coil + 0.2 * lunge; b.arms[0].rotation.z = 0.9 * coil - 1.9 * lunge * (1 - rec * 0.5);
+            b.torso.rotation.x = 0.55 * lunge * (1 - rec) - 0.1 * coil; b.torso.rotation.y = 0.7 * coil - 1.2 * lunge * (1 - rec);
+          } else if (s.kind === 'wave') { // Caster: pull the blade back over the shoulder, then throw it forward
+            const back = smooth(u / 0.45), cut = ease((u - 0.45) / 0.2), rec = smooth((u - 0.75) / 0.25);
+            b.arms[0].rotation.x = -1.4 - 1.3 * back * (1 - rec) + 2.3 * cut * (1 - rec); b.arms[0].rotation.z = 0.5 * back * (1 - cut);
+            b.torso.rotation.x = -0.15 * back + 0.35 * cut * (1 - rec); b.torso.rotation.y = 0.5 * back - 0.5 * cut;
+          } else if (s.kind === 'spin') { // Vortex: arm out wide, the whole body turns a full circle
+            const wind = smooth(u / 0.2), turn = smooth((u - 0.2) / 0.65), rec = smooth((u - 0.85) / 0.15);
+            b.arms[0].rotation.x = -1.5; b.arms[0].rotation.z = 1.25 * wind * (1 - rec);
+            b.torso.rotation.y = -Math.PI * 2 * turn * (1 - rec) + 0.0; b.torso.rotation.x = 0.12 * wind * (1 - rec);
+          } else { // plain cleave
+            const w = u < 0.4 ? smooth(u / 0.4) : 1, d = u < 0.4 ? 0 : ease((u - 0.4) / 0.25), rec = smooth((u - 0.75) / 0.25);
+            b.arms[0].rotation.x = -1.4 - 1.6 * w + 2.6 * d * (1 - rec); b.arms[0].rotation.z = 0.1;
+            b.torso.rotation.x = -0.18 * w + 0.62 * d * (1 - rec); b.torso.rotation.y = 0.2 * w * (1 - d);
+          }
         }
         elbow(b.arms[0]).rotation.x = -0.1;
       }

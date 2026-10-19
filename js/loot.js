@@ -132,7 +132,7 @@ export function starterGear(classId = null) {
 /** One common weapon of every archetype the player doesn't already own. */
 export function armoryGear(owned, power) {
   return Object.values(ARCHETYPES)
-    .filter((A) => !owned.has(A.id))
+    .filter((A) => !owned.has(A.id) && !A.exoticOnly)
     .map((A) => makeWeapon(A.slot, power, 0, A.id));
 }
 

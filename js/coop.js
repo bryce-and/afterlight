@@ -20,7 +20,7 @@ import * as ui from './ui.js';
 //  - Everyone rolls their own loot from kill events (client-side loot).
 
 const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss'];
-const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged']; // snapshot bit order
+const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive']; // snapshot bit order
 /** Host: an enemy's debuffs as a bitmask. */
 const debuffBits = (en) => DEBUFF_BITS.reduce((b, k, i) => (en.status.has(k) ? b | (1 << i) : b), 0);
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -180,7 +180,7 @@ export function damageRemote(r, dmg, from) {
 /** Member: report a hit on a host-owned enemy. */
 export function sendHit(e, dmg, o) {
   lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source });
-  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, sb: o.shieldBreaker ? 1 : 0 });
+  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, co: o.corrosive || 0, sb: o.shieldBreaker ? 1 : 0 });
 }
 
 export function sendFx(msg) { if (net.active && G.state === 'playing') send(msg); }
@@ -200,7 +200,7 @@ function myState() {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, lk: P.lookCode,
     x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0,
     // animation: sprinting, airborne, firing, and the gun in hand
-    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, w: (P.superActive && !P.keepsGuns) || P.holdingAxe ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
+    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, w: (P.superActive && !P.keepsGuns) || P.holdingAxe ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
   };
 }
 
@@ -319,6 +319,7 @@ function updateAvatars(dt) {
     const prop = st.sp || null;
     if (r.prop !== prop) { r.prop = prop; r.avatar.setProp(prop); }
     // Sentinel Shield guard: the shield flashes when the count of blocked hits goes up
+    r.avatar.setShield(st.gv || 0); // a raised Glaive shield, in the glaive's element colour
     if (st.gh > r.guardHits) r.avatar.blockHit();
     r.guardHits = st.gh || 0;
     r.avatar.update(dt, { speed: Math.hypot(r.vel.x, r.vel.z), sprint: !!st.s, air: !!st.a, pitch: st.pt || 0, firing: !!st.f, armsLow: prop === 'fists' && !st.pu, punch: st.pu || 0, guard: prop === 'sentinel' && !!st.gd, superPose: st.po || null, hover: !!st.hv });
@@ -384,7 +385,7 @@ net.on('p', (m, from) => { if (inMission()) ensureRemote({ ...m, id: from }); })
 net.on('hit', (m, from) => {
   if (!inMission()) return;
   const e = getEnemyByNetId(m.id);
-  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, judged: m.jg, shieldBreaker: !!m.sb });
+  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, judged: m.jg, corrosive: m.co, shieldBreaker: !!m.sb });
 });
 
 // both: effects

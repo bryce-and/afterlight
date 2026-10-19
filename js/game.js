@@ -470,7 +470,7 @@ export function dealDamage(e, amount, o = {}) {
   return { killed, dealt };
 }
 
-const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged'];
+const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive'];
 
 /** Jolt: a hit on a jolted enemy arcs lightning into it and up to JOLT.n enemies nearby. */
 function joltFrom(e) {

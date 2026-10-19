@@ -96,7 +96,7 @@ test('new save: current version, level 1, every slot equipped, one of each weapo
   eq(s.version, S.SAVE_VERSION);
   eq(S.playerLevel(s), 1);
   for (const sl of ['primary', 'special', 'heavy', 'helmet', 'arms', 'chest', 'legs']) ok(S.getEquipped(s, sl), sl);
-  eq(new Set(s.inventory.filter((i) => i.kind === 'weapon').map((i) => i.arch)).size, Object.keys(ARCHETYPES).length);
+  eq(new Set(s.inventory.filter((i) => i.kind === 'weapon').map((i) => i.arch)).size, Object.keys(ARCHETYPES).filter((id) => !ARCHETYPES[id].exoticOnly).length);
 });
 test('save round-trips through storage', () => {
   fresh();
@@ -501,7 +501,7 @@ test('Roadmap: valid statuses, no dates, not duplicating a shipped name', () => 
 // ---------- Arsenal (v1.4) ----------
 test('archetypes: every weapon family has Destiny frames with a name and description', () => {
   for (const id of Object.keys(ARCHETYPES)) {
-    ok(framesFor(id).length >= 2, `${id} has frames`);
+    ok(framesFor(id).length >= (ARCHETYPES[id].exoticOnly ? 1 : 2), `${id} has frames`);
     for (const f of Object.values(FRAMES[id])) ok(/Frame$/.test(f.name) && f.desc, `${id} ${f.name}`);
   }
   eq(Object.keys(FRAMES).sort(), Object.keys(ARCHETYPES).sort());
@@ -512,7 +512,7 @@ test('named legendaries: valid family, archetype and element; unique names; Corr
     ok(ARCHETYPES[l.arch] && FRAMES[l.arch][l.frame] && ELEMENTS[l.element], l.name);
     ok(!names.has(l.name), `duplicate ${l.name}`); names.add(l.name);
   }
-  for (const id of Object.keys(ARCHETYPES)) ok(LEGENDARY_WEAPONS.filter((l) => l.arch === id).length >= 4, `${id} legendaries`);
+  for (const id of Object.keys(ARCHETYPES).filter((id) => !ARCHETYPES[id].exoticOnly)) ok(LEGENDARY_WEAPONS.filter((l) => l.arch === id).length >= 4, `${id} legendaries`);
   const cm = LEGENDARY_WEAPONS.find((l) => l.name === 'Corrective Measure');
   eq([cm.arch, cm.frame, cm.element], ['mg', 'adaptive', 'void']);
   ok(LEGENDARY_WEAPONS.some((l) => l.element === 'stasis') && LEGENDARY_WEAPONS.some((l) => l.element === 'strand'), 'Stasis and Strand legendaries');
@@ -541,7 +541,7 @@ test('archetypes keep damage per second within 15% of each other in a family (Co
     const cycle = A.mode === 'burst' ? ((A.burst - 1) * 60 / s.rpm + A.burstDelay) / A.burst : A.mode === 'charge' ? A.charge + 60 / s.rpm : 60 / s.rpm;
     return shot / cycle;
   };
-  for (const arch of Object.keys(ARCHETYPES)) {
+  for (const arch of Object.keys(ARCHETYPES).filter((id) => !ARCHETYPES[id].exoticOnly)) {
     for (const slot of ['primary', 'special', 'heavy']) { // U11: frames in another ammo slot (Rocket-Assisted, special Grenade Launchers) are balanced against their own slot
       const vals = framesFor(arch).filter((f) => f !== 'wave' && frameSlot(arch, f) === slot).map((f) => [f, dps({ arch, frame: f, rarity: 'legendary', slot })]);
       if (!vals.length) continue;
@@ -1091,7 +1091,7 @@ test('U10 perk columns: every perk sits in one column; Steady Hands and Snapshot
   for (const p of ['alloymag', 'rapidhit', 'subsistence', 'envious', 'adrenaline', 'oneforall', 'baitswitch', 'tremors', 'repulsor', 'jolting']) ok(perkColumn(p), `new perk ${p}`);
 });
 test('U10 named weapons at every rarity: each archetype has named commons, uncommons, rares and legendaries', () => {
-  for (const arch of Object.keys(ARCHETYPES)) for (const r of ['common', 'uncommon', 'rare', 'legendary']) ok(namedFor(arch, r).length >= 1, `${arch} ${r}`);
+  for (const arch of Object.keys(ARCHETYPES).filter((id) => !ARCHETYPES[id].exoticOnly)) for (const r of ['common', 'uncommon', 'rare', 'legendary']) ok(namedFor(arch, r).length >= 1, `${arch} ${r}`);
   const names = [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS].map((n) => n.name);
   for (const n of NAMED_WEAPONS) { ok(FRAMES[n.arch]?.[n.frame], `${n.name} frame`); ok(ELEMENTS[n.element], `${n.name} element`); }
   const dup = names.filter((n, i) => names.indexOf(n) !== i); eq(dup, [], 'unique names');
@@ -1159,8 +1159,7 @@ test('U11: five new behaviors in the right ammo slots; Rocket-Assisted and light
   eq(weaponHandling({ arch: 'sidearm', frame: 'rapid' }).mode, 'auto');
   eq(weaponHandling({ arch: 'sidearm', frame: 'burst' }).burst, 3);
   eq(weaponHandling({ arch: 'glauncher', frame: 'double' }).grenades, 2);
-  ok(weaponHandling({ arch: 'sword', frame: 'caster' }).sword.wave, 'caster wave');
-  eq(weaponHandling({ arch: 'sword', frame: 'vortex' }).sword.cone, -1, 'vortex hits all around');
+  eq(['aggressive', 'lightweight', 'caster', 'vortex'].map((f) => weaponHandling({ arch: 'sword', frame: f }).sword.heavyKind), ['slam', 'dash', 'wave', 'spin'], 'sword heavy kinds');
 });
 test('U11: every slot and rarity drops a weapon that really sits in that slot (no throw), for every family', () => {
   for (const slot of ['primary', 'special', 'heavy']) for (let r = 0; r < 4; r++) for (let i = 0; i < 120; i++) {
@@ -1190,7 +1189,7 @@ test('U11: heavy ammo: reserves down, damage up, bricks a little more common (Br
 });
 test('U11: the 14 new exotics are real Destiny 2 exotics with a signature perk each, in the Exotic Collection', () => {
   const real = {
-    'Worldline Zero': 'sword', Heartshadow: 'sword', 'The Lament': 'sword', 'Buried Bloodline': 'sidearm', Forerunner: 'sidearm', Witherhoard: 'glauncher', 'Dead Messenger': 'glauncher',
+    'Worldline Zero': 'sword', Heartshadow: 'sword', 'The Lament': 'sword', 'Buried Bloodline': 'sidearm', Forerunner: 'forerunner', Witherhoard: 'glauncher', 'Dead Messenger': 'glauncher',
     'Edge of Concurrence': 'glaive', 'Edge of Action': 'glaive', 'Edge of Intent': 'glaive', Coldheart: 'trace', 'Prometheus Lens': 'trace', Wavesplitter: 'trace', Divinity: 'trace',
   };
   eq(EXOTIC_WEAPONS.length, 24 + 14, '24 before U11');

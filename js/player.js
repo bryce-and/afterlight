@@ -13,7 +13,7 @@ import { net } from './net.js';
 import { MODS_LEVEL, MODS_TUNE, ORB, CHARGE, STAT_KEYS, STAT_CAP, CLASS_STAT, COOLDOWN_FLOOR, armorStats, modCounts, cooldownMult, superRateMult, speedMult, jumpBonus, shieldMax, regenDelay, regenRate, FONT_STAT, usesCharge } from './armor.js';
 import { fxTracer, requestLife, DOWN_TIME, sendHit } from './coop.js';
 import { castFx } from './abilities.js';
-import { buildCharacter, SUPER_POSES } from './characters.js';
+import { makeShieldDome, buildCharacter, SUPER_POSES } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
@@ -70,14 +70,24 @@ const LOOT_PERKS = {
   envy: 0.2, // Envious Assassin: share of the magazine banked per kill with another weapon (up to 1 magazine)
   subsistence: 0.2, alloy: 0.6, rapidHit: 0.06, adrenaline: 0.065, oneForAll: 1.35, baitSwitch: 1.35,
 };
+// Sword heavy attacks by frame (D2): total animation time, when the hit lands, and a damage multiplier on top of the sword's heavy multiplier
+const SWORD_HEAVY = {
+  slam: { dur: 1.0, hitAt: 0.62, mult: 1.45 },   // Aggressive: very slow, enormous impact
+  dash: { dur: 0.5, hitAt: 0.22, mult: 0.95 },   // Lightweight: a fast dash attack
+  wave: { dur: 0.7, hitAt: 0.34, mult: 1.1 },    // Caster: a projectile
+  spin: { dur: 0.75, hitAt: 0.26, mult: 1.0 },   // Vortex: a spinning strike
+  cleave: { dur: 0.65, hitAt: 0.28, mult: 1.0 },
+};
 // U11 Arsenal II: Swords, Glaives, Trace Rifles and their exotics
 const ARSENAL = {
-  heavyT: 0.65, // hold the attack this long for a heavy swing
+  heavyWait: 0.25, // a right-click waits this long for a second click (the guard) before it becomes a heavy attack
   revT: 0.6, revMult: 1.3, revStacks: 5, revDmg: 0.08, revRes: 0.04, // The Lament: Banshee's Wail
   tesseract: { need: 0.9, cost: 4, dist: 11, dmg: 3, window: 1.5, width: 2.2 }, // Worldline Zero
   exhume: { need: 0.9, cost: 3, bolts: 3, dmg: 0.9, shadowT: 2.5, shadowMult: 1.4, invis: 8 }, // Heartshadow
   shieldBreak: 1.5, actionDrain: 0.5, actionOver: 25, glaiveKill: 8, // Glaives
   intent: { r: 6, hps: 6, t: 8 },
+  remote: { r: 3.4, t: 10, reduce: 0.6 }, // Edge of Action: Remote Shield
+  seeker: { range: 22, dmg: 2.4, chains: 4 }, // Edge of Concurrence: Lightning Seeker
   cold: { t: 2.5, mult: 2, trace: 1.5, frac: 0.05 }, // Coldheart
   inferno: { r0: 2, r1: 5, t: 3, dmg: 0.3 }, // Prometheus Lens
   harmonic: [1, 1.35, 1.7], harmonicT: 0.8, supercharged: 6, // Wavesplitter
@@ -233,7 +243,7 @@ export class Player {
     const swinging = this.swingT > 0 && prop === 'sword';
     b.position.copy(this.pos);
     b.rotation.y = this.yaw + Math.PI;
-    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, swing: swinging ? { k: 1 - this.swingT / this.swingMax, heavy: !!this.swingHeavy, dir: this.swingDir || 1 } : null, swordGuard: prop === 'sword' && !!this.wGuard, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
+    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, swing: swinging ? { k: 1 - this.swingT / this.swingMax, heavy: !!this.swingHeavy, kind: this.swingKind || 'cleave', dir: this.swingDir || 1 } : null, swordGuard: prop === 'sword' && !!this.wGuard, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
   }
 
   /** U9: the held pose of the active third-person super (characters.js SUPER_POSES), or null. Burst supers drop it once released. */
@@ -474,16 +484,21 @@ export class Player {
       w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1) * (this.status.has('amplified') ? ASPECT_TUNE.amplitude.reload : 1) * (1 + MODS_TUNE.loader * (this.ap[LOADER_MOD[w.idx]] || 0));
       if (w.reloadT <= 0) this.finishReload(w);
     }
-    const wantAds = inp.mouse.right && !w.reloading && this.punchT <= 0;
+    if (inp.mouse.rightPressed && w.A.sword) { // Sword: a right-click is the heavy attack (after a short beat); a second click inside that beat, held, is the guard
+      if (w.heavyPend > 0) { w.guardArm = true; w.heavyPend = 0; } else w.heavyPend = ARSENAL.heavyWait;
+    }
+    if (!inp.mouse.right) w.guardArm = false;
+    const wantAds = inp.mouse.right && !w.reloading && this.punchT <= 0 && (!w.A.sword || w.guardArm);
     if (wantAds && this.canGuard(w)) this.wGuard = true; // Sword guard and Glaive shield
     if (this.wGuard && w.A.glaive) { // the raised shield burns energy
-      w.energy = Math.max(0, w.energy - w.A.glaive.drain * (w.has('action') ? ARSENAL.actionDrain : 1) * dt);
+      w.energy = Math.max(0, w.energy - w.A.glaive.drain * dt);
       if (w.energy <= 0) { w.shieldBrk = ARSENAL.shieldBreak; this.wGuard = false; sfx.playerShieldBreak(); }
     }
     if (w.A.sword && w.has('wail')) { // The Lament: hold Block to rev the blade
       if (this.wGuard) { w.revT = (w.revT || 0) + dt; w.revved = w.revT >= ARSENAL.revT; }
       else { if (w.revved) w.revHold = 1.2; w.revT = 0; w.revved = false; }
     }
+    this.updateGlaiveShield(dt);
     this.adsT = damp(this.adsT, wantAds ? 1 : 0, (w.has('snapshot') ? 28 : 14) * (1 + MODS_TUNE.targetAim * (this.ap[TARGET_MOD[w.idx]] || 0)), dt);
     if (w.has('reconstruction') && !w.reloading && w.ammo < w.mag && w.reserve > 0 && G.time - this.lastFire > 4) {
       w.reconT += dt;
@@ -561,6 +576,9 @@ export class Player {
       return;
     }
     if (w.reloading || w.ammo >= w.mag || w.reserve <= 0) return;
+    if (w.has('fragout') && G.time - (w.fragKillT ?? -99) < 8 && !this.status.has('fragout')) { // Forerunner: a reload after a kill hands you a frag grenade
+      w.fragKillT = -99; this.status.apply('fragout', { set: true }); sfx.engram(1);
+    }
     w.reloading = true;
     let t = w.s.reload;
     if (this.status.has('outlaw')) t *= 0.55;
@@ -760,7 +778,9 @@ export class Player {
         const o = A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : assist ? { tracerWidth: 0.03, tracerColor: el.hex } : {};
         const end = this.hitscan(eye, dir, w, s.dmg, muzzle, o);
         if (A.rocketRound) this.rocketRound(w, end, o); // Rocket-Assisted rounds burst on impact
-        if (w.has('intent') && w.energy >= 100) { w.energy = 0; this.plantTurret(end); } // Edge of Intent
+        if (w.has('intent') && w.energy >= 100) { w.energy = 0; this.plantTurret(end); } // Edge of Intent: Restorative Turret
+        if (w.has('action') && w.energy >= 100) { w.energy = 0; this.plantRemoteShield(end); } // Edge of Action: Remote Shield
+        if (w.has('concurrence') && w.energy >= 100) { w.energy = 0; this.lightningSeeker(w, end); } // Edge of Concurrence: Lightning Seeker
       }
     }
     w.honed = 0;
@@ -838,13 +858,6 @@ export class Player {
     const conducting = this.status.has('conductor', w.idx);
     if (w.has('chain')) {
       for (const other of enemiesNear(e.pos, 9, conducting ? 3 : 1, e)) {
-        const c = other.center(new THREE.Vector3());
-        lightning(point, c, ELEMENTS.arc.hex, 0.03);
-        dealDamage(other, dmg * m * 0.5, { element: 'arc', source: 'perk', pos: c });
-      }
-    }
-    if (w.has('concurrence')) { // Edge of Concurrence: the bolt chains lightning
-      for (const other of enemiesNear(e.pos, 9, 2, e)) {
         const c = other.center(new THREE.Vector3());
         lightning(point, c, ELEMENTS.arc.hex, 0.03);
         dealDamage(other, dmg * m * 0.5, { element: 'arc', source: 'perk', pos: c });
@@ -1005,9 +1018,9 @@ export class Player {
       w.ammo = Math.max(0, w.ammo - 1);
       return amount * (1 - w.A.sword.guard);
     }
+    this.guardHits++; this.domeFlash = 1;
     const g = w.A.glaive, blocked = amount * g.block;
-    w.energy = Math.max(0, w.energy - blocked * 0.1 * (w.has('action') ? ARSENAL.actionDrain : 1));
-    if (w.has('action')) this.addOvershield(Math.min(ARSENAL.actionOver, blocked * 0.5), 5); // Edge of Action
+    w.energy = Math.max(0, w.energy - blocked * 0.1);
     if (w.energy <= 0) { w.shieldBrk = ARSENAL.shieldBreak; sfx.playerShieldBreak(); }
     return amount - blocked;
   }
@@ -1031,17 +1044,98 @@ export class Player {
   // ---- Swords ----
   updateSword(w, dt, held, pressed) {
     if (w.has('tesseract') && pressed && w.tessT > 0 && w.tessFrom) { this.tesseractBlink(w, true); return; }
-    if (held) w.swHold = (w.swHold || 0) + dt; else w.swHold = 0;
-    if (w.queued > 0 && w.fireCd <= 0) { w.queued = 0; w.swHold = 0; this.swordSwing(w, false); return; }
-    if (held && w.swHold >= ARSENAL.heavyT && w.fireCd <= 0 && w.ammo >= 2) { w.swHold = 0; this.swordHeavy(w); }
+    if (w.heavyPend > 0) { w.heavyPend -= dt; if (w.heavyPend <= 0 && !w.guardArm) w.heavyReq = 0.4; }
+    if (w.heavyReq > 0) {
+      w.heavyReq -= dt;
+      if (w.fireCd <= 0) { w.heavyReq = 0; if (w.ammo >= 2) { this.swordHeavy(w); return; } sfx.denied(); }
+    }
+    if (w.queued > 0 && w.fireCd <= 0) { w.queued = 0; this.swordSwing(w, false); return; }
   }
 
   /** A held attack: Worldline Zero blinks (sprinting) and Heartshadow vanishes (full ammo); the rest swing hard. */
   swordHeavy(w) {
-    const full = w.ammo >= w.mag * (w.has('tesseract') ? ARSENAL.tesseract.need : ARSENAL.exhume.need);
-    if (w.has('tesseract') && this.sprinting && full) { this.tesseractBlink(w, false); return; }
+    const full = w.ammo >= w.mag * ARSENAL.exhume.need;
+    if (w.has('tesseract') && this.sprinting && w.ammo >= ARSENAL.tesseract.cost) { this.tesseractBlink(w, false); return; } // Destiny 2: sprint and heavy attack
     if (w.has('exhumation') && full) { this.exhume(w); return; }
-    this.swordSwing(w, true);
+    this.swordHeavyAttack(w, w.A.sword.heavyKind || 'cleave');
+  }
+
+  /** The heavy attack of each sword frame (Destiny 2): Aggressive slams, Lightweight dashes, Caster fires a projectile, Vortex spins; other swords cleave. */
+  swordHeavyAttack(w, kind) {
+    const S = w.A.sword, T = SWORD_HEAVY[kind], fwd = this.getForward(new THREE.Vector3()), flat = fwd.clone().setY(0).normalize();
+    const full = w.ammo >= w.mag * 0.9; // heavy attacks hit harder on a full magazine
+    w.ammo = Math.max(0, w.ammo - 2);
+    w.fireCd = T.dur * 0.85;
+    this.lastFire = G.time;
+    w.eagerT = 0; w.swHold = 0;
+    if (this.status.has('invisible') && !w.has('exhumation')) this.status.remove('invisible');
+    w.combo = -1;
+    const revved = w.has('wail') && (w.revved || w.revHold > 0);
+    let dmg = w.s.dmg * S.heavy * T.mult * (full ? 1.25 : 1) * (revved ? ARSENAL.revMult : 1);
+    if (w.has('wail') && w.revStacks) { // Banshee's Wail: stacks power up heavy swings and harden you
+      dmg *= 1 + ARSENAL.revDmg * w.revStacks;
+      this.wailRes = ARSENAL.revRes * w.revStacks; this.wailResT = G.time + 4;
+    }
+    if (w.has('exhumation') && (this.shadowT || 0) >= ARSENAL.exhume.shadowT) dmg *= ARSENAL.exhume.shadowMult;
+    this.swingMax = this.swingT = T.dur; this.swingHeavy = true; this.swingKind = kind; this.swingDir = 1;
+    sfx.melee();
+    const el = ELEMENTS[wEl(w)], reach = S.reach * 1.25;
+    const strike = (center, radius, mult, knock, cone = null) => { // everything within `radius` of `center` (optionally inside a forward cone from the eye)
+      const c = new THREE.Vector3(); let hits = 0;
+      for (const e of G.enemies) {
+        if (!e.alive) continue;
+        e.center(c);
+        if (c.distanceTo(center) > radius + e.radius) continue;
+        if (cone !== null && c.clone().sub(this.eye).normalize().dot(fwd) < cone) continue;
+        if (!hasLOS(this.eye, c)) continue;
+        hits++;
+        this.applyHit(w, e, dmg * mult, false, c.clone(), { precMult: 1, deal: { knock: c.clone().sub(this.pos).setY(0).normalize().multiplyScalar(knock), shieldBreaker: revved } });
+      }
+      if (revved && hits) { w.revStacks = Math.min(ARSENAL.revStacks, (w.revStacks || 0) + 1); w.revStackT = 6; }
+      return hits;
+    };
+    if (kind === 'slam') { // a slow overhead slam: big, wide ground impact
+      after(T.hitAt, () => {
+        const at = this.pos.clone().addScaledVector(flat, reach * 0.8);
+        strike(at, reach * 1.1, 1, 12);
+        shockwave(at.clone().setY(0.2), reach * 1.2, el.hex, 0.4); sparks(at, el.hex, 22, 7, 0.06, 0.4); flare(at, el.hex, 1.6, 0.2);
+        this.shake = Math.max(this.shake, 0.3);
+      });
+    } else if (kind === 'dash') { // a fast dash through the line in front of you
+      const hit = new Set(), dist = S.lunge * 3.2 + 3, v = flat.clone().multiplyScalar(dist / T.hitAt);
+      let t = 0;
+      addTicker({ update: (dt) => {
+        t += dt;
+        moveBody(this.pos, _v2.copy(v), dt, this.radius, this.height);
+        const c = new THREE.Vector3();
+        for (const e of G.enemies) {
+          if (!e.alive || hit.has(e)) continue;
+          e.center(c);
+          if (c.distanceTo(this.eye) > 2.4 + e.radius) continue;
+          hit.add(e);
+          this.applyHit(w, e, dmg, false, c.clone(), { precMult: 1, deal: { knock: flat.clone().multiplyScalar(9), shieldBreaker: revved } });
+          sparks(c, el.hex, 8, 5, 0.05, 0.3);
+        }
+        if (t >= T.hitAt) { shockwave(this.pos.clone().setY(0.2), 2.5, el.hex, 0.25); return false; }
+        return true;
+      } });
+      this.fovKick = Math.max(this.fovKick, 10);
+    } else if (kind === 'wave') { // a heavy energy wave down range
+      after(T.hitAt, () => { this.swordWave(w, this.getForward(new THREE.Vector3()), dmg); this.shake = Math.max(this.shake, 0.14); });
+    } else if (kind === 'spin') { // a full spinning strike: two passes around you
+      for (const dt of [T.hitAt, T.hitAt + 0.22]) after(dt, () => {
+        strike(this.pos.clone().setY(this.pos.y + 1), reach * 1.05, 0.55, 8);
+        shockwave(this.pos.clone().setY(0.2), reach * 1.05, el.hex, 0.3); this.shake = Math.max(this.shake, 0.12);
+      });
+    } else { // plain cleave for exotics and unframed swords
+      after(T.hitAt, () => {
+        const near = this.findMeleeTarget(reach * 1.7, 0.5);
+        if (near) { const d0 = near.center(new THREE.Vector3()).sub(this.pos).setY(0), dist = d0.length(); d0.normalize(); const step = Math.min(S.lunge * 1.3, dist - near.radius - 1.2); if (dist > 1.8 && step > 0) this.pos.addScaledVector(d0, step); }
+        const at = this.eye.clone().addScaledVector(fwd, reach * 0.55);
+        strike(this.eye.clone().addScaledVector(fwd, reach * 0.6), reach * 0.8, 1, 9, 0.35);
+        sparks(at, el.hex, 12, 5, 0.05, 0.25); flare(at, el.hex, 1.1, 0.14); this.shake = Math.max(this.shake, 0.14);
+      });
+    }
   }
 
   swordSwing(w, heavy = false) {
@@ -1088,7 +1182,7 @@ export class Player {
     sparks(at, el.hex, hits ? 10 : 5, 5, 0.05, 0.25);
     flare(at, el.hex, heavy ? 1.1 : 0.7, 0.14);
     if (S.cone <= -1) shockwave(this.pos.clone().setY(0.2), reach, el.hex, 0.3);
-    this.swingMax = this.swingT = heavy ? 0.6 : 0.34; this.swingHeavy = heavy; this.swingDir = w.combo % 2 ? -1 : 1;
+    this.swingMax = this.swingT = 0.34; this.swingHeavy = false; this.swingKind = 'light'; this.swingDir = w.combo % 2 ? -1 : 1;
     this.shake = Math.max(this.shake, heavy ? 0.14 : 0.06);
     sfx.melee();
   }
@@ -1183,6 +1277,36 @@ export class Player {
   }
 
   /** Edge of Intent: a Healing Turret that mends you while you stay near it. */
+  /** Edge of Action: a full-energy shot lays down a Remote Shield where it lands. Anyone inside takes much less damage. */
+  plantRemoteShield(at) {
+    const R = ARSENAL.remote, p = at.clone().setY(Math.max(0.1, at.y)), hex = ELEMENTS.void.hex;
+    const dome = makeShieldDome(hex, 0.2); dome.scale.setScalar(R.r / 1.75); dome.position.copy(p); dome.rotation.y = 0;
+    const back = makeShieldDome(hex, 0.2); back.rotation.y = Math.PI; dome.add(back);
+    G.scene.add(dome);
+    glowBurst(p, hex, 22, 6, 0.1, 0.6);
+    this.remoteShield = { pos: p, r: R.r, t: R.t };
+    let life = R.t;
+    addTicker({ dispose() { G.scene.remove(dome); }, update: (dt) => {
+      life -= dt; this.remoteShield.t = life;
+      const fade = Math.min(1, life / 1);
+      dome.userData.fill.material.opacity = (0.2 + 0.04 * Math.sin(G.time * 5)) * fade; back.userData.fill.material.opacity = dome.userData.fill.material.opacity;
+      if (life <= 0) { this.remoteShield = null; return false; }
+      return true;
+    } });
+  }
+
+  /** Edge of Concurrence: a full-energy shot becomes a Lightning Seeker that races along the ground to the nearest enemy and chains lightning. */
+  lightningSeeker(w, at) {
+    const R = ARSENAL.seeker, from = at.clone().setY(Math.max(0.2, at.y));
+    const near = enemiesNear(from, R.range, 1)[0];
+    glowBurst(from, ELEMENTS.arc.hex, 14, 5, 0.1, 0.5);
+    if (!near) return;
+    const hit = near.center(new THREE.Vector3());
+    lightning(from, hit, ELEMENTS.arc.hex, 0.14);
+    dealDamage(near, w.s.dmg * R.dmg, { element: 'arc', source: 'weapon', weapon: w, pos: hit });
+    this.jolt(hit, R.chains, w.s.dmg * R.dmg * 0.6, near);
+  }
+
   plantTurret(at) {
     const I = ARSENAL.intent, p = at.clone().setY(Math.max(0.1, at.y));
     let life = I.t, pulse = 0;
@@ -1288,14 +1412,14 @@ export class Player {
       disc.material.opacity = 0.4 * fade * pulse; rim.material.opacity = 0.85 * fade;
       if (tick <= 0) {
         tick = B.tick;
-        for (const x of enemiesNear(at, r, 8)) { x.blightT = G.time + 2; dealDamage(x, dmg, { element: 'kinetic', source: 'perk', pos: x.center(new THREE.Vector3()), poison: 1.1 }); }
+        for (const x of enemiesNear(at, r, 8)) { x.blightT = G.time + 2; dealDamage(x, dmg, { element: 'kinetic', source: 'perk', pos: x.center(new THREE.Vector3()), corrosive: 1.1 }); }
         sparks(at.clone().add(new THREE.Vector3((Math.random() - 0.5) * r, 0.2, (Math.random() - 0.5) * r)), col, 3, 2, 0.06, 0.4);
       }
       return life > 0;
     } });
   }
 
-  /** Witherhoard: the round sticks to the enemy it hit and poisons it; the pool drops where it dies, or where the round runs out. */
+  /** Witherhoard: the round sticks to the enemy it hit and corrodes it; the pool drops where it dies, or where the round runs out. */
   attachBlight(e, w) {
     const B = ARSENAL.blight, dmg = w.s.dmg * B.attachDps * B.tick * this.weaponDmgMult(w, false);
     if (e.blightRound) { e.blightRound.life = B.attach; return; } // a second round only refreshes the first
@@ -1308,10 +1432,24 @@ export class Player {
       if (!e.alive) { drop(); return false; }
       st.life -= dt; tick -= dt;
       e.center(orb.position); orb.position.y += 0.3; orb.rotation.y += dt * 4; orb.scale.setScalar(1 + Math.sin(G.time * 9) * 0.2);
-      if (tick <= 0) { tick = B.tick; dealDamage(e, dmg, { element: 'kinetic', source: 'perk', pos: e.center(new THREE.Vector3()), poison: 1.1 }); sparks(orb.position, 0xb8c24a, 2, 1.5, 0.05, 0.3); if (!e.alive) { drop(); return false; } }
+      if (tick <= 0) { tick = B.tick; dealDamage(e, dmg, { element: 'kinetic', source: 'perk', pos: e.center(new THREE.Vector3()), corrosive: 1.1 }); sparks(orb.position, 0xb8c24a, 2, 1.5, 0.05, 0.3); if (!e.alive) { drop(); return false; } }
       if (st.life <= 0) { drop(); return false; }
       return true;
     } });
+  }
+
+  /** The Glaive shield dome: visible to you from inside, and (through coop state) to the fireteam, in the weapon's element colour. */
+  get shieldHex() { return this.wGuard && this.weapon?.A?.glaive && !this.dead ? ELEMENTS[wEl(this.weapon)].hex : 0; }
+  updateGlaiveShield(dt) {
+    const hex = this.shieldHex;
+    if (this.gDome && this.gDome.parent !== G.scene) this.gDome = null;
+    if (this.gDome && (!hex || this.gDomeHex !== hex)) { G.scene.remove(this.gDome); this.gDome = null; }
+    if (!hex) return;
+    if (!this.gDome) { this.gDome = makeShieldDome(hex, 0.16); this.gDome.userData.grid.material.opacity = 0.08; this.gDomeHex = hex; G.scene.add(this.gDome); }
+    this.domeFlash = Math.max(0, (this.domeFlash || 0) - dt * 4);
+    this.gDome.position.set(this.pos.x, this.pos.y + 1.05, this.pos.z);
+    this.gDome.rotation.y = this.yaw + Math.PI;
+    this.gDome.userData.fill.material.opacity = 0.16 + 0.03 * Math.sin(G.time * 6) + this.domeFlash * 0.3;
   }
 
   /** Divinity: Judgment bubbles. Every enemy with the judged debuff shows a bubble (for every player), and hits on it land as precision. */
@@ -1334,6 +1472,7 @@ export class Player {
   // Kills & damage
   // -------------------------------------------------------------------------
   onKill(e, o) {
+    if (o.weapon?.has?.('fragout')) o.weapon.fragKillT = G.time; // Forerunner: Frag Out
     // jolt chains and companions (Arc Soul, Child of the Old Gods) pay like weapon kills and skip Hands-On and Ionic Traces
     const chain = !!(o.jolted || o.companion);
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + superKillGain(chain ? 'weapon' : o.source, o.crit, e.typeId));
@@ -1758,6 +1897,7 @@ export class Player {
       if (amount <= 0) { sfx.hurt(); return; }
     }
     amount = this.guardReduce(amount, from);
+    if (this.remoteShield && this.pos.distanceTo(this.remoteShield.pos) < this.remoteShield.r) amount *= 1 - ARSENAL.remote.reduce; // standing inside an Edge of Action shield
     if (G.time < (this.wailResT || 0)) amount *= 1 - this.wailRes; // The Lament: stacks resist after a heavy swing
     if (amount <= 0) return;
     if (this.dash > 0) amount *= 0.5;
@@ -1789,6 +1929,7 @@ export class Player {
     const M = G.mission;
     this.dead = true; this.health = 0; this.shield = 0;
     this.superActive = null;
+    this.status.remove('fragout');
     this.status.remove('nighthawk');
     this.viewmodel.visible = false;
     M.deaths++;
@@ -1918,7 +2059,7 @@ export class Player {
     const p = G.input.pressed;
     if (p.KeyQ) this.useGrenade();
     if (p.KeyB) this.basicMelee();
-    if (p.KeyV) this.useMelee();
+    if (p.KeyV) { if (this.weapon.A.glaive && !this.superActive) this.glaiveMelee(); else this.useMelee(); } // V: a held Glaive's own melee replaces the class melee
     if (p.KeyC) this.useClass();
     if (p.ShiftLeft && this.asp.has('icarus') && !this.onGround && this.pos.y > 0.4) this.icarusDash();
     if (p.KeyF) this.useSuper();
@@ -1987,6 +2128,7 @@ export class Player {
   }
 
   useGrenade() {
+    if (this.status.has('fragout')) { this.throwFrag(); return; } // the frag stands in for your grenade until it is thrown
     if (this.cd.grenade > 0 && this.status.has('gunpowder')) { this.throwGunpowder(); return; }
     if (this.asp.has('unbreakable')) { this.unbreakable(); return; }
     const free = this.status.has('sunbracers') && this.cls.abilities.grenade.element === 'solar'; // Sunbracers
@@ -2010,6 +2152,23 @@ export class Player {
     });
     flare(start, ELEMENTS[el].hex, 0.4, 0.15);
     this.abilityAspects();
+    this.throwFist(0.32);
+    sfx.throw();
+  }
+
+  /** Forerunner's frag: replaces the grenade ability for one throw and leaves the grenade cooldown alone. */
+  throwFrag() {
+    this.status.remove('fragout');
+    const fwd = this.getForward(new THREE.Vector3());
+    const start = this.eye.clone().addScaledVector(fwd, 0.6);
+    spawnPlayerProjectile({
+      kind: 'grenade', pos: start, vel: fwd.clone().multiplyScalar(24).add(new THREE.Vector3(0, 4, 0)), gravity: 22, size: 0.16, color: 0xffd27a, life: 1.8,
+      onHit: (pt) => {
+        pt.y = Math.max(pt.y, 0.3);
+        castFx('blast', { p: pt, el: 'kinetic', r: 4.5 });
+        explode(pt.clone(), 4.5, 240, 'kinetic', { source: 'ability' });
+      },
+    });
     this.throwFist(0.32);
     sfx.throw();
   }
@@ -2125,7 +2284,6 @@ export class Player {
   /** B: plain melee. Lunges a short way toward a close target. */
   basicMelee() {
     if (this.meleeLock > 0 || this.superActive?.type === 'nova') return;
-    if (this.weapon.A.glaive && !this.superActive) { this.glaiveMelee(); return; } // U11: a held Glaive has its own melee
     this.meleeT = 0.6;
     this.meleeLock = 0.6;
     this.throwFist(0.3, true);

@@ -4,6 +4,19 @@
 
 export const RELEASES = [
   {
+    version: '2.1.2', name: 'Hotfix', date: '2026-10-19', accent: '#ffb547', glyph: '✚',
+    summary: 'Sword heavy attacks and guard rebuilt after Destiny 2, Glaives get their own melee and a visible shield, and Forerunner, Witherhoard and the other Arsenal II exotics are brought closer to their Destiny 2 originals.',
+    notes: [
+      'Swords: right-click is the heavy attack. Double-click and hold right-click to guard. Heavy attacks match the frame: Aggressive slams (slow, huge impact), Lightweight dashes through enemies, Caster fires an energy wave, Vortex spins. A full magazine makes them hit harder. Each has its own animation. Other swords use a plain overhead cleave',
+      'Sword frames: Caster and Vortex now have normal light swings (their special move is the heavy attack)',
+      'Glaives: V is the glaive melee while one is equipped (B is the quick melee again). Right-click raises the shield: an energy dome in the glaive\'s element colour that you and your fireteam can see. Hits build shield energy, shown in a bar under the crosshair. The crosshair stays up and the zoom is slight. Glaive models lose their sights',
+      'Forerunner is now its own Special-ammo sidearm: slower and harder hitting. New perk, Frag Out: reload after a kill to get a frag grenade that replaces your grenade until you throw it. Existing Forerunners convert on load',
+      'Witherhoard: one round per reload. New Corrosive debuff, only on the target the round is stuck to and enemies standing in its pool. Poison stays as it was for everything else',
+      'Worldline Zero: Tesseract now works from a sprint with any heavy attack (no full magazine needed)',
+      'Edge of Action: at full energy the next shot lays down a Remote Shield (60% less damage inside, 10s). Edge of Concurrence: at full energy the next shot is a Lightning Seeker that races to the nearest enemy and chains lightning. Buried Bloodline: tracking bolts that heal you, no longer explosive',
+    ],
+  },
+  {
     version: '2.1.1', name: 'Hotfix', date: '2026-10-19', accent: '#ffb547', glyph: '✚',
     summary: 'Swords are fought in third person with light and heavy swing animations, Glaives hold 4 to 8 shots and get their own swing, plus Eager Edge, Witherhoard and Divinity fixes, break-action special launchers and bigger heavy ammo reserves.',
     notes: [

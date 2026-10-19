@@ -109,6 +109,15 @@ export function refreshWeapons(s) {
   let n = 0;
   for (const it of [...(s.inventory || []), ...(s.vault || [])]) {
     if (it.kind !== 'weapon' || !ARCHETYPES[it.arch]) continue;
+    if (it.name === 'Forerunner' && it.arch === 'sidearm') { // H6: the Forerunner is its own Special sidearm family now
+      const wasPrimary = s.equipped.primary === it.id;
+      const spare = wasPrimary ? (s.inventory || []).find((x) => x.kind === 'weapon' && x.slot === 'primary' && x.id !== it.id) : true;
+      if (spare) {
+        if (wasPrimary) s.equipped.primary = spare.id;
+        Object.assign(it, { arch: 'forerunner', slot: 'special', exotic: 'fragout', exoticPerks: ['fragout', 'fullstop'], mods: {}, perks: it.perks || [] });
+        n++;
+      }
+    }
     const st = weaponStats(it);
     let changed = JSON.stringify(st) !== JSON.stringify(it.stats);
     if (changed) it.stats = st;
