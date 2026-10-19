@@ -46,7 +46,7 @@ export const REGEN_SCALE = 0.75;
 export const regenRate = (rec) => (40 + rec * 1.0) * REGEN_SCALE;
 
 // ---------- orbs of power and armor charge ----------
-export const ORB = { life: 20, r: 1.7, super: 4, heal: 15, charge: 1, weaponKills: 3, window: 4, superMax: 4, harmonicKills: 2, harmonicWindow: 3, harmonicGap: 5, energy: 0.1 };
+export const ORB = { life: 20, r: 1.7, super: 4, heal: 0.15, charge: 1, weaponKills: 3, window: 4, superMax: 4, harmonicKills: 2, harmonicWindow: 3, harmonicGap: 5, energy: 0.1 };
 export const CHARGE = { max: 3, decay: 10, timeDil: 0.5, font: 20, surge: [1, 1.1, 1.17, 1.22] };
 export const MODS_TUNE = {
   grenadier: 0.15, brawler: 0.15, kickstart: 0.2, plating: 0.08, reserves: 0.2, recuperation: 15,
@@ -109,7 +109,7 @@ Object.assign(MODS, {
   fontresilience: m('chest', 'Font of Resilience', 3, 29, `+${CHARGE.font} Resilience while you have armor charge.`),
   // legs
   kickstart: m('legs', 'Utility Kickstart', 4, S, 'Class ability recharges 20% faster.'),
-  recuperation: m('legs', 'Recuperation', 3, S, 'Kills restore 15 health.'),
+  recuperation: m('legs', 'Recuperation', 3, S, 'Kills restore 15% of your health.'),
   innervation: m('legs', 'Innervation', 2, S, 'Picking up an Orb of Power gives 10% grenade energy.'),
   invigoration: m('legs', 'Invigoration', 2, S, 'Picking up an Orb of Power gives 10% melee energy.'),
   insulation: m('legs', 'Insulation', 2, S, 'Picking up an Orb of Power gives 10% class ability energy.'),

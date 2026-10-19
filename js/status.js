@@ -11,6 +11,7 @@ export const STATUS = {
   restoration: { name: 'Restoration', group: 'general', glyph: '✚', color: '#ffb547' },
   overshield: { name: 'Overshield', group: 'general', glyph: '⬢', color: '#c9a6ff' },
   invisible: { name: 'Invisible', group: 'general', glyph: '◌', color: '#9b7cff' },
+  shadowcd: { name: 'Heartshadow Cooldown', group: 'general', glyph: '◌', color: '#8a7aa8', t: 15 },
   lethal: { name: 'Lethal Current', group: 'general', glyph: 'ϟ', color: '#7fd8ff' },
   nezarec: { name: "Nezarec's Sin", group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   contraverse: { name: 'Contraverse Hold', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },

@@ -89,10 +89,10 @@ export const FRAMES = {
     rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Rocket-propelled rounds burst on impact. Slow, heavy-hitting shots.', slot: 'special', stats: { rpm: 0.5, dmg: 2.75, mag: 0.75 }, handling: { set: { rocketRound: { radius: 2.2, splash: 0.5 }, reserve: 22, brick: 5 } } },
   },
   sword: {
-    aggressive: { name: 'Aggressive Frame', desc: 'A wide three-swing combo with a long lunge. Heavy attack: a very slow overhead slam with enormous impact.', stats: { dmg: 1.15, rpm: 0.87 }, handling: { set: { sword: { reach: 3.9, cone: 0.5, combo: 3, lunge: 4.5, guard: 0.7, heavy: 2.2, heavyKind: 'slam' } } } },
-    lightweight: { name: 'Lightweight Frame', desc: 'Quick swings and superior mobility while this weapon is held. Heavy attack: a fast dash through your enemies.', stats: { dmg: 0.85, rpm: 1.18 }, handling: { set: { move: 1.06, sword: { reach: 3.6, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.6, heavy: 2.2, heavyKind: 'dash' } } } },
-    caster: { name: 'Caster Frame', desc: 'Balanced swings. Heavy attack: throws a powerful energy wave far down range.', stats: {}, handling: { set: { sword: { reach: 3.6, cone: 0.55, combo: 3, lunge: 3.0, guard: 0.7, heavy: 2.2, heavyKind: 'wave' } } } },
-    vortex: { name: 'Vortex Frame', desc: 'Balanced swings. Heavy attack: a spinning strike that hits everything around you.', stats: {}, handling: { set: { sword: { reach: 3.6, cone: 0.55, combo: 2, lunge: 3.0, guard: 0.65, heavy: 2.0, heavyKind: 'spin' } } } },
+    aggressive: { name: 'Aggressive Frame', desc: 'A wide three-swing combo with a long lunge. Heavy attack: a very slow overhead slam with enormous impact.', stats: { dmg: 1.15, rpm: 0.87 }, handling: { set: { sword: { pool: 45, reach: 3.9, cone: 0.5, combo: 3, lunge: 4.5, guard: 0.7, heavy: 2.2, heavyKind: 'slam' } } } },
+    lightweight: { name: 'Lightweight Frame', desc: 'Quick swings and superior mobility while this weapon is held. Heavy attack: a fast dash through your enemies.', stats: { dmg: 0.85, rpm: 1.18 }, handling: { set: { move: 1.06, sword: { pool: 60, reach: 3.6, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.6, heavy: 2.2, heavyKind: 'dash' } } } },
+    caster: { name: 'Caster Frame', desc: 'Balanced swings. Heavy attack: throws a powerful energy wave far down range.', stats: {}, handling: { set: { sword: { pool: 50, reach: 3.6, cone: 0.55, combo: 3, lunge: 3.0, guard: 0.7, heavy: 2.2, heavyKind: 'wave' } } } },
+    vortex: { name: 'Vortex Frame', desc: 'Balanced swings. Heavy attack: a spinning strike that hits everything around you.', stats: {}, handling: { set: { sword: { pool: 55, reach: 3.6, cone: 0.55, combo: 2, lunge: 3.0, guard: 0.65, heavy: 2.0, heavyKind: 'spin' } } } },
   },
   forerunner: { adaptive: { name: 'Forerunner Frame', desc: 'A heavy-hitting Special sidearm: slow, precise and hard-hitting.', stats: {} } },
   glaive: {
@@ -343,7 +343,7 @@ export const findNamed = (name, arch) => findLegendary(name, arch) || NAMED_WEAP
 /** Every perk of a column that can roll on this archetype and element. */
 export function eligiblePerks(col, arch, element, frame = null) {
   const A = ARCHETYPES[arch], slot = frameSlot(arch, frame);
-  return PERK_COLUMNS[col].filter((p) => (!PERK_ARCH[p] || PERK_ARCH[p].includes(arch)) && (!PERK_SLOTS[p] || PERK_SLOTS[p].includes(slot)) && !A.noPerks?.includes(p) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element) && !(p === 'extmag' && (A.mag === 1 || FRAMES[arch]?.[frame]?.single)));
+  return PERK_COLUMNS[col].filter((p) => (PERK_ARCH[p] ? PERK_ARCH[p].includes(arch) : arch !== 'sword') && (!PERK_SLOTS[p] || PERK_SLOTS[p].includes(slot)) && !A.noPerks?.includes(p) && (!PERK_ELEMENT[p] || PERK_ELEMENT[p] === element) && !(p === 'extmag' && (A.mag === 1 || FRAMES[arch]?.[frame]?.single)));
 }
 
 export const POOL_PER_COLUMN = 3;

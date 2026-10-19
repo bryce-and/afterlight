@@ -1149,7 +1149,7 @@ export function updateHUD(dt) {
     const r = hud.wrows[i];
     setClass(r.el, 'w' + i, 'active', i === P.cur && !S);
     setText(r.mag, 'wm' + i, String(w.ammo));
-    setText(r.res, 'wr' + i, w.reserve === Infinity ? '∞' : String(w.reserve));
+    setText(r.res, 'wr' + i, w.A.sword ? '' : w.reserve === Infinity ? '∞' : String(w.reserve));
     setClass(r.el, 'wl' + i, 'low', w.ammo <= Math.ceil(w.mag * 0.25));
     if (w.A.glaive) { // U11: the Glaive's shield energy, and a broken shield
       r.type ??= r.el.querySelector('.w-type');

@@ -55,7 +55,7 @@ export const ARCHETYPES = {
   glauncher: { id: 'glauncher', name: 'Grenade Launcher', slot: 'heavy', dmg: 510, rpm: 110, mode: 'semi', mag: 4, reserve: 16, brick: 3, reload: 2.6, spread: 0.01, ads: 0.0024, zoom: 1.3, prec: 1, range: 120, recoil: 0.05, projectile: { speed: 32, gravity: 16, radius: 4.5, size: 0.12 } },
   // U11 Arsenal II: five new behaviors. Sidearms are a primary; Swords are melee heavies; Glaives and Trace Rifles are special.
   sidearm: { id: 'sidearm', name: 'Sidearm', slot: 'primary', dmg: 26, rpm: 360, mode: 'semi', mag: 15, reload: 1.5, spread: 0.02, ads: 0.0016, zoom: 1.25, prec: 1.7, range: 20, recoil: 0.014 },
-  sword: { id: 'sword', name: 'Sword', slot: 'heavy', dmg: 520, rpm: 90, mode: 'sword', mag: 12, reserve: 10, brick: 3, reload: 0.6, spread: 0, ads: 0, zoom: 1, prec: 1.3, range: 4, recoil: 0, sword: { reach: 3.8, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.7, heavy: 2.2 }, noPerks: ['precise', 'opening', 'outlaw', 'killclip', 'tremors', 'jolting', 'rapidhit', 'reconstruction', 'killingwind', 'feeding', 'hotswap', 'envious', 'firefly'] },
+  sword: { id: 'sword', name: 'Sword', slot: 'heavy', dmg: 520, rpm: 90, mode: 'sword', mag: 50, reserve: 0, brick: 10, reload: 0.6, spread: 0, ads: 0, zoom: 1, prec: 1.3, range: 4, recoil: 0, sword: { reach: 3.8, cone: 0.55, combo: 2, lunge: 3.5, guard: 0.7, heavy: 2.2 }, noPerks: ['precise', 'opening', 'outlaw', 'killclip', 'tremors', 'jolting', 'rapidhit', 'reconstruction', 'killingwind', 'feeding', 'hotswap', 'envious', 'firefly'] },
   glaive: { id: 'glaive', name: 'Glaive', slot: 'special', dmg: 110, rpm: 160, mode: 'auto', mag: 6, reserve: 28, brick: 6, reload: 1.8, spread: 0.02, ads: 0.004, zoom: 1.12, prec: 1.5, range: 28, recoil: 0.01, glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 5.5, meleeCd: 1.6, thrust: 6 }, noPerks: ['tremors', 'jolting', 'reconstruction'] },
   forerunner: { id: 'forerunner', name: 'Sidearm', slot: 'special', exoticOnly: true, dmg: 62, rpm: 190, mode: 'semi', mag: 12, reserve: 40, brick: 6, reload: 1.6, spread: 0.014, ads: 0.0014, zoom: 1.25, prec: 1.8, range: 26, recoil: 0.016, noPerks: ['tremors', 'jolting'] }, // the Forerunner's own family: a heavy-hitting Special sidearm
   trace: { id: 'trace', name: 'Trace Rifle', slot: 'special', dmg: 15, rpm: 1020, mode: 'beam', mag: 140, reserve: 280, brick: 70, reload: 2.0, spread: 0.006, ads: 0.002, zoom: 1.4, prec: 1.4, range: 30, recoil: 0.0025, noPerks: ['tremors', 'jolting', 'rapidhit', 'adrenaline', 'reconstruction', 'envious', 'feeding'] },
@@ -72,9 +72,17 @@ export const PERKS = {
   outlaw: { name: 'Outlaw', desc: 'Precision kills greatly increase reload speed for 6s.' },
   extmag: { name: 'Extended Mag', desc: '+30% magazine size.' },
   firefly: { name: 'Firefly', desc: 'Precision kills cause a solar explosion.' },
-  leech: { name: 'Vampire Touch', desc: 'Kills restore 20 health.' },
+  leech: { name: 'Vampire Touch', desc: 'Kills restore 20% of your health.' },
   steady: { name: 'Steady Hands', desc: '35% less spread and recoil.' },
   eager: { name: 'Eager Edge', desc: 'The first swing within a second of drawing this sword lunges much farther.' },
+  harvest: { name: 'Soul Harvest', desc: 'Sword kills return 4 ammo.' },
+  deepreserve: { name: 'Deep Reserve', desc: '+20% ammo capacity.' },
+  thrift: { name: 'Thrifty Strikes', desc: 'Light swings have a 25% chance to cost no ammo.' },
+  relentless: { name: 'Relentless Strikes', desc: 'Swings chained within 1.2s stack +8% damage (x5).' },
+  crescendo: { name: 'Crescendo', desc: 'The final swing of a combo deals 40% more damage.' },
+  executioner: { name: 'Executioner', desc: 'Swings deal 35% more damage to enemies below 35% health.' },
+  bloodletter: { name: 'Bloodletter', desc: 'Each swing that hits restores 4% of your health.' },
+  sweep: { name: 'Sweeping Arc', desc: 'Swings reach 20% farther and cut a wider arc.' },
   hotswap: { name: 'Quickdraw', desc: 'Much faster weapon swap and 15% faster reload.' },
   highcal: { name: 'High-Caliber Rounds', desc: '+10% damage.' },
   precise: { name: 'Precision Instrument', desc: '+20% precision damage.' },
@@ -117,7 +125,7 @@ export const EXOTIC_PERKS = {
   spinup: { name: 'Spinning Up', desc: 'Holding the trigger ramps up rate of fire (and charge speed) by up to 70%.' },
   whitenail: { name: 'White Nail', desc: 'Three precision hits in a row return 3 rounds to the magazine for free.' },
   shieldbreaker: { name: 'Compressed Impact', desc: 'Shreds enemy shields of any element.' },
-  regime: { name: 'SUROS Regime', desc: 'The bottom half of the magazine deals 25% more damage, and every hit with it restores 2 health.' },
+  regime: { name: 'SUROS Regime', desc: 'The bottom half of the magazine deals 25% more damage, and every hit with it restores 2% of your health.' },
   payday: { name: 'Payday', desc: 'Once fully spun up, hits have a 50% chance to put the round back in the magazine.' },
   volatile: { name: 'Volatile Light', desc: 'Every hit bounces to another enemy for 70% damage. Reloading cycles the element between Arc, Solar and Void.' },
   sunshot: { name: 'Sunburn', desc: 'Kills set off a solar blast that leaps to up to 3 nearby enemies.' },
@@ -136,7 +144,7 @@ export const EXOTIC_PERKS = {
   truth: { name: "Hunter's Trace", desc: 'Rocket kills instantly reload the launcher from reserves.' },
   // U11 Arsenal II: Destiny 2 exotics, one signature each
   tesseract: { name: 'Tesseract', desc: 'Sprint and use a heavy attack (right-click): blink forward through enemies for heavy arc damage. Swing again within 1.5s to blink back.' },
-  exhumation: { name: 'Exhumation', desc: 'A heavy swing with 90% ammo makes you invisible and fires exploding void bolts. Staying invisible for 2.5s boosts damage and makes void bolts weaken.' },
+  exhumation: { name: 'Exhumation', desc: 'A heavy swing makes you invisible and fires exploding void bolts. 15s cooldown. Staying invisible for 2.5s boosts damage and makes void bolts weaken.' },
   wail: { name: "Banshee's Wail", desc: 'Hold Block to rev the blade. Revved swings pierce shields and deal 30% more; each hit stacks (5) damage and resistance for heavy swings.' },
   quarrel: { name: 'Hungering Quarrel', desc: 'Fires two tracking bolts per shot. Bolts that land heal you for a share of the damage.' },
   reanimate: { name: 'Violent Reanimation', desc: 'Two kills within 4s grant Devour.' },
@@ -163,9 +171,9 @@ export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabiliz
 // Loot 2.0 (U10): three perk columns, Destiny 2 style. A perk goes by its payoff (docs/DECISIONS.md 2026-10-17).
 // Steady Hands and Snapshot Sights no longer roll (no column fits them); old weapons keep them.
 export const PERK_COLUMNS = {
-  mag: ['extmag', 'alloymag', 'highcal', 'overflow', 'outlaw', 'feeding', 'reconstruction', 'rapidhit', 'subsistence', 'envious', 'hotswap', 'scavenger'],
-  damage: ['rampage', 'killclip', 'frenzy', 'surrounded', 'opening', 'precise', 'adrenaline', 'oneforall', 'baitswitch'],
-  effect: ['eager', 'firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting'],
+  mag: ['harvest', 'deepreserve', 'thrift', 'extmag', 'alloymag', 'highcal', 'overflow', 'outlaw', 'feeding', 'reconstruction', 'rapidhit', 'subsistence', 'envious', 'hotswap', 'scavenger'],
+  damage: ['relentless', 'crescendo', 'executioner', 'rampage', 'killclip', 'frenzy', 'surrounded', 'opening', 'precise', 'adrenaline', 'oneforall', 'baitswitch'],
+  effect: ['eager', 'bloodletter', 'sweep', 'firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting'],
 };
 export const PERK_COLUMN_NAMES = { mag: 'Magazine or Reload', damage: 'Damage', effect: 'Effect' };
 /** The column a perk belongs to, or null (Steady Hands, Snapshot Sights). */
@@ -178,7 +186,8 @@ export function perksByColumn(perks = []) {
   return out;
 }
 // Perks that only roll on certain weapon families.
-export const PERK_ARCH = { eager: ['sword'] };
+// A perk listed here rolls only on those families, and swords roll only perks listed for them.
+export const PERK_ARCH = Object.fromEntries(['eager', 'harvest', 'deepreserve', 'thrift', 'relentless', 'crescendo', 'executioner', 'bloodletter', 'sweep'].map((p) => [p, ['sword']]));
 // Perks that only roll in some ammo slots (the rest roll everywhere).
 export const PERK_SLOTS = {
   scavenger: ['special', 'heavy'], overflow: ['special', 'heavy'], chainreaction: ['special', 'heavy'], envious: ['special', 'heavy'],
@@ -240,13 +249,13 @@ export const EXOTIC_ARMOR_PERKS = {
   Synthoceps: { id: 'synthoceps', name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
   'Heart of Inmost Light': { id: 'heart', name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
   Dunemarchers: { id: 'dunemarchers', name: 'Linear Actuators', desc: 'Sprinting builds static. Your next melee chains lightning into up to 3 enemies.' },
-  'Mask of the Quiet One': { id: 'quietone', name: 'Eye for an Eye', desc: 'Taking damage makes your abilities recharge 50% faster for 4s. Void ability kills heal you for 40.' },
+  'Mask of the Quiet One': { id: 'quietone', name: 'Eye for an Eye', desc: 'Taking damage makes your abilities recharge 50% faster for 4s. Void ability kills heal you for 40% of your health.' },
   'Ursa Furiosa': { id: 'ursa', name: 'Bear Mother', desc: 'Damage you block while guarding with Sentinel Shield returns super energy when the super ends (up to 50%).' },
   'Hallowfire Heart': { id: 'hallowfire', name: 'Sunheart', desc: 'While your super is fully charged, your abilities recharge 60% faster.' },
   Peacekeepers: { id: 'peacekeepers', name: 'Hip Holsters', desc: 'Submachine guns reload themselves while stowed, and you switch to them twice as fast.' },
   // Hunter
   'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'Golden Gun fires a single shot that deals 5x damage. A kill with it returns 30% super energy.' },
-  "Liar's Handshake": { id: 'liars', name: 'Cross Counter', desc: 'Powered melee hits grant Cross Counter for 5s: your next uncharged melee deals double damage and heals you for 40.' },
+  "Liar's Handshake": { id: 'liars', name: 'Cross Counter', desc: 'Powered melee hits grant Cross Counter for 5s: your next uncharged melee deals double damage and heals you for 40% of your health.' },
   'Raiden Flux': { id: 'raiden', name: 'Shocking Blows', desc: 'Each Arc Staff hit extends the super by 0.5s (up to 5s). Quick successive hits deal 10% more damage, stacking to 50%.' },
   'St0mp-EE5': { id: 'stomp', name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your dodge recharges 30% faster.' },
   'Graviton Forfeit': { id: 'graviton', name: 'Vanishing Shadow', desc: 'Invisibility lasts 50% longer. While invisible, your melee recharges twice as fast and you regenerate health.' },

@@ -275,7 +275,7 @@ export function abilityFx(kind, o, local) {
           const inside = P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 4.7 && Math.abs(P.pos.y - p.y) < 3;
           if (inside) {
             if (empower) P.status.apply('empower', { t: 0.25 });
-            else { P.status.apply('rift', { t: 0.2 }); P.heal(28 * dt); P.regenT = Math.min(P.regenT, 0.5); }
+            else { P.status.apply('rift', { t: 0.2 }); P.healPct(0.28 * dt); P.regenT = Math.min(P.regenT, 0.5); }
             if (o.luna) P.status.apply('lunafaction', { t: 0.25 }); // the caster's Lunafaction Boots, for whoever stands inside
           }
           was = inside;
@@ -306,7 +306,7 @@ export function abilityFx(kind, o, local) {
           if (Math.random() < 0.25) ember(orb.position.clone(), 0xffffff, 0.05, 0.6, 0.5);
           const P = G.player;
           if (P && !P.dead && Math.hypot(P.pos.x - at.x, P.pos.z - at.z) < HEAL_ORB.r && Math.abs(P.pos.y + 1 - at.y) < 2) {
-            P.heal(o.big ? HEAL_ORB.healBig : HEAL_ORB.heal); P.restore(o.big ? HEAL_ORB.restoreBig : HEAL_ORB.restore);
+            P.healPct(o.big ? HEAL_ORB.healBig : HEAL_ORB.heal); P.restore(o.big ? HEAL_ORB.restoreBig : HEAL_ORB.restore);
             glowBurst(orb.position.clone(), 0xffffff, 14, 4, 0.08, 0.5, 2, 0.3);
             sfx.heal();
             return false;
@@ -477,7 +477,7 @@ export function abilityFx(kind, o, local) {
           if (now) {
             // the buff shows how long the well has left; a much stronger Restoration lingers briefly after leaving
             P.status.apply('well', { t: Math.max(0.1, life), set: true });
-            P.heal(W.heal * dt);
+            P.healPct(W.heal * dt);
             P.restore(W.restore);
           } else if (inside) P?.status.remove('well');
           inside = now;
@@ -550,7 +550,7 @@ export function abilityFx(kind, o, local) {
               flare(c, col, 0.6, 0.15);
               if (local) {
                 dealDamage(tgt, child ? 24 : A ? A.dmg : ARC_SOUL.dmg, { element: el, source: 'ability', pos: c, weaken: child ? 1 : 0, burn: hell ? 1.5 : 0, jolt: sentry ? 3 : 0, companion: true });
-                if (child) G.player.heal(5);
+                if (child) G.player.healPct(0.05);
               }
             }
           }

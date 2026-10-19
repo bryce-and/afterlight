@@ -46,12 +46,13 @@ function makeWeapon(item) {
   // the weapon's archetype (frame) and exotic overrides shape its handling (burst size, pellets, charge...)
   const A = weaponHandling(item);
   const perks = new Set([...(item.perks || []), ...(item.exoticPerks || [item.exotic])].filter(Boolean));
-  const mag = Math.max(1, Math.round(item.stats.mag * (perks.has('extmag') ? 1.3 : 1)));
+  // Swords have no magazine: one pool of ammo (45 to 60 by frame) that pickups refill
+  const mag = A.sword ? Math.round((A.sword.pool ?? 50) * (perks.has('deepreserve') ? 1.2 : 1)) : Math.max(1, Math.round(item.stats.mag * (perks.has('extmag') ? 1.3 : 1)));
   const primary = item.slot === 'primary';
   const reserveBase = item.reserve ?? A.reserve, brick = item.brick ?? A.brick;
   return {
     item, A, s: item.stats, has: (p) => perks.has(p), mag, ammo: mag,
-    reserve: primary ? Infinity : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : Math.round(reserveBase * 1.5), brick,
+    reserve: primary ? Infinity : A.sword ? 0 : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : A.sword ? 0 : Math.round(reserveBase * 1.5), brick,
     fireCd: 0, reloading: false, reloadT: 0, reloadMax: 1, burstLeft: 0, charge: 0, queued: 0, bloom: 0,
     energy: A.glaive ? 60 : 0, beamT: 0, revStacks: 0, hitCount: 0, precHits: 0, honed: 0, el: null, voltWin: 0, voltArm: false, reconT: 0, killclipWindow: 0, killclipArm: false, model: null,
   };
@@ -83,9 +84,9 @@ const ARSENAL = {
   heavyWait: 0.25, // a right-click waits this long for a second click (the guard) before it becomes a heavy attack
   revT: 0.6, revMult: 1.3, revStacks: 5, revDmg: 0.08, revRes: 0.04, // The Lament: Banshee's Wail
   tesseract: { need: 0.9, cost: 4, dist: 11, dmg: 3, window: 1.5, width: 2.2 }, // Worldline Zero
-  exhume: { need: 0.9, cost: 3, bolts: 3, dmg: 0.9, shadowT: 2.5, shadowMult: 1.4, invis: 8 }, // Heartshadow
+  exhume: { cd: 15, cost: 3, bolts: 3, dmg: 0.9, shadowT: 2.5, shadowMult: 1.4, invis: 8 }, // Heartshadow
   shieldBreak: 1.5, actionDrain: 0.5, actionOver: 25, glaiveKill: 8, // Glaives
-  intent: { r: 6, hps: 6, t: 8 },
+  intent: { r: 6, hps: 0.06, t: 8 },
   remote: { r: 3.4, t: 10, reduce: 0.6 }, // Edge of Action: Remote Shield
   seeker: { range: 22, dmg: 2.4, chains: 4 }, // Edge of Concurrence: Lightning Seeker
   cold: { t: 2.5, mult: 2, trace: 1.5, frac: 0.05 }, // Coldheart
@@ -93,7 +94,7 @@ const ARSENAL = {
   harmonic: [1, 1.35, 1.7], harmonicT: 0.8, supercharged: 6, // Wavesplitter
   judgment: { t: 1.4, stun: 1.2, penance: 2.5, burst: 40, cd: 6 }, // Divinity
   blight: { t: 6, r: 4, tick: 0.5, dps: 0.3, attach: 5, attachDps: 0.12 }, // Witherhoard: the pool, and the round that sticks to a target
-  quarrelHeal: 5, reanimate: 4, fan: [-0.4, 0, 0.4], fullStop: 1.25, paceGap: 0.35,
+  quarrelHeal: 0.05, reanimate: 4, fan: [-0.4, 0, 0.4], fullStop: 1.25, paceGap: 0.35,
   assistCos: 0.985, beamGrace: 0.25,
 };
 // Daybreak (H3): the first jump goes 2.5x as high (speed x sqrt 2.5), then the wings sink at this speed
@@ -236,6 +237,16 @@ export class Player {
     const b = this.body.group;
     if (b.parent !== G.scene) G.scene.add(b);
     b.visible = k > 0.3;
+    const inv = this.status.has('invisible');
+    if (this.bodyInv !== inv) { // invisibility: the body is barely there (originals are kept to restore)
+      this.bodyInv = inv;
+      b.traverse((o) => {
+        const m = o.material;
+        if (!m) return;
+        if (m.userData.baseOp === undefined) m.userData.baseOp = [m.transparent, m.opacity];
+        m.transparent = inv || m.userData.baseOp[0]; m.opacity = inv ? Math.min(m.userData.baseOp[1], 0.15) : m.userData.baseOp[1]; m.depthWrite = !inv;
+      });
+    }
     this.viewmodel.visible = !this.dead && k < 0.3;
     const prop = this.tpsProp;
     const swordHex = prop === 'sword' ? ELEMENTS[wEl(this.weapon)].hex : 0, propKey = prop === 'sword' ? `sword${swordHex}` : prop;
@@ -709,7 +720,7 @@ export class Player {
   /** Knockout: breaking a shield. */
   onShieldBreak() { if (this.asp.has('knockout')) this.knockout(); }
   knockout() {
-    this.heal(40);
+    this.healPct(0.4);
     this.status.apply('knockout', { set: true });
   }
 
@@ -863,10 +874,10 @@ export class Player {
         dealDamage(other, dmg * m * 0.5, { element: 'arc', source: 'perk', pos: c });
       }
     }
-    if (w.has('quarrel')) this.heal(ARSENAL.quarrelHeal); // Buried Bloodline: Hungering Quarrel
+    if (w.has('quarrel')) this.healPct(ARSENAL.quarrelHeal); // Buried Bloodline: Hungering Quarrel
     if (w.A.glaive) this.glaiveGain(w, w.A.glaive.gain);
     if (conducting && w.hitCount % 2 === 0) w.ammo = Math.min(w.mag, w.ammo + 1);
-    if (w.has('regime') && w.ammo < w.mag / 2) this.heal(2);
+    if (w.has('regime') && w.ammo < w.mag / 2) this.healPct(0.02);
     if (w.has('payday') && (w.spin || 0) >= 1 && Math.random() < 0.5) w.ammo = Math.min(w.mag, w.ammo + 1);
     if (w.has('volatile')) {
       const other = enemiesNear(e.pos, 12, 1, e)[0];
@@ -1054,7 +1065,7 @@ export class Player {
 
   /** A held attack: Worldline Zero blinks (sprinting) and Heartshadow vanishes (full ammo); the rest swing hard. */
   swordHeavy(w) {
-    const full = w.ammo >= w.mag * ARSENAL.exhume.need;
+    const full = !this.status.has('shadowcd'); // Heartshadow: Vanishing Step is on a 15s cooldown
     if (w.has('tesseract') && this.sprinting && w.ammo >= ARSENAL.tesseract.cost) { this.tesseractBlink(w, false); return; } // Destiny 2: sprint and heavy attack
     if (w.has('exhumation') && full) { this.exhume(w); return; }
     this.swordHeavyAttack(w, w.A.sword.heavyKind || 'cleave');
@@ -1091,7 +1102,9 @@ export class Player {
         hits++;
         this.applyHit(w, e, dmg * mult, false, c.clone(), { precMult: 1, deal: { knock: c.clone().sub(this.pos).setY(0).normalize().multiplyScalar(knock), shieldBreaker: revved } });
       }
-      if (revved && hits) { w.revStacks = Math.min(ARSENAL.revStacks, (w.revStacks || 0) + 1); w.revStackT = 6; }
+      w.lastSwingEnd = G.time;
+    if (hits && w.has('bloodletter')) this.healPct(0.04);
+    if (revved && hits) { w.revStacks = Math.min(ARSENAL.revStacks, (w.revStacks || 0) + 1); w.revStackT = 6; }
       return hits;
     };
     if (kind === 'slam') { // a slow overhead slam: big, wide ground impact
@@ -1140,7 +1153,7 @@ export class Player {
 
   swordSwing(w, heavy = false) {
     const S = w.A.sword, fwd = this.getForward(new THREE.Vector3());
-    w.ammo = Math.max(0, w.ammo - (heavy ? 2 : 1));
+    if (!(!heavy && w.has('thrift') && Math.random() < 0.25)) w.ammo = Math.max(0, w.ammo - (heavy ? 2 : 1)); // Thrifty Strikes
     w.fireCd = (60 / w.s.rpm) * (heavy ? 1.5 : 1);
     this.lastFire = G.time;
     const eagerLunge = w.has('eager') && w.eagerT > 0; // Eager Edge: the first swing after drawing lunges much farther
@@ -1155,7 +1168,13 @@ export class Player {
       this.wailRes = ARSENAL.revRes * w.revStacks; this.wailResT = G.time + 4;
     }
     if (w.has('exhumation') && (this.shadowT || 0) >= ARSENAL.exhume.shadowT) dmg *= ARSENAL.exhume.shadowMult;
-    const reach = S.reach * (heavy ? 1.25 : 1);
+    if (w.has('relentless')) { // Relentless Strikes: chained swings stack damage
+      w.relStacks = w.combo > 0 || G.time - (w.lastSwingEnd ?? -9) < 1.2 ? Math.min(5, (w.relStacks || 0) + 1) : 0;
+      dmg *= 1 + 0.08 * w.relStacks;
+    }
+    if (w.has('crescendo') && w.combo === S.combo - 1) dmg *= 1.4;
+    const sweep = w.has('sweep');
+    const reach = S.reach * (heavy ? 1.25 : 1) * (sweep ? 1.2 : 1);
     const near = this.findMeleeTarget(reach * (eagerLunge ? 3.2 : 1.7), 0.5); // lunge toward the closest target
     if (near) {
       const c0 = near.center(new THREE.Vector3()), dir0 = c0.sub(this.pos).setY(0), dist = dir0.length();
@@ -1170,10 +1189,10 @@ export class Player {
       e.center(c);
       const d = c.clone().sub(this.eye), dist = d.length();
       if (dist > reach + e.radius) continue;
-      if (S.cone > -1 && d.normalize().dot(fwd) < S.cone) continue;
+      if (S.cone > -1 && d.normalize().dot(fwd) < S.cone - (sweep ? 0.25 : 0)) continue;
       if (!hasLOS(this.eye, c)) continue;
       hits++;
-      this.applyHit(w, e, dmg, false, c.clone(), { precMult: 1, deal: { knock: flat.clone().multiplyScalar(heavy ? 9 : 5), shieldBreaker: revved } });
+      this.applyHit(w, e, w.has('executioner') && e.hp / e.maxHp < 0.35 ? dmg * 1.35 : dmg, false, c.clone(), { precMult: 1, deal: { knock: flat.clone().multiplyScalar(heavy ? 9 : 5), shieldBreaker: revved } });
     }
     if (revved && hits) { w.revStacks = Math.min(ARSENAL.revStacks, (w.revStacks || 0) + 1); w.revStackT = 6; }
     if (S.wave && w.combo === S.combo - 1) this.swordWave(w, fwd, dmg * 0.8); // Caster Frame
@@ -1233,6 +1252,7 @@ export class Player {
     const X = ARSENAL.exhume;
     w.ammo = Math.max(0, w.ammo - X.cost); w.fireCd = 0.8;
     this.goInvisible(X.invis, true);
+    this.status.apply('shadowcd', { t: X.cd, set: true });
     const weak = (this.shadowT || 0) >= X.shadowT ? 4 : 0; // Shot in the Dark: bolts fired after a long cloak weaken
     this.shadowT = 0;
     const dmg = w.s.dmg * X.dmg * this.weaponDmgMult(w, false);
@@ -1313,7 +1333,7 @@ export class Player {
     glowBurst(p, ELEMENTS.solar.hex, 20, 6, 0.1, 0.6);
     addTicker({ update: (dt) => {
       life -= dt; pulse -= dt;
-      if (this.pos.distanceTo(p) < I.r) this.heal(I.hps * dt);
+      if (this.pos.distanceTo(p) < I.r) this.healPct(I.hps * dt);
       if (pulse <= 0) { pulse = 1; shockwave(p.clone().setY(0.1), I.r, ELEMENTS.solar.hex, 0.5); flare(p.clone().setY(p.y + 0.6), ELEMENTS.solar.hex, 0.6, 0.2); }
       return life > 0;
     } });
@@ -1472,12 +1492,13 @@ export class Player {
   // Kills & damage
   // -------------------------------------------------------------------------
   onKill(e, o) {
+    if (o.weapon?.A?.sword && o.weapon.has('harvest')) o.weapon.ammo = Math.min(o.weapon.mag, o.weapon.ammo + 4); // Soul Harvest
     if (o.weapon?.has?.('fragout')) o.weapon.fragKillT = G.time; // Forerunner: Frag Out
     // jolt chains and companions (Arc Soul, Child of the Old Gods) pay like weapon kills and skip Hands-On and Ionic Traces
     const chain = !!(o.jolted || o.companion);
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + superKillGain(chain ? 'weapon' : o.source, o.crit, e.typeId));
     for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - KILL_CD_REFUND);
-    if (this.ap.recuperation) this.heal(15 * this.ap.recuperation);
+    if (this.ap.recuperation) this.healPct(0.15 * this.ap.recuperation);
     if (!chain && (o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + SUPER_HANDSON * this.ap.handson);
     this.buildOnKill(e, o);
     this.modsOnKill(e, o, chain);
@@ -1489,8 +1510,8 @@ export class Player {
     }
     if (o.source === 'ability' || o.source === 'melee') {
       if (this.exo.has('nezarec') && o.element === 'void') this.status.apply('nezarec', { t: 5 }); // Void ability kills
-      if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.heal(1000); this.status.apply('skullfort', { set: true }); }
-      if (this.exo.has('quietone') && o.element === 'void') this.heal(QUIET.heal); // Mask of the Quiet One
+      if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.healPct(1); this.status.apply('skullfort', { set: true }); }
+      if (this.exo.has('quietone') && o.element === 'void') this.healPct(QUIET.heal); // Mask of the Quiet One
       if (this.exo.has('sunbracers') && o.element === 'solar' && this.meleeT > 0) this.status.apply('sunbracers', { t: SUNBRACERS.t, set: true });
     }
     if (o.source === 'super') this.exoticSuperKill();
@@ -1503,7 +1524,7 @@ export class Player {
     if (w.has('rampage')) this.status.apply('rampage', { add: 1, set: true });
     if (w.has('killclip')) w.killclipWindow = 3;
     if (w.has('outlaw') && o.crit) this.status.apply('outlaw');
-    if (w.has('leech')) this.heal(20);
+    if (w.has('leech')) this.healPct(0.2);
     const c = e.center(new THREE.Vector3());
     if (w.has('firefly') && o.crit) explode(c, w.mementoShot ? 4.5 : 3, w.mementoShot ? 180 : 90, 'solar', { source: 'perk' });
     if (w.has('memento')) {
@@ -1573,7 +1594,7 @@ export class Player {
       const P = ASPECT_TUNE.pyre, c = e.center(new THREE.Vector3());
       for (const x of enemiesNear(c, P.spreadR, 4, e)) { this.ignite(x, P.spreadDps, P.spreadT); castFx('chain', { pts: [c, x.center(new THREE.Vector3())], el: 'solar', beam: true, w: 0.04 }); }
     }
-    if (A.has('crackling') && (o.source === 'melee' || (abil && G.time < this.meleeWin))) this.heal(ASPECT_TUNE.crackling.heal);
+    if (A.has('crackling') && (o.source === 'melee' || (abil && G.time < this.meleeWin))) this.healPct(ASPECT_TUNE.crackling.heal);
   }
 
   /** Former subclass traits (aspects since H3) on this player's own grenade and melee hits. Returns extra debuffs for the hit. */
@@ -1664,11 +1685,11 @@ export class Player {
       if (A.has('electrostatic') && !o.jolted && !o.companion) this.ionicTrace(c, IONIC.electrostatic);
     }
     if (abil && o.element === 'void' && F.has('expulsion')) explode(c, 3, 100, 'void', { source: 'perk', small: true });
-    if (this.status.has('devour')) { this.heal(1000); this.cd.grenade = Math.max(0, this.cd.grenade - this.cdMax.grenade * 0.1); this.status.apply('devour', { t: this.voidT(8), set: true }); } // Devour: +10% grenade energy per kill
-    else if (abil && A.has('feedvoid')) { this.heal(1000); this.status.apply('devour', { t: this.voidT(8), set: true }); }
-    if (A.has('demolition') && (weakened || suppressed)) { explode(c, 3.5, 120, 'void', { source: 'perk' }); this.heal(20); }
-    if (A.has('executioner') && weakened) { this.goInvisible(3, false); this.heal(30); }
-    if (F.has('starvation') && weakened) this.heal(30);
+    if (this.status.has('devour')) { this.healPct(1); this.cd.grenade = Math.max(0, this.cd.grenade - this.cdMax.grenade * 0.1); this.status.apply('devour', { t: this.voidT(8), set: true }); } // Devour: +10% grenade energy per kill
+    else if (abil && A.has('feedvoid')) { this.healPct(1); this.status.apply('devour', { t: this.voidT(8), set: true }); }
+    if (A.has('demolition') && (weakened || suppressed)) { explode(c, 3.5, 120, 'void', { source: 'perk' }); this.healPct(0.2); }
+    if (A.has('executioner') && weakened) { this.goInvisible(3, false); this.healPct(0.3); }
+    if (F.has('starvation') && weakened) this.healPct(0.3);
     if (F.has('ions') && jolted && !o.jolted && !o.companion) this.ionicTrace(c, IONIC.ions);
     if (o.weapon && this.status.has('volatile')) explode(c, 3, 80, 'void', { source: 'perk', small: true });
     if (F.has('instability') && weakened && o.weapon) this.status.apply('volatile', { set: true });
@@ -1686,7 +1707,7 @@ export class Player {
     if (F.has('tempering') && o.weapon && o.element === 'solar') this.restore(FRAGMENT_TUNE.tempering);
     if (F.has('discharge') && o.weapon && o.element === 'arc' && Math.random() < FRAGMENT_TUNE.discharge) this.ionicTrace(c, IONIC.ions);
     if (F.has('obscurity') && powered) this.goInvisible(FRAGMENT_TUNE.obscurity);
-    if (F.has('leeching') && (powered || o.source === 'melee')) this.heal(FRAGMENT_TUNE.leeching);
+    if (F.has('leeching') && (powered || o.source === 'melee')) this.healPct(FRAGMENT_TUNE.leeching);
   }
 
   /** Ionic Sentry: every third Ionic Trace or Arc ability kill deploys a turret at your feet. */
@@ -1736,7 +1757,7 @@ export class Player {
       castFx('chain', { pts: [this.eye.clone().add(new THREE.Vector3(0, -0.2, 0)), tc], el: 'solar', beam: true, w: 0.05 });
       dealDamage(t, C.dmg, { element: 'solar', source: 'ability', pos: tc });
       this.ignite(t, 18, 2);
-      if (++hits === C.shots) this.heal(C.heal);
+      if (++hits === C.shots) this.healPct(C.heal);
       sfx.shot('revolver');
     });
   }
@@ -1792,7 +1813,7 @@ export class Player {
 
   /** Set bonuses on kills: Hellmouth Vigil heals on precision weapon kills, Reef Outlaw empowers weapons after a powered melee kill. */
   setsOnKill(o) {
-    if (this.sets.has('moon') && o.source === 'weapon' && o.crit) this.heal(SET_TUNE.precHeal);
+    if (this.sets.has('moon') && o.source === 'weapon' && o.crit) this.healPct(SET_TUNE.precHeal);
     if (this.sets.has('tangled') && (o.source === 'ability' || o.source === 'melee') && G.time < this.meleeWin) this.status.apply('outlawsedge', { t: SET_TUNE.outlawT, set: true });
   }
 
@@ -1810,7 +1831,7 @@ export class Player {
   pickupOrb() {
     const ap = (k) => this.ap[k] || 0;
     if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + ORB.super);
-    this.heal(ORB.heal); // U9: every orb heals a little, with or without charge mods
+    this.healPct(ORB.heal); // U9: every orb heals a little, with or without charge mods
     // U9: armor charge only when a mod uses it (Fonts, Surges, Charged Up, Time Dilation, Stacks on Stacks)
     if (usesCharge(this.ap)) this.addCharge(ORB.charge + ap('stacks') + (this.sets.has('mars') ? SET_TUNE.orbCharge : 0)); // Meridian Legion: Rally the Line
     for (const [k, mod] of [['grenade', 'innervation'], ['melee', 'invigoration'], ['class', 'insulation']]) {
@@ -1864,6 +1885,9 @@ export class Player {
     }
   }
 
+  /** Heal a share of max health (0.4 = 40%). */
+  healPct(f) { this.heal(f * this.maxHealth); }
+
   heal(n) {
     const h = Math.min(n, this.maxHealth - this.health);
     this.health += h;
@@ -1874,6 +1898,7 @@ export class Player {
     const w = this.weapons[WEAPON_SLOTS.indexOf(slot)];
     if (w.has('overflow')) w.ammo = Math.max(w.ammo, w.mag * 2);
     const scav = 1 + MODS_TUNE.scav * (this.ap[slot === 'special' ? 'scavs' : 'scavh'] || 0);
+    if (w.A.sword) { w.ammo = Math.min(w.mag, w.ammo + Math.round(w.brick * scav)); return; }
     w.reserve = Math.min(w.maxReserve, w.reserve + Math.round(w.brick * scav));
   }
 
@@ -2006,10 +2031,10 @@ export class Player {
   updateRegen(dt) {
     if (!this.status.has('overshield')) this.over = Math.max(0, this.over - dt * 15);
     if (this.status.has('restoration')) {
-      this.heal(16 * dt);
+      this.healPct(0.16 * dt);
       if (Math.random() < 0.2) ember(this.pos.clone().setY(this.pos.y + 0.4 + Math.random()), 0xffb547, 0.04, 1.2, 0.5);
     }
-    if (this.exo.has('graviton') && this.status.has('invisible')) this.heal(GRAVITON.heal * dt); // Graviton Forfeit
+    if (this.exo.has('graviton') && this.status.has('invisible')) this.healPct(GRAVITON.heal * dt); // Graviton Forfeit
     if (this.regenT > 0) { this.regenT -= dt; return; }
     if (this.health < this.maxHealth) this.health = Math.min(this.maxHealth, this.health + this.regenRate * dt);
     else if (this.shield < this.maxShield) {
@@ -2298,7 +2323,7 @@ export class Player {
     dir.normalize();
     if (dist > 1.6) this.pos.addScaledVector(dir, Math.min(3 * lunge, dist - t.radius - 1.0));
     const cross = this.status.has('crosscounter'); // Liar's Handshake
-    if (cross) { this.status.remove('crosscounter'); this.heal(LIARS.heal); }
+    if (cross) { this.status.remove('crosscounter'); this.healPct(LIARS.heal); }
     this.inBasicMelee = true;
     dealDamage(t, (ko ? 140 : 70) * (cross ? LIARS.mult : 1), { element: ko ? 'arc' : 'kinetic', source: 'melee', pos: c, knock: dir.clone().multiplyScalar(ko ? 10 : 7) });
     this.inBasicMelee = false;
@@ -2374,7 +2399,7 @@ export class Player {
       const res = dealDamage(t, lethal ? 520 : 260, { element: 'arc', source: 'ability', pos: c, knock: dir.clone().multiplyScalar(8) });
       castFx('slam', { p: c.clone(), el: 'arc', r: lethal ? 5 : 3 });
       if (lethal) this.jolt(c.clone(), 3, 140, t);
-      if (res.killed) { this.heal(1000); this.cd.melee *= 0.5; this.status.apply('combo', { set: true }); sfx.heal(); }
+      if (res.killed) { this.healPct(1); this.cd.melee *= 0.5; this.status.apply('combo', { set: true }); sfx.heal(); }
       this.shake = 0.2;
       return;
     }
@@ -2498,7 +2523,7 @@ export class Player {
         const P = G.player;
         if (P === self && !P.dead && Math.hypot(P.pos.x - at.x, P.pos.z - at.z) < 1.6 && Math.abs(P.pos.y - at.y) < 2) {
           P.cd.melee = 0;
-          P.heal(30);
+          P.healPct(0.3);
           P.status.apply('hammer', { set: true });
           sfx.engram(1);
           flare(at.clone().setY(at.y + 0.45), ELEMENTS.solar.hex, 0.8, 0.2);
@@ -2605,7 +2630,7 @@ export class Player {
   drainHit(from, t, c) {
     castFx('drain', { a: from, b: c });
     dealDamage(t, 180, { element: 'void', source: 'ability', pos: c });
-    this.heal(60);
+    this.healPct(0.6);
     ui.screenFlash(ELEMENTS.void.color, 0.2);
     sfx.heal();
   }
@@ -2696,7 +2721,7 @@ export class Player {
   phoenixDive(airborne) {
     if (airborne) { this.vel.set(this.vel.x * 0.2, -30, this.vel.z * 0.2); this.diving = true; }
     else this.phoenixBurst();
-    this.heal(60);
+    this.healPct(0.6);
     this.restore(5);
     sfx.heal();
   }

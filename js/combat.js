@@ -21,11 +21,11 @@ export const GOLDEN_GUN = { shot: 850, splash: 270, knockMult: 0.85 };
 // Nova Bomb leaves a void field where it lands: damage every tick, plus weaken and suppress. (New in v1.7.)
 export const NOVA_FIELD = { life: 6, radius: 6, tick: 0.5, dmg: 50, weaken: 1, suppress: 1 };
 /** Class exotics added in v1.6. */
-export const LIARS = { t: 5, mult: 2, heal: 40 }; // Liar's Handshake: Cross Counter
+export const LIARS = { t: 5, mult: 2, heal: 0.4 }; // Liar's Handshake: Cross Counter
 export const RAIDEN = { extend: 0.5, maxExtend: 5, window: 1, step: 0.1, maxStacks: 5 }; // Raiden Flux
 export const STARFIRE = { refund: 0.2 }; // Starfire Protocol: Solar grenade kills
 /** Class exotics added in v1.7. */
-export const QUIET = { t: 4, regen: 1.5, heal: 40 }; // Mask of the Quiet One
+export const QUIET = { t: 4, regen: 1.5, heal: 0.4 }; // Mask of the Quiet One
 export const URSA = { perDmg: 0.25, max: 50 }; // Ursa Furiosa: super % per point of blocked damage
 // Damage taken while each super is active. H3: every roaming super takes 70% less (ROAM_ARMOR).
 // U9: burst supers hover the caster while casting and take 85% less (BURST_ARMOR); Well and Ward slam down first.
@@ -53,7 +53,7 @@ export function barrierStops(px, py, pz, yaw, p) {
 export const riftElement = (el, kind) => el || (kind === 'empower' ? 'arc' : 'void');
 export const SENTINEL_GUARD = { cut: 0.95, blind: 3 }; // Sentinel Shield guard (hold right-click): share of incoming damage blocked (85% before v1.8.1)
 export const HALLOWFIRE = { regen: 1.6 }; // Hallowfire Heart
-export const GRAVITON = { dur: 1.5, melee: 2, heal: 15 }; // Graviton Forfeit (heal per second)
+export const GRAVITON = { dur: 1.5, melee: 2, heal: 0.15 }; // Graviton Forfeit (heal per second)
 export const AHAMKARA = { refund: 0.05, gap: 0.2 }; // Young Ahamkara's Spine (per grenade hit, at most once per gap)
 export const RASPBERRY = { chains: 2, refund: 0.3 }; // Lucky Raspberry
 export const ORPHEUS = { perEnemy: 5, max: 50 }; // Orpheus Rig
@@ -88,7 +88,7 @@ export const SUPER_TUNE = {
   spectral: { hit: 210, fin: 370, leap: 400, leapR: 4.5, leapCd: 1.4 }, // H3: about 20% less (was 260/460/500)
   gathering: { dmg: 2100, tick: 36, r: 7, field: 5, fieldR: 5 }, // H3: about 20% less (was 2600/45)
   stormsedge: { range: 18, r: 5, dmg: 900 },
-  well: { r: 6, life: 25, blast: 500, heal: 30, restore: 2.5, burn: 30, cut: 0.75, dmg: 1.25 }, // H3: 25 s (was 15), strong Restoration, burns enemies inside
+  well: { r: 6, life: 25, blast: 500, heal: 0.3, restore: 2.5, burn: 30, cut: 0.75, dmg: 1.25 }, // H3: 25 s (was 15), strong Restoration, burns enemies inside
   novawarp: { chargeT: 1, r0: 3.5, r1: 7, dmg0: 350, dmg1: 900, warp: 6, seekers: 3, seekR: 15, seekDmg: 60, weaken: 4 },
   chaos: { range: 45, dmg: 60, refund: 45 }, // fires from the start; F again ends it (refund scales with time left)
   daybreak: { r: 3, dmg: 340, burn: 20 },

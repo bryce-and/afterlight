@@ -92,7 +92,7 @@ export const ASPECT_TUNE = {
   tempered: { t: 6, speed: 1.15, reload: 0.75 },
   aftershocks: { refund: 0.04, gap: 0.25 },
   unbreakable: { t: 2, cut: 0.1, r: 6, dmg: 260 },
-  crackshot: { shots: 3, dmg: 90, range: 25, heal: 30 },
+  crackshot: { shots: 3, dmg: 90, range: 25, heal: 0.3 },
   prowl: { speed: 1.15, melee: 1.5 },
   fasttwitch: { amplified: 4 },
   angel: { hover: 3, refund: 0.1 },
@@ -105,7 +105,7 @@ export const ASPECT_TUNE = {
   resolve: { over: 25 },
   chainofwoe: { melee: 0.15, grenade: 0.1 },
   abyssal: { weaken: 6, spreadR: 5 },
-  crackling: { heal: 1000 },
+  crackling: { heal: 1 },
   bloom: { t: 5, tick: 0.5, dmg: 8, r: 4, weaken: 4 },
   unlimitedpower: { jolt: 4, n: 2, r: 8, dmg: 60 },
   giftsun: { energy: 0.15, life: 10, r: 1.6, max: 3 },
@@ -113,13 +113,13 @@ export const ASPECT_TUNE = {
 export const FRAGMENT_TUNE = {
   searing: 0.1, combustion: { r: 4, dmg: 180 }, benevolence: 1.3, tempering: 2,
   resistance: { n: 3, r: 8, cut: 0.8 }, discharge: 0.3, magnitude: { pulses: 2, storm: 1, flux: 2 },
-  remnants: 1.5, obscurity: 3, leeching: 60,
+  remnants: 1.5, obscurity: 3, leeching: 0.6,
 };
 
 // Sunspots (Sol Invictus and Hammer of Sol): enemies inside burn; the caster's copy deals the damage.
 export const SUNSPOT = { r: 2.7, life: 6, tick: 0.5, dmg: 22 };
 // Healing Grenade orb: lasts `life` seconds; every Guardian can pick it up once (on their own screen).
-export const HEAL_ORB = { life: 10, r: 1.4, heal: 40, healBig: 70, restore: 6, restoreBig: 9 };
+export const HEAL_ORB = { life: 10, r: 1.4, heal: 0.4, healBig: 0.7, restore: 6, restoreBig: 9 };
 // Throwing Hammer left on the ground glows brighter, then explodes after `fuse` seconds.
 export const HAMMER_FUSE = { fuse: 7, r: 4, dmg: 220 };
 
@@ -150,7 +150,7 @@ export const FRAGMENTS = {
   instability: { element: 'void', name: 'Echo of Instability', unlockLevel: 25, desc: 'Defeating a weakened enemy grants Volatile Rounds for 6s: your weapon kills explode.' },
   remnants: { element: 'void', name: 'Echo of Remnants', desc: 'Your lingering void effects last 50% longer: Vortex Grenades and Snare Bomb clouds.' },
   obscurity: { element: 'void', name: 'Echo of Obscurity', desc: 'Powered melee kills turn you invisible for 3s.' },
-  leeching: { element: 'void', name: 'Echo of Leeching', desc: 'Melee kills heal you for 60.' },
+  leeching: { element: 'void', name: 'Echo of Leeching', desc: 'Melee kills heal you for 60% of your health.' },
 };
 
 // Light Ascendant: the Destiny 2 Light supers each subclass was missing. The subclass's original super

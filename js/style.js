@@ -35,7 +35,7 @@ export const SETS = {
   },
   moon: {
     name: 'Hellmouth Vigil', dest: 'The Hellmouth', pieces: pieces('Vigil', 'Mask', 'Grips', 'Cuirass', 'Strides'),
-    bonus: { name: "Crota's Bane", desc: 'Precision weapon kills restore 20 health.' },
+    bonus: { name: "Crota's Bane", desc: 'Precision weapon kills restore 20% of your health.' },
     look: look(C(0xcfc8b4, 0x4e6b3a, 0x22261f, 0x3c4a2c), { visor: 'eyes', crest: 'horns' }, { cuff: 'spiked' }, { plate: 'ridge', shoulder: 'tall' }, { knee: 'spike', shin: 'plated' }),
   },
   mars: {
@@ -63,7 +63,7 @@ export const SET_IDS = Object.keys(SETS);
 for (const id of SET_IDS) LOOKS[id] = SETS[id].look;
 
 /** Set bonus numbers (the Player reads these). */
-export const SET_TUNE = { reload: 0.85, precHeal: 20, orbCharge: 1, regenDelay: 0.75, outlawDmg: 1.15, outlawT: 6, superPassive: 1.1 };
+export const SET_TUNE = { reload: 0.85, precHeal: 0.2, orbCharge: 1, regenDelay: 0.75, outlawDmg: 1.15, outlawT: 6, superPassive: 1.1 };
 
 /** The look an armor piece shows: its set, the exotic look, or a plain look by rarity. */
 export function lookOf(item) {
