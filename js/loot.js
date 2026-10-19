@@ -24,7 +24,7 @@ const clampPower = (p) => Math.max(1, Math.min(LIGHT_CAP, Math.round(p)));
 
 const STAT_KEYS = ['dmg', 'rpm', 'mag', 'reload', 'spread', 'range'];
 
-export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
+export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null, namedPick = null) {
   const rar = RARITIES[rIdx];
   let arch, element, name, frame = null, exotic = null, flavor = '', tpl = null, named = null;
   if (rar.id === 'exotic') {
@@ -36,7 +36,7 @@ export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null) {
     const inSlot = (a) => namedFor(a, rar.id).filter((n) => frameSlot(a, n.frame) === slot);
     arch = archOverride || pick(archesForSlot(slot).filter((a) => inSlot(a).length));
     // Loot 2.0: every rarity is a named weapon with a fixed archetype and element
-    named = pick(inSlot(arch));
+    named = namedPick || pick(inSlot(arch)); // namedPick: the dev console's /give
     if (!named) throw new Error(`makeWeapon: no ${rar.id} named weapon for ${arch}`);
     ({ name, frame, element } = named);
   }

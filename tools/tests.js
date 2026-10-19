@@ -1228,6 +1228,53 @@ test('U11: weapons you already own take new balance (stats are derived), and old
   eq([acrius.reserve, acrius.brick], [HEAVY_VERSION.reserve, HEAVY_VERSION.brick]);
   eq(S.refreshWeapons(save), 0, 'stable the second time');
 });
+// ---------- dev console (secret) ----------
+import * as DC from '../js/devcommands.js';
+test('dev console: /give builds every catalog item at its own rarity, marked spawned', () => {
+  fresh();
+  for (const e of DC.giveCatalog()) {
+    const it = DC.buildGiven(e, 50, 'vanguard');
+    ok(it && it.name === e.name, `${e.name} built`);
+    eq(it.rarity, e.rarity, `${e.name} rarity`);
+    ok(it.spawned === true, `${e.name} spawned`);
+  }
+});
+test('dev console: Sunshot is exotic, lookup is case-insensitive and by unique prefix', () => {
+  eq(DC.findGive('sunshot').entry.rarity, 'exotic');
+  eq(DC.findGive('Sunsh').entry.name, 'Sunshot');
+  ok(DC.findGive('zzzz').error, 'unknown name errors');
+});
+test('dev console: spawned exotics stay out of the Exotic Collection', () => {
+  const st = fresh(); const s = S.createSave('vanguard');
+  S.addItem(s, { ...DC.buildGiven(DC.findGive('Sunshot').entry, 50, 'vanguard') });
+  ok(!(s.exoticsFound || []).includes('Sunshot'), 'not counted');
+});
+test('dev console: /gamerule toggles, accepts true/false and rejects junk', () => {
+  fresh(); const s = S.createSave('vanguard'); const ctx = { save: s, grant() {} };
+  ok(DC.runCommand('/gamerule Mayhem', ctx).ok && DC.DEV.mayhem === true);
+  ok(DC.runCommand('/gamerule mayhem false', ctx).ok && DC.DEV.mayhem === false);
+  ok(!DC.runCommand('/gamerule Nope', ctx).ok);
+  ok(!DC.runCommand('/gamerule Mayhem maybe', ctx).ok);
+  ok(!DC.runCommand('/bogus', ctx).ok);
+});
+test('dev console: /playerlevel goes up and down within 1 to 40', () => {
+  fresh(); const s = S.createSave('vanguard'); const ctx = { save: s, grant() {} };
+  ok(DC.runCommand('/playerlevel 25', ctx).ok); eq(S.playerLevel(s), 25);
+  ok(DC.runCommand('/playerlevel 3', ctx).ok); eq(S.playerLevel(s), 3);
+  ok(!DC.runCommand('/playerlevel 41', ctx).ok); ok(!DC.runCommand('/playerlevel x', ctx).ok);
+});
+test('dev console: Tab completion finishes commands, rules and item names', () => {
+  eq(DC.completions('/gamer'), ['/gamerule ']);
+  eq(DC.completions('/gamerule inf'), ['/gamerule InfiniteAmmo']);
+  ok(DC.completions('/give sunsh').includes('/give Sunshot'));
+  eq(DC.completions('/zzz'), []);
+});
+test('dev console: /give grants one item through the grant hook', () => {
+  fresh(); const s = S.createSave('vanguard'); const got = [];
+  ok(DC.runCommand('/give Sunshot', { save: s, grant: (i) => got.push(i) }).ok);
+  eq(got.length, 1); eq(got[0].name, 'Sunshot');
+});
+
 // ---------- runner ----------
 const out = document.getElementById('out');
 let pass = 0, fail = 0;

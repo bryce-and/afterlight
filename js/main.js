@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import './devconsole.js';
 import { G, lockPointer } from './state.js';
 import { createMenuScene } from './world.js';
 import { loadSave } from './save.js';

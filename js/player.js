@@ -18,6 +18,7 @@ import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
 import { weaponHandling } from './frames.js';
+import { DEV } from './devcommands.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
@@ -1685,6 +1686,7 @@ export class Player {
   takeDamage(amount, from) {
     const M = G.mission;
     if (this.dead || M.phase === 'done' || M.phase === 'loot' || M.chest?.final) return; // the activity is complete: no more damage
+    if (DEV.invulnerable) return; // dev console: /gamerule Invulnerable
     if (this.exo.has('quietone')) this.status.apply('quietone', { t: QUIET.t, set: true }); // Mask of the Quiet One
     if (this.superActive?.guard) {
       if (this.exo.has('ursa')) this.superActive.blocked = (this.superActive.blocked || 0) + amount * SENTINEL_GUARD.cut; // Ursa Furiosa
@@ -1824,6 +1826,13 @@ export class Player {
   // Abilities
   // -------------------------------------------------------------------------
   updateAbilities(dt) {
+    if (DEV.mayhem) { // dev console: /gamerule Mayhem
+      this.cd.grenade = this.cd.melee = this.cd.class = 0;
+      if (!this.superActive) this.superCharge = 100;
+    }
+    if (DEV.infiniteammo) { // dev console: /gamerule InfiniteAmmo
+      for (const w of this.weapons) { w.ammo = w.mag; if (w.reserve !== Infinity) w.reserve = w.maxReserve; if (w.A.glaive) w.energy = 100; }
+    }
     const song = this.keepsGuns ? SONG.abilityRegen : 1;
     const nez = this.status.has('nezarec') ? 2 : 1; // Nezarec's Sin
     const boost = this.buildRegen();

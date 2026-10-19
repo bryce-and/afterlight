@@ -74,7 +74,7 @@ function ownedExotics(s) {
 
 /** Records an exotic as found (duplicate protection). */
 export function noteExotic(s, it) {
-  if (it?.rarity !== 'exotic') return;
+  if (it?.rarity !== 'exotic' || it.spawned) return; // dev-console items stay out of the collection
   s.exoticsFound = s.exoticsFound || [];
   if (!s.exoticsFound.includes(it.name)) s.exoticsFound.push(it.name);
 }
