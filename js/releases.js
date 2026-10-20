@@ -4,6 +4,17 @@
 
 export const RELEASES = [
   {
+    version: '2.2.3', name: 'Hotfix', date: '2026-10-20', accent: '#ffb547', glyph: '✚',
+    summary: 'Rocket-Assisted Sidearms and Pulse Rifles fire fast rockets, the burst Linear Fusion Rifle spaces its bolts, and every gun has a harder, drier sound.',
+    notes: [
+      'Rocket-Assisted Sidearms and Pulse Rifles: each round is now a fast rocket you can see. It bursts in a small blast when it hits an enemy, the ground or a wall',
+      'Rocket-Assisted Pulse Rifle: 6 shots in the magazine, and each shot fires 3 rockets. Rocket-Assisted Sidearms still fire one rocket per shot',
+      'Linear Fusion Rifles with the three-bolt burst now pause briefly between bolts instead of firing them almost at once',
+      'Gun sounds: every weapon now sounds like a gunshot, a hard crack with a low thump and almost no echo, instead of a tuned tone. Element tints (Arc, Void, Stasis) are noise too, with no chime. Rocket-Assisted rounds have their own launch thump',
+      'No save changes. Your Rocket-Assisted Pulse Rifles pick up the new magazine size',
+    ],
+  },
+  {
     version: '2.2.2', name: 'Hotfix', date: '2026-10-20', accent: '#ffb547', glyph: '✚',
     summary: 'Xenophage is now its own kind of Heavy weapon that fires solar bolts, and Glaive shields are tuned.',
     notes: [
