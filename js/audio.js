@@ -177,33 +177,32 @@ function play(group, layers, o = {}) {
 // n = noise layer, t = tone layer. Heavier weapons get more body and a longer tail.
 // ---------------------------------------------------------------------------
 const click = (g = 0.2) => ({ n: { dur: 0.012, freq: 6500, type: 'highpass', gain: g, attack: 0.0005 } });
-// A gunshot is a hard noise crack (clipped so it stays dense), a low noise thump for the body, and a room tail.
+// A gunshot is a hard noise crack (clipped so it stays dense) and a low noise thump for the body. Dry on purpose: almost no reverb.
 // No pitched tones: a swept oscillator reads as a note. Only the energy weapons keep a noisy synthetic sweep.
 const crack = (dur, f0, f1, gain, crunch = 2) => ({ n: { dur, freq: f0, freqEnd: f1, type: 'bandpass', q: 0.45, gain, attack: 0.0004, crunch } });
 const thump = (dur, f0, f1, gain, delay = 0) => ({ n: { dur, freq: f0, freqEnd: f1, type: 'lowpass', q: 0.9, gain, attack: 0.0008, delay, crunch: 1 } });
-const tail = (dur, f0, f1, gain, delay = 0.03) => ({ n: { dur, freq: f0, freqEnd: f1, type: 'lowpass', gain, attack: 0.004, delay } });
 const zapSweep = (dur, f0, f1, gain) => ({ n: { dur, freq: f0, freqEnd: f1, type: 'bandpass', q: 2.5, gain, attack: 0.001, crunch: 2 } });
 export const SHOT_RECIPES = {
-  auto: { send: 0.18, layers: [click(0.18), crack(0.05, 3200, 1500, 0.55), thump(0.08, 420, 140, 1.4), tail(0.2, 1400, 300, 0.1)] },
-  hand: { send: 0.4, layers: [click(0.3), crack(0.1, 2600, 900, 0.8), thump(0.22, 320, 70, 2.0), tail(0.55, 1100, 120, 0.22)] },
-  pulse: { send: 0.22, layers: [click(0.2), crack(0.045, 3600, 1800, 0.5), thump(0.07, 520, 200, 1.1), tail(0.16, 1500, 300, 0.08)] },
-  scout: { send: 0.3, layers: [click(0.28), crack(0.08, 3000, 1100, 0.75), thump(0.15, 280, 80, 1.7), tail(0.42, 1200, 140, 0.18)] },
-  smg: { send: 0.12, layers: [click(0.15), crack(0.035, 3800, 2000, 0.5), thump(0.05, 620, 250, 0.9)] },
-  shotgun: { send: 0.5, layers: [click(0.4), crack(0.15, 2400, 500, 1.0, 3), thump(0.3, 240, 50, 2.4), tail(0.75, 1000, 90, 0.3)] },
-  sniper: { send: 0.65, layers: [click(0.45), crack(0.14, 3000, 700, 1.1, 3), thump(0.42, 240, 40, 2.6), tail(1.1, 1000, 70, 0.34), crack(0.1, 1800, 500, 0.18, 1)] },
-  fusion: { send: 0.4, layers: [zapSweep(0.25, 5200, 900, 0.75), crack(0.07, 2800, 900, 0.6), thump(0.3, 260, 50, 2.0), tail(0.4, 1200, 120, 0.15)] },
-  linear: { send: 0.7, layers: [zapSweep(0.4, 6200, 600, 0.85), crack(0.1, 2600, 700, 0.8), thump(0.55, 220, 36, 2.6), tail(1.0, 1000, 80, 0.3)] },
-  rocket: { send: 0.6, layers: [{ n: { dur: 0.6, freq: 500, freqEnd: 1800, type: 'bandpass', q: 0.6, gain: 0.45, attack: 0.05 } }, crack(0.12, 1800, 500, 0.7), thump(0.5, 260, 45, 2.6), tail(0.9, 800, 80, 0.3, 0.05)] },
-  rocketround: { send: 0.3, layers: [{ n: { dur: 0.25, freq: 700, freqEnd: 2400, type: 'bandpass', q: 0.7, gain: 0.3, attack: 0.02 } }, crack(0.06, 2200, 800, 0.55), thump(0.18, 330, 80, 1.7), tail(0.3, 1200, 160, 0.12)] },
-  xenophage: { send: 0.3, layers: [zapSweep(0.14, 4600, 800, 0.6), crack(0.08, 2400, 700, 0.65), thump(0.16, 300, 70, 1.8)] },
-  mg: { send: 0.2, layers: [click(0.22), crack(0.06, 2600, 1000, 0.7), thump(0.1, 380, 110, 1.7), tail(0.2, 1100, 200, 0.12)] },
-  glauncher: { send: 0.45, layers: [click(0.35), crack(0.05, 1500, 600, 0.6), thump(0.2, 300, 70, 2.0), tail(0.35, 900, 120, 0.2)] },
-  sidearm: { send: 0.15, layers: [click(0.18), crack(0.05, 3200, 1500, 0.55), thump(0.09, 450, 150, 1.2), tail(0.16, 1300, 250, 0.08)] },
-  glaive: { send: 0.3, layers: [zapSweep(0.1, 5000, 1500, 0.4), thump(0.14, 300, 80, 1.3)] },
-  trace: { send: 0.15, layers: [{ n: { dur: 0.12, freq: 4200, freqEnd: 3200, type: 'bandpass', q: 1.2, gain: 0.2 } }] },
-  forerunner: { send: 0.3, layers: [click(0.2), crack(0.07, 2800, 1000, 0.55), thump(0.14, 300, 90, 1.4), tail(0.3, 1100, 150, 0.12)] },
-  revolver: { send: 0.7, layers: [click(0.45), crack(0.16, 3000, 800, 1.1, 3), thump(0.5, 260, 45, 2.6), tail(1.0, 1000, 80, 0.3)] },
-  hammer: { send: 0.4, layers: [zapSweep(0.25, 800, 2600, 0.45), thump(0.25, 280, 70, 1.5)] },
+  auto: { send: 0.04, layers: [click(0.18), crack(0.05, 3200, 1500, 0.55), thump(0.08, 420, 140, 1.4)] },
+  hand: { send: 0.04, layers: [click(0.3), crack(0.1, 2600, 900, 0.8), thump(0.22, 320, 70, 2.0)] },
+  pulse: { send: 0.04, layers: [click(0.2), crack(0.045, 3600, 1800, 0.5), thump(0.07, 520, 200, 1.1)] },
+  scout: { send: 0.04, layers: [click(0.28), crack(0.08, 3000, 1100, 0.75), thump(0.15, 280, 80, 1.7)] },
+  smg: { send: 0.04, layers: [click(0.15), crack(0.035, 3800, 2000, 0.5), thump(0.05, 620, 250, 0.9)] },
+  shotgun: { send: 0.04, layers: [click(0.4), crack(0.15, 2400, 500, 1.0, 3), thump(0.3, 240, 50, 2.4)] },
+  sniper: { send: 0.04, layers: [click(0.45), crack(0.14, 3000, 700, 1.1, 3), thump(0.42, 240, 40, 2.6)] },
+  fusion: { send: 0.04, layers: [zapSweep(0.25, 5200, 900, 0.75), crack(0.07, 2800, 900, 0.6), thump(0.3, 260, 50, 2.0)] },
+  linear: { send: 0.04, layers: [zapSweep(0.4, 6200, 600, 0.85), crack(0.1, 2600, 700, 0.8), thump(0.55, 220, 36, 2.6)] },
+  rocket: { send: 0.04, layers: [{ n: { dur: 0.6, freq: 500, freqEnd: 1800, type: 'bandpass', q: 0.6, gain: 0.45, attack: 0.05 } }, crack(0.12, 1800, 500, 0.7), thump(0.5, 260, 45, 2.6)] },
+  rocketround: { send: 0.04, layers: [{ n: { dur: 0.25, freq: 700, freqEnd: 2400, type: 'bandpass', q: 0.7, gain: 0.3, attack: 0.02 } }, crack(0.06, 2200, 800, 0.55), thump(0.18, 330, 80, 1.7)] },
+  xenophage: { send: 0.04, layers: [zapSweep(0.14, 4600, 800, 0.6), crack(0.08, 2400, 700, 0.65), thump(0.16, 300, 70, 1.8)] },
+  mg: { send: 0.04, layers: [click(0.22), crack(0.06, 2600, 1000, 0.7), thump(0.1, 380, 110, 1.7)] },
+  glauncher: { send: 0.04, layers: [click(0.35), crack(0.05, 1500, 600, 0.6), thump(0.2, 300, 70, 2.0)] },
+  sidearm: { send: 0.04, layers: [click(0.18), crack(0.05, 3200, 1500, 0.55), thump(0.09, 450, 150, 1.2)] },
+  glaive: { send: 0.04, layers: [zapSweep(0.1, 5000, 1500, 0.4), thump(0.14, 300, 80, 1.3)] },
+  trace: { send: 0.04, layers: [{ n: { dur: 0.12, freq: 4200, freqEnd: 3200, type: 'bandpass', q: 1.2, gain: 0.2 } }] },
+  forerunner: { send: 0.04, layers: [click(0.2), crack(0.07, 2800, 1000, 0.55), thump(0.14, 300, 90, 1.4)] },
+  revolver: { send: 0.04, layers: [click(0.45), crack(0.16, 3000, 800, 1.1, 3), thump(0.5, 260, 45, 2.6)] },
+  hammer: { send: 0.04, layers: [zapSweep(0.25, 800, 2600, 0.45), thump(0.25, 280, 70, 1.5)] },
 };
 const SHOT_DEFAULT = { send: 0.2, layers: [{ n: { dur: 0.1, freq: 2000, gain: 0.3 } }] };
 
