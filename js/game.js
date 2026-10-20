@@ -633,12 +633,6 @@ export function projectileMesh(o) {
       m.position.set((Math.random() - 0.5) * o.size * 3, (Math.random() - 0.5) * o.size * 3, (Math.random() - 0.5) * o.size * 3);
       g.add(m);
     }
-  } else if (o.kind === 'xenophage') {
-    // Xenophage: a hot white core in a stretched solar glow
-    g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 0.55, 0), basicMat(0xfff2d0)));
-    const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 1.5, 0), basicMat(o.color, true));
-    glow.scale.set(0.8, 0.8, 2.4);
-    g.add(glow);
   } else if (o.kind === 'seeker' || o.kind === 'drain') {
     g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size, 0), basicMat(0xffffff)));
     g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 2.2, 0), basicMat(o.color, true)));

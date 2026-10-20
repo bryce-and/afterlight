@@ -786,8 +786,9 @@ export class Player {
       for (let i = 0; i < pellets; i++) {
         let dir = applySpread(fwd.clone(), spread);
         if (assist) dir = this.assistDir(dir);
-        const o = A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : assist ? { tracerWidth: 0.03, tracerColor: el.hex } : {};
+        const o = A.laser ? { tracerWidth: 0.11, tracerColor: el.hex, tracerLife: 0.14, core: 0xfff2d0 } : A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : assist ? { tracerWidth: 0.03, tracerColor: el.hex } : {};
         const end = this.hitscan(eye, dir, w, s.dmg, muzzle, o);
+        if (w.has('xeno') && !o.hit && end.distanceTo(eye) < 149) this.scorch(end, s.dmg * this.weaponDmgMult(w, false)); // the round bursts on the ground or a wall too
         if (A.rocketRound) this.rocketRound(w, end, o); // Rocket-Assisted rounds burst on impact
         if (w.has('intent') && w.energy >= 100) { w.energy = 0; this.plantTurret(end); } // Edge of Intent: Restorative Turret
         if (w.has('action') && w.energy >= 100) { w.energy = 0; this.plantRemoteShield(end); } // Edge of Action: Remote Shield
@@ -839,7 +840,8 @@ export class Player {
     }
     if (!o.noTracer) {
       const tc = o.tracerColor ?? (wEl(w) === 'kinetic' ? 0xffe3a0 : ELEMENTS[wEl(w)].hex);
-      tracer(from, end, tc, o.tracerWidth ?? 0.02, 0.06);
+      tracer(from, end, tc, o.tracerWidth ?? 0.02, o.tracerLife ?? 0.06);
+      if (o.core) tracer(from, end, o.core, 0.035, o.tracerLife); // a white-hot core inside the solar glow
       fxTracer(from, end, tc);
     }
     return end;
@@ -918,10 +920,7 @@ export class Player {
       lightning(point.clone().add(new THREE.Vector3(0, 14, 0)), point, ELEMENTS.arc.hex, 0.12);
       explode(point, 3.5, dmg * m * 3, 'arc', { source: 'perk' });
     }
-    if (w.has('xeno')) {
-      explode(point, 2.6, dmg * m * 0.5, 'solar', { source: 'perk', small: true });
-      for (const x of enemiesNear(point, 2.6, 4)) this.dot(x, dmg * m * 0.1, 3, 'solar', ELEMENTS.solar.hex);
-    }
+    if (w.has('xeno')) this.scorch(point, dmg * m);
     if (crit && w.has('whitenail')) {
       // White Nail: three precision hits in a row refill 3 rounds for free
       w.wn = G.time - (w.wnT || 0) < 4 ? (w.wn || 0) + 1 : 1;
@@ -938,6 +937,12 @@ export class Player {
       }
     }
     return res;
+  }
+
+  /** Scorched Earth (Xenophage): a small solar burst where the round lands; everything in it keeps burning for 3s. */
+  scorch(point, dmg) {
+    explode(point, 2.6, dmg * 0.5, 'solar', { source: 'perk', small: true });
+    for (const x of enemiesNear(point, 2.6, 4)) this.dot(x, dmg * 0.1, 3, 'solar', ELEMENTS.solar.hex);
   }
 
   /** Damage over time: n ticks, one per second. */
@@ -967,8 +972,7 @@ export class Player {
         const d = dir.clone().applyAxisAngle(_UP, ang);
         for (let i = 1; i <= 4; i++) after(i * 0.07, () => explode(at.clone().addScaledVector(d, i * WAVE_STEP), WAVE_RADIUS * 0.8, dmg * 0.45, wEl(w), { weapon: w, source: 'weapon', small: true }));
       }
-    } else explode(p, w.A.projectile.radius, dmg, wEl(w), { weapon: w, source: 'weapon', small: !!w.A.smallBlast });
-    if (w.has('xeno')) for (const x of enemiesNear(p, w.A.projectile.radius, 4)) this.dot(x, dmg * 0.08, 3, 'solar', ELEMENTS.solar.hex); // Scorched Earth: the bolt leaves them burning
+    } else explode(p, w.A.projectile.radius, dmg, wEl(w), { weapon: w, source: 'weapon' });
     if (w.has('torment')) { // Witherhoard: Primeval's Torment. A direct hit sticks to the target; the pool lands where it dies. A miss pools where it lands.
       if (enemy && enemy.alive) this.attachBlight(enemy, w); else this.blightZone(p, w, 1);
     }
