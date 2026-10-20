@@ -39,6 +39,7 @@ function applySpread(dir, spread) {
 const wEl = (w) => w.el || w.item.element;
 const after = (sec, fn) => { let t = sec; addTicker({ update(dt) { t -= dt; if (t <= 0) { fn(); return false; } return true; } }); };
 const VOLATILE_CYCLE = ['arc', 'solar', 'void'];
+const CHARGE_BURST_GAP = 0.14; // seconds between the bolts of an Aggressive Frame linear fusion burst
 const WAVE_STEP = 1.5, WAVE_RADIUS = 2.4; // Compressed Wave Frame bursts
 
 function makeWeapon(item) {
@@ -532,7 +533,7 @@ export class Player {
       if (w.fireCd <= 0) { w.cburst--; w.ammo++; this.fire(w, true); }
       return;
     }
-    if (w.ammo <= 0) {
+    if (w.ammo <= 0 && !(A.shotMag && w.burstLeft > 0)) { // a Rocket-Assisted burst finishes even when its shot was the last in the magazine
       w.charge = 0; w.burstLeft = 0;
       if (pressed) sfx.empty();
       if (w.reserve > 0 && w.fireCd <= 0 && !this.sprinting) this.startReload(w); // a sprint that cancelled the reload waits
@@ -747,7 +748,7 @@ export class Player {
     if (w.has('spinup')) w.spin = Math.min(1, (w.spin || 0) + 60 / w.s.rpm * 0.9);
     const spinMul = w.has('spinup') ? 1 + 0.7 * (w.spin || 0) : 1;
     const A = w.A, s = w.s;
-    w.ammo--;
+    if (!(A.shotMag && A.mode === 'burst' && w.burstLeft > 0)) w.ammo--; // Rocket-Assisted Pulse Rifle: one magazine count per three-round shot
     w.mementoShot = this.status.has('memento', w.idx); // Ace of Spades: Memento rounds fire a white tracer and a bigger Firefly
     if (w.mementoShot) this.status.consume('memento', w.idx);
     this.lastFire = G.time;
@@ -755,11 +756,11 @@ export class Player {
       if (w.burstLeft <= 0) w.burstLeft = A.burst;
       w.burstLeft--;
       w.fireCd = (w.burstLeft > 0 ? 60 / s.rpm : A.burstDelay) / spinMul;
-      if (w.ammo <= 0) w.burstLeft = 0;
+      if (w.ammo <= 0 && !A.shotMag) w.burstLeft = 0;
     } else w.fireCd = 60 / s.rpm / spinMul;
     if (A.chargeBurst) {
       if (!burstBolt) w.cburst = A.chargeBurst - 1;
-      if (w.cburst > 0) w.fireCd = 0.07;
+      if (w.cburst > 0) w.fireCd = CHARGE_BURST_GAP;
     }
     if (this.status.has('wolves', w.idx)) w.fireCd /= 2;
     const eye = this.eye;
@@ -780,6 +781,14 @@ export class Player {
           onHit: (p, enemy) => this.weaponExplosion(w, p, enemy, flat),
         });
       }
+    } else if (A.rocketRound) {
+      // Rocket-Assisted rounds: a fast rocket that bursts on an enemy, the ground or a wall
+      const R = A.rocketRound, dir = applySpread(fwd.clone(), spread);
+      spawnPlayerProjectile({
+        kind: 'rocketround', pos: eye.clone().addScaledVector(dir, 0.7).add(new THREE.Vector3(0, -0.12, 0)), vel: dir.multiplyScalar(R.speed), gravity: 0,
+        size: 0.1, color: el.hex, life: 8,
+        onHit: (p, enemy, how) => { if (how !== 'timeout') this.rocketRound(w, p, enemy); },
+      });
     } else {
       const pellets = A.pellets || 1;
       const assist = w.has('quarrel') || w.has('concurrence'); // tracking bolts
@@ -789,7 +798,6 @@ export class Player {
         const o = A.laser ? { tracerWidth: 0.11, tracerColor: el.hex, tracerLife: 0.14, core: 0xfff2d0 } : A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : assist ? { tracerWidth: 0.03, tracerColor: el.hex } : {};
         const end = this.hitscan(eye, dir, w, s.dmg, muzzle, o);
         if (w.has('xeno') && !o.hit && end.distanceTo(eye) < 149) this.scorch(end, s.dmg * this.weaponDmgMult(w, false)); // the round bursts on the ground or a wall too
-        if (A.rocketRound) this.rocketRound(w, end, o); // Rocket-Assisted rounds burst on impact
         if (w.has('intent') && w.energy >= 100) { w.energy = 0; this.plantTurret(end); } // Edge of Intent: Restorative Turret
         if (w.has('action') && w.energy >= 100) { w.energy = 0; this.plantRemoteShield(end); } // Edge of Action: Remote Shield
         if (w.has('concurrence') && w.energy >= 100) { w.energy = 0; this.lightningSeeker(w, end); } // Edge of Concurrence: Lightning Seeker
@@ -804,7 +812,7 @@ export class Player {
     w.model.userData.flash.visible = true;
     w.model.userData.flash.rotation.z = Math.random() * Math.PI;
     flashLight(muzzle, el.id === 'kinetic' ? 0xffc870 : el.hex, 6, 7, 0.05);
-    sfx.shot(A.id, null, el.id);
+    sfx.shot(A.rocketRound ? 'rocketround' : A.id, null, el.id);
   }
 
   hitscan(origin, dir, w, dmg, from, o = {}) {
@@ -1413,11 +1421,12 @@ export class Player {
     }
   }
 
-  /** Rocket-Assisted rounds: a burst where the round lands. */
-  rocketRound(w, end, o) {
+  /** Rocket-Assisted rounds: the direct hit, then a small burst where the round lands. */
+  rocketRound(w, end, enemy) {
     const R = w.A.rocketRound, dmg = w.s.dmg * R.splash * this.weaponDmgMult(w, false);
+    if (enemy?.alive) this.applyHit(w, enemy, w.s.dmg, false, end, {});
     explode(end, R.radius, dmg, wEl(w), { weapon: w, source: 'weapon', small: true });
-    if (!o.hit) { const near = enemiesNear(end, R.radius, 1)[0]; if (near) this.lootPerksOnHit(w, near, false); }
+    if (!enemy) { const near = enemiesNear(end, R.radius, 1)[0]; if (near) this.lootPerksOnHit(w, near, false); }
   }
 
   /** Witherhoard: a patch of blight that eats enemies standing in it. */

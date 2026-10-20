@@ -1292,8 +1292,12 @@ test('audio: every weapon archetype has a shot recipe (swords use sfx.sword)', (
 test('audio: recipe layers are well formed and heavy weapons have more body than light ones', () => {
   const all = [...Object.values(SHOT_RECIPES).map((r) => r.layers), ...Object.values(ABILITY_RECIPES).map((r) => r.layers), ...Object.values(ELEMENT_TINT)];
   for (const layers of all) for (const L of layers) { const p = L.n || L.t; ok(!!L.n !== !!L.t, 'a layer is noise or tone'); ok(p.dur > 0 && p.gain > 0, 'positive dur and gain'); }
-  const bodyGain = (id) => Math.max(...SHOT_RECIPES[id].layers.filter((L) => L.t && L.t.freq < 200).map((L) => L.t.gain));
+  const bodyGain = (id) => Math.max(...SHOT_RECIPES[id].layers.filter((L) => L.n && L.n.type === 'lowpass' && L.n.freq <= 350).map((L) => L.n.gain)); // H8: the body is a low noise thump
   ok(bodyGain('sniper') > bodyGain('smg') && bodyGain('shotgun') > bodyGain('pulse'), 'sniper and shotgun thump harder than smg and pulse');
+});
+test('H8: ballistic gun shots have no pitched tone layers (a swept oscillator sounds like a note)', () => {
+  for (const id of ['auto', 'hand', 'pulse', 'scout', 'smg', 'shotgun', 'sniper', 'rocket', 'rocketround', 'mg', 'glauncher', 'sidearm', 'revolver']) ok(SHOT_RECIPES[id].layers.every((L) => L.n), `${id} is all noise`);
+  for (const layers of Object.values(ELEMENT_TINT)) ok(layers.every((L) => L.n), 'element tints are noise');
 });
 test('audio: every non-kinetic element and enemy faction has a sound', () => {
   for (const id of Object.keys(ELEMENTS)) if (id !== 'kinetic') ok(ELEMENT_TINT[id]?.length, `no tint for ${id}`);
@@ -1338,3 +1342,11 @@ sum.textContent = `${pass} passed, ${fail} failed`;
 sum.className = fail ? 'fail' : 'pass';
 window.TEST_RESULTS = { pass, fail };
 
+
+test('H8: Rocket-Assisted rounds are fast projectiles; the Pulse Rifle has a 6-shot magazine of 3-round bursts, the Sidearm stays single-fire', () => {
+  const pr = weaponHandling({ arch: 'pulse', frame: 'rocket' }), sr = weaponHandling({ arch: 'sidearm', frame: 'rocket' });
+  ok(pr.rocketRound.speed >= 60 && sr.rocketRound.speed >= 60, 'fast rounds');
+  eq([pr.mode, pr.burst, pr.shotMag], ['burst', 3, true], 'pulse: three-round shot');
+  eq(weaponStats({ arch: 'pulse', frame: 'rocket', rarity: 'legendary' }).mag, 6, 'pulse mag counts shots');
+  eq([sr.mode, sr.burst ?? 0, sr.shotMag ?? false], ['semi', 0, false], 'sidearm single fire');
+});

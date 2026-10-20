@@ -596,6 +596,13 @@ export function projectileMesh(o) {
     const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), basicMat(0xffc070, true));
     glow.position.z = -0.3;
     g.add(body, tip, glow);
+  } else if (o.kind === 'rocketround') {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.3, 6).rotateX(Math.PI / 2), mat(0x3b4048));
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 6).rotateX(Math.PI / 2), mat(o.color, { emissive: o.color, emissiveIntensity: 1.5 }));
+    tip.position.z = 0.19;
+    const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), basicMat(0xffc070, true));
+    glow.position.z = -0.18;
+    g.add(body, tip, glow);
   } else if (o.kind === 'shield') {
     // Sentinel shield: a void-rimmed disc
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.06, 12).rotateX(Math.PI / 2), mat(0x3a3048));
@@ -695,7 +702,7 @@ function updateProjectiles(dt) {
     if (hit) {
       G.scene.remove(p.mesh);
       G.projectiles.splice(i, 1);
-      p.onHit(p.pos.clone(), hitEnemy);
+      p.onHit(p.pos.clone(), hitEnemy, hit);
       continue;
     }
     p.mesh.position.copy(p.pos);
@@ -703,7 +710,8 @@ function updateProjectiles(dt) {
     else if (p.kind === 'nova') { p.mesh.rotation.y += dt * 4; p.mesh.scale.setScalar(1 + Math.sin(p.age * 30) * 0.08); }
     else { p.mesh.lookAt(tmp.copy(p.pos).add(p.vel)); if (p.kind === 'knife') p.mesh.rotateX(p.age * 28); }
     // trails
-    if (p.kind === 'rocket') { sparks(p.pos, 0x9a9a9a, 1, 0.5, 0.14, 0.5); ember(p.pos, 0xffb060, 0.1, 0.2); }
+    if (p.kind === 'rocketround') { ember(p.pos, 0xffb060, 0.07, 0.18); if (Math.random() < 0.5) sparks(p.pos, 0x9a9a9a, 1, 0.3, 0.08, 0.3); }
+    else if (p.kind === 'rocket') { sparks(p.pos, 0x9a9a9a, 1, 0.5, 0.14, 0.5); ember(p.pos, 0xffb060, 0.1, 0.2); }
     else if (p.kind === 'grenade' || p.kind === 'glauncher') ember(p.pos, p.color, 0.07, 0.3);
     else if (p.kind === 'knife') { ember(p.pos, p.color, 0.06, 0.25, 0.3); if (Math.random() < 0.5) ember(p.pos, 0xffffff, 0.03, 0.15, 0.2); }
     else if (p.kind === 'seeker' || p.kind === 'drain') { ember(p.pos, p.color, 0.08, 0.3, 0.4); }

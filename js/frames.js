@@ -26,7 +26,7 @@ export const FRAMES = {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced damage and rate of fire.', stats: {} },
     highimpact: { name: 'High-Impact Frame', desc: 'Slower bursts that hit harder and reach farther.', stats: { dmg: 1.15, range: 1.15 }, handling: { set: { burstDelay: 0.36 } } },
     aggressive: { name: 'Aggressive Frame', desc: 'Fires a four-round burst. Heavy recoil.', stats: { dmg: 1.05 }, handling: { set: { burst: 4, burstDelay: 0.4 }, mult: { recoil: 1.3 } } },
-    rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Each round is rocket-propelled and bursts on impact. Slower, harder-hitting bursts.', slot: 'special', stats: { rpm: 0.667, dmg: 2.4, mag: 0.8 }, handling: { set: { burstDelay: 0.45, rocketRound: { radius: 2.0, splash: 0.45 }, reserve: 21, brick: 6 } } },
+    rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Each shot is a three-round burst of fast rockets that burst on impact. Six shots to a magazine.', slot: 'special', stats: { rpm: 0.667, dmg: 2.4, mag: 0.2 }, handling: { set: { burstDelay: 0.45, shotMag: true, rocketRound: { radius: 2.0, splash: 0.45, speed: 80 }, reserve: 21, brick: 6 } } },
   },
   scout: {
     rapid: { name: 'Rapid-Fire Frame', desc: 'Fast rate of fire, deep magazine, lower damage per round.', stats: { rpm: 1.3, dmg: 0.78, mag: 1.25, range: 0.9 }, handling: { mult: { recoil: 0.85 } } },
@@ -86,7 +86,7 @@ export const FRAMES = {
     rapid: { name: 'Rapid-Fire Frame', desc: 'Fires full-auto: fast rate of fire, deep magazine, lower damage per round.', stats: { rpm: 1.5, dmg: 0.65, mag: 1.3, range: 0.85 }, handling: { set: { mode: 'auto' }, mult: { recoil: 0.85 } } },
     aggressive: { name: 'Aggressive Frame', desc: 'High damage, slow to fire, heavy recoil.', stats: { rpm: 0.8, dmg: 1.25, range: 1.1, mag: 0.8 }, handling: { mult: { recoil: 1.3 } } },
     burst: { name: 'Burst Frame', desc: 'Fires a three-round burst with a pause between bursts.', stats: { rpm: 2.222, dmg: 0.94, range: 1.05 }, handling: { set: { mode: 'burst', burst: 3, burstDelay: 0.32 } } },
-    rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Rocket-propelled rounds burst on impact. Slow, heavy-hitting shots.', slot: 'special', stats: { rpm: 0.5, dmg: 2.75, mag: 0.75 }, handling: { set: { rocketRound: { radius: 2.2, splash: 0.5 }, reserve: 22, brick: 5 } } },
+    rocket: { name: 'Rocket-Assisted Frame', desc: 'Special ammo. Single shots of fast rockets that burst on impact. Slow, heavy-hitting.', slot: 'special', stats: { rpm: 0.5, dmg: 2.75, mag: 0.75 }, handling: { set: { rocketRound: { radius: 2.2, splash: 0.5, speed: 80 }, reserve: 22, brick: 5 } } },
   },
   sword: {
     aggressive: { name: 'Aggressive Frame', desc: 'A wide three-swing combo with a long lunge. Heavy attack: a very slow overhead slam with enormous impact.', stats: { dmg: 1.15, rpm: 0.87 }, handling: { set: { sword: { pool: 45, reach: 3.9, cone: 0.5, combo: 3, lunge: 4.5, guard: 0.7, heavy: 2.2, heavyKind: 'slam' } } } },
