@@ -1031,7 +1031,7 @@ export class Player {
     }
     this.guardHits++; this.domeFlash = 1;
     const g = w.A.glaive, blocked = amount * g.block;
-    w.energy = Math.max(0, w.energy - blocked * 0.1);
+    w.energy = Math.max(0, w.energy - blocked * 0.05);
     if (w.energy <= 0) { w.shieldBrk = ARSENAL.shieldBreak; sfx.playerShieldBreak(); }
     return amount - blocked;
   }

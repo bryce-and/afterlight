@@ -97,9 +97,9 @@ export const FRAMES = {
   forerunner: { adaptive: { name: 'Forerunner Frame', desc: 'A heavy-hitting Special sidearm: slow, precise and hard-hitting.', stats: {} } },
   glaive: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced shots, shield and thrust.', stats: {} },
-    aggressive: { name: 'Aggressive Frame', desc: 'Heavier bolts, slower to fire, and a harder thrust.', stats: { dmg: 1.3, rpm: 0.77, mag: 0.67 }, handling: { set: { glaive: { block: 0.8, drain: 9, gain: 2.5, meleeDmg: 6.5, meleeCd: 1.8, thrust: 6 } } } },
+    aggressive: { name: 'Aggressive Frame', desc: 'Heavier bolts, slower to fire, and a harder thrust.', stats: { dmg: 1.3, rpm: 0.77, mag: 0.67 }, handling: { set: { glaive: { block: 0.9, drain: 9, gain: 20, meleeDmg: 6.5, meleeCd: 1.8, thrust: 6 } } } },
     precision: { name: 'Precision Frame', desc: 'Tight, accurate bolts that reward precision hits.', stats: { dmg: 1.25, rpm: 0.8, range: 1.1, mag: 0.83 }, handling: { set: { prec: 2.2 }, mult: { spread: 0.6 } } },
-    lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility and a faster thrust.', stats: { dmg: 0.9, rpm: 1.11, mag: 1.33 }, handling: { set: { move: 1.06, glaive: { block: 0.75, drain: 9, gain: 2.5, meleeDmg: 4.6, meleeCd: 1.2, thrust: 6.5 } } } },
+    lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility and a faster thrust.', stats: { dmg: 0.9, rpm: 1.11, mag: 1.33 }, handling: { set: { move: 1.06, glaive: { block: 0.9, drain: 9, gain: 20, meleeDmg: 4.6, meleeCd: 1.2, thrust: 6.5 } } } },
   },
   trace: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: a steady beam.', stats: {} },
