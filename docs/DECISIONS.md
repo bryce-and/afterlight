@@ -126,3 +126,4 @@
 | 2026-10-19 | Effects slider added to the pause menu (`settings.effectsVolume`, default 1, read with `??` so no save version change). | Bryce |
 | 2026-10-19 | The roadmap's "in place of lo-fi" was inaccurate: the old score was already generative, so the music was rebuilt rather than replaced. | Claude |
 | 2026-10-19 | U12 Resonance makes no save changes. | Claude |
+| 2026-10-20 | Xenophage leaves the Machine Gun family: `ARCHETYPES.xenophage` (exotic only, Heavy, projectile bolt, `smallBlast`), 12 mag, 44 reserve (the game's usual start 70% and max 150% apply), 144 RPM, base damage 230 (299 as an exotic). Its `xeno` burn now runs from the bolt's blast. H8 moves old saves over in `refreshWeapons`, with no save version change. | Bryce |

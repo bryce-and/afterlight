@@ -4,6 +4,14 @@
 
 export const RELEASES = [
   {
+    version: '2.2.2', name: 'Hotfix', date: '2026-10-20', accent: '#ffb547', glyph: '✚',
+    summary: 'Xenophage is now its own kind of Heavy weapon that fires solar bolts, and Glaive shields are tuned.',
+    notes: [
+      'Xenophage: now fires visible solar bolts that burst on enemies and on the ground, leave targets burning, and hit harder per shot. 12 rounds in the magazine, 44 in reserve, same fire rate as before. Xenophages you already own are upgraded',
+      'Glaive shield: blocks 90% of damage, refills 20% energy for each hit your shots land, and the damage it blocks drains only 5% as energy',
+    ],
+  },
+  {
     version: '2.2.1', name: 'Hotfix', date: '2026-10-19', accent: '#ffb547', glyph: '✚',
     summary: 'Enemy sounds were far too quiet to hear. They are now clearly audible while staying lighter than your own weapons.',
     notes: [
