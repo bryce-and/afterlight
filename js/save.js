@@ -118,6 +118,10 @@ export function refreshWeapons(s) {
         n++;
       }
     }
+    if (it.name === 'Xenophage' && it.arch === 'mg') { // H7: Xenophage is its own Heavy family that fires solar bolts
+      Object.assign(it, { arch: 'xenophage', mods: {}, reserve: ARCHETYPES.xenophage.reserve, brick: ARCHETYPES.xenophage.brick });
+      n++;
+    }
     const st = weaponStats(it);
     let changed = JSON.stringify(st) !== JSON.stringify(it.stats);
     if (changed) it.stats = st;

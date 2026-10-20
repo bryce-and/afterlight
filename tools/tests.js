@@ -1208,6 +1208,15 @@ test('U11: the 14 new exotics are real Destiny 2 exotics with a signature perk e
   const sig = EXOTIC_WEAPONS.map((e) => e.perks[0]);
   eq(new Set(sig).size, sig.length, 'every exotic has its own signature perk');
 });
+test('H7: Xenophage is its own Heavy family: solar bolts, 12 in the mag, 44 in reserve, 144 RPM', () => {
+  const A = ARCHETYPES.xenophage, x = EXOTIC_WEAPONS.find((e) => e.name === 'Xenophage');
+  eq(x.arch, 'xenophage'); eq(A.slot, 'heavy'); ok(A.exoticOnly, 'never rolls as a random family'); ok(A.projectile, 'fires a visible bolt');
+  const it = makeExoticT('Xenophage', 70);
+  eq([it.stats.mag, it.stats.rpm, it.slot], [12, 144, 'heavy']);
+  eq(ARCHETYPES.mg.reserve, 210, 'other machine guns are untouched');
+  eq(weaponHandling(it).reserve, 44);
+  ok(it.stats.dmg > 250 && it.stats.dmg < 400, 'bolt damage ' + it.stats.dmg);
+});
 test('U11: new families keep ammo-bound perks off weapons they do not fit', () => {
   for (const n of [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS].filter((x) => ['sword', 'trace', 'glaive'].includes(x.arch))) {
     const pool = perkPoolFor(n), A = ARCHETYPES[n.arch];

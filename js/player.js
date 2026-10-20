@@ -967,7 +967,8 @@ export class Player {
         const d = dir.clone().applyAxisAngle(_UP, ang);
         for (let i = 1; i <= 4; i++) after(i * 0.07, () => explode(at.clone().addScaledVector(d, i * WAVE_STEP), WAVE_RADIUS * 0.8, dmg * 0.45, wEl(w), { weapon: w, source: 'weapon', small: true }));
       }
-    } else explode(p, w.A.projectile.radius, dmg, wEl(w), { weapon: w, source: 'weapon' });
+    } else explode(p, w.A.projectile.radius, dmg, wEl(w), { weapon: w, source: 'weapon', small: !!w.A.smallBlast });
+    if (w.has('xeno')) for (const x of enemiesNear(p, w.A.projectile.radius, 4)) this.dot(x, dmg * 0.08, 3, 'solar', ELEMENTS.solar.hex); // Scorched Earth: the bolt leaves them burning
     if (w.has('torment')) { // Witherhoard: Primeval's Torment. A direct hit sticks to the target; the pool lands where it dies. A miss pools where it lands.
       if (enemy && enemy.alive) this.attachBlight(enemy, w); else this.blightZone(p, w, 1);
     }

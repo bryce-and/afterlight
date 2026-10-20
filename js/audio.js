@@ -174,6 +174,7 @@ export const SHOT_RECIPES = {
   fusion: { send: 0.4, layers: [{ t: { freq: 1100, freqEnd: 230, dur: 0.28, type: 'sawtooth', gain: 0.16 } }, { n: { dur: 0.28, freq: 4500, freqEnd: 500, type: 'bandpass', q: 1.5, gain: 0.5 } }, { t: { freq: 95, freqEnd: 34, dur: 0.3, type: 'sine', gain: 0.5 } }] },
   linear: { send: 0.7, layers: [{ t: { freq: 1900, freqEnd: 110, dur: 0.5, type: 'sawtooth', gain: 0.2 } }, { n: { dur: 0.45, freq: 6000, freqEnd: 300, type: 'bandpass', q: 1.2, gain: 0.6 } }, { t: { freq: 70, freqEnd: 24, dur: 0.6, type: 'sine', gain: 0.7 } }, { n: { dur: 1.0, freq: 900, freqEnd: 70, gain: 0.22, delay: 0.05 } }] },
   rocket: { send: 0.6, layers: [{ n: { dur: 0.7, freq: 900, freqEnd: 180, gain: 0.55 } }, { t: { freq: 210, freqEnd: 60, dur: 0.5, type: 'sawtooth', gain: 0.12 } }, { t: { freq: 80, freqEnd: 30, dur: 0.5, type: 'sine', gain: 0.55 } }] },
+  xenophage: { send: 0.3, layers: [click(0.25), { n: { dur: 0.12, freq: 1800, freqEnd: 300, gain: 0.4 } }, { t: { freq: 220, freqEnd: 60, dur: 0.16, type: 'sawtooth', gain: 0.3 } }, { t: { freq: 110, freqEnd: 40, dur: 0.14, type: 'sine', gain: 0.4 } }] },
   mg: { send: 0.2, layers: [click(0.25), { n: { dur: 0.1, freq: 2300, freqEnd: 420, gain: 0.42 } }, { t: { freq: 120, freqEnd: 44, dur: 0.1, type: 'sine', gain: 0.4 } }] },
   glauncher: { send: 0.45, layers: [{ t: { freq: 320, freqEnd: 90, dur: 0.16, type: 'square', gain: 0.16 } }, { n: { dur: 0.16, freq: 1100, freqEnd: 250, gain: 0.4 } }, { t: { freq: 90, freqEnd: 34, dur: 0.22, type: 'sine', gain: 0.45 } }] },
   sidearm: { send: 0.15, layers: [click(0.2), { n: { dur: 0.07, freq: 3200, freqEnd: 900, gain: 0.3 } }, { t: { freq: 210, freqEnd: 80, dur: 0.07, type: 'triangle', gain: 0.14 } }] },
@@ -255,7 +256,7 @@ export const sfx = {
   death() { play('abilities', [{ t: { freq: 300, freqEnd: 50, dur: 1.4, type: 'sawtooth', gain: 0.2 } }, { t: { freq: 60, freqEnd: 28, dur: 1.4, type: 'sine', gain: 0.4 } }], { send: 0.6 }); duck(0.3, 1.2, 2); },
   /** Reload. `arch` picks the weight: heavy weapons clunk, light ones click. */
   reload(arch) {
-    const heavy = ['rocket', 'mg', 'sniper', 'linear', 'shotgun', 'glauncher'].includes(arch);
+    const heavy = ['rocket', 'mg', 'xenophage', 'sniper', 'linear', 'shotgun', 'glauncher'].includes(arch);
     play('weapons', [
       { n: { dur: 0.06, freq: heavy ? 1800 : 3000, type: 'bandpass', gain: 0.25 } },
       { t: { freq: heavy ? 120 : 200, freqEnd: heavy ? 60 : 110, dur: 0.07, type: 'sine', gain: heavy ? 0.3 : 0.15 } },
@@ -264,7 +265,7 @@ export const sfx = {
     ], { vary: 0.04 });
   },
   reloadDone(arch) {
-    const heavy = ['rocket', 'mg', 'sniper', 'linear', 'shotgun', 'glauncher'].includes(arch);
+    const heavy = ['rocket', 'mg', 'xenophage', 'sniper', 'linear', 'shotgun', 'glauncher'].includes(arch);
     play('weapons', [{ n: { dur: 0.07, freq: 1800, type: 'bandpass', q: 3, gain: 0.35 } }, { t: { freq: heavy ? 100 : 170, freqEnd: 55, dur: 0.1, type: 'sine', gain: heavy ? 0.4 : 0.22 } }], { vary: 0.04 });
   },
   swap() { play('weapons', [{ n: { dur: 0.05, freq: 2500, type: 'bandpass', gain: 0.2 } }, { t: { freq: 150, freqEnd: 80, dur: 0.06, type: 'sine', gain: 0.15 } }]); },

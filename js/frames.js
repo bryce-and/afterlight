@@ -94,6 +94,7 @@ export const FRAMES = {
     caster: { name: 'Caster Frame', desc: 'Balanced swings. Heavy attack: throws a powerful energy wave far down range.', stats: {}, handling: { set: { sword: { pool: 50, reach: 3.6, cone: 0.55, combo: 3, lunge: 3.0, guard: 0.7, heavy: 2.2, heavyKind: 'wave' } } } },
     vortex: { name: 'Vortex Frame', desc: 'Balanced swings. Heavy attack: a spinning strike that hits everything around you.', stats: {}, handling: { set: { sword: { pool: 55, reach: 3.6, cone: 0.55, combo: 2, lunge: 3.0, guard: 0.65, heavy: 2.0, heavyKind: 'spin' } } } },
   },
+  xenophage: { adaptive: { name: 'Xenophage Frame', desc: 'A Heavy machine gun that fires solar bolts: each one bursts on contact with an enemy or the ground and leaves targets burning.', stats: {} } },
   forerunner: { adaptive: { name: 'Forerunner Frame', desc: 'A heavy-hitting Special sidearm: slow, precise and hard-hitting.', stats: {} } },
   glaive: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced shots, shield and thrust.', stats: {} },

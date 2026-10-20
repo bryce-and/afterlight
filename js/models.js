@@ -336,7 +336,7 @@ function buildBaseGun(item, look) {
       holo(k, dark, S, 0.05, 0.072);
       return finish(g, { muzzleF: 0.65, S, hip: [0.25, -0.16, -0.48], ads: 0.3, flash: 0xffb060 });
     }
-    case 'mg': {
+    case 'mg': case 'xenophage': {
       S = 0.118;
       P([[-0.14, 0.06], [0.24, 0.06], [0.28, 0.035], [0.28, -0.05], [0.08, -0.06], [-0.14, -0.055]], 0.08, body);
       B(0.07, 0.015, 0.22, 0, 0.066, 0.07, mid);
