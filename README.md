@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v2.6 "The Ghost's Story"**: a campaign of 22 missions across 8 destinations, narrated by your Ghost with a subtitle bar; objectives in missions (hold, activate, retrieve, destroy, survive); the Dreaming City, and a Leviathan finale where Calus is revealed as a robot copy; closed boss rooms, interiors, stairs and platforms; unlimited lights; new bosses Morgeth, Veshra and a Taken champion; two new armor sets; campaign progress per Guardian; middle-click item lock.
 - **v2.5 "New Factions"**: the Taken and the Scorn are full factions with their own units, models and abilities; they break into missions on Io and the Tangled Shore, and the Glaive fires a bolt you can watch fly.
 - **v2.4 "Hostile Intent II"**: every enemy comes as a minor (red bar) or major (orange bar) variant, majors with more health; factions fight differently; some enemies wear elemental shields that a burst of the matching element breaks, and some throw grenades; bosses alternate pushing and holding; the ammo meter replaces random ammo drops; harder with three Guardians.
 - **v2.2 "Resonance"**: rebuilt sound. Weapons, abilities and enemies have their own layered sounds, placed in the world with stereo and distance; music moves between explore, tense, combat and boss; the pause menu has an Effects slider.
@@ -27,7 +28,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 - **Guardian levels 1 to 40**: XP from kills (shared by the fireteam), missions and caches. The Level tab is a reward track: a Legendary every 3 levels, Exotics at 20 and 40. Drop rarity climbs with your level.
 - **12 weapon types** (every player gets one of each) in primary / special / heavy slots, each with Destiny's archetypes (Adaptive, Rapid-Fire, High-Impact, Precision...) that fix its stats. Named legendaries always have the same archetype and element. Kinetic, Solar, Arc, Void, Stasis and Strand weapons; aim down sights, reloads, recoil, precision damage, elemental shields.
 - **Combat HUD**: buffs and exotic effects with timers (general above the abilities, weapon perks below), enemy name and health on aim, damage numbers that drift aside, a gold super bar when charged. Enemies flinch on heavy hits.
-- **6 destinations, 18 missions**: the Cosmodrome, the Moon, Mars, Titan, the Tangled Shore and Io, each mission ending in a boss. Horde and Endless activities.
+- **8 destinations, 22 missions**: Earth (the Cosmodrome), the Moon, Mars, Io, Titan, the Tangled Shore, the Dreaming City and the Leviathan, each mission ending in a boss. Horde and Endless activities.
 - **Character screen** in the style of Destiny: 3D class model wearing your armor, weapons left, armor right, flyouts to swap gear, item cards, hold F to dismantle. Stats and mods live on the Mods screen.
 - **Armor and style**: armor shows on your Guardian. Six destination armor sets with 3-piece bonuses, eight exotics per class (drops favor the ones you haven't found yet), and 10 shaders from mission caches that recolor all of your armor.
 - **Loot**: engrams drop from enemies, boss caches give rare-or-better gear, five rarities up to Exotic, random perks, Light (up to 200), infusion, dismantling for Glimmer.

@@ -9,7 +9,7 @@ const MARB = 0x15111b, MARB2 = 0x251e2d, MARB3 = 0x3a2f46;
 const GOLD = 0xd9a43a, GOLDL = 0xffc247, GOLDD = 0x8a6a22, CREAM = 0xa89878;
 const BANR = 0x7e1a22, CARPET = 0x5a1620, DECK = 0x383044, DECK2 = 0x1f3048;
 // gardens
-const HEDGE = 0x2d6a38, HEDGE2 = 0x3e8a48, LAWN = 0x2c5a34, SOIL = 0x3a2a1e, BLOOM = [0xd04a8a, 0xe8883a, 0xe8d04a];
+const HEDGE = 0x2d6a38, HEDGE2 = 0x3e8a48, LAWN = 0x3a7a42, SOIL = 0x3a2a1e, BLOOM = [0xd04a8a, 0xe8883a, 0xe8d04a];
 // pools and Taken blight
 const WATER = 0x2f8ae0, BLUE = 0x59a8ff, TAINT = 0x7a2ad0, TAINT2 = 0x1c0a2e;
 // Gauntlet
@@ -366,7 +366,7 @@ export default {
       // =====================================================================
       const tc = -220.5;
       vbox(K, 0, 0, tc, 100, 0.24, 80, 0x2a2236);
-      for (const [r, c, y] of [[36, GOLD, 0.15], [34.8, 0x2a2236, 0.16], [24, MARB3, 0.17], [23.4, 0x2a2236, 0.18]]) K.mesh(new THREE.CylinderGeometry(r, r, 0.02, 48), c, 0, y, tc, { glow: c === GOLD ? 0.5 : 0 });
+      for (const [r0, r1, c] of [[34, 36, GOLD], [23.4, 24.2, GOLD], [12, 12.5, GOLD]]) K.mesh(new THREE.RingGeometry(r0, r1, 48).rotateX(-Math.PI / 2), c, 0, 0.17, tc, { glow: 0.6 });
       for (let k = 0; k < 8; k++) vbox(K, 0, 0.2, tc, 68, 0.03, 0.5, GOLD, { glow: 0.6, ry: k * Math.PI / 8 });
       K.mesh(new THREE.CylinderGeometry(9.2, 9.2, 0.05, 32), GOLDL, 0, 0.22, tc, { glow: 0.7 });
       // pillar ring

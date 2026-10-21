@@ -40,6 +40,13 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Each super declares `camera` in `data.js`; all 9 checked in browser: camera matches and the enemy under the crosshair takes the damage. Super animations done in v1.9 (V67) | U3 (camera, aim), U9 (animations, hover) | Complete and published (v1.9) |
 | R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U13b (attacks, variants), U14 (unique models) | Complete and published (v2.5): each faction already had its own model per type; Taken adds 12 and Scorn 9 more (`js/models-taken.js`, `js/models-scorn.js`). Judged complete by the build session; Bryce to confirm |
 | R24 | VFX: tracking rounds are particles that track, not lightning; supers with cool factor | Swarm, Axion Bolt, Parasitic Nanites and Wolfpack Rounds are homing particle swarms (`swarm` projectile) that deal damage on arrival. Void VFX done in v1.9 (V71) | U4 (seekers), U9 (Void VFX) | Complete and published (v1.9) |
+| R04 | Director screen with planets, locked until campaign progress | Partial: list + 3D planet, linear mission unlock | U15 | Complete and published (v2.6): Director gating by campaign progress |
+| R05 | Campaign story, Ghost narrates, no player voice | Missing (one-line mission descriptions) | U15 | Complete and published (v2.6): Ghost-narrated script (`js/story.js`) with a subtitle bar |
+| R06 | Calus antagonist | Missing | U15 | Complete and published (v2.6): Calus story; the finale Calus is a robot copy, revealed on death |
+| R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U15/U17 | Complete and published (v2.6): 8 destinations, 22 missions |
+| R39 | Objectives within missions | Only travel / clear / boss | U15 | Complete and published (v2.6): hold, activate, retrieve, destroy and survive objectives (`js/objectives.js`) |
+| R42 | More verticality in missions | Player can stand on boxes. Since v2.3 enemies hop onto crates and low walls (up to 1.6 m) as firing positions and use steps; levels still have no ramps or stairs to build on | U13a (enemies, done), U15 (level content) | Complete and published (v2.6): closed boss rooms, interiors, stairs and platforms |
+| R43 | Properly lit dark interiors | Max 6 lights per map | U15 | Complete and published (v2.6): unlimited lights, the 6 nearest are real |
 
 ## Master-prompt requirements
 
@@ -150,3 +157,5 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | V21 | Every non-melee unit can melee at very close range, with an animation | U13a | Complete and published (v2.3): `closeMelee` units (grunt, captain, heavy, boss) wind up and swing inside `CLOSE_MELEE` reach, arms and torso animated, goes through `damagePlayer(…, 'melee')`; synced to fireteam members as a raised-arm pose |
 | V22 | Suicide units: Cursed Thrall (Hive), Explosive Shanks (Fallen) | U13a | Complete and published (v2.3): `suicide` type, Cursed Thrall (Hive) and Explosive Shank (Fallen, hovering), fuse 0.55 s, blast radius 5 m, hurts Guardians only, also on death |
 | V75 | Enemy cover AI: heavies never, smaller units only when not outnumbered and no heavy is near, peek and return | U13a (moved from U9) | Complete and published (v2.3): grunts and captains only; no cover when outnumbered 3:1, with a heavy within 12 m, or after being flushed (splash, suppression, flanking); cover to cover on the nav grid |
+| F08 | Campaign progress per Guardian (today `cleared` is one account-wide map in the save); lands with the campaign reset | U15 | Complete and published (v2.6): progress per Guardian; save v9 |
+| F25 | Full progress reset for everyone when the campaign launches; old save backed up, settings kept | U15 | Complete and published (v2.6): save v9 resets older saves with a backup (`afterlight_backup_v8`), settings kept |

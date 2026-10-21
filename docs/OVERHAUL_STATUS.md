@@ -11,19 +11,12 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R01 | Social space: the Tower, hangout | Missing | U16 | Planned |
 | R02 | Postmaster | Missing (overflow auto-dismantles) | U16 | Planned |
 | R03 | Shooting range at-light | Missing | U16 | Planned |
-| R04 | Director screen with planets, locked until campaign progress | Partial: list + 3D planet, linear mission unlock | U15 | Planned |
-| R05 | Campaign story, Ghost narrates, no player voice | Missing (one-line mission descriptions) | U15 | Planned |
-| R06 | Calus antagonist | Missing | U15 | Planned |
 | R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U22 | Planned |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13b | Complete and published (v2.4) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
-| R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U15/U17 | Planned |
-| R39 | Objectives within missions | Only travel / clear / boss | U15 | Planned |
 | R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Missing | U17 | Planned |
 | R41 | Sparrow usable on all levels | Missing | U17 | Planned |
-| R42 | More verticality in missions | Player can stand on boxes. Since v2.3 enemies hop onto crates and low walls (up to 1.6 m) as firing positions and use steps; levels still have no ramps or stairs to build on | U13a (enemies, done), U15 (level content) | In progress |
-| R43 | Properly lit dark interiors | Max 6 lights per map | U15 | Planned |
-| R44 | Map collision fix | AABB only; specific bugs not yet reproduced | U15 | Not assessed |
+| R44 | Map collision fix | Oriented colliders since v2.3; partly assessed in v2.6, no new collision bugs reproduced | U15 | Not assessed |
 | R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Missing | U19 | Planned |
 | R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Missing | U19 | Planned |
 | R47 | Same base campaign, harder (not a new campaign) | n/a | U19 | Planned |
@@ -68,7 +61,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U19 | Planned |
 | F06 | Light rework: enemies up to 60 above you are beatable but extremely hard; 61 or more above, attacks kill almost instantly (today the delta is clamped to -40..+10, `game.js`) | U18 | Planned |
 | F07 | 61 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U18 | Planned |
-| F08 | Campaign progress per Guardian (today `cleared` is one account-wide map in the save); lands with the campaign reset | U15 | Planned |
 | F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U19 | Planned |
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
 | F14 | A patrol zone on every destination | U17 | Planned |
@@ -77,4 +69,3 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U27 (optional) | Planned |
 | F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U19 | Planned |
 | F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U18, U19 | Planned |
-| F25 | Full progress reset for everyone when the campaign launches; old save backed up, settings kept | U15 | Planned |
