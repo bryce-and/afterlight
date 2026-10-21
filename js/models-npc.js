@@ -110,7 +110,7 @@ function zavala() {
   const blue = M(0x2c5fb0, { metalness: 0.35 }), navy = M(0x1b3358), white = M(0xe8ecf2, { metalness: 0.3 });
   const gold = metal(0xc9a24b), dark = M(0x23262d);
   const f = figure({
-    hipW: 0.14, thigh: 0.2, pants: navy, boot: dark, chestW: 0.5, chestD: 0.3, shirt: navy,
+    hipW: 0.14, thigh: 0.2, pants: navy, boot: dark, chestW: 0.5, chestD: 0.26, shirt: navy,
     armT: 0.2, sleeve: blue, glove: white, hand: white, skin,
   });
   const { group, torso, head } = f;
@@ -226,7 +226,7 @@ function ikora() {
 function exoHead(head, shell, plate, eyeColor, w = 0.17, h = 0.22) {
   box(w, h, w * 1.05, 0, h / 2, 0, shell, head);
   box(w * 0.84, h * 0.7, 0.03, 0, h * 0.5, w * 0.53, plate, head);
-  for (const s of [-1, 1]) box(0.04, 0.025, 0.02, s * w * 0.2, h * 0.62, w * 0.56, glow(eyeColor, 2.2), head);
+  for (const s of [-1, 1]) box(0.04, 0.025, 0.02, s * w * 0.2, h * 0.62, w * 0.59, glow(eyeColor, 2.2), head);
   box(w * 0.7, h * 0.12, 0.02, 0, h * 0.18, w * 0.53, plate, head);
   box(w * 0.35, 0.05, 0.03, 0, 0.0, w * 0.5, shell, head); // chin
   box(w * 1.06, 0.02, w * 1.1, 0, h * 0.8, 0, shell, head); // brow ring

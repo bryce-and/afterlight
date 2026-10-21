@@ -125,14 +125,15 @@ function owall(K, x1, z1, x2, z2, h, o = {}) {
   const t = o.t ?? 1, color = o.color ?? STEEL, dh = o.doorH ?? 5.4, ribs = o.ribs ?? h > 3, Y = o.y ?? 0;
   const gaps = (o.gaps || []).slice().sort((a, b) => a[0] - b[0]);
   const at = (a) => [x1 + ux * a, z1 + uz * a];
+  const eA = o.extA === false ? 0 : 1, eB = o.extB === false ? 0 : 1;
   const piece = (a, b, hh, y0, col, tt, ext) => { // body between distances a and b
-    const a2 = a - (a <= 0 ? ext : 0), b2 = b + (b >= len ? ext : 0), L = b2 - a2;
+    const a2 = a - (a <= 0 ? ext * eA : 0), b2 = b + (b >= len ? ext * eB : 0), L = b2 - a2;
     if (L < 0.15) return;
     const [cx, cz] = at((a2 + b2) / 2);
     return K.obox(cx, cz, L, hh, tt, ry, col, { y: y0 });
   };
-  const vis = (a, b, y, hh, tt, col, ext = 0) => { // visual trim between a and b
-    const a2 = a - (a <= 0 ? ext : 0), b2 = b + (b >= len ? ext : 0), L = b2 - a2;
+  const vis = (a, b, y, hh, tt, col, ext = 0) => { // visual trim between a and b (its ends overhang the body a little so no two faces share a plane)
+    const a2 = a - (a <= 0 ? ext * eA : 0), b2 = b + (b >= len ? ext * eB : 0), L = b2 - a2;
     if (L < 0.15) return;
     const [cx, cz] = at((a2 + b2) / 2);
     return vbox(K, cx, y, cz, L, hh, tt, col, { ry });
@@ -142,14 +143,16 @@ function owall(K, x1, z1, x2, z2, h, o = {}) {
   for (const [a, b] of [...gaps, [len, len]]) { if (a > from) runs.push([from, a]); from = Math.max(from, b); }
   for (const [a, b] of runs) {
     piece(a, b, h, Y, color, t, t / 2);
-    vis(a, b, Y + h + 0.15, 0.3, t + 0.4, CON, t / 2);       // cap
-    vis(a, b, Y + 0.35, 0.7, t + 0.35, CON2, t / 2);         // footing
+    vis(a, b, Y + h + 0.15, 0.3, t + 0.4, CON, t / 2 + 0.12);       // cap
+    vis(a, b, Y + 0.35, 0.7, t + 0.35, CON2, t / 2 + 0.12);         // footing
     if (ribs) for (let d = Math.ceil(a / 4) * 4 + 2; d < b - 1; d += 4) { const [rx, rz] = at(d); vbox(K, rx, Y + h / 2, rz, 0.4, h, t + 0.3, STEEL2, { ry }); }
   }
-  for (const [a, b] of gaps) {
+  for (const [a, b, bare] of gaps) { // a third entry `true` marks a gap that is only a break between runs: no lintel, no jambs
+    if (bare) continue;
     const A = Math.max(0, a), B = Math.min(len, b);
     if (h > dh + 0.2) { const [cx, cz] = at((A + B) / 2); K.obox(cx, cz, B - A, h - dh, t, ry, CON2, { y: dh }); }
-    for (const d of [A - 0.25, B + 0.25]) { const [jx, jz] = at(d); vbox(K, jx, Math.min(dh, h) / 2, jz, 0.5, Math.min(dh, h), t + 0.35, CON, { ry }); }
+    for (const d of [A - 0.22, B + 0.22]) { // jambs stand a hair into the doorway so their faces never share the wall's end face
+       const [jx, jz] = at(d); vbox(K, jx, Math.min(dh, h) / 2, jz, 0.5, Math.min(dh, h), t + 0.5, CON, { ry }); }
   }
 }
 
@@ -238,7 +241,7 @@ function stall(K, x, z, face, len, kind, awning = STEEL) { // the NPC post for a
   Vb(0, 0, len - 0.3, 0.12, 1.1, BRONZE, 1.16);
   for (const s of [-1, 1]) B(s * (len / 2 - 0.2), 1.0, 0.4, 3.6, 0.4, STEEL2); // front posts
   Vb(0, -0.4, len + 1.2, 0.35, 3.8, awning, 3.9); // awning slab
-  Vb(0, 1.55, len + 1.2, 0.45, 0.3, STEEL2, 3.7);
+  Vb(0, 1.55, len + 0.9, 0.45, 0.3, STEEL2, 3.7);
   if (kind === 'gun') {
     for (let k = -2; k <= 2; k++) { Vb(k * (len / 6), -1.58, 0.14, 0.14, 1.4, 0x2a323a, 2.2); Vb(k * (len / 6), -1.58, 0.1, 0.5, 0.3, 0x2a323a, 1.5); }
     Vb(0, -1.62, len - 1, 0.12, 0.24, BRASS, 2.9);
@@ -252,7 +255,7 @@ function stall(K, x, z, face, len, kind, awning = STEEL) { // the NPC post for a
   } else if (kind === 'bounty') {
     Vb(0, -1.58, len - 1, 1.6, 0.14, 0x1c2630, 2.2); Vb(0, -1.5, len - 1.3, 1.3, 0.1, GLASS, 2.2, 0.8);
   } else if (kind === 'cloth') {
-    for (let k = -2; k <= 2; k++) Vb(k * (len / 5), -1.6, len / 6, 1.8, 0.1, [RED, STEELL, ORANGE, CON, GRASS][k + 2], 1.6);
+    for (let k = -2; k <= 2; k++) Vb(k * (len / 5), -1.55, len / 6, 1.8, 0.1, [RED, STEELL, ORANGE, CON, GRASS][k + 2], 1.6);
   }
 }
 
@@ -354,14 +357,16 @@ export const TOWER = {
         6: { gaps: [[20, 30]], doorH: 5.4 },   // west: Tower North
       });
       wallsAround(K, HALL, { h: 12, t: 1.4, color: 0x70757f }, {
-        0: { gaps: [[8, 30]], doorH: 9 },       // north: the great window onto the Traveler (glass and a barrier fill it)
+        0: { gaps: [[8, 30]], doorH: 9 },       // north: the great window onto the Traveler
+        5: { extB: false }, 7: { extA: false },  // the corridor walls end at the Watch wall, not through it
         6: { skip: true },                      // the gate, drawn by the Watch
       });
       wallsAround(K, NORTH, { h: 8, t: 1.2, color: CON2 }, {
-        1: { gaps: [[8, 40]] },                 // the Watch's west wall already stands here
+        1: { gaps: [[7.4, 40, true]] },               // the Watch's west wall already stands here (this one stops where it starts)
         3: { gaps: [[4, 12]], doorH: 5.4 },     // the passage to the Speaker's chamber
       });
       wallsAround(K, CORRIDOR, { h: 7, t: 1.2, color: CON2 }, {
+        0: { extA: false }, 4: { extB: false },   // these end at the Watch's east wall, not through it
         5: { skip: true },
         3: { gaps: [[2, 8]], doorH: 6 },        // the Hangar's west door
       });
@@ -453,13 +458,13 @@ export const TOWER = {
       K.obox(HX, -57, 8.4, 0.95, 3.0, 0, CON3);
       vbox(K, HX, 1.0, -57, 8.8, 0.1, 3.4, STEEL2);
       vbox(K, HX, 1.07, -57, 7.6, 0.04, 2.4, 0x6fb4d8, { glow: 0.9 });
-      for (const [dx, c] of [[-2.4, 0xffc247], [0, 0x9fe8ff], [2.4, 0xffa050]]) vbox(K, HX + dx, 1.2, -57, 0.5, 0.3, 0.4, c, { glow: 0.8 });
+      for (const [dx, c] of [[-2.4, 0xffc247], [0, 0x9fe8ff], [2.4, 0xffa050]]) vbox(K, HX + dx, 1.27, -57, 0.5, 0.3, 0.4, c, { glow: 0.8 });
       lamp(K, HX, 5.5, -57, 0xffc060, 9, 34);
       // Zavala, Cayde-6 and Ikora stand round the table, facing the entrance
       for (const [x, c] of [[-1, TITAN], [5, HUNTER], [11, WARLOCK]]) { npcBase(K, x, x === 5 ? -52.5 : -53, c); symbol(K, x, 4.0, x === 5 ? -52.5 : -53, 'shield', 1.3); }
       // the great window at the north end, with the Traveler beyond
       for (const x of [-6.4, 16.4]) vbox(K, x, 6, -76, 0.9, 12, 1.2, 0x23262d);
-      vbox(K, HX, 9.2, -76, 23.5, 0.8, 1.4, 0x23262d);
+      vbox(K, HX, 9.2, -76, 23.5, 0.8, 1.7, 0x23262d);
       for (const x of [-2, 2, 8, 12]) vbox(K, x, 4.5, -76, 0.25, 9, 0.35, 0x23262d);
       // the vault: a half-barrel roof on arched ribs
       {
@@ -514,7 +519,7 @@ export const TOWER = {
         const { x: cx, z: cz, r: R } = CHAMBER, N = 20;
         for (let k = 1; k < N - 1; k++) {
           const a = ((k + 0.5) / N) * Math.PI * 2, seg = 2 * R * Math.sin(Math.PI / N) * 1.08;
-          K.obox(cx + Math.cos(a) * R, cz + Math.sin(a) * R, seg, 6.5, 0.9, -(a + Math.PI / 2), k % 2 ? CON : CON2);
+          K.obox(cx + Math.cos(a) * R, cz + Math.sin(a) * R, seg, 6.5, 0.9, -(a + Math.PI / 2), CON);
         }
         K.mesh(new THREE.TorusGeometry(R, 0.28, 4, 40), BRASS, cx, 6.7, cz, { rx: Math.PI / 2 });
         disc(K, cx, cz, 9.5, PAVE, 0.012, 32);
@@ -584,7 +589,7 @@ export const TOWER = {
           vbox(K, x, 4.2, -67.3, 0.35, 0.35, 0.05, 0xe8e8ec);
         }
         for (const [x, z] of [[D - 3.5, -64.2], [D + 3.5, -64.2], [D - 3.5, -70.4], [D + 3.5, -70.4]]) vbox(K, x, 2.6, z, 0.25, 5.2, 0.25, 0x2a2d33);
-        for (const z of [-64.2, -70.4]) vbox(K, D, 5.1, z, 7.2, 0.25, 0.25, 0xe8c030);
+        for (const z of [-64.2, -70.4]) vbox(K, D, 5.2, z, 7.4, 0.32, 0.32, 0xe8c030);
         pane(K, D, 4.8, -67.3, 7.4, 0.12, 6.4, 0x4a5a44, 0.78);
         K.stairs(D, -64.6, 'n', 3.4, 1.2, { color: 0x3a3d44 });
         K.box(D, -69.2, 3.4, 1.2, 3.6, 0x3a3d44);
@@ -626,7 +631,7 @@ export const TOWER = {
         lamp(K, 44, 8, -58, 0xffe8c0, 6, 30); lamp(K, 54, 8, -36, 0xffe8c0, 6, 30);
         // catwalk deck on legs, a stair up from the floor, mesh rails
         K.box(42, -59, 8, 0.4, 14, 0x2b2f36, { y: 3.2 });
-        for (const [x, z] of [[38.6, -65.6], [45.4, -65.6], [38.6, -52.4], [45.4, -52.4]]) K.box(x, z, 0.5, 3.2, 0.5, 0x1c2026);
+        for (const [x, z] of [[38.95, -65.6], [45.4, -65.6], [38.95, -52.4], [45.4, -52.4]]) K.box(x, z, 0.5, 3.2, 0.5, 0x1c2026);
         K.stairs(52, -57, 'w', 3, 3.6, { color: 0x2b2f36 });
         K.box(47.3, -57, 1.4, 0.4, 3, 0x2b2f36, { y: 3.2 });
         for (const [x, z, w, d] of [[42, -52.2, 8, 0.15], [45.9, -59, 0.15, 14], [42, -65.8, 8, 0.15]]) { pane(K, x, 3.2 + 0.65, z, w, 1.3, d, 0x151a22, 0.55); K.collider(x - w / 2, 3.2, z - d / 2, x + w / 2, 4.6, z + d / 2, null); }
@@ -637,7 +642,7 @@ export const TOWER = {
         }
         for (const [x, z] of [[58, -34], [59, -34.8], [40, -25]]) K.cyl(x, z, 0.32, 1.5, 0xd8b020, { sides: 8 });
         for (const [x, z, rz] of [[40.2, -44, 0.05], [41.4, -42.6, -0.04]]) K.mesh(new THREE.CylinderGeometry(0.75, 0.75, 11, 8), 0x7a2a45, x, 5.5, z, { rz });
-        vbox(K, 38.5, 6, -32, 0.2, 3.2, 7, 0xffa050, { glow: 1.0 });
+        vbox(K, 38.72, 6, -32, 0.2, 3.2, 7, 0xffa050, { glow: 1.0 });
         for (let k = 0; k < 5; k++) vbox(K, 38.7, 1.6, -30 + k * 1.6, 0.1, 2.4, 0.05, 0x1c2026);   // mesh rail slats at the window
       }
       // east side: rail wall with tall open frames toward the sky
@@ -651,9 +656,9 @@ export const TOWER = {
       
       // ================= South Tower shooting range =================
       const RZ = 20;
-      pillar(K, -6.8, RZ, 8, 1.6);
-      pillar(K, 6.8, RZ, 8, 1.6);
-      vbox(K, 0, 7.5, RZ, 15.4, 1.8, 1.6, CON2);
+      pillar(K, -6.95, RZ, 8, 1.6);
+      pillar(K, 6.95, RZ, 8, 1.6);
+      vbox(K, 0, 7.5, RZ, 15.4, 1.8, 1.9, CON2);
       vbox(K, 0, 8.55, RZ, 15.8, 0.3, 1.9, STEEL2);
       lamp(K, 0, 6.2, RZ + 2, 0xffe8c0, 6, 24);
       decal(K, 0, 45, 15, 50, GRAVEL2, 0, 0.012);
