@@ -15,8 +15,8 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R05 | Campaign story, Ghost narrates, no player voice | Missing (one-line mission descriptions) | U15 | Planned |
 | R06 | Calus antagonist | Missing | U15 | Planned |
 | R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U22 | Planned |
-| R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U13b | Planned |
-| R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13b | Planned |
+| R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U13b (attacks, variants), U14 (unique models) | In progress |
+| R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13b | Complete and published (v2.4) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
 | R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U15/U17 | Planned |
 | R39 | Objectives within missions | Only travel / clear / boss | U15 | Planned |
@@ -32,8 +32,8 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U19 | Planned |
 | R50 | Non-campaign activities scale to your Light; fireteam brought to leader's Light; loot by own Light | Partial: Horde starts at the player's power | U18 | Planned |
 | R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U20 | Planned |
-| R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13b | Planned |
-| R53 | Distinct faction behaviors | Missing (names and models only) | U13b | Planned |
+| R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13b (permanent elemental shields, see DECISIONS 2026-10-20; grenades), U14 (models) | Complete and published (v2.4) |
+| R53 | Distinct faction behaviors | Missing (names and models only) | U13b | Complete and published (v2.4) |
 | R54 | Darkness supers and abilities | Missing | U21 | Planned |
 
 ## Optional (nice to have)
@@ -54,7 +54,7 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 
 | ID | Requirement | Update | Status |
 |---|---|---|---|
-| V23 | Harder with 3 players (retune) | U13b | Planned |
+| V23 | Harder with 3 players (retune) | U13b | Complete and published (v2.4) |
 | V24 | Taken and Scorn as full factions | U14 | Planned |
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U21 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
@@ -75,7 +75,7 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
 | F14 | A patrol zone on every destination | U17 | Planned |
 | F16 | Exotic Kiosk in the Tower: retrieve earned exotics at your current Light; armor rolls random stats, exotic weapons have fixed stats | U16 | Planned |
-| F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U19 (difficulty scaling) | Planned |
+| F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U19 (difficulty scaling) | Complete and published (v2.4) |
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U27 (optional) | Planned |
 | F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U19 | Planned |
 | F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U18, U19 | Planned |

@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v2.4 "Hostile Intent II"**: every enemy comes as a minor (red bar) or major (orange bar) variant, majors with more health; factions fight differently; some enemies wear elemental shields that a burst of the matching element breaks, and some throw grenades; bosses alternate pushing and holding; the ammo meter replaces random ammo drops; harder with three Guardians.
 - **v2.2 "Resonance"**: rebuilt sound. Weapons, abilities and enemies have their own layered sounds, placed in the world with stereo and distance; music moves between explore, tense, combat and boss; the pause menu has an Effects slider.
 - **v2.1 "Arsenal II"**: Swords, Sidearms, Glaives, Trace Rifles and special-ammo Grenade Launchers, 14 more Destiny 2 exotics, heavier hits with leaner heavy ammo.
 - **v2.0 "Decrypted"**: every weapon is named, perks come in Destiny 2 columns, rarity is gated by your level, and the right-click inspect screen and Exotic Collection are new.
