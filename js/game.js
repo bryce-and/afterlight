@@ -206,8 +206,13 @@ export function spawnUnit(z, type, pos, o = {}) {
 function spawnWave(z, idx) {
   const M = G.mission, P = G.player;
   const away = Math.atan2(P.pos.x - z.center.x, P.pos.z - z.center.z) + Math.PI;
+  let packAt = null; // v3.0.3: Shanks arrive together at one spot instead of scattered along the spawn arc
   for (const sp of z.waves[idx]) {
-    const pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
+    let pos;
+    if (sp.type === 'fl_shank') {
+      packAt ||= findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 9, 19);
+      pos = findSpawn(packAt, 0, Math.PI, 0.8, 2.4);
+    } else pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
     spawnUnit(z, sp.type, pos, { element: sp.element, name: sp.name, model: sp.model, faction: sp.faction });
   }
   G.hitDirty = true;

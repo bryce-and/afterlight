@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '3.0.3', name: 'Hotfix', date: '2026-10-21',
+    summary: 'The Hive Shrieker has a new, much bigger model, and Fallen send Explosive Shanks in packs.',
+    notes: [
+      'Fallen: ordinary Shanks join the waves, floating drones that fire short bolt bursts. They come in groups of three and arrive together at one spot. The Explosive Shank is unchanged',
+      'Hive Shrieker: rebuilt after its Destiny 2 look, four jagged chitin plates swept around a crackling purple energy orb, with a spiked sigil and a glowing green glyph hanging in the middle (the precision spot). It is about twice as tall as before. Health, damage and its spiralling shots are unchanged',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.0.2', name: 'Hotfix', date: '2026-10-21',
     summary: 'The Tower\'s concrete walls no longer have blue lines running through them.',
     notes: [

@@ -1829,6 +1829,7 @@ test('v2.9 Vex: roster, shields, stationary artillery, floating units and the Hy
   ok(FA.baseExtras('mars', 1, 1, 2).includes('lg_incendior') && FA.baseExtras('mars', 1, 1, 2).includes('lg_gladiator'), 'Cabal waves carry the Incendior and Gladiator');
   ok(FA.baseExtras('moon', 0, 1, 1).includes('hv_shrieker'), 'Hive waves carry the Shrieker');
   ok(FA.baseExtras('earth', 1, 1, 1).includes('fl_servitor'), 'Fallen waves carry the Servitor');
+  ok(FA.baseExtras('earth', 0, 1, 1).filter((t) => t === 'fl_shank').length >= 3 && FA.UNITS.fl_shank.base === 'grunt' && FA.UNITS.fl_shank.fly > 0, 'Fallen waves send ordinary Shanks in groups (not the suicide kind)');
   const hy = FA.UNITS.vx_hydra;
   ok(FA.spinBlocks(hy, 0, 0.2) && !FA.spinBlocks(hy, 0, 2.5), 'the rotating shield covers only the side it faces');
   eq(FA.spinBlocks(FA.UNITS.vx_goblin, 0, 0), false);

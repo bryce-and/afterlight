@@ -77,6 +77,7 @@ export const UNITS = {
   vx_imp:       { faction: 'vex', base: 'suicide', name: 'Imp', hp: 14, speed: 8.5, scale: 0.7, fly: 0.8, blastMul: 0.6, noDrops: true },
   vx_imp_swarm: { faction: 'vex', base: 'grunt', name: 'Imp Swarm', hp: 55, speed: 4.6, burst: 2, dmg: 4, fly: 1.2, skills: ['deathSpawn'], deathSpawn: { type: 'vx_imp', n: 5 } },
   // ---- v2.9: Destiny 2 units the older factions were missing ----
+  fl_shank:     { faction: 'scrappers', base: 'grunt', name: 'Shank', hp: 60, speed: 4.4, prefer: 12, range: 28, burst: 3, burstGap: 0.12, fireCd: [1.2, 1.9], dmg: 4, projSpeed: 24, shotSize: 0.1, shotColor: 0x62b4ff, scale: 0.9, fly: 1.5, skills: [] }, // v3.0.3: the ordinary Fallen drone, sent in groups (game.js spawnWave keeps them together)
   fl_servitor:  { faction: 'scrappers', base: 'grunt', name: 'Servitor', hp: 150, speed: 3.2, prefer: 18, burst: 1, burstGap: 0.2, dmg: 9, projSpeed: 22, fly: 1.8, shotColor: 0xb26bff, skills: ['allyShield', 'blink'], allyShield: { range: 16, retarget: 2.5 }, blink: { cd: [6, 9], range: [6, 10], toward: false, onHit: true } },
   hv_shrieker:  { faction: 'hollow', base: 'grunt', name: 'Shrieker', hp: 360, stationary: true, fly: 1.0, range: 40, prefer: 25, burst: 10, burstGap: 0.09, fireCd: [1.6, 2.4], dmg: 4, projSpeed: 20, shotSize: 0.13, shotColor: 0xb26bff, spiral: { r: 0.12, turn: 0.9 }, skills: [] },
   lg_incendior: { faction: 'legion', base: 'heavy', name: 'Incendior', hp: 560, noShield: true, speed: 2.4, range: 15, prefer: 7, burst: 10, burstGap: 0.07, fireCd: [1.2, 2.0], dmg: 3.5, projSpeed: 17, shotSize: 0.2, splash: 1.5, shotColor: 0xff7a2a, scale: 1.05, skills: ['knockBurst', 'deathBlast'], knockBurst: { range: 4.5, cd: 6, dmg: 12, push: 12 }, deathBlast: { radius: 5, dmg: 40 } },
@@ -155,7 +156,11 @@ export const ROSTER = {
 };
 // v2.9: the Destiny 2 units added to the three older factions, mixed into their ordinary waves (game.js baseWaves). Keyed by the destination's own faction.
 export const BASE_EXTRAS = {
-  scrappers: [{ t: 'fl_servitor', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) }],
+  scrappers: [
+    { t: 'fl_servitor', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
+    { t: 'fl_shank', wave: 0, n: (zi, g) => (zi >= 1 ? 3 : g >= 2 ? 2 : 0) },
+    { t: 'fl_shank', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 3 + (g >= 4 ? 1 : 0) : 0) },
+  ],
   hollow: [{ t: 'hv_shrieker', wave: 0, n: (zi, g) => (zi >= 1 ? 1 + (g >= 4 ? 1 : 0) : 0) }],
   legion: [
     { t: 'lg_incendior', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
