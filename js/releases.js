@@ -5,6 +5,22 @@
 
 export const RELEASES = [
   {
+    version: '2.9', name: 'The Vex', date: '2026-10-21', accent: '#e0b060', glyph: '◈', artPending: true, // chained with the next update: the title artwork comes with the last of them
+    summary: 'The Vex arrive, with Goblins, Harpies, Minotaurs, Hydras, Cyclops and more, filling the Pyramidion on Io. The older factions gain their missing Destiny 2 units, and the Taken Phalanx and Scorn Lurker guards are rebuilt.',
+    notes: [
+      'The Vex: a new faction with Goblins, Fanatics, Hobgoblins, Harpies, Supplicants, Minotaurs, Wyverns, Hydras, Cyclops and Imp Swarms, as in Destiny 2. They fill the Pyramidion on Io, and they are Io\'s second faction in Horde and Endless',
+      'Minotaurs teleport to flank you, and have a Void shield with a weak spot on the abdomen. Wyverns are a Minotaur and Harpy hybrid',
+      'Harpies are flying scouts. Supplicants and Fanatics are kamikaze units. Hobgoblins fire a long range Line Rifle',
+      'Hydras float, and a rotating shield blocks bullets from the side it faces. Shield piercing rounds, swords, grenades and supers get through. They blast when they die',
+      'Cyclops float in place and fire Void mortar rounds. Below 35% health they go berserk',
+      'New Destiny 2 units for the older factions: Fallen Servitors float, tether an ally to make it immune, and teleport. Hive Shriekers are stationary sentries with a spiralling Void stream, and their weak spot is the eye. Cabal Incendiors carry flamethrowers and knock you back at close range, and the fuel tanks on their backs are the weak spot and burst when they die. Cabal Gladiators are heavy melee chargers. Taken Incendiors join the Taken',
+      'Taken Phalanx and Scorn Lurker: the guard is no longer a wide cone that blocks most frontal damage. It is a small shield held out to the left. Hits on the shield take 30% (Phalanx) or 35% (Lurker), and hits anywhere else take full damage, even from the front',
+      'Large enemies, heavies and anything scaled up, no longer hop onto ledges, crates or platforms. They use ramps and steps only',
+      'Vex enemies show the Vex emblem on their plates, and have their own gunfire and death sounds',
+      'No save changes',
+    ],
+  },
+  {
     version: '2.8', name: 'Vantage', date: '2026-10-21', accent: '#8fd0ff', glyph: '✦', artPending: true, // chained with the next updates: the title artwork comes with the last of them
     summary: 'The Director is a star map now: every destination hangs in view, click one to fly to it and pick a mission. The Tower finally has a sky, and enemies no longer stop at an invisible edge.',
     notes: [

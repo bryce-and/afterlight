@@ -232,6 +232,8 @@ export const FACTION_SOUND = {
   // U14: Taken are a thin, high, glassy whine with a hollow collapse; Scorn a rough saw with a wet crunch
   taken: { shot: [{ t: { freq: 1250, freqEnd: 380, dur: 0.18, type: 'sine', gain: 0.2, vib: 30 } }, { n: { dur: 0.1, freq: 4200, freqEnd: 1200, type: 'bandpass', gain: 0.16 } }], die: [{ t: { freq: 700, freqEnd: 90, dur: 0.5, type: 'sine', gain: 0.22, vib: 26 } }, { n: { dur: 0.35, freq: 2600, freqEnd: 200, type: 'bandpass', gain: 0.2 } }] },
   scorn: { shot: [{ t: { freq: 360, freqEnd: 120, dur: 0.16, type: 'sawtooth', gain: 0.24 } }, { n: { dur: 0.12, freq: 1200, freqEnd: 400, type: 'bandpass', gain: 0.3 } }], die: [{ n: { dur: 0.4, freq: 800, freqEnd: 120, gain: 0.4 } }, { t: { freq: 220, freqEnd: 70, dur: 0.35, type: 'sawtooth', gain: 0.2 } }] },
+  // v2.9: Vex are a bright metallic ping with a ceramic crack on death
+  vex: { shot: [{ t: { freq: 1500, freqEnd: 600, dur: 0.1, type: 'square', gain: 0.12 } }, { n: { dur: 0.08, freq: 5200, freqEnd: 2000, type: 'bandpass', gain: 0.22 } }], die: [{ n: { dur: 0.3, freq: 3000, freqEnd: 500, type: 'bandpass', gain: 0.4 } }, { t: { freq: 900, freqEnd: 140, dur: 0.35, type: 'triangle', gain: 0.2 } }] },
   legion: { shot: [{ t: { freq: 620, freqEnd: 240, dur: 0.14, type: 'square', gain: 0.18 } }, { n: { dur: 0.1, freq: 2200, freqEnd: 600, gain: 0.3 } }], die: [{ n: { dur: 0.4, freq: 1100, freqEnd: 150, gain: 0.45 } }, { t: { freq: 160, freqEnd: 60, dur: 0.35, type: 'sine', gain: 0.3 } }] },
 };
 

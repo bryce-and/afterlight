@@ -24,7 +24,7 @@ import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
-import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction } from './factions.js';
+import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction, baseExtras } from './factions.js';
 import { skillIncoming, skillHit } from './enemy-skills.js';
 import { buildVoidAxe } from './models.js';
 import { updateTower } from './tower.js';
@@ -156,6 +156,7 @@ function baseWaves(zi, isBoss, g, def, fireteam = 1, loc = null) {
     if (zi >= 1) w1.push(...T('suicide', 1));
     if (g >= 1 || zi >= 1) w2.push(...T('suicide', 1 + (g >= 4 && zi >= 1 ? 1 : 0)));
   }
+  if (loc?.id) { w1.push(...baseExtras(loc.id, 0, zi, g, more).map((type) => ({ type }))); w2.push(...baseExtras(loc.id, 1, zi, g, more).map((type) => ({ type }))); } // v2.9: Servitor, Shrieker, Incendior, Gladiator
   const waves = [w1, w2];
   if (g >= 4 && zi >= 2) waves.push([...T('grunt', 3), ...T('captain', 1), ...T('heavy', 1)]);
   return waves;

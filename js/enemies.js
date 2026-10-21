@@ -17,7 +17,8 @@ import { BOSS_MODELS } from './bosses.js';
 import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, isNewFaction } from './factions.js';
 import { taken } from './models-taken.js';
 import { scorn } from './models-scorn.js';
-import { skillInit, skillUpdate, skillOnDeath } from './enemy-skills.js';
+import { vex, extraModel } from './models-vex.js';
+import { skillInit, skillUpdate, skillOnDeath, spinAngle } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
@@ -53,8 +54,10 @@ function buildModel(e, C, faction) {
   const bossBuilder = e.bossModel && BOSS_MODELS[e.bossModel];
   if (bossBuilder) bossBuilder(c);
   else if (e.typeId === 'obj_node') objNode(c);
+  else if (extraModel(e.typeId)) extraModel(e.typeId)(c);
   else if (faction === 'taken') taken(c, e.typeId);
   else if (faction === 'scorn') scorn(c, e.typeId);
+  else if (faction === 'vex') vex(c, e.typeId);
   else if (e.typeId === 'suicide') (faction === 'scrappers' ? shank : cursedThrall)(c);
   else ({ scrappers: fallen, hollow: hive, legion: cabal })[faction](c, e.typeId);
   let shield = null;
@@ -65,7 +68,7 @@ function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, flames: c.flames, onDeath: c.onDeath, deathStep: c.deathStep };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, flames: c.flames, onDeath: c.onDeath, deathStep: c.deathStep };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -478,12 +481,14 @@ export class Enemy {
     // H3: Hive Thralls are a little bigger than other rushers
     this.scale = def.scale * T.size * (faction === 'hollow' && typeId === 'rusher' ? THRALL_SCALE : 1);
     this.radius = 0.45 * this.scale;
+    this.fly = def.fly || 0; // floating units (Vex, Servitor, Shrieker) hang this high above the floor
+    this.large = this.cls === 'heavy' || this.scale >= 1.3; // large units never hop onto ledges or crates; they walk the nav grid's ramps and steps
     this.height = 2.05 * this.scale;
     this.maxHp = def.hp * o.hpMult * T.hp; this.hp = this.maxHp;
     // shields are elemental and belong to certain units per faction (tiers.js SHIELD): Captains everywhere, Colossi for the Cabal
     const ownEls = unitShield(typeId); // U14 units name their own shield element and size
     const shieldEls = ownEls || shieldFor(faction, this.cls);
-    const shieldBase = ownEls ? (def.shield || 0) : (def.shield || (this.cls === 'heavy' && shieldEls ? SHIELD[faction].heavyHp : 0));
+    const shieldBase = ownEls ? (def.shield || 0) : (def.shield || (this.cls === 'heavy' && shieldEls && !def.noShield ? SHIELD[faction].heavyHp : 0));
     this.maxShield = shieldBase ? shieldBase * o.hpMult * T.hp : 0; this.shield = this.maxShield;
     this.shieldEl = o.element || (shieldEls ? pick(shieldEls) : 'arc');
     this.dmgMult = o.dmgMult * T.dmg;
@@ -501,7 +506,7 @@ export class Enemy {
     this.specialT = rand(4, 6);
     this.thresholds = this.isBoss ? [0.66, 0.33] : [];
     // shooters hide behind cover between bursts
-    this.usesCover = (this.cls === 'grunt' || this.cls === 'captain') && !def.static && !def.support && Math.random() < this.prof.coverMul; // Hive seldom hide
+    this.usesCover = (this.cls === 'grunt' || this.cls === 'captain') && !def.static && !def.stationary && !def.support && Math.random() < this.prof.coverMul; // Hive seldom hide
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0, noCoverT: 0, cycles: 0 };
     // U13a: navigation, close-range melee, suicide fuse
     this.path = null; this.pathIdx = 0; this.pathT = 0; this.pathGoal = { x: 0, z: 0 }; this.stuckT = 0; this.stuck = false; this.lastX = pos.x; this.lastZ = pos.z; this.chkT = 0.5;
@@ -528,8 +533,8 @@ export class Enemy {
     skillInit(this, o);
   }
 
-  center(out) { return out.set(this.pos.x, this.pos.y + this.height * 0.5, this.pos.z); }
-  headPos(out) { return out.set(this.pos.x, this.pos.y + this.height * 0.95, this.pos.z); }
+  center(out) { return out.set(this.pos.x, this.pos.y + this.fly + this.height * 0.5, this.pos.z); }
+  headPos(out) { return out.set(this.pos.x, this.pos.y + this.fly + this.height * 0.95, this.pos.z); }
 
   /** Flinch: stop moving and attacking for t seconds; a cooldown follows so it can't chain. */
   stagger(t) {
@@ -642,7 +647,7 @@ export class Enemy {
     this.held = lt.held;
     const rooted = this.cmWind > 0 || this.cmSwing > 0;
     let mx = 0, mz = 0;
-    if (!P.dead && !def.static) {
+    if (!P.dead && !def.static && !def.stationary) {
       if (this.jet && this.jet.s !== 'ground') {
         // airborne Centurion: the jet state machine owns height and leaps; while hovering it drifts and holds range
         if (this.jet.s === 'hover') {
@@ -827,8 +832,9 @@ export class Enemy {
         const jetBusy = this.jet && this.jet.s !== 'ground' && this.jet.s !== 'hover';
         const mayFire = !swinging && !jetBusy && this.throwT <= 0 && (!this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance');
         if (mayFire && this.fireT <= 0 && this.los && dist < def.range) {
+          const mad = def.berserk && this.hp < this.maxHp * def.berserk.below; // a Cyclops pushed into its berserk rage fires far faster
           this.burstLeft = Math.max(1, Math.round(def.burst * this.prof.burstMul)); this.burstT = 0;
-          this.fireT = rand(def.fireCd[0], def.fireCd[1]) + def.burst * def.burstGap;
+          this.fireT = rand(def.fireCd[0], def.fireCd[1]) * (mad ? def.berserk.cdMul : 1) + def.burst * def.burstGap;
         }
         if (this.burstLeft > 0) {
           this.burstT -= dt;
@@ -853,6 +859,8 @@ export class Enemy {
 
     m.group.position.copy(this.pos);
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
+    m.group.position.y += this.fly;
+    if (m.spin && this.def.spinGuard) m.spin.rotation.y = spinAngle(this);
     m.group.rotation.y = this.yaw;
     // stagger: a quick backward jolt that settles
     m.group.rotation.x = staggered ? -0.28 * Math.sin(Math.PI * (1 - this.staggerT / this.staggerMax)) : 0;
@@ -1055,7 +1063,7 @@ export class Enemy {
   /** Ranged units pick a reachable ledge or high ground with a view of the target and hold it for a while. */
   updatePost(dt, P, dist, want) {
     const nav = G.nav, Z = this.zone;
-    if (!nav || !Z?.center || this.isBoss) { this.post = null; return; }
+    if (!nav || !Z?.center || this.isBoss || this.large) { this.post = null; return; }
     if (this.post) {
       this.postT -= dt;
       this.postLoss = this.los ? 0 : this.postLoss + dt;
@@ -1200,6 +1208,8 @@ export class Enemy {
     if (m.shield) m.shield.visible = this.shield > 0;
     m.group.position.copy(this.pos);
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
+    m.group.position.y += this.fly;
+    if (m.spin && this.def.spinGuard) m.spin.rotation.y = spinAngle(this);
     m.group.rotation.y = this.yaw;
     // the leader's stagger: the same backward jolt as on the leader's screen
     this.staggerT = Math.max(0, this.staggerT - dt);
@@ -1245,6 +1255,14 @@ export class Enemy {
     const P = this.tgt || G.player, def = this.def;
     this.model.group.updateMatrixWorld(true);
     const from = this.model.muzzle.getWorldPosition(new THREE.Vector3());
+    if (def.lob) { // artillery: a mortar round on a high arc that lands, shows its ring and bursts (the grenade system)
+      const lead = 0.5;
+      const L = lobVelocity(P.pos.x + (P.vel?.x ?? 0) * lead - from.x, P.pos.y + 0.4 - from.y, P.pos.z + (P.vel?.z ?? 0) * lead - from.z, 18);
+      spawnEnemyGrenade(from, new THREE.Vector3(L.vx, L.vy, L.vz), def.dmg * this.dmgMult, this.shotColor);
+      flashLight(from, this.shotColor, 8, 8, 0.1);
+      sfx.enemyShot(this.pos, this.faction);
+      return;
+    }
     let dir;
     if (dirOverride) dir = dirOverride;
     else {
@@ -1255,6 +1273,12 @@ export class Enemy {
       _v2.y += (Math.random() - 0.5) * inacc;
       _v2.z += (Math.random() - 0.5) * inacc * 2;
       dir = _v2.sub(from).normalize();
+    }
+    if (def.spiral && !dirOverride) { // a Shrieker's continuous stream winds around its aim
+      this.spiralA = (this.spiralA || 0) + def.spiral.turn;
+      const r = def.spiral.r * Math.min(1, 0.4 + dist / 30);
+      dir.x += Math.cos(this.spiralA) * r; dir.y += Math.sin(this.spiralA) * r; dir.z += Math.sin(this.spiralA * 0.5) * r * 0.5;
+      dir.normalize();
     }
     fireEnemyShot(from, dir, def.projSpeed, def.dmg * this.dmgMult, this.shotColor, def.shotSize, def.splash);
     flashLight(from, this.shotColor, 6, 6, 0.06);

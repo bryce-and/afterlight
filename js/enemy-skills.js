@@ -6,7 +6,11 @@
 //   clone        splits into a copy once hurt (Taken Psion)
 //   allyShield   makes a nearby ally invulnerable until the Goblin dies (Taken Goblin)
 //   summon       calls Shadow Thralls (Taken Wizard)
-//   frontGuard   a slab shield that blocks hits from the front; optionally a knockback burst (Taken Phalanx, Scorn Lurker)
+//   frontGuard   a small side shield with its own hitbox that cuts hits landing on it; optionally a knockback burst (Taken Phalanx, Scorn Lurker)
+//   spinGuard    a rotating shield that stops bullets from the side it faces; shield-piercing rounds, melee and ability damage get through (Vex Hydra)
+//   knockBurst   a close-range compression blast with knockback (Cabal Incendior)
+//   deathBlast   a burst when the unit dies (Hydra, Incendior's fuel tanks, Taken Incendior)
+//   deathSpawn   releases smaller units when it dies (Vex Imp Swarm)
 //   revive       a Scorn corpse stands up again unless it was burned
 //   totem        places Ether Totems (Scorn Chieftain); totemAura is what a totem does
 import * as THREE from 'three';
@@ -20,7 +24,7 @@ import { sfx } from './audio.js';
 import { allPlayers, damageRemote } from './coop.js';
 import { damagePlayer, killEnemy, spawnUnit, findSpawn, addTicker } from './game.js';
 import * as ui from './ui.js';
-import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, frontGuardMult } from './factions.js';
+import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, guardMult, spinBlocks } from './factions.js';
 
 const _v = new THREE.Vector3();
 const LIGHT = 0xdfe8ff, ETHER = 0xb46bff;
@@ -33,7 +37,7 @@ export function skillInit(e, o = {}) {
   if (has('clone')) e.sk.cloned = !!o.isClone;
   if (has('allyShield')) Object.assign(e.sk, { retargetT: 0.5, ally: null });
   if (has('summon')) Object.assign(e.sk, { summonT: rand(d.summon.cd[0], d.summon.cd[1]) * 0.6, hold: 0 });
-  if (has('frontGuard')) e.sk.knockCd = rand(2, 4);
+  if (has('frontGuard') || has('knockBurst')) e.sk.knockCd = rand(2, 4);
   if (has('totem')) Object.assign(e.sk, { totemT: rand(5, 8), totems: [] });
   if (has('totemAura')) {
     const kind = o.totemKind || pick(TOTEM_KINDS);
@@ -60,7 +64,7 @@ export function skillUpdate(e, dt, P, dist) {
   if (skills.includes('ward')) ward(e);
   if (skills.includes('clone')) clone(e);
   if (skills.includes('allyShield')) allyShield(e, dt);
-  if (skills.includes('frontGuard')) frontGuardBurst(e, dt, P, dist);
+  if (skills.includes('frontGuard') || skills.includes('knockBurst')) frontGuardBurst(e, dt, P, dist);
   if (skills.includes('totem')) totem(e, dt, dist);
   if (skills.includes('summon') && summon(e, dt, dist)) held = true;
   if (skills.includes('blink') && blink(e, dt, P, dist)) held = true;
@@ -76,16 +80,24 @@ export function skillIncoming(e, dmg, o = {}) {
   }
   if (e.wardT > 0) dmg *= e.def.ward.mult;
   if (e.auraUntil > G.time) dmg *= e.auraMult ?? 1;
-  if (e.def.frontGuard && !o.raw) {
-    const A = o.from || G.player?.pos;
-    if (A) {
-      const dx = A.x - e.pos.x, dz = A.z - e.pos.z, l = Math.hypot(dx, dz) || 1;
-      const k = frontGuardMult(e.def, (Math.sin(e.yaw) * dx + Math.cos(e.yaw) * dz) / l);
-      if (k < 1) { dmg *= k; if (Math.random() < 0.4) sparks(_v.set(e.pos.x + Math.sin(e.yaw) * 0.7, e.pos.y + e.height * 0.5, e.pos.z + Math.cos(e.yaw) * 0.7), LIGHT, 3, 3, 0.05, 0.2); }
+  if (e.def.frontGuard && !o.raw && o.pos) {
+    // the guard is a small shield with its own box: bring the hit point into the unit's space and test it
+    const dx = o.pos.x - e.pos.x, dz = o.pos.z - e.pos.z, c = Math.cos(e.yaw), s = Math.sin(e.yaw), sc = e.scale || 1;
+    const k = guardMult(e.def, (dx * c - dz * s) / sc, (o.pos.y - e.pos.y) / sc, (dx * s + dz * c) / sc);
+    if (k < 1) { dmg *= k; if (Math.random() < 0.4) sparks(_v.copy(o.pos), LIGHT, 3, 3, 0.05, 0.2); }
+  }
+  if (e.def.spinGuard && o.source === 'weapon' && !o.raw && !o.shieldBreaker && !o.weapon?.A?.sword && o.from !== false) {
+    const A = o.pos || G.player?.pos;
+    if (A && spinBlocks(e.def, e.yaw + spinAngle(e), Math.atan2(A.x - e.pos.x, A.z - e.pos.z))) {
+      dmg *= e.def.spinGuard.mult;
+      if (Math.random() < 0.5) sparks(_v.copy(o.pos || e.center(_v)), LIGHT, 3, 3, 0.05, 0.2);
     }
   }
   return dmg;
 }
+
+/** The Hydra's rotating shield: its angle about the unit (the model's spin pivot turns by the same amount). */
+export function spinAngle(e) { return G.time * (e.def.spinGuard?.speed || 0) + (e.netId ?? e.seed ?? 0) * 2.1; }
 
 /** A hit landed (called from dealDamage): units with an on-hit blink dodge away. */
 export function skillHit(e) {
@@ -225,7 +237,7 @@ function summon(e, dt, dist) {
 
 // ---- front guard (Phalanx, Lurker) ----
 function frontGuardBurst(e, dt, P, dist) {
-  const k = e.def.frontGuard.knock, sk = e.sk;
+  const k = e.def.knockBurst || e.def.frontGuard?.knock, sk = e.sk;
   if (!k) return;
   sk.knockCd -= dt;
   if (sk.knockCd > 0 || dist > k.range || !e.los || e.staggerT > 0 || e.windup > 0) return;
@@ -284,6 +296,11 @@ function totemAura(e, dt) {
 export function skillOnDeath(e) {
   const d = e.def;
   if (e.remote) return;
+  if (d.skills?.includes('deathBlast') && !e.noBlast) deathBlast(e);
+  if (d.skills?.includes('deathSpawn') && e.zone && !e.noBlast) for (let i = 0; i < d.deathSpawn.n; i++) {
+    const pos = findSpawn(e.pos, Math.random() * Math.PI * 2, Math.PI, 0.8, 2.2);
+    spawnUnit(e.zone, d.deathSpawn.type, pos, { tier: 'minor', noDrops: true });
+  }
   if (d.skills?.includes('totem')) for (const t of e.sk.totems || []) if (t.alive) { t.noBlast = true; killEnemy(t, { self: true }); }
   if (!d.skills?.includes('revive') || e.noBlast) return;
   const z = e.zone, M = G.mission;
@@ -310,4 +327,18 @@ export function skillOnDeath(e) {
       return false;
     },
   });
+}
+
+// ---- death blast (Hydra, Incendior) ----
+function deathBlast(e) {
+  const b = e.def.deathBlast, at = e.center(new THREE.Vector3());
+  ringFx(e.pos, b.radius, 0xff7a2a, 0.5); sparks(at, 0xff7a2a, 18, 8, 0.12, 0.6); sfx.explosion(3, e.pos);
+  for (const Pl of allPlayers()) {
+    if (Pl.dead) continue;
+    const d = Math.hypot(Pl.pos.x - e.pos.x, Pl.pos.y + 1 - at.y, Pl.pos.z - e.pos.z);
+    if (d > b.radius) continue;
+    const dmg = b.dmg * e.dmgMult * (1 - d / b.radius * 0.7);
+    if (Pl.remote) { damageRemote(Pl, dmg, e.pos); continue; }
+    damagePlayer(dmg, e.pos, 'splash');
+  }
 }

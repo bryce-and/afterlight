@@ -1732,7 +1732,7 @@ test('Glaive bolt: a travelling projectile with shared falloff', () => {
 test('U14 factions: every unit extends a base class, has a name and a roster entry', () => {
   const bases = ['grunt', 'rusher', 'captain', 'heavy', 'suicide'];
   for (const [id, u] of Object.entries(FA.UNITS)) {
-    ok(bases.includes(u.base), `${id} base`); ok(u.objective || FA.FACTIONS[u.faction], `${id} faction`); ok(u.name, `${id} name`);
+    ok(bases.includes(u.base), `${id} base`); ok(u.objective || FA.FACTIONS[u.faction] || (FA.BASE_EXTRAS[u.faction] || []).some((r) => r.t === id), `${id} faction`); ok(u.name, `${id} name`);
     ok(ENEMY_TYPES[id] && ENEMY_TYPES[id].base === u.base && ENEMY_TYPES[id].hp > 0, `${id} registered with stats`);
     eq(FA.classOf(id), u.base);
   }
@@ -1767,13 +1767,17 @@ test('U14 factions: mission plans', () => {
   eq(FA.zonePlan('e1', 1, 3, false), { open: null, reinf: null });
   eq(FA.zonePlan('io2', 2, 4, false), { open: null, reinf: 'taken' }); // a taste: reinforcements in the last zone before the boss
   eq(FA.zonePlan('io2', 3, 4, true), { open: null, reinf: null });
-  eq(FA.activityFaction('io', 3), 'taken'); eq(FA.activityFaction('io', 4), null); eq(FA.activityFaction('earth', 3), null);
+  eq(FA.activityFaction('io', 3), 'vex'); eq(FA.activityFaction('io', 4), null); eq(FA.activityFaction('earth', 3), null);
 });
 
 test('U14 factions: front guard, revive and blink rules', () => {
   const guard = FA.UNITS.tk_phalanx;
-  ok(FA.frontGuardMult(guard, 0.9) < 0.2, 'blocks from the front'); eq(FA.frontGuardMult(guard, -0.5), 1); eq(FA.frontGuardMult(guard, 0.9, true), 1);
-  eq(FA.frontGuardMult(FA.UNITS.tk_vandal, 0.9), 1);
+  const b = guard.frontGuard.box;
+  ok(FA.guardMult(guard, b.x, b.y, b.z) < 0.5, 'a hit on the shield is reduced'); ok(FA.guardMult(guard, b.x, b.y, b.z) > 0.2, 'but not near-total');
+  eq(FA.guardMult(guard, 0.3, 1.2, 0.5), 1); // the body beside the shield takes full damage, even from the front
+  eq(FA.guardMult(guard, b.x, b.y, -0.5), 1); // from behind
+  eq(FA.guardMult(guard, b.x, b.y, b.z, true), 1);
+  eq(FA.guardMult(FA.UNITS.tk_vandal, b.x, b.y, b.z), 1);
   ok(FA.mayRevive({ hasSkill: true, zoneRevives: 0, burned: false, alreadyRevived: false }), 'rises');
   ok(!FA.mayRevive({ hasSkill: true, zoneRevives: 0, burned: true, alreadyRevived: false }), 'burned corpses stay down');
   ok(!FA.mayRevive({ hasSkill: true, zoneRevives: 0, burned: false, alreadyRevived: true }), 'only once');
@@ -1802,3 +1806,22 @@ const sum = document.getElementById('summary');
 sum.textContent = `${pass} passed, ${fail} failed`;
 sum.className = fail ? 'fail' : 'pass';
 window.TEST_RESULTS = { pass, fail };
+
+test('v2.9 Vex: roster, shields, stationary artillery, floating units and the Hydra spin guard', () => {
+  const vexIds = Object.keys(FA.UNITS).filter((i) => i.startsWith('vx_'));
+  ok(vexIds.length >= 11, 'Vex units are registered');
+  for (const id of vexIds) ok(ENEMY_TYPES[id] && ENEMY_TYPES[id].faction === 'vex', `${id} registered as a Vex enemy type`);
+  for (const bad of ['vx_gate_lord', 'vx_axis', 'fl_archon']) ok(!FA.UNITS[bad], `${bad} is not an enemy unit`);
+  ok(FA.UNITS.vx_cyclops.stationary && FA.UNITS.hv_shrieker.stationary, 'Cyclops and Shrieker never move');
+  ok(FA.UNITS.vx_cyclops.lob, 'the Cyclops fires mortar rounds');
+  ok(FA.UNITS.vx_harpy.fly > 0 && FA.UNITS.vx_hydra.fly > 0 && FA.UNITS.fl_servitor.fly > 0, 'floating units hang above the floor');
+  eq(FA.UNITS.vx_minotaur.shieldEl, 'void');
+  ok(FA.composeWave('vex', 0, 1, 2).includes('vx_goblin') && FA.composeWave('vex', 1, 2, 4).includes('vx_wyvern'), 'Vex waves hold goblins early and a Wyvern late');
+  eq(FA.zonePlan('io3', 3, 4, true), { open: 'vex', reinf: 'vex' });
+  ok(FA.baseExtras('mars', 1, 1, 2).includes('lg_incendior') && FA.baseExtras('mars', 1, 1, 2).includes('lg_gladiator'), 'Cabal waves carry the Incendior and Gladiator');
+  ok(FA.baseExtras('moon', 0, 1, 1).includes('hv_shrieker'), 'Hive waves carry the Shrieker');
+  ok(FA.baseExtras('earth', 1, 1, 1).includes('fl_servitor'), 'Fallen waves carry the Servitor');
+  const hy = FA.UNITS.vx_hydra;
+  ok(FA.spinBlocks(hy, 0, 0.2) && !FA.spinBlocks(hy, 0, 2.5), 'the rotating shield covers only the side it faces');
+  eq(FA.spinBlocks(FA.UNITS.vx_goblin, 0, 0), false);
+});

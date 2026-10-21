@@ -144,9 +144,10 @@ const FACTION_SVG = {
   hollow: '<path d="M44 8A26 26 0 1 0 44 56 20 20 0 1 1 44 8z"/><circle cx="40" cy="32" r="5"/><path d="M14 52 10 62 20 56zM24 58 24 64 30 58z"/>',
   taken: '<circle cx="32" cy="32" r="9"/><path d="M32 4 36 22 32 18 28 22zM32 60 36 42 32 46 28 42zM4 32 22 28 18 32 22 36zM60 32 42 28 46 32 42 36z"/><path d="M12 12 24 24M52 12 40 24M12 52 24 40M52 52 40 40" stroke="currentColor" stroke-width="4" fill="none"/>',
   scorn: '<path d="M32 4 44 20 38 20 46 36 40 36 48 56 32 48 16 56 24 36 18 36 26 20 20 20z"/><circle cx="32" cy="34" r="5" fill="#000" fill-opacity="0.55"/>',
+  vex: '<path d="M32 6 54 18 54 44 32 58 10 44 10 18z" fill-opacity="0.35"/><path d="M32 6 54 18 54 44 32 58 10 44 10 18zM32 12 48 21 48 41 32 52 16 41 16 21z" fill-rule="evenodd"/><circle cx="32" cy="31" r="7"/>',
   legion: '<path d="M32 4 56 14 52 44 32 60 12 44 8 14z"/><rect x="16" y="24" width="32" height="7" fill="#000" fill-opacity="0.6"/><path d="M32 34 40 46 32 52 24 46z" fill="#000" fill-opacity="0.35"/>',
 };
-export const FACTION_NAMES = { scrappers: 'Fallen', hollow: 'Hive', legion: 'Cabal', taken: 'Taken', scorn: 'Scorn' };
+export const FACTION_NAMES = { scrappers: 'Fallen', hollow: 'Hive', legion: 'Cabal', taken: 'Taken', scorn: 'Scorn', vex: 'Vex' };
 export function factionIcon(faction) {
   const body = FACTION_SVG[faction];
   if (!body) throw new Error(`No icon for faction "${faction}"`);

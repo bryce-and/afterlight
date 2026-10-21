@@ -350,15 +350,15 @@ export function taken(c, t) {
       B(0.26, 0.08, 0.08, 0, 0.9, 0.17, dark, torso, true);
       orb(c, torso, 0, 0.9, 0.2, 0.05);
       for (const s of [-1, 1]) B(0.3 * W, 0.2, 0.42, s * 0.42 * W, 0.72, 0, bodyMat, torso, false, [0, 0, s * -0.15]);
-      // shield slab: front of the model, edge-lit
-      const sx = -0.12, sy = 0.38, sz = 0.68;
-      B(0.95, 1.5, 0.1, sx, sy, sz, dark, torso);
-      B(0.8, 1.35, 0.06, sx, sy, sz + 0.07, bodyMat, torso);
-      edge(c, torso, 0.95, 0.018, 0.02, sx, sy + 0.75, sz + 0.06);
-      edge(c, torso, 0.95, 0.018, 0.02, sx, sy - 0.75, sz + 0.06);
-      edge(c, torso, 0.018, 1.5, 0.02, sx - 0.475, sy, sz + 0.06);
-      edge(c, torso, 0.018, 1.5, 0.02, sx + 0.475, sy, sz + 0.06);
-      edge(c, torso, 0.5, 0.03, 0.02, sx, sy + 0.45, sz + 0.11);
+      // shield slab: small, held out to the left of the body, edge-lit (its hitbox is `frontGuard.box` in factions.js)
+      const sx = -0.62, sy = 0.3, sz = 0.5;
+      B(0.55, 1.1, 0.1, sx, sy, sz, dark, torso);
+      B(0.45, 0.98, 0.06, sx, sy, sz + 0.07, bodyMat, torso);
+      edge(c, torso, 0.55, 0.018, 0.02, sx, sy + 0.55, sz + 0.06);
+      edge(c, torso, 0.55, 0.018, 0.02, sx, sy - 0.55, sz + 0.06);
+      edge(c, torso, 0.018, 1.1, 0.02, sx - 0.275, sy, sz + 0.06);
+      edge(c, torso, 0.018, 1.1, 0.02, sx + 0.275, sy, sz + 0.06);
+      edge(c, torso, 0.3, 0.03, 0.02, sx, sy + 0.32, sz + 0.11);
       // arms: left braces the shield, right holds the weapon
       const la = arm(c, torso, -0.44 * W, 0.62, 0.55, 0.15, dark, -1.3, 0.2);
       const ra = arm(c, torso, 0.44 * W, 0.62, 0.55, 0.15, dark, -1.1, -0.12);

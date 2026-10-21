@@ -275,8 +275,9 @@ function lurker(c) {
   const r = arm(c, torso, 0.38, 0.58, 0.46, 0.09, dark, -1.2, -0.1);
   c.arms.push(l, r);
   gun(c, torso, 0.14, 0.42, 0.36, 0.34, 0.07);
-  // the scrap-plate shield: three bolted plates, crossbars, edge studs, a seam of ether
-  const sh = pivot(-0.04, 0.48, 0.62, torso);
+  // the scrap-plate shield (small, held out to the left; hitbox is `frontGuard.box` in factions.js): three bolted plates, crossbars, edge studs, a seam of ether
+  const sh = pivot(-0.6, 0.38, 0.5, torso);
+  sh.scale.setScalar(0.6);
   B(0.34, 0.95, 0.05, -0.31, 0, 0, bodyMat, sh, false, [0, 0, 0.03]);
   B(0.36, 1.0, 0.05, 0.0, 0.02, 0.01, rust, sh);
   B(0.32, 0.9, 0.05, 0.31, -0.03, 0, bodyMat, sh, false, [0, 0, -0.04]);
