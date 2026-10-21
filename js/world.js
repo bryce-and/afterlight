@@ -485,7 +485,7 @@ export function buildLevel(loc, def) {
   const openDoors = (zoneIdx, id = null) => {
     let any = false;
     for (const d of doors) {
-      if (d.open || (id ? d.id !== id : d.zone !== zoneIdx)) continue;
+      if (d.open || (zoneIdx === 'all' ? false : id ? d.id !== id : d.zone !== zoneIdx)) continue;
       d.open = true; any = true;
       const i = colliders.indexOf(d.collider);
       if (i >= 0) colliders.splice(i, 1);

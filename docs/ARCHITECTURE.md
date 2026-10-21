@@ -134,6 +134,15 @@ The module map is in the README. These notes cover systems added during the over
 - Glaive: the `glaive` archetype's `bolt` (`js/data.js`) sets speed, size and life; the player fires a `glaivebolt` projectile (`js/player.js`) that stops on the first enemy.
 - Approximation: the Taken Captain's Darkness orb is a grenade (`GRENADE.taken` in `js/tiers.js`) with the shared grenade numbers, so it does not blind.
 
+## The campaign: story, objectives, doors, lights (v2.6, `js/story.js`, `js/objectives.js`, `js/world.js`)
+- `story.js` is the script: `MISSIONS[id] = { lines, obj }`. A line is `{ at, who, text }` with `at` = `start`, `z<i>` (zone i activates), `c<i>` (zone i cleared), `boss`, `end`. `obj` maps a non-boss zone index to an objective spec. `CHAPTERS` (title, locked text) and `UNLOCKS` (lines when a destination's last boss falls) are keyed by destination. `game.js say(at)` plays lines on the host and solo; `{t:'say'}` carries them to fireteam members; `ui.say` queues them on the `#subtitle` bar.
+- `objectives.js` is pure rules (`makeObjective`, `tickObjective`, `wantsReinforcement`, `objectiveText`, `objectiveTarget`): hold, activate (hold E), retrieve (E), destroy (`obj_node` units, `UNITS.obj_node` with `objective: true`), survive. `game.js placeObjective` builds meshes and targets when the zone activates; a zone clears when its waves AND its objective are done. Members send their E state as `{t:'ih', on}`; the host snapshot carries `ms.ob` (`objSnapshot`) and members draw the markers (`syncObjMarkers`).
+- Doors: `K.door(x, z, w, h, axis, { zone, id })` in the level kit is a collider until `level.openDoors(zoneIdx)` (called by `openZoneDoors` on zone clear, and for members from the snapshot). The nav grid is rebuilt when a door opens. Wave arenas (Horde/Endless) open every door on load.
+- Lights: `K.light` has no cap. Each light is a glow bulb; `level.updateLights(playerPos)` lends the 6 nearest a real PointLight each frame.
+- The campaign is the flat list `ALL_MISSIONS` (22 missions, `g = li * 3 + mi`; the Leviathan is `li` 7 with one mission, so the index still matches). Order and Light are in `LOCATIONS` in `data.js`. Save v9 resets every pre-v9 save (`loadSave`, backup under `afterlight_backup_v8`) and `cleared` is per Guardian (`switchCharacter` stashes it with the gear). `SAVE_RULES.resetBelow` lets tests exercise the older migrations.
+- Traversal rule for level builders: plain ground jump only (gravity 24, jump 8.2: apex 1.4 m, about 4.2 m of travel); required gaps at most 3 m and rises at most 1 m, stairs for more.
+- Item lock: `item.locked` (middle click, `toggleLock`); `addItem` overflow and `dismantleItem` skip locked items.
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.

@@ -1595,8 +1595,9 @@ export function showComplete(M) {
   el.innerHTML = `
     <div class="modal wide">
       <div class="eyebrow">${M.loc.name}</div>
-      <h1 class="screen-title gold">${M.act ? `${esc(M.act.name)} Complete` : 'Mission Complete'}</h1>
+      <h1 class="screen-title gold">${M.act ? `${esc(M.act.name)} Complete` : M.def.id === 'lev1' ? 'Campaign Complete' : 'Mission Complete'}</h1>
       <div class="m-name-big">${esc(M.def.name)}${M.firstClear ? '<span class="tag new">First clear</span>' : ''}</div>
+      ${M.def.id === 'lev1' ? `<p class="desc campaign-end">The Emperor on the throne was never the Emperor. Somewhere deeper in the Leviathan, the real Calus is still waiting.</p>` : ''}
       <div class="summary">
         <div><b>${fmtTime(G.time * 1000)}</b><span>Time</span></div>
         ${M.act ? `<div><b>${M.wave}</b><span>Waves</span></div>` : ''}

@@ -3,6 +3,7 @@
 // t1 Hope: one huge open rig deck (containers, cranes, Siren's Watch, arcology plaza, helipad).
 // t2 The Sunken Labs: a chain of roofed arcology interiors (halls, the glass-domed Solarium, flooded labs).
 // t3 Savathun's Song: separate rig platforms over the sea joined by bridges, down into a Hive nest and throne hall.
+// U15: boss arenas are closed rooms (zone `room`) behind a zone-clear K.door; decks, mezzanines and balconies are reached by K.stairs.
 import * as THREE from 'three';
 
 const PALE = 0xdde1dc, PALE2 = 0xb9c0bb, AMBER = 0xffc56a, GREEN = 0x6dff8e, CHITIN = 0x26282a, CHITIN2 = 0x3b3c32;
@@ -291,7 +292,7 @@ export default {
       { name: 'The Rig', x: 30, z: -35 },
       { name: "Siren's Watch", x: -25, z: -90 },
       { name: 'Arcology Plaza', x: 20, z: -150 },
-      { name: 'Rig Helipad', x: 0, z: -212, boss: true },
+      { name: 'Rig Helipad', x: 0, z: -212, boss: true, room: { minX: -31, maxX: 31, minZ: -245, maxZ: -181 } },
     ],
     noEdge: true,
     build(K) {
@@ -321,6 +322,8 @@ export default {
       arco(K, 66, -46, 10, 10, 9);
       hive(K, 20, -28, 1.2); hive(K, 44, -46, 1); hive(K, 5, -38, 1.4);
       creep(K, 30, -44, 8, 5);
+      K.platform(60, -64, 8, 6, 2.4, { stairs: ['w'], stairW: 3, color: C.metal }); // crane catwalk
+      rail(K, 56, -67, 64, -67, 2.4); rail(K, 56, -61, 64, -61, 2.4);
       K.light(64, 23, -12, AMBER, 10, 40);
 
       // ---- Siren's Watch: tall comms tower with a walkway deck around its base ----
@@ -335,7 +338,7 @@ export default {
       K.cyl(-55, -100, 0.3, 12, C.metal, { y: 51.8, collide: false });
       K.mesh(new THREE.OctahedronGeometry(1, 0), AMBER, -55, 64.5, -100, { glow: 2 });
       K.light(-55, 30, -100, AMBER, 8, 40);
-      stack(K, -10, -76, true, 1); stack(K, -38, -72, false, 2); stack(K, -6, -104, false, 1);
+      stack(K, -19, -68, true, 1); stack(K, -38, -72, false, 2); stack(K, -6, -104, false, 1);
       K.box(-22, -104, 6, 1.2, 0.8, PALE2); K.box(-36, -92, 0.8, 1.2, 6, PALE2); K.box(-14, -96, 0.8, 1.2, 5, PALE2);
       K.prop(-4, -88);
       hive(K, -28, -103, 1.3); hive(K, -12, -82, 1);
@@ -363,9 +366,20 @@ export default {
       hive(K, -2, -160, 1.5); hive(K, 36, -170, 1.2); hive(K, 12, -130, 1);
       container(K, 30, -150, true);
       K.light(20, 8, -150, AMBER, 8, 30);
+      K.platform(2, -168, 7, 5, 2.4, { stairs: ['n'], stairW: 3, color: PALE2 }); // overlook deck on the plaza
+      rail(K, -1.5, -165.5, 5.5, -165.5, 2.4);
 
       // ---- Rig Helipad (boss): painted pad ringed by Hive spires, tomb ship overhead ----
       const bz = -212;
+      // closed arena: hangar walls round the pad with one 12 m gate on the south side, opened when the plaza is clear
+      K.room(0, -213, 64, 64, 9, { doors: { s: 12 }, color: 0x4a5450, t: 1.2 });
+      K.door(0, -181, 12, 9, 'x', { zone: 2, t: 1.2, color: C.metal, trim: AMBER });
+      for (let x = -28; x <= 28; x += 14) K.box(x, -245, 1.2, 9, 0.5, AMBER, { y: 0, collide: false, glow: 0.9 });
+      // firing decks along both side walls
+      for (const s of [-1, 1]) {
+        K.platform(s * 29.2, -226, 3.2, 16, 3, { stairs: ['s'], stairW: 2.4, color: C.metal });
+        rail(K, s * 27.6, -234, s * 27.6, -218, 3);
+      }
       K.mesh(new THREE.CylinderGeometry(25, 25, 0.3, 16), 0x4c5652, 0, 0.15, bz);
       K.mesh(new THREE.TorusGeometry(19, 0.35, 4, 32), YELLOW, 0, 0.32, bz, { rx: Math.PI / 2, glow: 0.4 });
       K.box(-3, bz, 1.2, 0.08, 8, PALE, { y: 0.3, collide: false });
@@ -389,6 +403,7 @@ export default {
       K.box(26, -232, 30, 0.4, 1.2, GREEN, { y: 30.6, collide: false, glow: 1.6 });
       K.light(0, 10, bz, GREEN, 10, 40);
       K.light(22, 26, -232, GREEN, 8, 30);
+      K.light(0, 7, -184, AMBER, 7, 22);
     },
   },
 
@@ -403,7 +418,7 @@ export default {
       { name: 'Arcology Interior', x: 0, z: -30 },
       { name: 'The Solarium', x: 0, z: -96 },
       { name: 'Flooded Labs', x: 0, z: -163 },
-      { name: 'Containment Lab', x: 0, z: -229, boss: true },
+      { name: 'Containment Lab', x: 0, z: -229, boss: true, room: { minX: -28, maxX: 28, minZ: -259, maxZ: -199 } },
     ],
     noEdge: true,
     build(K) {
@@ -442,6 +457,12 @@ export default {
       K.light(0, 8, -44, AMBER, 9, 30);
 
       corridor(K, -58, -64);
+      K.door(0, -58, 10, 10, 'x', { zone: 0, color: PALE2, trim: AMBER });
+      // mezzanines along both side walls of the hall
+      for (const s of [-1, 1]) {
+        K.platform(s * 32, -31, 8, 24, 3.2, { stairs: [s < 0 ? 'e' : 'w'], stairW: 3, color: PALE2 });
+        rail(K, s * 28, -43, s * 28, -19, 3.2);
+      }
 
       // ---- The Solarium: huge atrium under a glass dome, dead trees in planters ----
       K.room(0, -96, 70, 64, 10, { doors: { s: 10, n: 10 } });
@@ -482,6 +503,7 @@ export default {
       creep(K, 22, -118, 7, 5);
 
       corridor(K, -128, -136);
+      K.door(0, -128, 10, 10, 'x', { zone: 1, color: PALE2, trim: AMBER });
 
       // ---- Flooded Labs: half-roofed, ankle-deep water, benches, specimen tanks ----
       K.room(0, -163, 64, 54, 10, { doors: { s: 10, n: 10 } });
@@ -514,6 +536,8 @@ export default {
       K.mesh(new THREE.BoxGeometry(9, 0.6, 5), PALE2, 7, 1.4, -170, { rz: 0.28 }); // fallen ceiling panel
       K.collider(2.5, 0, -172.5, 11.5, 2.4, -167.5, null);
       K.box(-8, -150, 4, 1.2, 4, C.metal);
+      K.platform(0, -184, 14, 5, 2.4, { stairs: ['s'], stairW: 3, color: PALE2 }); // control deck over the tanks
+      rail(K, -7, -181.5, 7, -181.5, 2.4);
       hive(K, -6, -178, 1.2); hive(K, 10, -152, 1);
       K.light(0, 7, -163, 0x7fffd0, 8, 30);
 
@@ -521,6 +545,11 @@ export default {
 
       // ---- Containment Lab (boss): sealed chamber, Hive ribs and crystals everywhere ----
       K.room(0, -229, 58, 62, 13, { doors: { s: 10 }, roof: true, color: 0xb8bfba });
+      K.door(0, -198, 10, 13, 'x', { zone: 2, color: PALE2, trim: GREEN });
+      for (const s of [-1, 1]) { // balconies over the arena
+        K.platform(s * 25, -220, 6, 8, 3.2, { stairs: [s < 0 ? 'e' : 'w'], stairW: 3, color: PALE2 });
+        rail(K, s * 22, -224, s * 22, -216, 3.2);
+      }
       roomStrips(K, 0, -229, 58, 62, 10, GREEN);
       for (const z of [-208, -229, -250]) archRib(K, 0, z, 25, 11.5, true, CHITIN, 0.9);
       for (const [x, z] of [[-20, -205], [21, -207], [-23, -252], [22, -249], [-26, -229], [26, -232]]) crystals(K, x, z, 1.3);
@@ -556,7 +585,7 @@ export default {
       { name: 'Spine of Keres', x: 20, z: -95 },
       { name: 'Arcology Underbelly', x: -20, z: -160 },
       { name: 'The Hive Nest', x: -35, z: -225 },
-      { name: 'Choir of Savathûn', x: 8, z: -290, boss: true },
+      { name: 'Choir of Savathûn', x: 8, z: -290, boss: true, room: { minX: -19, maxX: 35, minZ: -319, maxZ: -263 } },
     ],
     noEdge: true,
     build(K) {
@@ -608,8 +637,10 @@ export default {
       pipeRun(K, 11.5, -115, 11.5, -135, 0.4, 0.8);
       // hub
       arco(K, 33, -108, 8, 8, 5, { cap: false });
-      tank(K, 6, -80, 3, 5);
+      tank(K, 4, -92, 3, 5);
       stack(K, 34, -82, true, 1); stack(K, 7, -108, false, 1);
+      K.platform(35.5, -95, 7, 10, 2.4, { stairs: ['s'], stairW: 3, color: PALE2 }); // hub overlook
+      rail(K, 32, -100, 32, -90, 2.4);
       K.box(12, -96, 0.8, 1.2, 6, PALE2); K.box(28, -92, 0.8, 1.2, 6, PALE2); K.box(20, -84, 5, 1.2, 0.8, PALE2);
       hive(K, 16, -104, 1.1); hive(K, 30, -100, 0.9);
       creep(K, 22, -110, 8, 4);
@@ -631,6 +662,8 @@ export default {
       K.box(-32, -162, 0.8, 1.2, 5, PALE2); K.box(-10, -170, 5, 1.2, 0.8, PALE2);
       hive(K, -22, -174, 1.1); hive(K, 2, -165, 1);
       creep(K, -36, -150, 8, 6);
+      K.platform(-34, -178, 6, 6, 2.8, { stairs: ['n'], stairW: 2.4, color: PALE2 }); // service deck between the stilts
+      rail(K, -37, -175, -31, -175, 2.8);
       K.light(-20, 10, -160, AMBER, 10, 40);
 
       // ---- The Hive Nest: chitin walls, egg sacs, ribs overhead ----
@@ -650,11 +683,17 @@ export default {
       crystals(K, -14, -228, 1.2); crystals(K, -60, -222, 1.1);
       creep(K, -35, -225, 18, 4); creep(K, -48, -240, 8, 8); creep(K, -20, -208, 6, 6);
       K.light(-35, 6, -225, GREEN, 10, 35);
+      K.door(-35, -194, 14, 8, 'x', { zone: 2, color: CHITIN2, trim: GREEN }); // sealed Hive door on the nest bridge
 
       // ---- Choir of Savathun (boss): roofed Hive throne hall, green fire, altar ----
       const hx = 8, hz = -291;
       K.room(hx, hz, 56, 58, 13, { doors: { s: 12 }, doorOffset: { s: -5 }, roof: true, color: 0x3a3c36, roofColor: CHITIN });
       K.box(hx, hz, 54, 0.26, 56, 0x2c2e2a, { collide: false });
+      K.door(3, -262, 12, 13, 'x', { zone: 3, color: CHITIN2, trim: GREEN });
+      for (const s of [-1, 1]) { // choir balconies between the pillars and the walls
+        K.platform(hx + s * 25, hz, 5, 20, 3.2, { stairs: [s < 0 ? 'e' : 'w'], stairW: 3, color: CHITIN2, stairColor: CHITIN });
+        K.box(hx + s * 22.5, hz, 0.2, 0.3, 20, GREEN, { y: 3.2, collide: false, glow: 1.2 });
+      }
       roomStrips(K, hx, hz, 56, 58, 9, GREEN);
       for (const x of [hx - 20, hx + 20]) for (const z of [-272, -284, -298, -310]) {
         K.box(x, z, 2.4, 13, 2.4, CHITIN2);

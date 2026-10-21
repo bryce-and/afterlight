@@ -276,7 +276,7 @@ export default {
       { name: 'The Barrens', x: -12, z: -45 },
       { name: 'The Scablands', x: 24, z: -108 },
       { name: 'The Buried City', x: 0, z: -172 },
-      { name: 'The Sunken Plaza', x: 0, z: -245, boss: true },
+      { name: 'The Sunken Plaza', x: 0, z: -245, boss: true, room: { minX: -28, maxX: 28, minZ: -273, maxZ: -217 } },
     ],
     noEdge: true,
     build(K) {
@@ -295,6 +295,9 @@ export default {
       for (const z of [-20, -54, -88]) pylon(K, -60, z, 12, { w: 4.5 });
       for (const [x, z] of [[-25, -38], [2, -53], [-29, -54], [6, -37], [-9, -66]]) dropPod(K, x, z);
       supply(K, -18, -31); supply(K, 0, -44, true); supply(K, -22, -48);
+      // lookout deck on the eastern dunes
+      K.platform(34, -44, 10, 8, 2.8, { stairs: ['w'], color: CAB2, stairColor: CAB3 });
+      K.light(-12, 4, -28, HAZ, 6, 22);
       // first Golden Age towers poking out of the sand
       tower(K, 54, -34, 9, 9, 30, { lean: 0.22, axis: 'x', sink: 10 });
       tower(K, 46, -78, 8, 10, 22, { lean: -0.35, axis: 'z', sink: 8 });
@@ -311,6 +314,11 @@ export default {
       mast(K, 52, -128, 15);
       bulwark(K, 12, -90, 28, -90, 3, { t: 1.6 });
       supply(K, 20, -100); supply(K, 34, -115, true); supply(K, 12, -112);
+      // overwatch deck behind the outpost (stairs up the south side)
+      K.platform(42, -138, 10, 8, 2.8, { stairs: ['n'], color: CAB2, stairColor: CAB3 });
+      vbox(K, 42, 2.9, -134.05, 10, 0.1, 0.2, HAZ, { glow: 1.4 });
+      K.light(42, 6, -138, HAZ, 8, 26);
+      K.light(8, 4, -124, HAZ, 7, 22);
 
       // ---- The Buried City: crossroads between leaning towers ----
       // corner blocks around the crossroads (avenue x -12..12, cross street z -160..-184)
@@ -334,6 +342,10 @@ export default {
       bulwark(K, 22, -170, 22, -182, 2.4, { t: 1.4, face: -1 });
       dropPod(K, 6, -183); dropPod(K, -7, -160);
       supply(K, -9, -178, true); supply(K, 9, -164); supply(K, -26, -168); supply(K, 28, -176, true);
+      // broken floor slabs on the cross street, with stairs, as firing positions
+      K.platform(-30, -176, 8, 12, 2.8, { stairs: ['e'], color: GA[1], stairColor: GA[0] });
+      K.platform(34, -168, 8, 12, 2.8, { stairs: ['w'], color: GA[2], stairColor: GA[0] });
+      for (const [x, z] of [[-10, -160], [10, -184], [-3, -196], [6, -148]]) K.light(x, 6, z, HAZ, 7, 24);
       for (const [x, z, w, h, d] of [[-6, -150, 2.4, 1.6, 3], [10, -186, 3, 1.2, 2], [-24, -180, 2, 2.2, 2.4], [26, -164, 2.6, 1.4, 2], [4, -198, 3, 1.8, 2.2], [-4, -207, 2.2, 1.4, 3]]) K.box(x, z, w, h, d, K.RP(GA));
       // the avenue narrows between two towers into the plaza
       tower(K, -17, -208, 10, 9, 36, { lean: 0.12, axis: 'z', sink: 6 });
@@ -345,12 +357,27 @@ export default {
       K.mesh(new THREE.CylinderGeometry(7, 7, 0.22, 12), 0x9a876f, 0, 0.11, cz);
       K.mesh(new THREE.TorusGeometry(7, 0.35, 4, 16).rotateX(Math.PI / 2), STONE2, 0, 0.25, cz);
       for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1]]) vbox(K, dx * 17, 0.2, cz + dz * 17, dx ? 18 : 1.2, 0.05, dz ? 18 : 1.2, 0x8d7a62);
-      for (let k = 0; k < 3; k++) {
-        const off = 28.5 + 3 * k, h = 1.2 * (k + 1), col = [0xb8a68d, 0xa8967c, 0x9a8a72][k];
-        K.wall(-off, cz + off, off, cz + off, h, { t: 3, color: col, gaps: [[off - 7, off + 7]] });
-        K.wall(-off, cz - off, off, cz - off, h, { t: 3, color: col });
-        K.wall(-off, cz - off, -off, cz + off, h, { t: 3, color: col });
-        K.wall(off, cz - off, off, cz + off, h, { t: 3, color: col });
+      // closed arena: a stepped retaining wall ring (low terrace, then a tall stone face) with one gate on the avenue
+      // side; the gate opens when the Buried City is cleared
+      for (const [off, t, h, col] of [[29.8, 3.6, 3.2, 0xb8a68d], [31.8, 2.4, 12, 0xa8967c]]) {
+        K.wall(-off, cz + off, off, cz + off, h, { t, color: col, gaps: [[off - 7, off + 7]] });
+        K.wall(-off, cz - off, off, cz - off, h, { t, color: col });
+        K.wall(-off, cz - off, -off, cz + off, h, { t, color: col });
+        K.wall(off, cz - off, off, cz + off, h, { t, color: col });
+      }
+      K.door(0, cz + 30.8, 14, 12, 'x', { zone: 2, t: 5, color: STONE2, trim: HAZ });
+      for (const sx of [-1, 1]) {
+        K.box(sx * 9, cz + 30.8, 2.4, 15, 5.4, STONE2);
+        vbox(K, sx * 9, 15.5, cz + 30.8, 3, 1, 6, STONE, { rz: sx * 0.1 });
+        vbox(K, sx * 7.7, 7, cz + 28.1, 0.2, 10, 0.2, HAZ, { glow: 1.8 });
+      }
+      // gun balconies inside the wall, reached by stairs
+      K.platform(24, cz - 16, 5, 14, 2.8, { stairs: ['w'], color: STONE2, stairColor: STONE });
+      K.platform(-24, cz - 16, 5, 14, 2.8, { stairs: ['e'], color: STONE2, stairColor: STONE });
+      for (const [x, z] of [[-24, 24], [24, 24], [-24, -26], [24, -26], [0, -26]]) {
+        K.cyl(x, cz + z, 0.7, 4.2, CAB3, { sides: 6 });
+        vbox(K, x, 4.6, cz + z, 1.2, 0.6, 1.2, HAZ, { glow: 2 });
+        K.light(x, 5.6, cz + z, HAZ, 8, 24);
       }
       // broken colonnade and a fallen column
       for (const [x, z, h] of [[-13, cz + 13, 4.2], [13, cz + 13, 2.6], [-13, cz - 13, 3], [13, cz - 13, 5]]) {
@@ -397,7 +424,7 @@ export default {
       { name: 'The Scablands', x: -32, z: -42 },
       { name: 'The Outer Bulwark', x: 6, z: -100 },
       { name: 'Dust Palace Courtyard', x: 0, z: -162 },
-      { name: 'The Throne Hangar', x: 0, z: -232, boss: true },
+      { name: 'The Throne Hangar', x: 0, z: -232, boss: true, room: { minX: -27, maxX: 27, minZ: -255, maxZ: -209 } },
     ],
     noEdge: true,
     build(K) {
@@ -415,6 +442,9 @@ export default {
       bulwark(K, -46, -24, -34, -24, 3.2, { t: 1.6 });
       turret(K, -18, -32, Math.PI * 0.7);
       dropPod(K, -26, -52); dropPod(K, -44, -46);
+      // forward picket deck with stairs
+      K.platform(-24, -22, 9, 7, 2.8, { stairs: ['s'], color: CAB2, stairColor: CAB3 });
+      K.light(-30, 4, -34, HAZ, 6, 22);
       supply(K, -36, -34); supply(K, -24, -40, true);
       for (const [x, z, s] of [[-14, -74, 2.5], [-4, -66, 3], [26, -70, 3.5], [-48, -84, 3]]) K.rock(x, z, s);
 
@@ -434,6 +464,11 @@ export default {
       turret(K, -22, -122, -Math.PI / 2 + 0.4);
       turret(K, 30, -120, -Math.PI / 2 - 0.4);
       supply(K, -8, -116); supply(K, 20, -118, true); supply(K, -30, -110, true); supply(K, 40, -112);
+      // Cabal gun gantry behind the wall, reached by stairs
+      K.platform(-34, -118, 12, 6, 2.8, { stairs: ['w'], color: CAB2, stairColor: CAB3 });
+      vbox(K, -34, 2.9, -115.05, 12, 0.1, 0.2, HAZ, { glow: 1.4 });
+      K.light(-34, 6, -118, HAZ, 8, 24);
+      K.light(6, 12, -104, HAZR, 8, 28);
 
       // ---- Dust Palace Courtyard: walled command post ----
       vbox(K, 0, 0.08, -170, 96, 0.16, 80, 0x5e5249);
@@ -442,24 +477,51 @@ export default {
       bulwark(K, 48, -128, 48, -262, 10, { t: 5, face: -1, rib: 11 });
       bulwark(K, -48, -132, 48, -132, 8, { t: 4, face: 1, rib: 10, gaps: [[38, 58]] });
       for (const x of [-13, 13]) pylon(K, x, -132, 14, { w: 5 });
+      // sealed inner gate: opens when the Outer Bulwark is cleared
+      K.door(0, -132, 20, 8, 'x', { zone: 1, t: 4, color: CAB2, trim: HAZR });
+      K.light(-14, 8, -126, HAZ, 8, 24); K.light(14, 8, -126, HAZ, 8, 24);
       landingPad(K, -26, -150, 14);
       landingPad(K, 28, -178, 14);
       harvester(K, 28, -178, { L: 18, collide: true, y: 0.6 });
       for (const [x, z] of [[24, -174], [32, -174], [24, -184], [32, -184]]) K.box(x, z, 0.6, 0.8, 0.6, CAB3, { collide: false });
       turret(K, -16, -176, Math.PI / 2);
       turret(K, 16, -146, Math.PI / 2);
-      turret(K, -36, -190, Math.PI * 0.35);
       turret(K, 36, -142, Math.PI * 0.7);
-      mast(K, -38, -142, 22); mast(K, 40, -198, 18); mast(K, -24, -202, 26);
-      bunker(K, -36, -168, 8, 12, 5, { door: 1 });
-      for (const [x, z, r] of [[-8, -150, 0], [10, -168, 1], [-12, -172, 1], [6, -181, 0], [14, -156, 0], [-26, -186, 0], [20, -194, 1]]) supply(K, x, z, !!r);
+      mast(K, -38, -142, 22); mast(K, -24, -204, 26);
+      for (const [x, z, r] of [[-8, -150, 0], [10, -168, 1], [-12, -172, 1], [6, -181, 0], [14, -156, 0], [20, -194, 1]]) supply(K, x, z, !!r);
       bulwark(K, -8, -191, 2, -191, 1.8, { t: 1.2 });
-      bulwark(K, -26, -158, -26, -164, 1.8, { t: 1.2, face: 1 });
 
-      // ---- Boss: the roofed hangar / throne hall ----
+      // ---- command wings: a roofed Operations Hall (west) and a sealed Comms Centre (east) ----
+      // west hall: open doorway on the courtyard side, an inner sealed bay behind a partition door
+      K.room(-35, -180, 19, 36, 10, { t: 0.8, color: CAB2, roofColor: CAB3, roof: true, doors: { e: 8 }, doorOffset: { e: 9 } });
+      K.wall(-44.5, -180, -25.5, -180, 10, { t: 0.8, color: CAB, gaps: [[13, 19]] });
+      K.door(-28.5, -180, 6, 10, 'x', { zone: 2, t: 0.8, color: CAB3, trim: HAZR });
+      vbox(K, -35, 0.08, -180, 18, 0.16, 35, DECK);
+      for (const z of [-170, -190]) for (const sx of [-1, 1]) {
+        K.box(-35 + sx * 7, z, 3.4, 1.2, 1.6, CAB3);
+        vbox(K, -35 + sx * 7, 1.35, z, 3, 0.08, 1.2, HAZ, { glow: 1.8 });
+      }
+      for (const z of [-166, -174, -186, -194]) vbox(K, -35, 9.4, z, 18, 0.3, 0.5, HAZ, { glow: 1.5 });
+      supply(K, -41, -170); supply(K, -41, -187, true);
+      for (const [x, z] of [[-35, -172], [-38, -190]]) K.light(x, 8, z, HAZ, 8, 22);
+      vbox(K, -44.2, 5, -190, 0.2, 5, 10, BANNER);
+      // east comms centre: sealed until the courtyard is cleared
+      K.room(37.5, -200, 15, 18, 10, { t: 0.8, color: CAB2, roofColor: CAB3, roof: true, doors: { s: 6 } });
+      K.door(37.5, -191, 6, 10, 'x', { zone: 2, t: 0.8, color: CAB3, trim: HAZR });
+      vbox(K, 37.5, 0.08, -200, 14, 0.16, 17, DECK);
+      for (const x of [33, 37.5, 42]) {
+        K.box(x, -205, 3, 1.4, 1.4, CAB3);
+        vbox(K, x, 1.55, -205, 2.6, 0.08, 1.1, HAZ, { glow: 2 });
+        vbox(K, x, 3.2, -208.4, 2.4, 2.2, 0.15, 0x1a2a30, { glow: 0.6 });
+      }
+      K.light(37.5, 8, -200, HAZR, 8, 20); K.light(37.5, 8, -196, HAZ, 6, 16);
+      mast(K, 52, -200, 18);
+
+      // ---- Boss: the roofed hangar / throne hall, sealed by a blast door until the courtyard is cleared ----
       const hz = -232;
       K.room(0, hz, 56, 48, 13, { t: 1.6, color: CAB2, roofColor: CAB3, roof: true, doors: { s: 16 } });
       vbox(K, 0, 0.09, hz, 54, 0.18, 46, DECK);
+      K.door(0, -208, 16, 13, 'x', { zone: 2, t: 1.6, color: CAB3, trim: HAZR });
       // exterior facade: buttresses either side of the blast door, lintel and Cabal sigil
       for (const sx of [-1, 1]) {
         K.box(sx * 11, -206.2, 4, 15, 3.6, CAB);
@@ -488,6 +550,10 @@ export default {
       K.box(-7, hz - 18, 2.6, 1.1, 1.6, CAB3, { y: 2.8 });
       vbox(K, -7, 4.0, hz - 18, 2.2, 0.08, 1.2, HAZ, { glow: 1.8 });
       for (const sx of [-1, 1]) vbox(K, sx * 7, 7.5, hz - 23.1, 2.6, 6.5, 0.12, BANNER);
+      // side gun balconies (stairs up from the floor)
+      K.platform(-23.5, hz - 8, 5, 16, 2.8, { stairs: ['s'], color: CAB, stairColor: CAB3, stairW: 3 });
+      K.platform(23.5, hz - 8, 5, 16, 2.8, { stairs: ['s'], color: CAB, stairColor: CAB3, stairW: 3 });
+      for (const sx of [-1, 1]) vbox(K, sx * 21.05, 2.9, hz - 8, 0.1, 0.15, 16, HAZ, { glow: 1.6 });
       // hangar floor clutter: cargo stacks and a parked tank
       supply(K, -14, hz + 10); supply(K, 14, hz + 10, true); supply(K, -20, hz - 6, true); supply(K, 21, hz - 4);
       K.box(-19, hz + 18, 5, 2.2, 7, CAB2);
@@ -499,6 +565,10 @@ export default {
       K.light(16, 10, hz - 12, HAZ, 10, 26);
       K.light(0, 7, hz - 18, HAZR, 9, 18);
       K.light(0, 9, -203, HAZ, 9, 22);
+      K.light(-22, 9, hz - 2, HAZ, 8, 22);
+      K.light(22, 9, hz - 2, HAZ, 8, 22);
+      K.light(0, 9, hz + 4, HAZ, 8, 22);
+      K.light(0, 9, hz - 20, HAZR, 8, 20);
 
       // ---- horizon: mesas, more Cabal walls and a carrier over the palace ----
       K.edge((x, z, y) => {
@@ -523,7 +593,7 @@ export default {
       { name: 'Siege Trenches', x: -18, z: -108 },
       { name: 'Cabal Drop Zone', x: 18, z: -172 },
       { name: 'The Boarding Ramp', x: 0, z: -232 },
-      { name: "Ghaul's Flagship", x: 0, z: -306, boss: true },
+      { name: "Ghaul's Flagship", x: 0, z: -306, boss: true, room: { minX: -56, maxX: 56, minZ: -348, maxZ: -266 } },
     ],
     noEdge: true,
     build(K) {
@@ -569,6 +639,8 @@ export default {
         K.collider(x - 1, 0, z - 1, x + 1, 1.8, z + 1, null);
       }
       for (const [x, z, r] of [[-34, -104, 4], [16, -120, 3.5], [-6, -92, 3], [48, -98, 4.5], [-50, -132, 3.5]]) K.mesh(new THREE.CylinderGeometry(r, r * 0.7, 0.06, 9), 0x2f1d16, x, 0.13, z);
+      K.platform(52, -108, 10, 8, 2.8, { stairs: ['w'], color: CAB2, stairColor: CAB3 });
+      K.light(52, 6, -108, HAZ, 7, 24); K.light(-20, 5, -106, HAZ, 7, 24);
       turret(K, -42, -134, -Math.PI / 2);
       turret(K, 32, -136, -Math.PI / 2 - 0.3);
       // a burned-out Cabal tank
@@ -587,12 +659,17 @@ export default {
       }
       for (const [x, z, r] of [[14, -168, 5], [-6, -190, 4], [44, -186, 3.5]]) K.mesh(new THREE.CylinderGeometry(r, r * 0.7, 0.06, 9), 0x2f1d16, x, 0.13, z);
       supply(K, 22, -158); supply(K, 0, -170, true); supply(K, 12, -192);
+      // wreck-top gun deck with stairs
+      K.platform(-50, -200, 12, 12, 2.8, { stairs: ['e'], color: CAB2, stairColor: CAB3 });
+      K.light(-50, 6, -200, 0xff6a2a, 8, 24);
       K.light(-28, 7, -160, 0xff6a2a, 10, 26);
       K.light(46, 6, -176, 0xff6a2a, 9, 24);
 
       // ---- The Boarding Ramp: the flagship's hull wall with its ramp lowered ----
       bulwark(K, -70, -262, 70, -262, 18, { t: 6, face: 1, rib: 12, color: DECK2, color2: DECK, gaps: [[61, 79]] });
       K.box(0, -262, 20, 5, 6, DECK, { y: 13 });
+      // blast door in the ramp gap: opens when the Boarding Ramp is cleared
+      K.door(0, -262, 18, 13, 'x', { zone: 3, t: 6, color: DECK, trim: HAZR });
       vbox(K, 0, 12.6, -258.8, 18, 0.5, 0.3, HAZ, { glow: 1.6 });
       vbox(K, 0, 0.12, -246, 16, 0.24, 26, DECK);
       for (const sx of [-1, 1]) {
@@ -610,12 +687,24 @@ export default {
       }
       supply(K, -10, -226); supply(K, 12, -222, true); supply(K, -16, -240, true); supply(K, 18, -238);
       bulwark(K, -4, -214, 6, -214, 1.8, { t: 1.2 });
+      K.platform(-28, -226, 10, 14, 2.8, { stairs: ['n'], color: DECK2, stairColor: DECK });
+      K.platform(28, -226, 10, 14, 2.8, { stairs: ['n'], color: DECK2, stairColor: DECK });
+      for (const [x, z] of [[-32, -240], [32, -240], [-12, -250], [12, -250]]) K.light(x, 6, z, HAZ, 7, 24);
       K.light(0, 10, -257, HAZ, 10, 24);
 
       // ---- Boss: the deck of Ghaul's flagship under the Traveler ----
       const dz = -306;
       for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) vbox(K, -52.5 + i * 35, 0.1, -277 + j * -23.5 - 0.5, 34.6, 0.2, 23.1, (i + j) % 2 ? DECK : DECK2);
       for (const x of [-35, 0, 35]) vbox(K, x, 0.22, -312, 0.25, 0.05, 92, HAZR, { glow: 0.7 });
+      // the flagship's inner hull closes the deck: side bulkheads and a stern wall (the ramp door is the only way in)
+      bulwark(K, -58, -262, -58, -350, 16, { t: 2.4, face: 1, rib: 12, color: DECK2, color2: DECK });
+      bulwark(K, 58, -262, 58, -350, 16, { t: 2.4, face: -1, rib: 12, color: DECK2, color2: DECK });
+      bulwark(K, -58, -350, 58, -350, 16, { t: 2.4, face: 1, rib: 12, color: DECK2, color2: DECK });
+      // gun gantries along the bulkheads, reached by stairs
+      K.platform(-50, -300, 8, 26, 2.8, { stairs: ['s'], color: DECK2, stairColor: DECK, stairW: 3 });
+      K.platform(50, -312, 8, 26, 2.8, { stairs: ['s'], color: DECK2, stairColor: DECK, stairW: 3 });
+      for (const [x, z] of [[-46, -300], [46, -312]]) vbox(K, x, 2.9, z, 0.1, 0.15, 26, HAZR, { glow: 1.8 });
+      for (const [x, z] of [[-48, -280], [48, -290], [-48, -330], [48, -336], [-24, -345], [24, -345], [0, -272]]) K.light(x, 9, z, HAZR, 8, 28);
       // angular superstructure along both rails and the bridge tower at the stern
       for (const sx of [-1, 1]) {
         for (const [z, d, h] of [[-278, 20, 14], [-304, 22, 24], [-330, 20, 16], [-352, 14, 28]]) {

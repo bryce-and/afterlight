@@ -231,6 +231,14 @@ function mast(K, x, z, h) {
   K.box(x, z, 0.6, 0.6, 0.6, F_RED, { y: h, collide: false, glow: 2 });
 }
 
+// compound floodlight: pole, glowing lamp head and a lamp for the light pool
+function flood(K, x, z, h = 9, color = 0xffe3b0, power = 7) {
+  K.box(x, z, 0.4, h, 0.4, K.C.metal);
+  K.box(x, z, 1.6, 0.5, 0.9, DARK, { y: h, collide: false });
+  K.box(x, z, 1.3, 0.2, 0.6, color, { y: h - 0.05, collide: false, glow: 1.8 });
+  K.light(x, h - 0.6, z, color, power, 26);
+}
+
 // see-through chain-link fence with posts; gaps are [from, to] metres from the min end (sorted)
 let FENCE_MAT = null, UNIT = null;
 function fence(K, x1, z1, x2, z2, h = 2.6, gaps = []) {
@@ -286,7 +294,7 @@ export default {
     zones: [
       { name: 'The Steppes', x: 0, z: 85 },
       { name: 'Skywatch', x: 35, z: 15 },
-      { name: 'The Wall', x: 8, z: -58, boss: true },
+      { name: 'The Wall', x: 8, z: -58, boss: true, room: { minX: -26, maxX: 42, minZ: -91, maxZ: -37 } },
     ],
     build(K) {
       const C = K.C;
@@ -307,8 +315,8 @@ export default {
         });
       }
       // car graveyard lots beside the road
-      for (const rz of [128, 140, 149]) for (let x = -52; x <= -22; x += 2.7) if (K.chance(0.7) && K.clear(x, rz, 2.4)) car(K, x, rz, true);
-      for (const rz of [68, 79]) for (let x = 24; x <= 54; x += 2.7) if (K.chance(0.65)) car(K, x, rz, true);
+      for (const rz of [128, 142]) for (let x = -52; x <= -22; x += 2.7) if (K.chance(0.7) && K.clear(x, rz, 2.4)) car(K, x, rz, true);
+      for (const rz of [72]) for (let x = 24; x <= 54; x += 2.7) if (K.chance(0.65)) car(K, x, rz, true);
 
       // ---- collapsed overpass ----
       const OZ = 118;
@@ -352,6 +360,9 @@ export default {
       bunker(K, 12, 8, 12, 10, 4);
       bunker(K, 40, 40, 8, 6, 3.6);
       mast(K, 30, 42, 16);
+      K.stairs(0, 8, 'e', 3, 4.0, { color: CONC2 }); // bunker roof overlook (optional high ground)
+      K.light(14, 6, 8, 0xffd27a, 5, 22);
+      K.light(52, 6, 20, 0x9fe0ff, 5, 22);
       barrier(K, 27, 10, false); container(K, 30, 22, false); K.crate(42, 10); K.crate(43, 8.5);
       barrier(K, 36, 4); K.crate(31, 2); barrier(K, 45, 12, false); K.crate(26, 16); barrier(K, 36, 28);
       banner(K, 10, 43, CLOTH_B); banner(K, 30, 43, CLOTH_B); banner(K, 60, -10, CLOTH_R);
@@ -359,7 +370,7 @@ export default {
       // ---- road to the Wall ----
       container(K, 40, -30, true); container(K, 40, -30, true, 2.6); container(K, 44, -24, false);
       container(K, -4, -24, false); container(K, -10, -30, true);
-      K.rock(28, -38, 2.2); K.rock(-18, -12, 2.6); K.rock(58, -50, 2.0);
+      K.rock(28, -31, 2.2); K.rock(-18, -12, 2.6); K.rock(58, -50, 2.0);
 
       // ---- the Wall: colossal concrete face with the colony-ship hangar doors ----
       const WZ = -94, DX = 8;
@@ -376,16 +387,31 @@ export default {
       K.mesh(cyl10(), C.metal, -48, 1.2, WZ + 2.2, { rz: Math.PI / 2, scale: [0.9, 54, 0.9], collide: true });
       K.mesh(cyl10(), C.metal, 60, 1.2, WZ + 2.2, { rz: Math.PI / 2, scale: [0.9, 50, 0.9], collide: true });
 
-      // ---- boss yard: crashed skiff, cover ----
-      skiff(K, -24, -64);
-      fcrate(K, -30, -54); fcrate(K, -16, -73); fcrate(K, -36, -70);
-      banner(K, -30, -56, CLOTH_B); banner(K, -14, -76, CLOTH_R);
+      // ---- boss yard: walled Wall compound with one gate, crashed skiff, cover, two raised decks ----
+      K.wall(-26, -91, -26, -36, 8, { t: 1.4, color: CONC2 });
+      K.wall(42, -91, 42, -36, 8, { t: 1.4, color: CONC2 });
+      K.wall(-26, -36, 42, -36, 8, { t: 1.4, color: CONC2, gaps: [[30, 38]] });
+      K.door(8, -36, 8, 8, 'x', { zone: 1, t: 1.4, color: 0x4f555c, trim: C.accent });
+      K.box(8, -36, 11, 1.2, 2, CONC, { y: 8, collide: false });
+      for (const s of [-1, 1]) { K.box(8 + s * 5.2, -36, 2.2, 10, 2.2, CONC); K.box(8 + s * 5.2, -34.8, 0.5, 0.5, 0.2, F_RED, { y: 6, collide: false, glow: 2 }); }
+      for (const [x, z] of [[-26, -36], [42, -36], [-26, -91], [42, -91]]) flood(K, x + (x < 8 ? 1.4 : -1.4), z + (z < -60 ? 1.4 : -1.4), 11);
+      for (const z of [-48, -62, -76]) for (const x of [-25.2, 41.2]) K.box(x, z, 0.2, 0.3, 5, F_BLUE, { y: 5, collide: false, glow: 1.4 });
+      skiff(K, -6, -83);
+      fcrate(K, -12, -50); fcrate(K, -16, -73); fcrate(K, -22, -86);
+      banner(K, -24.5, -47, CLOTH_B); banner(K, -14, -76, CLOTH_R);
       barrier(K, -2, -48); barrier(K, 18, -48); container(K, 22, -66, true);
       shield(K, -4, -66, false); shield(K, 12, -76, true); fcrate(K, 26, -52); K.crate(-6, -58);
       container(K, 50, -86, false); container(K, 50, -86, false, 2.6); container(K, 58, -80, true); container(K, -40, -86, false);
       banner(K, -20, -88, CLOTH_R); banner(K, 36, -88, CLOTH_B);
+      // raised decks along both walls: firing positions over the yard (stairs only, optional)
+      K.platform(37, -62, 8, 18, 2.0, { stairs: ['w'], color: CONC2, stairColor: CONC });
+      K.platform(-20, -62, 8, 18, 2.0, { stairs: ['e'], color: CONC2, stairColor: CONC });
+      for (const [x, dx] of [[40.6, -1], [-23.6, 1]]) K.box(x, -62, 0.25, 1.0, 18, K.C.metal, { y: 2.0, collide: false });
+      K.light(37, 6, -62, F_BLUE, 6, 20);
       K.light(DX, 8, WZ + 3, 0xffb070, 10, 30);
-      K.light(-24, 4, -60, F_BLUE, 6, 18);
+      K.light(-20, 6, -62, F_BLUE, 6, 20);
+      K.light(8, 7, -40, 0xffb070, 7, 22);
+      K.light(8, 6, -82, F_BLUE, 6, 24);
     },
   },
 
@@ -396,7 +422,7 @@ export default {
     zones: [
       { name: 'The Divide', x: 0, z: 78 },
       { name: 'Rocketyard', x: -8, z: 8 },
-      { name: 'The Array', x: 5, z: -68, boss: true },
+      { name: 'The Array', x: 5, z: -68, boss: true, room: { minX: -36, maxX: 42, minZ: -110, maxZ: -41 } },
     ],
     build(K) {
       const C = K.C;
@@ -451,7 +477,12 @@ export default {
       barrier(K, -14, 16); barrier(K, 0, 0, false); K.crate(-18, 2); shield(K, 2, 14, false);
       container(K, -20, -6, true); fcrate(K, -2, 20); K.crate(4, 4);
       banner(K, -26, 16, CLOTH_R); banner(K, 14, -6, CLOTH_B);
-      K.wall(-55, -40, 55, -40, 1.1, { t: 0.7, color: CONC, gaps: [[45, 67]] });
+      // Rocketyard raised service deck (optional high ground over the yard)
+      K.platform(-30, 2, 8, 14, 2.0, { stairs: ['e'], color: CONC2, stairColor: CONC });
+      K.box(-34.1, 2, 0.25, 1.0, 14, K.C.metal, { y: 2.0, collide: false });
+      K.light(-30, 6, 2, 0xffd27a, 6, 22);
+      K.light(30, 14, -2.5, 0xff7a4a, 7, 28);
+      K.light(-8, 6, 8, 0xffd27a, 5, 24);
 
       // ---- the Array: Rasputin's dish field on an open plateau ----
       K.box(5, -76, 110, 0.05, 72, 0xa39d92, { collide: false });
@@ -460,8 +491,24 @@ export default {
       K.box(5, -104, 16, 6, 12, CONC);
       K.box(5, -104, 16.1, 0.6, 12.1, 0x9fe0ff, { y: 3.6, glow: 1.0, collide: false });
       dish(K, 5, -102, 16, 11, 0.55, Math.PI, false);
-      dish(K, -30, -50, 7, 5, 0.6, 2.5); dish(K, 40, -52, 7, 5, 0.6, -2.5);
-      dish(K, -32, -92, 8, 6, 0.55, 2.8); dish(K, 42, -92, 8, 6, 0.55, -2.8);
+      dish(K, -24, -52, 7, 5, 0.6, 2.5); dish(K, 32, -52, 7, 5, 0.6, -2.5);
+      dish(K, -22, -100, 8, 6, 0.55, 2.8); dish(K, 30, -100, 8, 6, 0.55, -2.8);
+      // walled Array compound with one gate (the old low wall is now the south face)
+      K.wall(-55, -40, 55, -40, 9, { t: 1.2, color: CONC, gaps: [[56, 64]] });
+      K.wall(-36, -110.5, 42, -110.5, 9, { t: 1.2, color: CONC });
+      K.wall(-36, -110, -36, -40, 9, { t: 1.2, color: CONC });
+      K.wall(42, -110, 42, -40, 9, { t: 1.2, color: CONC });
+      K.door(5, -40, 8, 9, 'x', { zone: 1, t: 1.2, color: 0x4f555c, trim: 0x9fe0ff });
+      for (const s of [-1, 1]) { K.box(5 + s * 5.2, -40, 2.2, 11, 2.2, CONC2); K.box(5 + s * 5.2, -38.8, 0.5, 0.5, 0.2, 0x9fe0ff, { y: 7, collide: false, glow: 2 }); }
+      for (const [x, z] of [[-34.6, -41.6], [40.6, -41.6], [-34.6, -108.6], [40.6, -108.6]]) flood(K, x, z, 12, 0x9fe0ff, 6);
+      // raised decks along the walls: firing positions over the dish floor (stairs only)
+      K.platform(-30, -82, 8, 20, 2.0, { stairs: ['e'], color: CONC2, stairColor: CONC });
+      K.platform(36, -80, 8, 20, 2.0, { stairs: ['w'], color: CONC2, stairColor: CONC });
+      K.box(-34.1, -82, 0.25, 1.0, 20, K.C.metal, { y: 2.0, collide: false });
+      K.box(40.1, -80, 0.25, 1.0, 20, K.C.metal, { y: 2.0, collide: false });
+      K.light(-30, 6, -82, 0x9fe0ff, 6, 22);
+      K.light(36, 6, -80, 0x9fe0ff, 6, 22);
+      K.light(5, 8, -44, 0x9fe0ff, 6, 24);
       bunker(K, -44, -70, 12, 16, 6, 0x9fe0ff); bunker(K, 48, -72, 10, 14, 5, 0x9fe0ff);
       mast(K, -20, -104, 18); mast(K, 30, -104, 22); mast(K, -48, -46, 14); mast(K, 50, -44, 16);
       K.box(-12, -98, 30, 0.08, 1, DARK, { collide: false }); K.box(24, -98, 30, 0.08, 1, DARK, { collide: false });
@@ -471,7 +518,7 @@ export default {
         else { K.box(x, z, 2.4, 1.3, 1.2, C.metal); K.box(x, z, 2.0, 0.6, 1.25, 0x9fe0ff, { y: 0.6, glow: 1.1, collide: false }); }
       }
       K.light(5, 7, -96, 0x9fe0ff, 10, 32);
-      K.light(-44, 4, -60, 0x9fe0ff, 6, 18);
+      K.light(-12, 5, -60, 0x9fe0ff, 5, 20);
     },
   },
 
@@ -483,7 +530,7 @@ export default {
       { name: 'The Mothyards', x: -40, z: 112 },
       { name: 'Lunar Complex', x: 0, z: 52 },
       { name: "Devils' Halls", x: 10, z: -12 },
-      { name: 'The Lair', x: 10, z: -83, boss: true },
+      { name: 'The Lair', x: 10, z: -83, boss: true, room: { minX: -21, maxX: 41, minZ: -113, maxZ: -53 } },
     ],
     build(K) {
       const C = K.C;
@@ -549,7 +596,18 @@ export default {
       shield(K, -6, 42, true); shield(K, 8, 62, true); fcrate(K, 12, 46); fcrate(K, -10, 58);
       K.crate(-14, 48); K.rock(-12, 38, 1.4); K.rock(-4, 66, 1.6); container(K, -14, 64, false); fcrate(K, 15, 56);
       banner(K, -1, 29, CLOTH_R); banner(K, 20, 29, CLOTH_R); banner(K, -16, 44, CLOTH_B);
+      // the breach is sealed until the complex is cleared
+      K.door(10, 24, 14, 12, 'x', { zone: 1, t: 3.5, color: FALLEN, trim: F_RED });
+      for (const s of [-1, 1]) K.box(10 + s * 8, 26.4, 0.4, 11, 0.4, F_RED, { collide: false, glow: 1.5 });
+      // west factory mezzanine (optional high ground)
+      K.platform(-38, 39, 8, 10, 2.0, { stairs: ['e'], color: CONC2, stairColor: CONC });
+      K.box(-42.1, 39, 0.25, 1.0, 10, K.C.metal, { y: 2.0, collide: false });
       K.light(10, 5, 30, F_RED, 7, 20);
+      K.light(-33, 9, 51, F_RED, 6, 22);
+      K.light(34, 9, 54, F_BLUE, 6, 22);
+      K.light(-8, 6, 56, 0xffb070, 5, 20);
+      K.light(-50, 6, 108, F_BLUE, 5, 22);
+      K.light(18, 6, 140, F_BLUE, 5, 22);
 
       // ---- Devils' Halls: roofed pillared hall behind the breach ----
       K.box(-11, -7.5, 6, 12, 61, CONC2);
@@ -565,7 +623,7 @@ export default {
       K.platform(-4.5, -16, 6, 12, 2.4, { stairs: ['n'], color: FALLEN });
       K.platform(24.5, -4, 6, 12, 2.4, { stairs: ['s'], color: FALLEN });
       shield(K, 4, -4, true); shield(K, 16, -20, true); fcrate(K, 6, -24); fcrate(K, 14, 2);
-      container(K, 5, 8, false, 0, FALLEN); K.crate(17, -30); fcrate(K, 2, -30);
+      container(K, 10, 19, false, 0, FALLEN); K.crate(17, -30); fcrate(K, 2, -30);
       for (const z of [12, -4, -20, -32]) {
         cloth(K, -7.5, z, 2.5, 2.4, 6, false, z % 8 ? CLOTH_B : CLOTH_R);
         cloth(K, 27.5, z, 2.5, 2.4, 6, false, z % 8 ? CLOTH_R : CLOTH_B, F_RED);
@@ -575,6 +633,9 @@ export default {
         K.cyl(x, z, 0.95, 0.4, F_BLUE, { y: 1.6, sides: 8, glow: 1.6, collide: false });
       }
       K.light(10, 8, 8, F_BLUE, 10, 28);
+      for (const x of [0, 20]) for (const z of [14, -10, -32]) K.light(x, 6, z, x ? F_RED : F_BLUE, 5, 16);
+      K.light(-4.5, 5, -16, F_BLUE, 5, 14);
+      K.light(24.5, 5, -4, F_RED, 5, 14);
       K.light(10, 8, -28, F_RED, 9, 24);
       // short roofed corridor to the lair
       K.box(3.25, -45, 1.5, 9, 14, CONC2);
@@ -618,6 +679,11 @@ export default {
       cloth(K, -6, -52.9, 4, 3, 8, true, CLOTH_R); cloth(K, 26, -52.9, 4, 3, 8, true, CLOTH_R);
       shield(K, 10, -69, true); shield(K, -1, -90, false); shield(K, 21, -90, false);
       fcrate(K, 0, -74); fcrate(K, 20, -76); fcrate(K, -12, -58); fcrate(K, 32, -58);
+      // the Kell's chamber stays sealed until the halls are cleared
+      K.door(10, -52, 12, 12, 'x', { zone: 2, t: 1.5, color: FALLEN, trim: F_RED });
+      K.box(10, -52, 12.6, 3, 1.5, CONC2, { y: 12 });
+      for (const [x, z] of [[-14, -62], [34, -62], [-14, -104], [34, -104]]) K.light(x, 8, z, x < 10 ? F_BLUE : F_RED, 6, 22);
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + Math.PI / 8; K.light(10 + Math.sin(a) * 17, 8.5, -83 + Math.cos(a) * 17, i % 2 ? F_RED : F_BLUE, 3, 14); }
       K.light(10, 11, -83, F_BLUE, 12, 40);
       K.light(10, 5, -106, F_RED, 10, 24);
       K.light(10, 6, -58, 0xa0b4ff, 7, 20);

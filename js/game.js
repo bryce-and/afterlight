@@ -338,6 +338,7 @@ function zoneCleared(z) {
     announceLoot(pos);
     reviveForCompletion();
     ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
+    say('bd');
     sfx.missionComplete();
     stinger('complete');
     P.health = P.maxHealth; P.shield = P.maxShield;
@@ -374,7 +375,8 @@ const OBJ_COLOR = 0xffd24d;
 function objMesh(kind, pos) {
   const g = new THREE.Group();
   if (kind === 'console') {
-    g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.6), mat(0x2b2f38)), { position: new THREE.Vector3(0, 0.55, 0) }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.6), mat(0x2b2f38));
+    body.position.y = 0.55; g.add(body);
     const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.12, 0.5), mat(OBJ_COLOR, { emissive: OBJ_COLOR, emissiveIntensity: 1.8 }));
     top.position.y = 1.16; top.name = 'glow'; g.add(top);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 14, 6, 1, true), basicMat(OBJ_COLOR, true));
@@ -1073,6 +1075,8 @@ function loadArena(i, first = false) {
   }
   const level = buildLevel(loc, def);
   G.level = level; G.scene = level.scene; G.colliders = level.colliders; G.staticMeshes = level.staticMeshes;
+  level.openDoors('all'); // U15: wave arenas start inside the boss room, so its door is open
+  for (const d of level.doors) { d.t = 1; d.mesh.visible = false; d.stripe.visible = false; }
   G.nav = buildNav(G.colliders, level.bounds);
   G.hitDirty = true;
   G.scene.add(G.camera);

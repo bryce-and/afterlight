@@ -170,7 +170,7 @@ export default {
     zones: [
       { name: "Archer's Line", x: -25, z: -55 },
       { name: 'Anchor of Light', x: 20, z: -118 },
-      { name: 'Gate of Oryx', x: 0, z: -186, boss: true },
+      { name: 'Gate of Oryx', x: 0, z: -186, boss: true, room: { minX: -43, maxX: 43, minZ: -215.5, maxZ: -167.5 } },
     ],
     noEdge: true,
     build(K) {
@@ -205,6 +205,12 @@ export default {
       crystals(K, 52, -36, 1.2);
       crystals(K, 51, -57, 1.0);
       K.light(53, 4, -46, GREEN, 8, 26);
+      // Golden Age observation deck: stairs only, a sniper roost over the line
+      K.platform(-50, -30, 8, 10, 2.0, { stairs: ['e'], color: GA2, stairColor: GA });
+      K.box(-53.9, -30, 0.25, 1.0, 10, ORANGE, { y: 2.0, collide: false, glow: 0.6 });
+      K.light(-50, 5, -30, ORANGE, 5, 20);
+      K.light(-58, 5, -60, ORANGE, 5, 18);
+      K.light(-16, 5, -44, PALE, 4, 20);
 
       // ---- Anchor of Light: Golden Age lunar base with Hive growths ----
       K.cyl(20, -118, 10, 0.32, GA2, { sides: 12, collide: false });
@@ -234,6 +240,9 @@ export default {
       crystals(K, 52, -112, 1.0);
       for (const [x, z, w, d] of [[30, -136, 6, 0.3], [36, -132, 0.3, 5], [-2, -116, 0.3, 6], [8, -122, 5, 0.3]]) K.box(x, z, w, 0.3, d, GREEN, { collide: false, glow: 1.2 });
       K.light(20, 9, -118, PALE, 6, 30);
+      K.platform(47, -108, 8, 6, 2.0, { stairs: ['w'], color: GA2, stairColor: GA }); // raised dock beside the pad
+      K.light(47, 5, -108, ORANGE, 5, 20);
+      K.light(-8, 6, -122, PALE, 4, 20);
 
       // ---- approach: Golden Age gives way to Hive obelisks ----
       for (const z of [-150, -162]) for (const s of [-1, 1]) spire(K, s * 16, z, 1.3, 10, { pinnacles: false });
@@ -263,9 +272,21 @@ export default {
       for (const [x, r, h] of [[11.5, 4.5, 46], [28, 3.6, 34], [48, 3.2, 28], [70, 2.6, 22]]) for (const s of [-1, 1]) spire(K, s * x, -218, r, h);
       // side wings close the plaza into a U
       for (const s of [-1, 1]) {
-        hiveWall(K, -214, -168, s * 44, 9, { axis: 'z', t: 2, face: -s, rib: 7, gaps: [[12, 20]] });
-        for (const z of [-170, -186, -202]) brazier(K, s * 32, z, 1.1);
+        hiveWall(K, -214, -166, s * 44, 9, { axis: 'z', t: 2, face: -s, rib: 7 });
+        for (const z of [-170, -186, -202]) brazier(K, s * 29, z, 1.1);
       }
+      // south wall closes the plaza: one 10 m gate, sealed until Anchor of Light is cleared
+      hiveWall(K, -44, 44, -166, 12, { axis: 'x', t: 2.4, face: -1, rib: 8, teeth: 4, gaps: [[39, 49]] });
+      K.door(0, -166, 10, 12, 'x', { zone: 1, t: 2.4, color: HR2, trim: GREEN });
+      for (const s of [-1, 1]) { spire(K, s * 8.5, -166, 1.4, 18, { pinnacles: false }); brazier(K, s * 7, -163, 1.1); }
+      // flank decks: firing positions over the plaza (stairs only)
+      for (const s of [-1, 1]) {
+        K.platform(s * 36.5, -190, 8, 24, 2.0, { stairs: ['s'], color: HR2, stairColor: HR });
+        K.box(s * 32.6, -190, 0.25, 1.0, 24, GREEN, { y: 2.0, collide: false, glow: 1.2 });
+        K.light(s * 36.5, 5, -190, GREEN, 6, 22);
+        K.light(s * 22, 7, -172, GREEN, 5, 22);
+      }
+      K.light(0, 8, -170, GREEN, 6, 24);
       // cover in the arena
       for (const [x, z, h] of [[-12, -178, 6], [13, -180, 3], [-11, -196, 3.5], [12, -195, 7], [0, -171, 2.2]]) broken(K, x, z, h);
       K.box(-20, -186, 1, 1.6, 6, HR2);
@@ -284,7 +305,7 @@ export default {
       { name: 'Temple of Crota', x: 0, z: -48 },
       { name: 'The Hellmouth', x: -14, z: -125 },
       { name: 'Hive Tunnels', x: -30, z: -200 },
-      { name: 'Chamber of Night', x: -10, z: -268, boss: true },
+      { name: 'Chamber of Night', x: -10, z: -268, boss: true, room: { minX: -34.2, maxX: 14.2, minZ: -299.2, maxZ: -236.8 } },
     ],
     noEdge: true,
     build(K) {
@@ -347,6 +368,12 @@ export default {
       spire(K, 46, -160, 3, 24);
       spire(K, 40, -123, 2.6, 20);
       for (const [x, z] of [[2, -134], [4, -156]]) brazier(K, x, z, 1.3);
+      // west overlook above the processional (stairs only)
+      K.platform(-52, -122, 8, 14, 2.0, { stairs: ['e'], color: HR2, stairColor: HR });
+      brazier(K, -52, -128, 1.0, 2.0);
+      K.light(-52, 6, -122, GREEN, 5, 22);
+      K.light(2, 5, -145, GREEN, 6, 24);
+      K.light(-30, 5, -112, GREEN, 5, 22);
 
       // ---- cliff with the tunnel mouth ----
       hiveWall(K, -80, 85, -168, 18, { t: 3, face: 1, rib: 9, teeth: 6, gaps: [[46, 54]] });
@@ -369,6 +396,7 @@ export default {
       };
       tunnel(-30, -168, -179);
       K.room(-30, -200, 44, 42, 10, { t: 1.2, doors: { s: 8, n: 8 }, doorOffset: { n: 8 }, roof: true, color: HR2, roofColor: CHIT });
+      K.door(-30, -179, 8, 10, 'x', { zone: 1, t: 1.2, color: HR2, trim: GREEN }); // sealed until the Hellmouth is cleared
       for (let z = -182; z > -220; z -= 4) for (const s of [-1, 1]) K.box(-30 + s * 21.2, z, 0.7, 10, 1.0, HR, { collide: false });
       for (let z = -183; z > -220; z -= 6) K.box(-30, z, 42, 0.7, 0.9, HR, { y: 9.0, collide: false });
       for (const [x, z] of [[-40, -191], [-20, -191], [-40, -209], [-20, -209]]) {
@@ -382,7 +410,9 @@ export default {
       K.box(-23, -201, 1, 1.4, 5, HR2);
       K.light(-30, 8, -190, GREEN, 8, 24);
       K.light(-30, 8, -210, GREEN, 8, 24);
+      for (const [x, z] of [[-40, -191], [-20, -191], [-40, -209], [-20, -209]]) K.light(x, 4, z, GREEN, 4, 14);
       tunnel(-22, -221, -236);
+      K.light(-22, 6, -228, GREEN, 5, 18);
 
       // ---- Chamber of Night: roofed cathedral, pillar rows, braziers, raised altar ----
       K.room(-10, -268, 50, 64, 16, { t: 1.6, doors: { s: 8 }, doorOffset: { s: -12 }, roof: true, color: HR2, roofColor: CHIT });
@@ -408,6 +438,16 @@ export default {
       for (const s of [-1, 1]) boneSpike(K, -10 + s * 6, -296, 8, { y: 2, rz: -s * 0.18, rx: 0 });
       crystals(K, -10, -297.5, 1.6, { y: 2, collide: false, glow: 1.5 });
       pointedArch(K, -10, -298.9, 12, 9.5, { face: 1, fill: CHIT });
+      // sealed until the tunnels are cleared
+      K.door(-22, -236, 8, 12, 'x', { zone: 2, t: 1.6, color: HR2, trim: GREEN });
+      K.box(-22, -236, 8.4, 4, 1.6, HR2, { y: 12 });
+      // side galleries: 4 m up, stairs from the entrance end (optional firing positions)
+      K.platform(-31.7, -262, 5, 30, 4.0, { stairs: ['s'], stairW: 3, color: HR2, stairColor: HR });
+      K.platform(11.7, -262, 5, 30, 4.0, { stairs: ['s'], stairW: 3, color: HR2, stairColor: HR });
+      K.box(-29.35, -262, 0.3, 1.0, 30, HR, { y: 4.0, collide: false });
+      K.box(9.35, -262, 0.3, 1.0, 30, HR, { y: 4.0, collide: false });
+      for (const z of [-250, -262, -274]) { K.light(-31.7, 7, z, GREEN, 4, 16); K.light(11.7, 7, z, GREEN, 4, 16); }
+      for (const [x, z] of [[-18, -252], [-2, -252], [-18, -280], [-2, -280]]) K.light(x, 3, z, GREEN, 4, 14);
       K.light(-10, 12, -262, GREEN, 9, 40);
       K.light(-10, 7, -290, GREEN, 12, 26);
 
@@ -423,7 +463,7 @@ export default {
       { name: 'The Abyss', x: -6, z: -42 },
       { name: 'The Bridge', x: 0, z: -118 },
       { name: "Deathsinger's Ward", x: 0, z: -190 },
-      { name: 'Throne of Crota', x: 30, z: -262, boss: true },
+      { name: 'Throne of Crota', x: 30, z: -262, boss: true, room: { minX: -1, maxX: 61, minZ: -291, maxZ: -233 } },
     ],
     noEdge: true,
     build(K) {
@@ -457,6 +497,16 @@ export default {
       for (const s of [-1, 1]) K.box(s * 8.4, -70.1, 0.35, 10, 0.35, GREEN, { collide: false, glow: 1.6 });
       K.light(-6, 7, -42, GREEN, 5, 26);
       K.light(0, 6, -66, GREEN, 6, 22);
+      K.door(0, -72, 16, 10, 'x', { zone: 0, t: 2, color: HR2, trim: GREEN }); // sealed until the Abyss is cleared
+      // wall overlooks (stairs only): firing positions above the cavern floor
+      K.platform(33.5, -10, 6, 16, 2.0, { stairs: ['w'], color: HR2, stairColor: HR });
+      K.platform(-33.5, -18, 6, 16, 2.0, { stairs: ['e'], color: HR2, stairColor: HR });
+      brazier(K, 33.5, -16, 1.0, 2.0); brazier(K, -33.5, -24, 1.0, 2.0);
+      K.light(33.5, 6, -10, GREEN, 5, 22);
+      K.light(-33.5, 6, -18, GREEN, 5, 22);
+      K.light(0, 7, 12, GREEN, 5, 24);
+      K.light(-14, 5, 0, GREEN, 4, 18);
+      K.light(12, 5, -56, GREEN, 5, 20);
 
       // ---- The Bridge: a long span across the chasm, widening at midspan ----
       const voids = [
@@ -487,6 +537,8 @@ export default {
       for (const [x, z, h] of [[-9, -108, 3], [10, -110, 5], [-15, -125, 2.4], [15, -128, 3.5], [0, -133, 2.2], [-4, -88, 2.4], [5, -152, 3]]) broken(K, x, z, h);
       K.box(-6, -122, 1, 1.4, 5, HR2);
       K.box(7, -118, 1, 1.4, 4, HR2);
+      for (const s of [-1, 1]) { K.light(s * 23, 14, -96, GREEN, 6, 28); K.light(s * 23, 14, -140, GREEN, 6, 28); }
+      K.light(0, 6, -118, GREEN, 7, 30);
 
       // ---- Deathsinger's Ward: crystal-lit roofed chamber ----
       K.room(0, -190, 46, 44, 11, { t: 1.4, doors: { s: 12, n: 10 }, doorOffset: { n: 12 }, roof: true, color: HR2, roofColor: CHIT });
@@ -501,6 +553,8 @@ export default {
       K.mesh(flat(new THREE.RingGeometry(2.2, 2.5, 20)), WARD, 0, 0.31, -190, { glow: 1.0 });
       K.light(0, 9, -180, WARD, 8, 28);
       K.light(0, 9, -202, WARD, 8, 28);
+      K.door(0, -168, 12, 11, 'x', { zone: 1, t: 1.4, color: HR2, trim: WARD }); // sealed until the Bridge is cleared
+      for (const [x, z] of [[-19, -173], [19, -173], [-19.5, -190], [19.5, -192], [-18, -208]]) K.light(x, 4, z, WARD, 4, 16);
       // tunnel to the throne
       K.wall(7, -212, 7, -232, 10, { t: 1, color: HR2 });
       K.wall(17, -212, 17, -232, 10, { t: 1, color: HR2 });
@@ -537,6 +591,18 @@ export default {
       crystals(K, 52, -236, 1.2);
       K.light(30, 10, -262, GREEN, 14, 50);
       K.light(30, 6, -282, GREEN, 8, 24);
+      K.door(12, -232, 10, 12, 'x', { zone: 2, t: 2, color: HR2, trim: GREEN }); // sealed until the Ward is cleared
+      K.box(12, -232, 10.4, 6, 2, HR2, { y: 12 });
+      K.light(12, 6, -224, GREEN, 5, 18);
+      // side galleries 4 m up (stairs at the entrance end, optional firing positions)
+      K.platform(1.7, -264, 5.4, 40, 4.0, { color: HR2 });
+      K.platform(58.3, -264, 5.4, 40, 4.0, { color: HR2 });
+      K.stairs(0.5, -238, 'n', 2.4, 4.0, { color: HR });
+      K.stairs(59.8, -238, 'n', 2.4, 4.0, { color: HR });
+      K.box(4.5, -264, 0.3, 1.0, 40, HR, { y: 4.0, collide: false });
+      K.box(55.5, -264, 0.3, 1.0, 40, HR, { y: 4.0, collide: false });
+      for (const z of [-250, -264, -278]) { K.light(1.7, 7, z, GREEN, 4, 16); K.light(58.3, 7, z, GREEN, 4, 16); }
+      for (const [x, z] of [[19, -277], [41, -277], [18, -254], [43, -256]]) K.light(x, 4, z, GREEN, 4, 14);
 
       hiveEdge(K, 50, 0.5, 70);
     },

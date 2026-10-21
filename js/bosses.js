@@ -916,11 +916,11 @@ export const BOSS_MODELS = {
     // three large spined tentacles a side off the neck, smaller ones beneath
     for (const s of [-1, 1]) for (let k = 0; k < 3; k++) {
       const t = c.pivot(s * 0.14, 0.08 - k * 0.04, 0.1 + k * 0.1, neck);
-      t.rotation.set(0.15 + k * 0.2, -s * (0.7 + k * 0.3), 0);
-      B(0.09, 0.09, 0.8, 0, 0, -0.4, tent, t);
+      t.rotation.set(-0.7 - k * 0.2, -s * (0.9 + k * 0.35), 0);
+      B(0.09, 0.09, 0.62, 0, 0, -0.31, tent, t);
       for (let j = 0; j < 4; j++) cone(c, 0.025, 0.14, 3, j % 2 ? gold : bone, 0, 0.08, -0.15 - j * 0.18, t);
       const u = c.pivot(s * 0.1, -0.12, 0.14 + k * 0.1, neck);
-      u.rotation.set(0.9, -s * (0.5 + k * 0.4), 0);
+      u.rotation.set(-1.0, -s * (0.6 + k * 0.4), 0);
       B(0.05, 0.05, 0.4, 0, 0, -0.2, tent, u);
     }
     // long serpentine tail
@@ -957,12 +957,12 @@ export const BOSS_MODELS = {
     const torso = c.pivot(0, 1.1, 0);
     c.torso = torso;
     B(0.44 * W, 0.28, 0.32, 0, 0.13, 0, marble, torso);
-    B(0.7 * W, 0.62, 0.5, 0, 0.55, 0, marble, torso);
-    B(0.56 * W, 0.2, 0.08, 0, 0.9, 0.2, gold, torso);
     // the plates that fly off at death are children of one group
     const plates = c.pivot(0, 0, 0, torso);
     plates.userData.parts = [];
     const part = (m) => { plates.userData.parts.push(m); return m; };
+    part(B(0.7 * W, 0.62, 0.5, 0, 0.55, 0, marble, plates));
+    part(B(0.56 * W, 0.2, 0.08, 0, 0.9, 0.2, gold, plates));
     // cracked chest plate with a gleam of servo behind it
     B(0.34, 0.34, 0.03, 0, 0.55, 0.255, steel, torso);
     part(B(0.3 * W, 0.4, 0.05, -0.03, 0.55, 0.28, gold, plates, false, [0, 0, 0.04]));
@@ -971,9 +971,9 @@ export const BOSS_MODELS = {
     // wires poking from the crack
     for (const [x, y, r] of [[0.07, 0.4, 0.4], [-0.05, 0.62, -0.3], [0.1, 0.7, 0.1]]) B(0.012, 0.16, 0.012, x, y, 0.27, wire, torso, false, [0.3, 0, r]);
     // head, crown and crest
-    B(0.34, 0.34, 0.34, 0, 1.05, 0.04, marble, torso, true);
-    B(0.26, 0.1, 0.06, 0, 1.0, 0.22, c.dark, torso, true);
-    B(0.22, 0.035, 0.03, 0, 1.03, 0.255, glow, torso, true);
+    part(B(0.34, 0.34, 0.34, 0, 1.05, 0.04, marble, plates, true));
+    part(B(0.26, 0.1, 0.06, 0, 1.0, 0.22, c.dark, plates, true));
+    part(B(0.22, 0.035, 0.03, 0, 1.03, 0.255, glow, plates, true));
     part(B(0.4, 0.07, 0.4, 0, 1.25, 0.04, gold, plates, true));
     for (let i = 0; i < 7; i++) {
       const a = (i - 3) / 3;

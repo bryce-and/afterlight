@@ -33,6 +33,7 @@ export async function testLevel(li, mi) {
           if (Ph.pointInColliders(e.pos.clone().setY(0.6), 0.2)) inCol++;
           g.dealDamage(e, 1e7, { raw: true });
         }
+        if (z.obj) z.obj.done = true; // U15: the smoke test skips the story objective (tools/objtest covers it); the zone clears once its waves do
         P.health = P.maxHealth;
         step(60);
       }

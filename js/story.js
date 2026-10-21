@@ -1,7 +1,7 @@
 // U15 "The Ghost's Story": the campaign's script and objective plan. Pure data and lookups (no scene), so tools/tests.js can check it.
 // The Guardian never speaks. The Ghost narrates; the Vanguard and others arrive as comms. Lines are plain text on a subtitle bar.
 // Each mission lists `lines` (what is said when) and `obj` (which zones carry an objective besides clearing).
-//   at: 'start' | 'z<i>' (zone i activates) | 'c<i>' (zone i cleared) | 'boss' (boss zone activates) | 'end' (the cache is opened)
+//   at: 'start' | 'z<i>' (zone i activates) | 'c<i>' (zone i cleared) | 'boss' (boss zone activates) | 'bd' (the boss falls) | 'end' (the cache is opened)
 
 export const SPEAKERS = {
   ghost:   { name: 'Ghost',    color: '#9fe8ff' },
@@ -271,7 +271,7 @@ export const MISSIONS = {
       L('z2', 'ghost', 'Three seals hold the pools. Break each.'),
       L('z3', 'ghost', 'The Gauntlet. Doors open only when they are cleared. Do not stop.'),
       L('boss', 'calus', 'Behold. The Emperor, in the flesh.'),
-      L('end', 'ghost', 'That was never him. Wires. Servos. An automaton.'),
+      L('bd', 'ghost', 'That was never him. Wires. Servos. An automaton.'),
       L('end', 'calus', 'Well played, little Shadow. Come find the rest of me. I can tell you why the Light chose you.'),
       L('end', 'ghost', 'I do not need him to tell me why I chose you. I remember.'),
     ],

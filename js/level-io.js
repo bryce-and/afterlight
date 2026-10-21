@@ -327,7 +327,7 @@ export default {
     zones: [
       { name: 'Lost Oasis', x: -8, z: -42 },
       { name: "Giant's Scar", x: 6, z: -112 },
-      { name: 'The Rupture', x: 0, z: -188, boss: true },
+      { name: 'The Rupture', x: 0, z: -188, boss: true, room: { minX: -23, maxX: 23, minZ: -211, maxZ: -165 } },
     ],
     noEdge: false,
     build(K) {
@@ -364,6 +364,9 @@ export default {
       K.collider(21.4, 0, -128, 25, 5, -120, null);
       for (const [x, z, s] of [[-8, -94, 2.6], [18, -130, 3], [-6, -134, 2.2], [20, -92, 2.2], [14, -100, 1.6]]) K.rock(x, z, s);
       spire(K, -10, -122, 9); spire(K, 22, -106, 7); spire(K, -9, -84, 6);
+      // a rock ledge on the west wall with stairs
+      K.platform(-10.5, -142, 6, 10, 2.8, { stairs: ['e'], color: C.rock2, stairColor: C.rock });
+      K.light(-10, 5, -142, CRACK, 6, 20); K.light(18, 4, -90, CRACK, 6, 22);
       // the glowing crack along the canyon floor
       const scarPts = [[4, -70], [0, -84], [9, -94], [3, -106], [11, -118], [5, -130], [12, -142], [6, -156]];
       crack(K, scarPts, 2.8, SCAR, { y: 0.02 });
@@ -374,11 +377,24 @@ export default {
       // ---- The Rupture: ring of rim rock around the Traveler's fissure ----
       const BX = 0, BZ = -188;
       for (let a = 0; a < 360; a += 11) {
-        if (a < 30 || a > 330) continue; // the way in from the canyon
+        if (a < 30 || a > 330) continue; // the way in from the canyon (narrowed and closed by a Light gate)
         const r = R(27, 30), rad = (a * Math.PI) / 180;
         cliff(K, BX + Math.sin(rad) * r, BZ + Math.cos(rad) * r, R(4.8, 6), R(10, 22), { taper: 0.6 });
         if (a % 22 === 0) cliff(K, BX + Math.sin(rad) * (r + 8), BZ + Math.cos(rad) * (r + 8), R(5, 8), R(18, 30), { taper: 0.5, collide: false });
       }
+      for (const sa of [-21, 21]) { const rad = (sa * Math.PI) / 180; cliff(K, BX + Math.sin(rad) * 28, BZ + Math.cos(rad) * 28, 5.6, R(14, 20), { taper: 0.6 }); }
+      // the Light gate: a veil that parts when the Giant's Scar is cleared, flanked by spires
+      K.door(0, BZ + 26, 13, 14, 'x', { zone: 1, t: 2.4, color: 0xd9d2b8, trim: LIGHTG });
+      for (const sx of [-1, 1]) {
+        spire(K, sx * 8.2, BZ + 29, 15, { r: 1.5 });
+        vbox(K, sx * 6.8, 6, BZ + 26, 0.3, 10, 0.3, LIGHTG, { glow: 1.8 });
+      }
+      K.light(0, 7, BZ + 22, LIGHTG, 9, 26);
+      // overlook ledges on the rim, reached by stairs
+      K.platform(22, BZ, 5, 7, 2.8, { stairs: ['w'], color: C.rock2, stairColor: C.rock });
+      K.platform(-22, BZ, 5, 7, 2.8, { stairs: ['e'], color: C.rock2, stairColor: C.rock });
+      vbox(K, 19.45, 2.9, BZ, 0.1, 0.12, 7, LIGHTG, { glow: 1.6 });
+      vbox(K, -19.45, 2.9, BZ, 0.1, 0.12, 7, LIGHTG, { glow: 1.6 });
       // white crystal spires around the rim, a few shards as cover
       for (let a = 45; a < 330; a += 30) {
         const rad = (a * Math.PI) / 180;
@@ -425,7 +441,7 @@ export default {
       { name: 'Terrabase Charon', x: -36, z: -36 },
       { name: 'Echo Mesa', x: 18, z: -88 },
       { name: 'Landing Pads', x: -22, z: -152 },
-      { name: 'The Drill', x: 20, z: -218, boss: true },
+      { name: 'The Drill', x: 20, z: -218, boss: true, room: { minX: -4, maxX: 44, minZ: -242, maxZ: -194 } },
     ],
     noEdge: false,
     build(K) {
@@ -446,6 +462,10 @@ export default {
       hazardPost(K, -28, -10); hazardPost(K, -44, -62);
       vbox(K, -36, 0.03, -36, 30, 0.05, 30, CONC2);
       K.light(-36, 6, -36, WIN, 6, 26);
+      // service deck south of the courtyard (stairs both sides) and lit lab windows
+      K.platform(-36, -62, 14, 6, 2.8, { stairs: ['e', 'w'], color: CONC2, stairColor: CONC });
+      vbox(K, -36, 2.9, -59.05, 14, 0.1, 0.2, WIN, { glow: 1.6 });
+      for (const [x, z] of [[-19, -28], [-53, -28], [-19, -60], [-5, -36]]) K.light(x, 5, z, WIN, 5, 20);
 
       // ---- Echo Mesa: Red Legion bulwark lines between rust mesas ----
       mesa(K, -30, -95, 22, 30, 12); mesa(K, 62, -92, 28, 40, 14); mesa(K, 60, -155, 30, 34, 10);
@@ -458,6 +478,9 @@ export default {
       barricade(K, 10, -78); barricade(K, 30, -98, true); barricade(K, 6, -96, true); barricade(K, 22, -76);
       supply(K, 34, -78); supply(K, 2, -90, true);
       K.light(18, 5, -88, HAZ, 7, 26);
+      for (const [x, z] of [[14, -64], [36, -64], [4, -104], [24, -104]]) K.light(x, 5, z, HAZ, 6, 22);
+      // Legion overwatch deck on the east mesa shoulder
+      K.platform(52, -60, 8, 10, 2.8, { stairs: ['w'], color: CAB2, stairColor: CAB3 });
 
       // ---- Landing Pads: raised Cabal platforms, parked dropship, hovering Thresher ----
       landing(K, -50, -140, 18, 18, 3, ['e']);
@@ -478,9 +501,13 @@ export default {
       thresher(K, -6, 24, -150, 0.7);
       thresher(K, -44, 30, -176, -0.4, 11);
       K.light(-22, 6, -152, HAZ, 8, 28);
+      K.light(-50, 6, -140, HAZ, 7, 24); K.light(6, 5, -134, HAZ, 6, 22); K.light(-24, 5, -178, HAZ, 6, 22);
 
       // ---- The Drill: walled compound around a Red Legion drill rig ----
       bulwark(K, -6, -192, 46, -192, 9, { t: 3, face: -1, gaps: [[2, 18]], banners: true });
+      // blast door in the compound gate: opens when the Landing Pads are cleared
+      K.door(4, -192, 16, 9, 'x', { zone: 2, t: 3, color: CAB2, trim: HAZR });
+      for (const sx of [-1, 1]) { hazardPost(K, 4 + sx * 9.5, -189, 6); K.light(4 + sx * 9.5, 7, -189, HAZ, 8, 24); }
       bulwark(K, -6, -244, 46, -244, 9, { t: 3, face: 1, banners: true });
       bulwark(K, -6, -244, -6, -192, 9, { t: 3, face: 1, banners: true });
       bulwark(K, 46, -244, 46, -192, 9, { t: 3, face: -1 });
@@ -514,12 +541,15 @@ export default {
       scaffold(K, -1.5, -218, 3, 20, 8);
       scaffold(K, 30, -196.5, 12, 3, 7);
       pipe(K, 'x', 30, -4, -234, 7, 0.8);
-      pipe(K, 'z', -226, -195, 40, 5.5, 0.7);
+      // gun gantry along the east wall (stairs from the floor)
+      K.platform(41, -210, 6, 16, 2.8, { stairs: ['w'], color: CAB, stairColor: CAB3 });
+      vbox(K, 38.05, 2.9, -210, 0.1, 0.15, 16, HAZ, { glow: 1.6 });
       // cover around the boss floor
-      barricade(K, 8, -206); barricade(K, 30, -210, true); barricade(K, 6, -228, true); barricade(K, 18, -234);
+      barricade(K, 8, -206); barricade(K, 31, -204, true); barricade(K, 6, -228, true); barricade(K, 18, -234);
       supply(K, 26, -202); supply(K, 4, -214, true);
       for (const [x, z] of [[-3, -196], [43, -196], [-3, -240], [-2, -206]]) hazardPost(K, x, z, 5);
       K.light(14, 7, -200, HAZ, 7, 26);
+      K.light(0, 7, -236, HAZ, 7, 24); K.light(40, 7, -200, HAZ, 7, 24); K.light(8, 8, -226, HAZR, 7, 22);
     },
   },
 
@@ -534,7 +564,7 @@ export default {
       { name: 'Excavation Site XII', x: 0, z: -36 },
       { name: 'Aphix Conduit', x: 14, z: -102 },
       { name: 'Pyramidion Gate', x: 0, z: -163 },
-      { name: "Protheon's Chamber", x: 0, z: -234, boss: true },
+      { name: "Protheon's Chamber", x: 0, z: -234, boss: true, room: { minX: -23, maxX: 23, minZ: -257, maxZ: -211 } },
     ],
     noEdge: false,
     build(K) {
@@ -570,6 +600,10 @@ export default {
       hazardPost(K, -6, -12, 3.5); hazardPost(K, 6, -12, 3.5);
       K.scatter((x, z) => K.rock(x, z, R(1.4, 2.8)), 0, -36, 30, 46, 8, 3);
       K.light(-18, 9, -22, FLOOD, 10, 34);
+      // dig overlooks on the terrace banks (stairs up)
+      K.platform(-40, -40, 8, 10, 2.8, { stairs: ['e'], color: DIRT2, stairColor: DIRT });
+      K.platform(40, -40, 8, 10, 2.8, { stairs: ['w'], color: DIRT2, stairColor: DIRT });
+      K.light(-40, 5, -40, FLOOD, 6, 24); K.light(40, 5, -40, FLOOD, 6, 24);
       K.light(18, 9, -50, FLOOD, 10, 34);
 
       // ---- Aphix Conduit: semi-roofed Vex hall of white and brass pillars ----
@@ -592,7 +626,8 @@ export default {
       // roof over the side aisles, open skylight with crossbeams over the nave
       K.box(-1, HZ, 14, 1, 58, VD, { y: 14 });
       K.box(29, HZ, 14, 1, 58, VD, { y: 14 });
-      for (let z = -78; z >= -126; z -= 8) vbox(K, HX, 14.5, z, 16, 0.8, 1.2, VB);
+      K.box(HX, HZ, 16.2, 0.8, 58, VD, { y: 14.4 });
+      for (let z = -78; z >= -126; z -= 8) { vbox(K, HX, 14.2, z, 16, 0.8, 1.2, VB); vbox(K, HX, 14.0, z - 4, 12, 0.1, 0.5, MILK, { glow: 1.4 }); }
       for (const x of [3, 25]) for (let z = -82; z >= -122; z -= 10) vexPillar(K, x, z, 14, { eye: ((z + 82) / 10) % 2 === 0 });
       // milky glowing channels in the floor
       flat(K, HX, HZ, 44, 56, VD, { y: 0.02 });
@@ -603,6 +638,8 @@ export default {
       for (const [x, y, z, s] of [[6, 10, -88, 1.6], [22, 11, -112, 2], [14, 9, -122, 1.4], [10, 10.5, -96, 1.2]]) vexCube(K, x, y, z, s, { ry: R(0, 1.5) });
       vexCube(K, 18, 0, -92, 1.6); vexCube(K, 9, 0, -114, 1.8);
       K.light(HX, 9, HZ, MILK, 10, 36);
+      for (const z of [-82, -92, -112, -122]) K.light(HX, 11, z, MILK, 7, 24);
+      for (const [x, z] of [[-4, -90], [-4, -114], [32, -90], [32, -114]]) K.light(x, 9, z, VRED, 4, 16);
 
       // ---- Pyramidion Gate: plaza before the black pyramid ----
       const PZ = -234, PH = 95, PS = 44;
@@ -645,10 +682,20 @@ export default {
       for (const sx of [-1, 1]) strip(K, sx * 10, -146, sx * 5, PZ + PS + 1, 0.5, MILK, { y: 0.05, glow: 1.1 });
       for (const [x, y, z, s] of [[-18, 14, -168, 2.4], [16, 18, -158, 2], [4, 24, -176, 3], [-8, 20, -150, 1.6]]) vexCube(K, x, y, z, s, { ry: R(0, 1.5) });
       K.light(0, 8, PZ + PS + 4, MILK, 10, 30);
+      K.platform(-36, -168, 8, 12, 2.8, { stairs: ['e'], color: VW2, stairColor: VW });
+      K.platform(36, -168, 8, 12, 2.8, { stairs: ['w'], color: VW2, stairColor: VW });
+      for (const sx of [-1, 1]) { vbox(K, sx * 32.05, 2.9, -168, 0.1, 0.15, 12, MILK, { glow: 1.6 }); K.light(sx * 36, 6, -168, MILK, 7, 24); }
+      for (const [x, z] of [[-24, -176], [24, -176], [0, -150]]) K.light(x, 9, z, MILK, 6, 22);
 
       // ---- Protheon's Chamber: roofed Vex hall inside the pyramid ----
       const CX = 0, CZ = PZ, CW = 48, CH = 16;
       K.room(CX, CZ, CW, CW, CH, { t: 2, color: VW2, doors: { s: 12 }, roof: true, roofColor: VD });
+      // sealed Vex door in the chamber doorway: opens when the Pyramidion Gate is cleared
+      K.door(0, CZ + CW / 2, 12, 14, 'x', { zone: 2, t: 2, color: VBR, trim: MILK });
+      for (const sx of [-1, 1]) {
+        vbox(K, sx * 6.4, 7, CZ + CW / 2 + 1.1, 0.5, 14, 0.3, VB);
+        vbox(K, sx * 6.4, 8, CZ + CW / 2 - 1.1, 0.3, 11, 0.2, MILK, { glow: 1.6 });
+      }
       flat(K, CX, CZ, CW - 2, CW - 2, VD, { y: 0.02 });
       // wall pilasters and milky slits
       for (let s = -18; s <= 18; s += 9) {
@@ -681,6 +728,11 @@ export default {
       for (const [x, z, s] of [[-9, CZ + 12, 1.4], [10, CZ - 11, 1.4], [12, CZ + 10, 1.2], [-11, CZ - 10, 1.2]]) vexCube(K, x, 0, z, s);
       K.light(CX, 10, CZ, MILK, 14, 40);
       K.light(CX, 5, CZ - 20, VRED, 9, 28);
+      for (const [x, z] of [[-19, CZ - 19], [19, CZ - 19], [-19, CZ + 19], [19, CZ + 19], [0, CZ + 20]]) K.light(x, 8, z, MILK, 7, 24);
+      // Vex gallery ledges along the side walls (stairs from the floor)
+      K.platform(-20, CZ - 3, 4, 12, 2.8, { stairs: ['s'], color: VW2, stairColor: VW, stairW: 3 });
+      K.platform(20, CZ - 3, 4, 12, 2.8, { stairs: ['s'], color: VW2, stairColor: VW, stairW: 3 });
+      for (const sx of [-1, 1]) vbox(K, sx * 17.95, 2.9, CZ - 3, 0.1, 0.15, 12, MILK, { glow: 1.8 });
     },
   },
 };

@@ -1080,7 +1080,7 @@ test('U15 story script: every mission has lines, valid zone triggers and objecti
     ok(ST_.linesFor(m.id, 'start').length >= 1, `${m.id} opens with a line`);
     ok(ST_.linesFor(m.id, 'boss').length >= 1, `${m.id} has a boss line`);
     ok(ST_.linesFor(m.id, 'end').length >= 1, `${m.id} has an end line`);
-    for (const l of sc.lines) { ok(ST_.SPEAKERS[l.who], `${m.id} speaker ${l.who}`); ok(l.text.length > 8 && !/[–—]/.test(l.text), `${m.id} line text`); ok(/^(start|boss|end|[zc]\d)$/.test(l.at), `${m.id} trigger ${l.at}`); }
+    for (const l of sc.lines) { ok(ST_.SPEAKERS[l.who], `${m.id} speaker ${l.who}`); ok(l.text.length > 8 && !/[–—]/.test(l.text), `${m.id} line text`); ok(/^(start|boss|bd|end|[zc]\d)$/.test(l.at), `${m.id} trigger ${l.at}`); }
     for (const [zi, spec] of Object.entries(sc.obj)) { ok(+zi >= 0 && +zi < m.zones - 1, `${m.id} objective zone ${zi} is not the boss`); ok(OB.OBJECTIVE_TYPES.includes(spec.t), `${m.id} objective type`); ok(spec.label, `${m.id} label`); if (spec.t === 'destroy') ok(spec.what, `${m.id} names its targets`); }
   }
   for (const l of LOCATIONS) { ok(ST_.CHAPTERS[l.id]?.title, `${l.id} chapter`); ok(l.id === 'leviathan' || ST_.UNLOCKS[l.id].length >= 1, `${l.id} unlock line`); }

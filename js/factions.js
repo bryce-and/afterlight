@@ -145,7 +145,7 @@ export const MISSION_FACTIONS = {
 // Missions that only brush the second faction: a lone reinforcement wave in the deepest zone before the boss.
 export const MISSION_TASTE = { io2: 'taken', ts2: 'scorn' };
 // Wave activities (Horde/Endless) bring the destination's second faction every third wave.
-export const ACTIVITY_SECOND = { io: 'taken', tangled: 'scorn' };
+export const ACTIVITY_SECOND = { io: 'taken', tangled: 'scorn', dc: 'taken' };
 
 /**
  * Faction plan for a zone: { open, reinf } (faction ids; null = the destination's own).

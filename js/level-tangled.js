@@ -2,6 +2,7 @@
 // ts1: dense scrap shanty town (Thieves' Landing) -> holed rock cove -> junkyard arena.
 // ts2: cliffside camp -> towering gorge with chains overhead -> Hive-tainted warrens -> roofed ritual cavern.
 // ts3: wide wreck field of crashed hulls -> Scorn camp -> totem procession -> arena around a giant ether spire.
+// U15: every boss arena is a walled room (zone `room`) behind a zone-clear K.door; raised catwalks and decks are reached by K.stairs.
 import * as THREE from 'three';
 
 const SCRAP = [0x7a5a48, 0x6a6e74, 0x8a4a32, 0x5a6470, 0x9a6a3a, 0x4e5660, 0x6e5040];
@@ -415,7 +416,7 @@ export default {
     zones: [
       { name: "Thieves' Landing", x: 0, z: -50 },
       { name: 'Four-Holed Cove', x: 36, z: -116 },
-      { name: "The Trickster's Scrapyard", x: 10, z: -186, boss: true },
+      { name: "The Trickster's Scrapyard", x: 10, z: -186, boss: true, room: { minX: -21, maxX: 41, minZ: -220, maxZ: -150 } },
     ],
     build(K) {
       const C = K.C;
@@ -469,6 +470,8 @@ export default {
       lanternString(K, [-36.5, 6, -62], [-36.5, 6, -42], 5, 0.6);
       K.box(-43.8, -52, 0.3, 1, 3, LANT, { y: 12, collide: false, glow: 1.5 });
       K.light(-33, 5, -52, 0xffb060, 7, 18);
+      K.platform(-29, -50, 8, 14, 2.4, { stairs: ['e'], stairW: 3, color: 0x5a4a44 }); // Spider's lookout deck
+      lanternString(K, [-33, 5, -57], [-25, 5, -43], 4, 0.6);
       anchor(K, -40, -66, [-52, 48, -80]);
       floater(K, -52, 48, -80, 7, 0);
       // blocks around the square, leaving the southeast exit (x 8..30) toward the cove
@@ -485,6 +488,7 @@ export default {
       K.box(56, -118, 30, 0.2, 30, 0x2c3448, { collide: false }); // dark tide pool
       for (const [x, z] of [[50, -108], [62, -126], [46, -130]]) K.rock(x, z, K.R(1.4, 2.4));
       skiff(K, 64, -104, 1.2, 1.1);
+      K.platform(70, -116, 8, 14, 2.4, { stairs: ['w'], stairW: 3, color: C.rock2 }); // smugglers' ledge over the pool
       // rock arch standing in the cove
       K.box(58, -98, 3.5, 11, 3.5, C.rock); K.box(70, -98, 3.5, 12, 3.5, C.rock2);
       K.box(64, -98, 16, 4, 4.5, C.rock, { y: 11 });
@@ -500,9 +504,23 @@ export default {
       anchor(K, 68, -138, [80, 40, -150]);
       floater(K, 80, 42, -150, 6, 0);
 
-      // --- the Trickster's scrapyard (boss)
+      // --- the Trickster's scrapyard (boss): walled in by rock, one 8 m gate (the ground hole at x 16..24), opened when the cove is clear
       const bx = 10, bz = -186;
-      for (const [x, z, a] of ringAround(bx, bz, 28, 16, (a) => a < 1.25 || a > 5.75 || Math.abs(a - Math.PI) < 0.2)) {
+      K.wall(-22, -221, -22, -150, 14, { t: 2, color: C.rock });
+      K.wall(-22, -221, 42, -221, 14, { t: 2, color: C.rock });
+      K.wall(42, -221, 42, -150, 14, { t: 2, color: C.rock2 });
+      for (let a = -216; a < -154; a += K.R(7, 11)) {
+        K.box(-22, a, 2.6, K.R(2, 5), K.R(3, 6), C.rock2, { y: 14, collide: false });
+        K.box(42, a + 3, 2.6, K.R(2, 5), K.R(3, 6), C.rock, { y: 14, collide: false });
+      }
+      for (let a = -14; a < 40; a += K.R(7, 11)) K.box(a, -221, K.R(3, 6), K.R(2, 5), 2.6, C.rock, { y: 14, collide: false });
+      K.door(20, -147, 8, 8.5, 'x', { zone: 1, t: 2.5, color: 0x5a4a44, trim: LANT });
+      K.light(20, 6, -153, LANT, 8, 20);
+      // raised scrap gantry along the west wall
+      K.platform(-15, -186, 6, 24, 2.4, { stairs: ['e'], stairW: 3, color: 0x5a4a44 });
+      for (const z of [-197, -175]) K.box(-17.5, z, 0.2, 2.2, 0.2, K.C.metal, { y: 2.4, collide: false });
+      K.box(-12.1, -186, 0.12, 0.12, 24, IRON, { y: 3.4, collide: false });
+      for (const [x, z, a] of ringAround(bx, bz, 28, 16, (a) => a < 1.25 || a > 5.75 || Math.abs(a - Math.PI) < 0.2 || (a > 4.2 && a < 5.3))) {
         junkPile(K, x, z, K.R(4, 6));
         if (K.chance(0.25)) minePod(K, x - Math.sin(a) * 5, z - Math.cos(a) * 5);
       }
@@ -542,7 +560,7 @@ export default {
       { name: "Trapper's Cave", x: -12, z: -40 },
       { name: 'The Rift', x: 0, z: -112 },
       { name: 'Hive-Tainted Warrens', x: 10, z: -180 },
-      { name: "The Mindbender's Cavern", x: 0, z: -250, boss: true },
+      { name: "The Mindbender's Cavern", x: 0, z: -250, boss: true, room: { minX: -26, maxX: 26, minZ: -274, maxZ: -226 } },
     ],
     build(K) {
       const C = K.C;
@@ -604,6 +622,9 @@ export default {
       for (const [x, z] of [[-14, -96], [12, -100], [-10, -126], [14, -124], [-3, -150], [6, -88]]) K.rock(x, z, K.R(1.5, 2.8));
       for (const [x, z] of [[-6, -96], [8, -136]]) K.box(x, z, 5, 1.6, 0.8, K.RP(SCRAP));
       skiff(K, 13, -146, 0.3, 1);
+      // ledges against the gorge walls: firing positions reached by short stair flights
+      K.platform(-19, -118, 4, 12, 2.4, { stairs: ['e'], stairW: 3, color: C.rock2 });
+      K.platform(19, -134, 4, 12, 2.4, { stairs: ['w'], stairW: 3, color: C.rock });
       for (const [x, z] of [[-18, -90], [18, -112], [-18, -138]]) { // wall lamps
         K.box(x, z, 0.3, 4, 0.3, C.metal); K.box(x, z, 0.5, 0.5, 0.5, LANT, { y: 4, collide: false, glow: 2 });
       }
@@ -636,6 +657,8 @@ export default {
       // --- the Mindbender's ritual cavern (roofed)
       const bx = 0, bz = -250;
       K.room(bx, bz, 56, 52, 14, { t: 2.4, color: C.rock2, doors: { s: 12 }, roof: true, roofColor: C.rock });
+      K.door(0, -224, 12, 14, 'x', { zone: 2, t: 2.4, color: C.rock2, trim: HIVE }); // the cavern seals until the warrens are clear
+      K.platform(0, -268, 10, 5, 2.4, { stairs: ['s'], stairW: 4, color: C.rock2 }); // ritual dais at the back
       // mountain mass over and around the cavern
       for (const [x, z, s] of [[-18, -258, 14], [16, -262, 15], [0, -240, 12], [-30, -230, 10], [30, -232, 11], [0, -278, 12]]) {
         const m = K.mesh(geo().rock, K.RP([C.rock, C.rock2]), x, 14 + s * 0.3, z, { ry: K.R(0, 3) });
@@ -695,7 +718,7 @@ export default {
       { name: 'Jetsam of Saturn', x: -30, z: -45 },
       { name: 'Scorn Encampment', x: 26, z: -96 },
       { name: "The Fanatic's Approach", x: -8, z: -160 },
-      { name: "Fikrul's Ether Spire", x: 0, z: -220, boss: true },
+      { name: "Fikrul's Ether Spire", x: 0, z: -220, boss: true, room: { minX: -37, maxX: 37, minZ: -263, maxZ: -201 } },
     ],
     build(K) {
       const C = K.C;
@@ -755,6 +778,8 @@ export default {
         K.box(x, z + 0.25, 0.5, 0.5, 0.05, ETHER, { y: 5, collide: false, glow: 2 });
       }
       K.scatter(K.cover, sx, sz, 7, 17, 5, 2);
+      K.platform(50, -76, 8, 8, 2.4, { stairs: ['w'], stairW: 3, color: 0x4a4440 }); // bone-scaffold lookout
+      totem(K, 53, -73, 7);
       K.light(sx + 6, 4, sz - 2, ETHER, 9, 26);
       K.light(sx - 10, 4, sz + 8, 0x8ac8ff, 7, 22);
 
@@ -773,7 +798,12 @@ export default {
 
       // --- Fikrul's ether spire (boss)
       const bx = 0, bz = -234, tz = -241;
-      for (const [x, z, a] of ringAround(bx, bz, 30, 18, (a) => a < 0.5 || a > 5.78)) {
+      // walled hull arena: the chained gate becomes a 21 m door, opened when the approach is clear
+      K.room(0, -232, 76, 64, 12, { doors: { s: 21 }, color: 0x4e4a5c, t: 1.2 });
+      K.door(0, -200, 21, 12, 'x', { zone: 2, t: 1.2, color: HULL[0], trim: ETHER });
+      for (const x of [-30, -18, 18, 30]) K.box(x, -200.7, 4, 0.3, 0.1, ETHER, { y: 9, collide: false, glow: 1.4 });
+      for (const s of [-1, 1]) K.platform(s * 32, -234, 6, 14, 2.8, { stairs: [s < 0 ? 'e' : 'w'], stairW: 3, color: 0x4e4a5c }); // firing decks
+      for (const [x, z, a] of ringAround(bx, bz, 30, 18, (a) => a < 0.5 || a > 5.78 || (a > 1.2 && a < 1.95) || (a > 4.35 && a < 5.1))) {
         if (!K.inBounds(x, z, 2.5)) continue;
         if (K.chance(0.55)) { const al = Math.abs(Math.cos(a)) > 0.7; plate(K, x, z, K.R(6, 9), K.R(5, 9), 0.8, al, K.R(-0.3, 0.3)); }
         else spikes(K, x, z, 5, Math.abs(Math.cos(a)) > 0.7);
