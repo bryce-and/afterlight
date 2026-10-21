@@ -14,6 +14,10 @@ import * as ui from './ui.js';
 import { pickTarget, allPlayers, damageRemote, announceShot, announceGrenade, remoteBarrierBlocks, sendFx } from './coop.js';
 import { TIERS, FACTION_PROFILES, SHIELD, shieldFor, GRENADE, grenadeThrower, lobVelocity, JET, ENRAGE, isEnraged, SUICIDE_BLAST, suicideCore, BOSS_PHASE, bossPhaseTime, shieldBurstDamage } from './tiers.js';
 import { BOSS_MODELS } from './bosses.js';
+import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, isNewFaction } from './factions.js';
+import { taken } from './models-taken.js';
+import { scorn } from './models-scorn.js';
+import { skillInit, skillUpdate, skillOnDeath } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
@@ -26,6 +30,7 @@ const easeOutBack = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 
 // Head/eye meshes are tagged crit (precision hits).
 // ---------------------------------------------------------------------------
 function buildModel(e, C, faction) {
+  if (isNewFaction(faction) && !e.bossModel) C = { ...C, ...FACTIONS[faction].colors }; // U14: Taken and Scorn units keep their own palette on any destination
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: C.enemy, flatShading: true, roughness: 0.7, metalness: 0.15 });
   const dark = mat(C.enemy2);
@@ -47,6 +52,8 @@ function buildModel(e, C, faction) {
   const c = { g, add, B, pivot, bodyMat, dark, accent, C, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
   const bossBuilder = e.bossModel && BOSS_MODELS[e.bossModel];
   if (bossBuilder) bossBuilder(c);
+  else if (faction === 'taken') taken(c, e.typeId);
+  else if (faction === 'scorn') scorn(c, e.typeId);
   else if (e.typeId === 'suicide') (faction === 'scrappers' ? shank : cursedThrall)(c);
   else ({ scrappers: fallen, hollow: hive, legion: cabal })[faction](c, e.typeId);
   let shield = null;
@@ -366,21 +373,23 @@ export class Enemy {
     this.isBoss = typeId === 'boss';
     // unique boss model (Servitor, Wizard, Kell...); falls back to the faction model
     this.bossModel = this.isBoss ? (o.model ?? M.bossModel ?? null) : null;
-    this.name = o.name || M.loc.enemyNames[typeId];
+    this.cls = def.base || typeId; // U14: the base class (grunt, rusher, captain, heavy, suicide, boss) a unit extends; cover, stagger, XP and close melee key on it
+    const faction = o.faction || UNITS[typeId]?.faction || { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
+    this.name = o.name || unitName(typeId) || M.loc.enemyNames[this.cls];
     this.pos = pos.clone(); this.pos.y = 0;
-    const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
     // U13b: minor or major (bosses have neither); a major shares its minor's abilities with more health and size
     this.tier = typeId === 'boss' ? null : (o.tier || 'minor');
     const T = TIERS[this.tier] || { hp: 1, dmg: 1, size: 1 };
-    this.prof = FACTION_PROFILES[faction];
+    this.prof = NEW_PROFILES[faction] || FACTION_PROFILES[faction];
     // H3: Hive Thralls are a little bigger than other rushers
     this.scale = def.scale * T.size * (faction === 'hollow' && typeId === 'rusher' ? THRALL_SCALE : 1);
     this.radius = 0.45 * this.scale;
     this.height = 2.05 * this.scale;
     this.maxHp = def.hp * o.hpMult * T.hp; this.hp = this.maxHp;
     // shields are elemental and belong to certain units per faction (tiers.js SHIELD): Captains everywhere, Colossi for the Cabal
-    const shieldEls = shieldFor(faction, typeId);
-    const shieldBase = def.shield || (typeId === 'heavy' && shieldEls ? SHIELD[faction].heavyHp : 0);
+    const ownEls = unitShield(typeId); // U14 units name their own shield element and size
+    const shieldEls = ownEls || shieldFor(faction, this.cls);
+    const shieldBase = ownEls ? (def.shield || 0) : (def.shield || (this.cls === 'heavy' && shieldEls ? SHIELD[faction].heavyHp : 0));
     this.maxShield = shieldBase ? shieldBase * o.hpMult * T.hp : 0; this.shield = this.maxShield;
     this.shieldEl = o.element || (shieldEls ? pick(shieldEls) : 'arc');
     this.dmgMult = o.dmgMult * T.dmg;
@@ -398,7 +407,7 @@ export class Enemy {
     this.specialT = rand(4, 6);
     this.thresholds = this.isBoss ? [0.66, 0.33] : [];
     // shooters hide behind cover between bursts
-    this.usesCover = (typeId === 'grunt' || typeId === 'captain') && Math.random() < this.prof.coverMul; // Hive seldom hide
+    this.usesCover = (this.cls === 'grunt' || this.cls === 'captain') && !def.static && !def.support && Math.random() < this.prof.coverMul; // Hive seldom hide
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0, noCoverT: 0, cycles: 0 };
     // U13a: navigation, close-range melee, suicide fuse
     this.path = null; this.pathIdx = 0; this.pathT = 0; this.pathGoal = { x: 0, z: 0 }; this.stuckT = 0; this.stuck = false; this.lastX = pos.x; this.lastZ = pos.z; this.chkT = 0.5;
@@ -408,18 +417,21 @@ export class Enemy {
     this.faction = faction;
     // U13b: grenades, Cabal jetpacks, Ogre enrage, suicide escort, boss push and hold
     this.grenT = grenadeThrower(faction, typeId) ? rand(4, 9) : Infinity; this.throwT = 0;
-    this.jet = this.prof.jet && JET.who.includes(typeId) ? { s: 'ground', t: 0, cd: rand(4, 9), y: 0, y0: 0, sq: 0 } : null;
+    this.jet = this.prof.jet && JET.who.includes(this.cls) ? { s: 'ground', t: 0, cd: rand(4, 9), y: 0, y0: 0, sq: 0 } : null;
     this.enraged = false; this.rushing = false;
     this.escort = false; this.escortT = SUICIDE_BLAST.escortHold; this.allyT = 0;
     this.bossPhase = 'hold'; this.bossPhaseT = this.isBoss ? bossPhaseTime('hold', 0) : 0;
+    this.noDrops = !!(def.noDrops || o.noDrops); this.revived = !!o.revived; this.owner = o.owner || null;
+    this.shotColor = def.shotColor || FACTIONS[faction]?.shot || M.loc.colors.eye;
     this.model = buildModel(this, M.loc.colors, faction);
     this.height = this.model.height * this.scale;
     this.hitMeshes = this.model.hit;
     this.model.group.position.copy(this.pos);
     this.model.group.rotation.order = 'YXZ'; // pitch (stagger, death) tilts about the enemy's own right axis
     G.scene.add(this.model.group);
-    ringFx(this.pos, 2 * this.scale, M.loc.colors.eye, 0.6);
-    sparks(_v.copy(this.pos).setY(1), M.loc.colors.eye, 8, 5, 0.1, 0.5);
+    ringFx(this.pos, 2 * this.scale, this.shotColor, 0.6);
+    sparks(_v.copy(this.pos).setY(1), this.shotColor, 8, 5, 0.1, 0.5);
+    skillInit(this, o);
   }
 
   center(out) { return out.set(this.pos.x, this.pos.y + this.height * 0.5, this.pos.z); }
@@ -456,6 +468,7 @@ export class Enemy {
 
   onDeath() {
     this.fallDir = Math.random() < 0.5 ? 1 : -1;
+    skillOnDeath(this);
     if (this.def.suicide && !this.noBlast) this.detonate();
     if (this.model.shield) this.model.shield.visible = false;
     sparks(this.center(_v), G.mission.loc.colors.eye, this.isBoss ? 40 : 10, this.isBoss ? 10 : 5, 0.1, 0.6);
@@ -482,6 +495,7 @@ export class Enemy {
     }
     this.status.tick(dt);
     if (this.remote) { this.remoteStep(dt); return true; }
+    if (!this.skillStep(dt)) return true;
     // target the nearest living fireteam member (just the local player when solo)
     this.tgtT = (this.tgtT ?? 0) - dt;
     if (this.tgtT <= 0 || !this.tgt || this.tgt.dead || this.tgt.status?.has('invisible') || this.tgt.inv) { this.tgtT = 0.5; this.tgt = pickTarget(this); }
@@ -522,7 +536,7 @@ export class Enemy {
       this.heavyT = 0.5;
       this.heavyNear = false;
       for (const o of this.zone?.enemies || []) {
-        if (o === this || !o.alive || !(o.typeId === 'heavy' || o.isBoss)) continue;
+        if (o === this || !o.alive || !(o.cls === 'heavy' || o.isBoss)) continue;
         if (Math.hypot(o.pos.x - this.pos.x, o.pos.z - this.pos.z) < COVER.heavyNear) { this.heavyNear = true; break; }
       }
     }
@@ -532,7 +546,7 @@ export class Enemy {
     this.held = lt.held;
     const rooted = this.cmWind > 0 || this.cmSwing > 0;
     let mx = 0, mz = 0;
-    if (!P.dead) {
+    if (!P.dead && !def.static) {
       if (this.jet && this.jet.s !== 'ground') {
         // airborne Centurion: the jet state machine owns height and leaps; while hovering it drifts and holds range
         if (this.jet.s === 'hover') {
@@ -543,7 +557,7 @@ export class Enemy {
         }
       } else if (this.rushing) {
         // enraged Ogre: rush the target and hit it
-        if (!rooted && dist > closeMeleeReach(this.typeId, this.radius) * 0.8) { const sd = this.steer(lt.x, lt.z, dt); mx = sd.x; mz = sd.z; }
+        if (!rooted && dist > closeMeleeReach(this.cls, this.radius) * 0.8) { const sd = this.steer(lt.x, lt.z, dt); mx = sd.x; mz = sd.z; }
       } else if (def.melee || def.suicide) {
         if (this.windup > 0 || this.lunge > 0) { /* rooted while winding up; lunge moves below */ }
         else if (this.escort && dist < SUICIDE_BLAST.escortDist) {
@@ -566,7 +580,7 @@ export class Enemy {
         // pushing: close in to ~60% of preferred range and keep shooting
         const bossPush = this.isBoss && this.bossPhase === 'push';
         const want = bossPush ? 5 : this.isBoss ? def.prefer + 4 : pushing ? def.prefer * 0.6 : def.prefer;
-        const reach = def.closeMelee ? closeMeleeReach(this.typeId, this.radius) : 0;
+        const reach = def.closeMelee ? closeMeleeReach(this.cls, this.radius) : 0;
         this.updatePost(dt, P, dist, want);
         if (this.post) {
           // hop up from the floor next to the ledge, then hold it
@@ -670,7 +684,7 @@ export class Enemy {
     if (this.jet) this.jetPose(this.jet.s, dt);
 
     // ---- attacks ---- (suppressed enemies cannot attack)
-    if (!P.dead && !suppressed && !staggered) {
+    if (!P.dead && !suppressed && !staggered && !def.static) {
       if (def.suicide) {
         this.suicideStep(dt, dist, P);
       } else if (def.melee) {
@@ -750,9 +764,18 @@ export class Enemy {
   }
 
 
+  /** Skills (enemy-skills.js): returns false while a blink tell or a summon holds the unit still. */
+  skillStep(dt) {
+    const P = this.tgt;
+    const dist = P ? Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z) : 99;
+    return skillUpdate(this, dt, P, dist);
+  }
+
   /** Hive Ogre below 30% health goes into a rage: it stops shooting, runs at its target and hits harder and faster. */
   enrageStep() {
-    if (this.enraged || !isEnraged(this.hp, this.maxHp, this.faction, this.typeId)) return;
+    if (this.enraged) return;
+    const low = this.def.enrage ? this.hp > 0 && this.hp / this.maxHp < ENRAGE.below : isEnraged(this.hp, this.maxHp, this.faction, this.cls); // U14: the Taken Ogre and Scorn Abomination enrage too
+    if (!low) return;
     this.enraged = true; this.rushing = true;
     this.ai.state = 'advance'; this.post = null; this.burstLeft = 0; this.cmCd = 0.3; this.throwT = 0;
     ringFx(this.pos, 4 * this.scale, 0xff3a1a, 0.7);
@@ -966,11 +989,11 @@ export class Enemy {
 
   /** Close-range melee for units that shoot (V21): wind up, swing, hit. Returns true while busy so the unit doesn't fire. */
   closeMeleeStep(dt, dist, P) {
-    const cm = CLOSE_MELEE[this.typeId];
+    const cm = CLOSE_MELEE[this.cls];
     if (!cm) return false;
     const m = this.model, torso = m.torso;
     const rest = (a) => (a.userData.rx0 ??= a.rotation.x);
-    const vdy = Math.abs(P.pos.y - this.pos.y), reach = closeMeleeReach(this.typeId, this.radius);
+    const vdy = Math.abs(P.pos.y - this.pos.y), reach = closeMeleeReach(this.cls, this.radius);
     if (this.cmWind > 0) {
       this.cmWind -= dt;
       m.arms.forEach((a) => { rest(a); a.rotation.x += (-2.4 - a.rotation.x) * Math.min(1, dt * 18); });
@@ -1137,8 +1160,8 @@ export class Enemy {
       _v2.z += (Math.random() - 0.5) * inacc * 2;
       dir = _v2.sub(from).normalize();
     }
-    fireEnemyShot(from, dir, def.projSpeed, def.dmg * this.dmgMult, G.mission.loc.colors.eye, def.shotSize, def.splash);
-    flashLight(from, G.mission.loc.colors.eye, 6, 6, 0.06);
+    fireEnemyShot(from, dir, def.projSpeed, def.dmg * this.dmgMult, this.shotColor, def.shotSize, def.splash);
+    flashLight(from, this.shotColor, 6, 6, 0.06);
     sfx.enemyShot(this.pos, this.faction);
   }
 

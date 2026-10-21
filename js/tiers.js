@@ -59,6 +59,7 @@ export const GRENADE = {
   scrappers: { by: 'grunt', color: 0x5fd3ff, name: 'Arc grenade' },
   hollow: { by: 'grunt', color: 0xb26bff, name: 'Hive grenade' },
   legion: { by: 'grunt', color: 0xff7a2a, name: 'Frag grenade' },
+  taken: { by: 'tk_captain', color: 0xdfe8ff, name: 'Darkness orb' }, // U14: the Taken Captain lobs dark orbs
 };
 export function grenadeThrower(faction, typeId) { return !!GRENADE[faction] && GRENADE[faction].by === typeId; }
 

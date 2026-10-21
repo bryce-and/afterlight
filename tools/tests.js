@@ -27,6 +27,7 @@ import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, neares
 import * as AI from '../js/ai.js';
 import * as TR from '../js/tiers.js';
 import { ENEMY_TYPES } from '../js/data.js';
+import * as FA from '../js/factions.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1446,7 +1447,7 @@ test('U13a: only grunts and captains hide behind cover; heavies, bosses, rushers
 });
 test('U13a: every unit that shoots can also melee at very close range, rushers and suicide units use their own attack', () => {
   for (const [k, d] of Object.entries(ENEMY_TYPES)) {
-    if (d.fireCd) { ok(d.closeMelee, `${k} flagged closeMelee`); ok(AI.CLOSE_MELEE[k]?.dmg > 0 && AI.CLOSE_MELEE[k]?.range > 0, `${k} has melee numbers`); }
+    if (d.fireCd) { ok(d.closeMelee, `${k} flagged closeMelee`); ok(AI.CLOSE_MELEE[d.base || k]?.dmg > 0 && AI.CLOSE_MELEE[d.base || k]?.range > 0, `${k} has melee numbers`); }
     else ok(!d.closeMelee, `${k} is not a shooter`);
   }
   ok(AI.CLOSE_MELEE.heavy.dmg > AI.CLOSE_MELEE.captain.dmg && AI.CLOSE_MELEE.captain.dmg > AI.CLOSE_MELEE.grunt.dmg, 'bigger units hit harder');
@@ -1544,6 +1545,74 @@ test('U13b: the hidden ammo meter drops one brick when full, resets, and scales 
 test('U13b: bricks are bigger when the reserve is empty and smaller when full', () => {
   ok(TR.brickScale(0) > 1 && TR.brickScale(1) < 1 && TR.brickScale(0.5) > TR.brickScale(0.9), 'scales with emptiness');
   ok(TR.brickScale(-1) === TR.brickScale(0) && TR.brickScale(2) === TR.brickScale(1), 'clamped');
+});
+
+test('Glaive bolt: a travelling projectile with shared falloff', () => {
+  const b = ARCHETYPES.glaive.glaive.bolt;
+  ok(b && b.speed >= 85 && b.speed <= 110 && b.size < 0.15 && b.life > 0.5, 'bolt tuned fast and small');
+  const F = { close: 0, bonus: 1, min: 0.5, span: 1.5 };
+  eq(C.falloffMult(F, 10, 28), 1); ok(C.falloffMult(F, 60, 28) < 1 && C.falloffMult(F, 500, 28) === 0.5, 'falls to the floor');
+  ok(C.falloffMult({ close: 5, bonus: 1.3, min: 0.5, span: 1.5 }, 1, 28) > 1, 'point-blank bonus');
+});
+
+
+test('U14 factions: every unit extends a base class, has a name and a roster entry', () => {
+  const bases = ['grunt', 'rusher', 'captain', 'heavy', 'suicide'];
+  for (const [id, u] of Object.entries(FA.UNITS)) {
+    ok(bases.includes(u.base), `${id} base`); ok(FA.FACTIONS[u.faction], `${id} faction`); ok(u.name, `${id} name`);
+    ok(ENEMY_TYPES[id] && ENEMY_TYPES[id].base === u.base && ENEMY_TYPES[id].hp > 0, `${id} registered with stats`);
+    eq(FA.classOf(id), u.base);
+  }
+  eq(FA.classOf('grunt'), 'grunt');
+  for (const [f, list] of Object.entries(FA.ROSTER)) for (const r of list) ok(FA.UNITS[r.t]?.faction === f, `${r.t} rostered under ${f}`);
+  ok(Object.keys(FA.UNITS).filter((i) => i.startsWith('tk_')).length >= 10 && Object.keys(FA.UNITS).filter((i) => i.startsWith('sc_')).length >= 8, 'Taken and Scorn rosters are full');
+});
+
+test('U14 factions: skills name the numbers they need', () => {
+  for (const [id, u] of Object.entries(FA.UNITS)) for (const sk of u.skills || []) ok(u[sk], `${id} has ${sk} numbers`);
+  ok(FA.UNITS.sc_screeb.blastMul > 1, 'Screeb blast is bigger than a Cursed Thrall');
+  ok(!FA.UNITS.sc_chieftain.skills.includes('revive') && FA.UNITS.sc_stalker.skills.includes('revive'), 'revive is for the rank and file');
+});
+
+test('U14 factions: waves scale with zone, power and fireteam; heavies come later', () => {
+  for (const f of ['taken', 'scorn']) {
+    const a = FA.composeWave(f, 0, 0, 0), b = FA.composeWave(f, 0, 2, 9), c = FA.composeWave(f, 0, 2, 9, 2);
+    ok(a.length >= 3, `${f} opens with a group`); ok(b.length > a.length, `${f} grows with power`); ok(c.length > b.length, `${f} grows with fireteam`);
+    ok(!a.some((t) => ENEMY_TYPES[t].base === 'heavy'), `${f}: no heavy in the first zone at low power`);
+    ok(FA.composeWave(f, 1, 2, 9).some((t) => ENEMY_TYPES[t].base === 'heavy'), `${f}: reinforcements bring a heavy later`);
+  }
+  const suicide = (t) => ENEMY_TYPES[t].base === 'suicide';
+  ok(FA.composeWave('scorn', 0, 2, 14).filter(suicide).length <= 3, 'Screebs stay a handful');
+});
+
+test('U14 factions: mission plans', () => {
+  eq(FA.zonePlan('io1', 0, 3, false), { open: null, reinf: null });
+  eq(FA.zonePlan('io1', 1, 3, false), { open: null, reinf: 'taken' });
+  eq(FA.zonePlan('io1', 2, 3, true), { open: 'taken', reinf: 'taken' });
+  eq(FA.zonePlan('ts3', 2, 4, false), { open: 'scorn', reinf: 'scorn' });
+  eq(FA.zonePlan('ts3', 3, 4, true), { open: 'scorn', reinf: 'scorn' });
+  eq(FA.zonePlan('e1', 1, 3, false), { open: null, reinf: null });
+  eq(FA.zonePlan('io2', 2, 4, false), { open: null, reinf: 'taken' }); // a taste: reinforcements in the last zone before the boss
+  eq(FA.zonePlan('io2', 3, 4, true), { open: null, reinf: null });
+  eq(FA.activityFaction('io', 3), 'taken'); eq(FA.activityFaction('io', 4), null); eq(FA.activityFaction('earth', 3), null);
+});
+
+test('U14 factions: front guard, revive and blink rules', () => {
+  const guard = FA.UNITS.tk_phalanx;
+  ok(FA.frontGuardMult(guard, 0.9) < 0.2, 'blocks from the front'); eq(FA.frontGuardMult(guard, -0.5), 1); eq(FA.frontGuardMult(guard, 0.9, true), 1);
+  eq(FA.frontGuardMult(FA.UNITS.tk_vandal, 0.9), 1);
+  ok(FA.mayRevive({ hasSkill: true, zoneRevives: 0, burned: false, alreadyRevived: false }), 'rises');
+  ok(!FA.mayRevive({ hasSkill: true, zoneRevives: 0, burned: true, alreadyRevived: false }), 'burned corpses stay down');
+  ok(!FA.mayRevive({ hasSkill: true, zoneRevives: 0, burned: false, alreadyRevived: true }), 'only once');
+  ok(!FA.mayRevive({ hasSkill: true, zoneRevives: FA.SKILL.reviveMaxPerZone, burned: false, alreadyRevived: false }), 'zone cap so a zone ends');
+  const r = FA.blinkRange(FA.UNITS.tk_centurion, 0), r2 = FA.blinkRange(FA.UNITS.tk_centurion, 1);
+  eq(r, FA.UNITS.tk_centurion.blink.range[0]); eq(r2, FA.UNITS.tk_centurion.blink.range[1]);
+});
+
+test('U14 factions: new factions have sounds, profiles and a Darkness-orb thrower', () => {
+  for (const f of ['taken', 'scorn']) { ok(FACTION_SOUND[f]?.shot && FACTION_SOUND[f]?.die, `${f} sound`); ok(FA.NEW_PROFILES[f], `${f} profile`); }
+  ok(TR.grenadeThrower('taken', 'tk_captain') && !TR.grenadeThrower('taken', 'tk_vandal'), 'only the Captain lobs orbs');
+  eq(FA.NEW_PROFILES.scorn.coverMul, 0);
 });
 
 // ---------- runner ----------

@@ -24,6 +24,8 @@ import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
+import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction } from './factions.js';
+import { skillIncoming, skillHit } from './enemy-skills.js';
 import { buildVoidAxe } from './models.js';
 import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
 
@@ -55,7 +57,7 @@ export function startMission(li, mi) {
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
-    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', waves: makeWaves(i, z.isBoss, g, def, fireteam, loc), waveIdx: 0, enemies: [] })),
+    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', plan: zonePlan(def.id, i, level.zones.length, z.isBoss), waves: makeWaves(i, z.isBoss, g, def, fireteam, loc, zonePlan(def.id, i, level.zones.length, z.isBoss)), waveIdx: 0, enemies: [] })),
   };
   G.time = 0;
   G.player = new Player(G.save);
@@ -109,7 +111,28 @@ function finishMission() {
 // ---------------------------------------------------------------------------
 // Waves
 // ---------------------------------------------------------------------------
-function makeWaves(zi, isBoss, g, def, fireteam = 1, loc = null) {
+function makeWaves(zi, isBoss, g, def, fireteam = 1, loc = null, plan = null) {
+  return withFactions(baseWaves(zi, isBoss, g, def, fireteam, loc), zi, isBoss, g, fireteam, plan);
+}
+
+/** U14: a zone's plan (factions.js zonePlan) swaps its opening group and its reinforcements for another faction's roster. The boss keeps its place. */
+function withFactions(waves, zi, isBoss, g, fireteam, plan) {
+  if (!plan || (!plan.open && !plan.reinf)) return waves;
+  const more = fireteamScale(fireteam).count;
+  return waves.map((w, wi) => {
+    const f = wi === 0 ? plan.open : plan.reinf;
+    if (!f) return w;
+    let list = composeWave(f, wi, zi, g, more);
+    const boss = w.find((s) => s.type === 'boss');
+    if (boss) { // the boss zone: a handful of the faction's units around the champion, the rest arrive with its calls for aid
+      list = list.sort(() => Math.random() - 0.5).slice(0, Math.round((3 + Math.floor(g / 3)) * more));
+      return [{ ...boss, faction: f }, ...list.map((type) => ({ type, faction: f }))];
+    }
+    return list.map((type) => ({ type, faction: f }));
+  });
+}
+
+function baseWaves(zi, isBoss, g, def, fireteam = 1, loc = null) {
   // each extra fireteam member adds ~50% more enemies
   const more = fireteamScale(fireteam).count;
   const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type })); // the shield element comes from the faction (tiers.js SHIELD)
@@ -143,36 +166,48 @@ export function findSpawn(center, angle, spread, rMin, rMax) {
   return center.clone();
 }
 
+/** Spawn one unit into a zone (waves, boss adds, clones, revives, summons). `o`: faction, tier, hpFrac, noDrops, and anything Enemy takes. */
+export function spawnUnit(z, type, pos, o = {}) {
+  const M = G.mission, FT = fireteamScale(M.fireteam);
+  const cls = classOf(type), def = UNITS[type];
+  const e = new Enemy(type, pos, {
+    zone: z, hpMult: M.hpMult * (type === 'boss' ? (1 + M.g * 0.08) * FT.boss : FT.hp) * (o.hpFrac ?? 1), dmgMult: M.dmgMult * (type === 'boss' ? 1 : FT.dmg),
+    element: o.element, name: o.name, model: o.model, faction: o.faction,
+    tier: o.tier || (def?.support || def?.life ? 'minor' : rollTier(cls, M.g)),
+    noDrops: o.noDrops, revived: o.revived, owner: o.owner, life: o.life, totemKind: o.totemKind, isClone: o.isClone,
+  });
+  G.enemies.push(e);
+  z.enemies.push(e);
+  registerEnemy(e);
+  G.hitDirty = true;
+  return e;
+}
+
 function spawnWave(z, idx) {
-  const M = G.mission, P = G.player, FT = fireteamScale(M.fireteam);
+  const M = G.mission, P = G.player;
   const away = Math.atan2(P.pos.x - z.center.x, P.pos.z - z.center.z) + Math.PI;
   for (const sp of z.waves[idx]) {
     const pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
-    const e = new Enemy(sp.type, pos, {
-      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? (1 + M.g * 0.08) * FT.boss : FT.hp), dmgMult: M.dmgMult * (sp.type === 'boss' ? 1 : FT.dmg),
-      element: sp.element, name: sp.name, model: sp.model, tier: rollTier(sp.type, M.g),
-    });
-    G.enemies.push(e);
-    z.enemies.push(e);
-    registerEnemy(e);
+    spawnUnit(z, sp.type, pos, { element: sp.element, name: sp.name, model: sp.model, faction: sp.faction });
   }
   G.hitDirty = true;
-  if (idx > 0) { ui.feed(`${M.loc.faction} reinforcements inbound`, '#ffb36b'); sfx.alert(); }
+  if (idx > 0) {
+    const f = z.waves[idx].find((s) => s.faction)?.faction;
+    ui.feed(f ? `${FACTIONS[f].name} reinforcements breach the area` : `${M.loc.faction} reinforcements inbound`, '#ffb36b'); sfx.alert();
+  }
   return z.waves[idx].length;
 }
 
 export function spawnBossAdds(boss) {
   const M = G.mission;
   const z = boss.zone;
-  const specs = [];
+  let specs = [];
   const FT = fireteamScale(M.fireteam), more = FT.count;
-  for (const [t, n] of [['grunt', 3], ['rusher', 2], ['captain', M.g >= 2 ? 1 : 0]]) for (let i = 0; i < Math.round(n * more); i++) specs.push(t);
+  if (FACTIONS[boss.faction]) specs = composeWave(boss.faction, 0, Math.max(1, z.idx || 1), M.g, more).sort(() => Math.random() - 0.5).slice(0, Math.round((5 + Math.floor(M.g / 4)) * more)); // U14: a Taken or Scorn champion calls its own
+  else for (const [t, n] of [['grunt', 3], ['rusher', 2], ['captain', M.g >= 2 ? 1 : 0]]) for (let i = 0; i < Math.round(n * more); i++) specs.push(t);
   for (const type of specs) {
     const pos = findSpawn(boss.pos, rand(0, Math.PI * 2), Math.PI, 5, 14);
-    const e = new Enemy(type, pos, { zone: z, hpMult: M.hpMult * FT.hp, dmgMult: M.dmgMult * FT.dmg, tier: rollTier(type, M.g) });
-    G.enemies.push(e);
-    z.enemies.push(e);
-    registerEnemy(e);
+    spawnUnit(z, type, pos, { faction: FACTIONS[boss.faction] ? boss.faction : undefined });
   }
   G.hitDirty = true;
   banner(`${boss.name} calls for aid`, 'Shield restored', 2, 'alert');
@@ -222,8 +257,8 @@ function updateMission(dt) {
         M.phase = 'combat';
         spawnWave(z, 0);
         z.waveIdx = 1;
-        if (z.isBoss) { banner(M.def.boss.name, `${M.loc.faction} champion`, 3, 'bossIntro'); stinger('boss'); }
-        else banner(z.name, `${M.loc.faction} presence detected`, 2.2, 'alert');
+        if (z.isBoss) { banner(M.def.boss.name, `${FACTIONS[z.plan?.open]?.name || M.loc.faction} champion`, 3, 'bossIntro'); stinger('boss'); }
+        else banner(z.name, `${FACTIONS[z.plan?.open]?.name || M.loc.faction} presence detected`, 2.2, 'alert');
       }
     } else if (z.state === 'active') {
       let alive = 0, nearest = null, nd = Infinity;
@@ -233,6 +268,7 @@ function updateMission(dt) {
         const d = e.pos.distanceTo(P.pos);
         if (d < nd) { nd = d; nearest = e; }
       }
+      alive += z.pending || 0; // a Scorn corpse still rising counts as a hostile (enemy-skills.js revive)
       const step = waveStep(alive, z.waveIdx, z.waves.length, z.isBoss);
       if (step.spawn) { alive += spawnWave(z, z.waveIdx); z.waveIdx++; }
       const fighters = allPlayers().filter((p) => !p.dead).length || 1;
@@ -433,6 +469,8 @@ export function dealDamage(e, amount, o = {}) {
   // debuffs go on the registry (members show them on the plate; the owner's copy is the real one)
   for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
   if (o.suppress) e.flush?.();
+  dmg = skillIncoming(e, dmg, o); // U14: wards, ally shields, front guards, totem auras
+  skillHit(e);
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
     sendHit(e, dmg, o);
@@ -470,7 +508,7 @@ export function dealDamage(e, amount, o = {}) {
   if (o.knock && !e.isBoss) e.knock.add(o.knock);
   const killed = e.hp <= 0;
   if (!killed && !e.isBoss && dealt > 0) {
-    const st = staggerFor(e.typeId, dealt, e.maxHp, !!o.crit, !(e.staggerCd > 0));
+    const st = staggerFor(e.cls, dealt, e.maxHp, !!o.crit, !(e.staggerCd > 0));
     if (st > 0) e.stagger(st);
   }
   if (!o.remoteHit) {
@@ -516,10 +554,10 @@ export function killEnemy(e, o = {}) {
     if (o.crit) M.crits++;
     G.player.onKill(e, o);
   }
-  gainXp(Math.round((XP.kill[e.typeId] ?? 0) * (TIERS[e.tier]?.xp ?? 1))); // the whole fireteam shares kill XP; majors are worth more
+  if (!e.noDrops) gainXp(Math.round((XP.kill[e.cls] ?? 0) * (TIERS[e.tier]?.xp ?? 1))); // the whole fireteam shares kill XP; majors are worth more. Clones, revived units, totems and summons give none
   sfx.kill();
   sfx.enemyDie(e.pos, e.faction);
-  rollDrops(e);
+  if (!e.noDrops) rollDrops(e);
   if (e.isBoss) {
     G.player.shake = 0.5;
     explosionFx(e.center(new THREE.Vector3()), 6, M.loc.colors.eye);
@@ -537,7 +575,7 @@ export function rollDrops(e) {
     const brick = meterKill(P.ammoMeter, killValue(e.tier, e.isBoss), 1 + (P.finderS ?? 0) * 4, 1 + (P.finderH ?? 0) * 4); // Ammo Finder mods fill it faster
     if (brick) spawnPickup(brick, pos);
   }
-  if (Math.random() < (ENGRAM_CHANCE[e.typeId] ?? 0)) dropEngram(pos);
+  if (Math.random() < (ENGRAM_CHANCE[e.cls] ?? 0)) dropEngram(pos);
   if (e.isBoss) {
     dropEngram(pos); dropEngram(pos);
     spawnPickup('heavy', pos); spawnPickup('special', pos);
@@ -617,6 +655,13 @@ export function projectileMesh(o) {
     const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), basicMat(0xffc070, true));
     glow.position.z = -0.18;
     g.add(body, tip, glow);
+  } else if (o.kind === 'glaivebolt') {
+    // Glaive bolt: a white-hot streak inside an element-coloured glow
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(o.size, 0), basicMat(0xffffff));
+    core.scale.set(0.8, 0.8, 4.5);
+    const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(o.size * 2, 0), basicMat(o.color, true));
+    glow.scale.set(0.9, 0.9, 3.2);
+    g.add(core, glow);
   } else if (o.kind === 'shield') {
     // Sentinel shield: a void-rimmed disc
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.06, 12).rotateX(Math.PI / 2), mat(0x3a3048));
@@ -725,6 +770,7 @@ function updateProjectiles(dt) {
     else { p.mesh.lookAt(tmp.copy(p.pos).add(p.vel)); if (p.kind === 'knife') p.mesh.rotateX(p.age * 28); }
     // trails
     if (p.kind === 'rocketround') { ember(p.pos, 0xffb060, 0.07, 0.18); if (Math.random() < 0.5) sparks(p.pos, 0x9a9a9a, 1, 0.3, 0.08, 0.3); }
+    else if (p.kind === 'glaivebolt') { ember(p.pos, p.color, 0.06, 0.18, 0.2); if (Math.random() < 0.4) ember(p.pos, 0xffffff, 0.03, 0.1, 0.1); }
     else if (p.kind === 'rocket') { sparks(p.pos, 0x9a9a9a, 1, 0.5, 0.14, 0.5); ember(p.pos, 0xffb060, 0.1, 0.2); }
     else if (p.kind === 'grenade' || p.kind === 'glauncher') ember(p.pos, p.color, 0.07, 0.3);
     else if (p.kind === 'knife') { ember(p.pos, p.color, 0.06, 0.25, 0.3); if (Math.random() < 0.5) ember(p.pos, 0xffffff, 0.03, 0.15, 0.2); }
@@ -879,6 +925,8 @@ function activityWave(n) {
   const more = fireteamScale(M.fireteam).count * (1 + 0.3 * M.arenaIdx);
   const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type }));
   const k = Math.min(n, 20);
+  const alt = activityFaction(M.loc.id, n); // U14: every third wave on Io and the Tangled Shore is the destination's second faction
+  if (alt && n % M.act.arenaEvery !== 0) return [0, 1].map((wi) => composeWave(alt, wi, 1, M.g, more).map((type) => ({ type, faction: alt })));
   if (n % M.act.arenaEvery === 0) {
     const b = M.arenaDef.boss;
     return [[{ type: 'boss', name: b.name, element: b.element, model: b.model }, ...T('grunt', 3), ...T('rusher', 2)], [...T('grunt', 3), ...T('captain', 1)]];
@@ -930,6 +978,7 @@ function updateActivity(dt) {
       const d = e.pos.distanceTo(P.pos);
       if (d < nd) { nd = d; nearest = e; }
     }
+    alive += z.pending || 0;
     const step = waveStep(alive, z.waveIdx, z.waves.length);
     if (step.spawn) { alive += spawnWave(z, z.waveIdx); z.waveIdx++; }
     const fighters = allPlayers().filter((p) => !p.dead).length || 1;

@@ -20,7 +20,7 @@ import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE }
 import { weaponHandling } from './frames.js';
 import { brickScale } from './tiers.js';
 import { DEV } from './devcommands.js';
-import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops } from './combat.js';
+import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops, falloffMult } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3(), _UP = new THREE.Vector3(0, 1, 0);
@@ -790,6 +790,8 @@ export class Player {
         size: 0.1, color: el.hex, life: 8,
         onHit: (p, enemy, how) => { if (how !== 'timeout') this.rocketRound(w, p, enemy); },
       });
+    } else if (A.glaive?.bolt) {
+      this.glaiveBolt(w, applySpread(fwd.clone(), spread), eye, el);
     } else {
       const pellets = A.pellets || 1;
       const assist = w.has('quarrel') || w.has('concurrence'); // tracking bolts
@@ -816,6 +818,43 @@ export class Player {
     sfx.shot(A.rocketRound ? 'rocketround' : A.id, null, el.id);
   }
 
+  /** Damage falloff multiplier for weapon w at distance d. */
+  falloffFor(w, d) {
+    return falloffMult(w.A?.falloff || DEFAULT_FALLOFF, d, w.s.range * (this.status.has('wind') ? 1.25 : 1));
+  }
+
+  /** Glaive: a fast, gravity-free energy bolt instead of a hitscan ray. Direct damage only; precision is found by a short ray into the struck enemy's crit meshes. */
+  glaiveBolt(w, dir0, eye, el) {
+    const B = w.A.glaive.bolt, s = w.s;
+    let dir = dir0;
+    if (w.has('quarrel') || w.has('concurrence')) dir = this.assistDir(dir); // tracking bolts
+    dir = dir.clone().normalize();
+    const start = eye.clone().addScaledVector(dir, 0.7).add(new THREE.Vector3(0, -0.12, 0));
+    const color = wEl(w) === 'kinetic' ? 0xffe3a0 : el.hex;
+    spawnPlayerProjectile({
+      kind: 'glaivebolt', pos: start.clone(), vel: dir.clone().multiplyScalar(B.speed), gravity: 0, size: B.size, color, life: B.life,
+      onHit: (p, enemy, how) => {
+        if (how === 'timeout') return;
+        const end = p.clone();
+        if (enemy?.alive) {
+          // find the precision hit: a short ray along the flight line into this enemy's meshes
+          ray.set(p.clone().addScaledVector(dir, -1.5), dir);
+          ray.far = 4;
+          let crit = false, point = end;
+          for (const h of ray.intersectObjects(getHitTargets(), false)) {
+            if (h.object.userData.enemy !== enemy) continue;
+            crit = !!h.object.userData.crit; point = h.point; break;
+          }
+          this.applyHit(w, enemy, s.dmg * this.falloffFor(w, start.distanceTo(end)), crit, point, { hit: enemy });
+        } else sparks(end, how === 'ground' ? 0xd8c8a0 : 0xffe0a0, 3, 3, 0.05, 0.25);
+        if (w.has('xeno') && !enemy) this.scorch(end, s.dmg * this.weaponDmgMult(w, false));
+        if (w.has('intent') && w.energy >= 100) { w.energy = 0; this.plantTurret(end); } // Edge of Intent: Restorative Turret
+        if (w.has('action') && w.energy >= 100) { w.energy = 0; this.plantRemoteShield(end); } // Edge of Action: Remote Shield
+        if (w.has('concurrence') && w.energy >= 100) { w.energy = 0; this.lightningSeeker(w, end); } // Edge of Concurrence: Lightning Seeker
+      },
+    });
+  }
+
   hitscan(origin, dir, w, dmg, from, o = {}) {
     const range = o.range ?? Math.max(90, w.s.range * 4);
     ray.set(origin, dir);
@@ -830,10 +869,7 @@ export class Player {
       if (e) {
         if (!e.alive || seen.has(e)) continue;
         seen.add(e);
-        const F = w.A?.falloff || DEFAULT_FALLOFF, d = h.distance;
-        const fr = w.s.range * (this.status.has('wind') ? 1.25 : 1);
-        let fall = d <= fr ? 1 : Math.max(F.min, 1 - ((1 - F.min) * (d - fr)) / (fr * F.span));
-        if (F.close && d < F.close * 2) fall *= 1 + (F.bonus - 1) * Math.min(1, (F.close * 2 - d) / F.close); // point-blank bonus
+        const fall = this.falloffFor(w, h.distance);
         o.hit ??= e; // the first enemy struck (Golden Gun splash skips it)
         this.applyHit(w, e, dmg * fall, !!h.object.userData.crit, h.point, o);
         if (!(o.pierce || w.has('pierce') || w.A?.pierce)) { end = h.point; break; }
@@ -1513,7 +1549,7 @@ export class Player {
     if (o.weapon?.has?.('fragout')) o.weapon.fragKillT = G.time; // Forerunner: Frag Out
     // jolt chains and companions (Arc Soul, Child of the Old Gods) pay like weapon kills and skip Hands-On and Ionic Traces
     const chain = !!(o.jolted || o.companion);
-    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + superKillGain(chain ? 'weapon' : o.source, o.crit, e.typeId));
+    if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + superKillGain(chain ? 'weapon' : o.source, o.crit, e.cls));
     for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - KILL_CD_REFUND);
     if (this.ap.recuperation) this.healPct(0.15 * this.ap.recuperation);
     if (!chain && (o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + SUPER_HANDSON * this.ap.handson);

@@ -3,6 +3,7 @@ import { G } from './state.js';
 import { net, send, broadcast, sendTo } from './net.js';
 import { buildCharacter, ghost } from './characters.js';
 import { decodeAppearance } from './style.js';
+import { UNITS, FACTIONS } from './factions.js';
 import { Enemy, fireEnemyShot, spawnEnemyGrenade } from './enemies.js';
 import { TIERS } from './tiers.js';
 import { tracer, explosionFx, sparks } from './effects.js';
@@ -21,7 +22,7 @@ import * as ui from './ui.js';
 //  - Members: mirror enemies as "remote" proxies, send their state + hits.
 //  - Everyone rolls their own loot from kill events (client-side loot).
 
-const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss', 'suicide'];
+const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss', 'suicide', ...Object.keys(UNITS)]; // U14: unit ids are appended so earlier indices never change
 const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive']; // snapshot bit order
 /** Host: an enemy's debuffs as a bitmask. */
 const debuffBits = (en) => DEBUFF_BITS.reduce((b, k, i) => (en.status.has(k) ? b | (1 << i) : b), 0);
@@ -156,7 +157,7 @@ export function onAbandon() {
 export function registerEnemy(e) {
   if (!net.isHost) return;
   e.netId = nextId++;
-  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined, tr: e.tier || undefined });
+  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined, tr: e.tier || undefined, fc: e.isBoss && FACTIONS[e.faction] ? e.faction : undefined, nd: e.noDrops ? 1 : undefined });
 }
 
 export function announceKill(e, o) {
@@ -357,7 +358,7 @@ function updateAvatars(dt) {
 // ---------------------------------------------------------------------------
 function proxy(id, type, x, z, info = {}) {
   const M = G.mission;
-  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm, tier: info.tr });
+  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm, tier: info.tr, faction: info.fc, noDrops: !!info.nd });
   e.remote = true;
   e.netId = id;
   if (info.mh) { e.maxHp = info.mh; e.hp = info.mh; }
@@ -457,7 +458,7 @@ net.on('kill', (m) => {
   e.onDeath();
   sfx.kill();
   rollDrops(e); // every player rolls their own loot
-  gainXp(Math.round((XP.kill[e.typeId] ?? 0) * (TIERS[e.tier]?.xp ?? 1))); // the whole fireteam shares kill XP
+  if (!e.noDrops) gainXp(Math.round((XP.kill[e.cls] ?? 0) * (TIERS[e.tier]?.xp ?? 1))); // the whole fireteam shares kill XP
   if (m.by === net.myId) {
     G.mission.kills++;
     if (m.c) G.mission.crits++;

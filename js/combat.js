@@ -184,3 +184,10 @@ export function restHeight(x, z, y, boxes, step = 0.3) {
 
 // ---------- HUD ----------
 export const HUD_SCALE = { min: 0.7, max: 2, step: 0.05 }; // v1.3: max 1.4
+
+/** Weapon damage falloff at distance d: full out to fr, then down to F.min over fr * F.span; point-blank bonus inside F.close * 2. Shared by hitscan and the Glaive bolt. */
+export function falloffMult(F, d, fr) {
+  let fall = d <= fr ? 1 : Math.max(F.min, 1 - ((1 - F.min) * (d - fr)) / (fr * F.span));
+  if (F.close && d < F.close * 2) fall *= 1 + (F.bonus - 1) * Math.min(1, (F.close * 2 - d) / F.close);
+  return fall;
+}
