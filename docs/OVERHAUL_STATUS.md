@@ -15,7 +15,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R05 | Campaign story, Ghost narrates, no player voice | Missing (one-line mission descriptions) | U15 | Planned |
 | R06 | Calus antagonist | Missing | U15 | Planned |
 | R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U22 | Planned |
-| R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U13b (attacks, variants), U14 (unique models) | In progress |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13b | Complete and published (v2.4) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
 | R38 | New locations and reworked levels | 6 destinations, 18 hand-built maps | U15/U17 | Planned |
@@ -55,7 +54,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | ID | Requirement | Update | Status |
 |---|---|---|---|
 | V23 | Harder with 3 players (retune) | U13b | Complete and published (v2.4) |
-| V24 | Taken and Scorn as full factions | U14 | Planned |
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U21 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U25 (optional) | Planned |

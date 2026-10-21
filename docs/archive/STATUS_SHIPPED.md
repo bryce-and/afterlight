@@ -38,6 +38,7 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R58 | Hunter Triple Jump is the ground jump + 2 (added by Bryce) | Two air jumps, the second at 85% height. Peak 4.2 m, below Titan Catapult Lift (4.8 m) | U3 | Complete and published (v1.3) |
 | R59 | Enemy debuffs on the status registry (weaken, slow, suppress, burn, poison) | `Enemy.status` with `ENEMY_STATUS`; all applied through `dealDamage` and sent to the enemy's owner; plate shows them. Jolt added for Arc | U3 | Complete and published (v1.3) |
 | R18 | Super framework: animations, first vs third person check, aim check, subclass effects | Each super declares `camera` in `data.js`; all 9 checked in browser: camera matches and the enemy under the crosshair takes the damage. Super animations done in v1.9 (V67) | U3 (camera, aim), U9 (animations, hover) | Complete and published (v1.9) |
+| R22 | Enemies up to standard: names, unique model per type, attacks | Faction models; 5 shared types | U13b (attacks, variants), U14 (unique models) | Complete and published (v2.5): each faction already had its own model per type; Taken adds 12 and Scorn 9 more (`js/models-taken.js`, `js/models-scorn.js`). Judged complete by the build session; Bryce to confirm |
 | R24 | VFX: tracking rounds are particles that track, not lightning; supers with cool factor | Swarm, Axion Bolt, Parasitic Nanites and Wolfpack Rounds are homing particle swarms (`swarm` projectile) that deal damage on arrival. Void VFX done in v1.9 (V71) | U4 (seekers), U9 (Void VFX) | Complete and published (v1.9) |
 
 ## Master-prompt requirements
@@ -124,6 +125,7 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | V72 | Slower leveling; rarity gates for use and drops | U10 | Complete and published (v2.0) |
 | V73 | Orbs: armor charge only with charge mods, own counter; missing Font mods | U9 | Complete and published (v1.9): armor charge only with a charge-using mod (`usesCharge` in `js/armor.js`); every orb heals 15; armor charge counter above the ability bar; Fonts for all six stats |
 | V74 | UI pass: Modify screen, more fragment slots, weapon silhouettes, wider character layout | U9 | Complete and published (v1.9): D2-style Modify screen from the subclass panel; aspects +1 fragment slot, cap 5; generic white weapon-family silhouettes in the mission HUD; character columns spaced at 50% minus 400px |
+| V24 | Taken and Scorn as full factions | U14 | Complete and published (v2.5): 12 Taken and 9 Scorn unit ids in `js/factions.js` (`UNITS`), skills in `js/enemy-skills.js`, mission faction plans (`MISSION_FACTIONS`, `MISSION_TASTE`, `zonePlan`); banners and the reinforcement feed name the faction |
 | V79 | Warlock rifts take the subclass element color, with white particles | U9 | Complete and published (v1.9): rifts take the subclass element color, with white motes |
 
 ## Future Update Implementation (Bryce, 2026-10-15)

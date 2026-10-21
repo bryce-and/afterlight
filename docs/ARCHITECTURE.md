@@ -124,6 +124,16 @@ The module map is in the README. These notes cover systems added during the over
 - `AMMO_METER` is a hidden per-player meter that kills fill (by tier, and more for bosses); a full meter drops a special or heavy brick on the next kill. Ammo Finder mods fill it faster. It replaces the random ammo drops.
 - `Enemy` (`js/enemies.js`) holds `tier`, its faction profile, `jetStep` and `jetPose`, `enrageStep`, `escortStep`, `grenadeStep` and the boss phase state. Co-op: the spawn message carries the tier, snapshot flag bits 4 (enraged) and 8 (Centurion airborne), and the `gr` message sends enemy grenades (each member simulates and damages itself, like enemy shots).
 
+## Factions and enemy skills (v2.5, `js/factions.js`, `js/enemy-skills.js`)
+- `js/factions.js` is pure data and rules, covered by tests in `tools/tests.js`: `FACTIONS`, `UNITS` (the Taken and Scorn unit ids, each with a `base` class), `ROSTER`, `composeWave`, `MISSION_FACTIONS`, `MISSION_TASTE`, `zonePlan`, `activityFaction`, `SKILL` and helpers. `registerUnits` adds every unit to `ENEMY_TYPES`.
+- `js/enemy-skills.js` runs skills on top of the shared AI (blink, ward, clone, allyShield, summon, frontGuard, revive, totem, totemAura) through the hooks `skillInit`, `skillUpdate`, `skillIncoming`, `skillHit` and `skillOnDeath`. Skills run on the co-op leader only.
+- `js/models-taken.js` and `js/models-scorn.js` hold the unit models.
+- `spawnUnit(z, type, pos, o)` in `js/game.js` is the one way units spawn (waves, boss adds, clones, revivals, summons). `withFactions` swaps a zone plan's opening and reinforcement groups for another faction's roster.
+- An `Enemy` has `cls` (its base class, used for cover, stagger, XP, drops and close melee) and an optional `faction`. Units with `noDrops` (clones, revived units, totems, summons) give no XP or drops. Rank and file (Wraith, Stalker, Raider) revive once after 4 to 6 s unless burning when they died, capped at 6 revivals per zone; a zone does not clear while a body is rising.
+- Co-op: `TYPES` has the unit ids appended (earlier indices unchanged); the spawn message carries `fc` (boss faction) and `nd`.
+- Glaive: the `glaive` archetype's `bolt` (`js/data.js`) sets speed, size and life; the player fires a `glaivebolt` projectile (`js/player.js`) that stops on the first enemy.
+- Approximation: the Taken Captain's Darkness orb is a grenade (`GRENADE.taken` in `js/tiers.js`) with the shared grenade numbers, so it does not blind.
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
