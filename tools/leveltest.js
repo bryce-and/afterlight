@@ -16,21 +16,22 @@ export async function testLevel(li, mi) {
   let meshes = 0;
   G.scene.traverse((o) => { if (o.isMesh) meshes++; });
   const M = G.mission, P = G.player, rep = [];
-  const unreachable = reachability(G).join(', ');
+  const unreachable = (G.level.groundAt ? await navReach(G) : reachability(G)).join(', ');
   let prev = G.level.spawn.clone();
   try {
     for (const z of M.zones) {
       const c = z.center, dir = prev.clone().sub(c).setY(0);
       if (dir.lengthSq() < 1) dir.set(0, 0, 1);
-      P.pos.copy(c).addScaledVector(dir.normalize(), 20).setY(0);
-      const startBlocked = !!Ph.pointInColliders(P.pos.clone().setY(0.9), 0.3);
+      P.pos.copy(c).addScaledVector(dir.normalize(), 20);
+      P.pos.y = Ph.groundAt(P.pos.x, P.pos.z); // U16e: terrain maps stand the player on the ground
+      const startBlocked = !!Ph.pointInColliders(P.pos.clone().setY(P.pos.y + 0.9), 0.3);
       step(90);
       let spawned = 0, inCol = 0;
       for (let w = 0; w < 12 && z.state !== 'cleared'; w++) {
         for (const e of [...G.enemies]) {
           if (!e.alive) continue;
           spawned++;
-          if (Ph.pointInColliders(e.pos.clone().setY(0.6), 0.2)) inCol++;
+          if (Ph.pointInColliders(e.pos.clone().setY(e.pos.y + 0.6), 0.2)) inCol++;
           g.dealDamage(e, 1e7, { raw: true });
         }
         if (z.obj) z.obj.done = true; // U15: the smoke test skips the story objective (tools/objtest covers it); the zone clears once its waves do
@@ -43,6 +44,22 @@ export async function testLevel(li, mi) {
   } catch (e) { errs.push(`RUN ${e.message}`); }
   window.removeEventListener('error', onErr);
   return `${M.def.name}: ${meshes} meshes, ${G.colliders.length} colliders${unreachable ? `, UNREACHABLE: ${unreachable}` : ''}\n  ${rep.join('\n  ')}${errs.length ? `\n  ERRORS ${errs.join('; ')}` : ''}`;
+}
+
+// U16e: on a terrain map the flat flood fill below means nothing (everything stands on a slope), so ask the nav grid: a zone is reached
+// when its centre can be walked to from spawn by legal steps (ramps and stairs count, hops do not).
+async function navReach(G) {
+  const N = await mod('nav');
+  const doors = new Set(G.level.doors.map((d) => d.collider)); // doors open as the zones clear, so they do not count as walls here
+  const nav = N.buildNav(G.colliders.filter((c) => !doors.has(c)), G.level.bounds);
+  const reach = N.floodReach(nav, G.level.spawn.x, G.level.spawn.z);
+  return G.mission.zones.filter((z) => {
+    for (let dx = -6; dx <= 6; dx += 1) for (let dz = -6; dz <= 6; dz += 1) {
+      const i = N.cellIndex(nav, z.center.x + dx, z.center.z + dz);
+      if (i >= 0 && reach[i]) return false;
+    }
+    return true;
+  }).map((z) => z.name);
 }
 
 // Ground-level flood fill (0.5 m grid, player radius 0.4) from spawn; anything a player can step onto counts as
@@ -122,3 +139,35 @@ export async function tour(li, mi, { size = [400, 250] } = {}) {
   return views.length;
 }
 export function hideTour() { document.getElementById('tour')?.remove(); }
+
+// U16e: hand-picked views for checking terrain and skies. views: [[name, [x, y, z] eye, [x, y, z] target]]; y is metres above the
+// ground under that point. bright adds an ambient light so a night map can be read. Call hideTour() to remove the overlay.
+export async function shots(li, mi, views, { size = [640, 360], bright = 0.9, fov = 70, cols = 2 } = {}) {
+  const [{ G }, S, g, THREE] = await Promise.all([mod('state'), mod('save'), mod('game'), import('three')]);
+  G.save = S.createSave('vanguard');
+  g.startMission(li, mi);
+  if (bright) G.scene.add(new THREE.AmbientLight(0xffffff, bright));
+  G.scene.updateMatrixWorld();
+  const gy = (x, z) => (G.level.groundAt ? G.level.groundAt(x, z) : 0);
+  const cam = new THREE.PerspectiveCamera(fov, size[0] / size[1], 0.1, 900);
+  const r = G.renderer, old = r.getSize(new THREE.Vector2());
+  r.setSize(size[0], size[1], false);
+  document.getElementById('tour')?.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'tour';
+  wrap.style.cssText = `position:fixed;inset:0;z-index:99999;background:#111;display:grid;grid-template-columns:repeat(${cols},1fr);gap:3px;padding:4px;color:#fff;font:11px sans-serif;overflow:auto`;
+  for (const [name, e, t] of views) {
+    cam.position.set(e[0], gy(e[0], e[2]) + e[1], e[2]); cam.lookAt(t[0], gy(t[0], t[2]) + t[1], t[2]);
+    r.render(G.scene, cam);
+    const c = document.createElement('canvas');
+    c.width = size[0]; c.height = size[1];
+    c.getContext('2d').drawImage(r.domElement, 0, 0, size[0], size[1]);
+    c.style.width = '100%';
+    const cell = document.createElement('div');
+    cell.append(c, document.createTextNode(name));
+    wrap.append(cell);
+  }
+  r.setSize(old.x, old.y, false);
+  document.body.append(wrap);
+  return views.length;
+}

@@ -6,7 +6,7 @@ import { Enemy, updateEnemyShots, updateEnemyGrenades } from './enemies.js';
 import { Player } from './player.js';
 import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
-import { pointInColliders } from './physics.js';
+import { pointInColliders, groundAt } from './physics.js';
 import { buildNav, NAV } from './nav.js';
 import { updateNavDebug } from './navdebug.js';
 import { rollItem, dismantleValue } from './loot.js';
@@ -181,7 +181,8 @@ export function findSpawn(center, angle, spread, rMin, rMax) {
     const p = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
     p.x = clamp(p.x, b.minX + 2, b.maxX - 2);
     p.z = clamp(p.z, b.minZ + 2, b.maxZ - 2);
-    if (!pointInColliders(_c.copy(p).setY(0.5), 0.8) && p.distanceTo(G.player.pos) > 8) return p;
+    p.y = groundAt(p.x, p.z);
+    if (!pointInColliders(_c.copy(p).setY(p.y + 0.5), 0.8) && p.distanceTo(G.player.pos) > 8) return p;
   }
   return center.clone();
 }
@@ -406,7 +407,8 @@ function freePoint(c, rMin, rMax, angle) {
   for (let i = 0; i < 30; i++) {
     const a = angle + (i ? rand(-0.6, 0.6) : 0), r = rand(rMin, rMax);
     const p = new THREE.Vector3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r);
-    if (p.x > b.minX + 3 && p.x < b.maxX - 3 && p.z > b.minZ + 3 && p.z < b.maxZ - 3 && !pointInColliders(_c.copy(p).setY(0.5), 1.0)) return p;
+    p.y = groundAt(p.x, p.z);
+    if (p.x > b.minX + 3 && p.x < b.maxX - 3 && p.z > b.minZ + 3 && p.z < b.maxZ - 3 && !pointInColliders(_c.copy(p).setY(p.y + 0.5), 1.0)) return p;
   }
   return c.clone();
 }
@@ -433,7 +435,7 @@ function objMesh(kind, pos) {
     fill.material = fill.material.clone(); fill.material.opacity = 0.16; fill.position.y = 0.06; fill.name = 'fill'; fill.scale.setScalar(0.01);
     g.add(ring, fill);
   }
-  g.position.copy(pos).setY(0);
+  g.position.copy(pos).setY(groundAt(pos.x, pos.z));
   G.scene.add(g);
   return g;
 }
@@ -557,7 +559,7 @@ export function spawnChest(pos) {
   beam.material = beam.material.clone();
   beam.material.opacity = 0.18;
   g.add(base, trim, lid, beam);
-  g.position.copy(pos).setY(0);
+  g.position.copy(pos).setY(groundAt(pos.x, pos.z));
   g.traverse((o) => { if (o.isMesh && o !== beam) o.castShadow = true; });
   G.scene.add(g);
   return { group: g, lid, beam, pos: g.position.clone(), opened: false };
@@ -783,7 +785,7 @@ export function killEnemy(e, o = {}) {
 
 /** Ammo and engram drops. Every fireteam member rolls their own from each kill. Ammo is a hidden meter (tiers.js AMMO_METER): kills fill it, a full meter drops a brick on the next kill. */
 export function rollDrops(e) {
-  const pos = e.pos.clone().setY(0.8);
+  const pos = e.pos.clone().setY(e.pos.y + 0.8);
   const P = G.player;
   if (P) {
     const M = AMMO_METER.size;
@@ -965,7 +967,8 @@ function updateProjectiles(dt) {
     for (let s = 0; s < steps && !hit; s++) {
       p.vel.y -= (p.gravity * dt) / steps;
       p.pos.addScaledVector(p.vel, dt / steps);
-      if (p.pos.y <= 0.05) { hit = 'ground'; p.pos.y = 0.1; break; }
+      const gy = groundAt(p.pos.x, p.pos.z);
+      if (p.pos.y <= gy + 0.05) { hit = 'ground'; p.pos.y = gy + 0.1; break; }
       if (pointInColliders(p.pos, 0, true)) { hit = 'wall'; break; }
       for (const e of G.enemies) {
         if (!e.alive) continue;
@@ -1040,7 +1043,8 @@ function updatePickups(dt) {
     } else {
       k.vel.y -= 15 * dt;
       k.pos.addScaledVector(k.vel, dt);
-      if (k.pos.y < 0.55) { k.pos.y = 0.55; k.vel.set(0, 0, 0); }
+      const floor = groundAt(k.pos.x, k.pos.z) + 0.55;
+      if (k.pos.y < floor) { k.pos.y = floor; k.vel.set(0, 0, 0); }
     }
     k.mesh.position.copy(k.pos);
     k.mesh.position.y += Math.sin(k.age * 3) * 0.08;

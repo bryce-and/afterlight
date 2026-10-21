@@ -22,7 +22,8 @@ import * as ST from '../js/style.js';
 import { sfx, SHOT_RECIPES, ELEMENT_TINT, ABILITY_RECIPES, FACTION_SOUND, spatial } from '../js/audio.js';
 import { musicSectionFor } from '../js/music.js';
 import { G } from '../js/state.js';
-import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody } from '../js/colliders.js';
+import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody, rayGround, groundAt } from '../js/colliders.js';
+import { buildTerrain, steepest, routeSlope, MAX_SLOPE } from '../js/terrain.js';
 import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV } from '../js/nav.js';
 import * as AI from '../js/ai.js';
 import * as TR from '../js/tiers.js';
@@ -1800,20 +1801,6 @@ test('U14 factions: new factions have sounds, profiles and a Darkness-orb throwe
   eq(FA.NEW_PROFILES.scorn.coverMul, 0);
 });
 
-// ---------- runner ----------
-const out = document.getElementById('out');
-let pass = 0, fail = 0;
-for (const t of tests) {
-  const row = document.createElement('div');
-  try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }
-  catch (e) { fail++; row.className = 'fail'; row.textContent = `FAIL  ${t.name}: ${e.message}`; console.error(t.name, e); }
-  out.appendChild(row);
-}
-
-const sum = document.getElementById('summary');
-sum.textContent = `${pass} passed, ${fail} failed`;
-sum.className = fail ? 'fail' : 'pass';
-window.TEST_RESULTS = { pass, fail };
 
 test('v2.9 Vex: roster, shields, stationary artillery, floating units and the Hydra spin guard', () => {
   const vexIds = Object.keys(FA.UNITS).filter((i) => i.startsWith('vx_'));
@@ -1834,3 +1821,105 @@ test('v2.9 Vex: roster, shields, stationary artillery, floating units and the Hy
   ok(FA.spinBlocks(hy, 0, 0.2) && !FA.spinBlocks(hy, 0, 2.5), 'the rotating shield covers only the side it faces');
   eq(FA.spinBlocks(FA.UNITS.vx_goblin, 0, 0), false);
 });
+
+// ---------- U16e terrain ----------
+const hillTerrain = () => buildTerrain([
+  { type: 'plateau', x: 0, z: -34, w: 24, d: 24, h: 8 },
+  { type: 'ramp', x0: 0, z0: 0, x1: 0, z1: -20, width: 6, h0: 0, h1: 8 },       // 0.4 rise per metre, cliffs either side
+  { type: 'mound', x: 40, z: 0, r: 10, h: 3 },
+  { type: 'basin', x: -40, z: 0, r: 12, flat: 0.5, depth: 2 },
+]);
+const withLevel = (terrain, fn) => {
+  const old = G.level, oc = G.colliders;
+  G.level = { groundAt: terrain ? terrain.at : null }; G.colliders = [];
+  try { return fn(); } finally { G.level = old; G.colliders = oc; }
+};
+test('U16e: a map with no terrain list stays flat', () => {
+  eq(buildTerrain(undefined), null);
+  eq(buildTerrain([]), null);
+  withLevel(null, () => { eq(groundAt(5, 5), 0); });
+});
+test('U16e: ramp, plateau, mound and basin give the expected heights', () => {
+  const t = hillTerrain();
+  ok(Math.abs(t.at(0, 0)) < 0.2, 'ramp foot is at ground level');
+  ok(Math.abs(t.at(0, -10) - 4) < 0.2, `ramp middle is half way up (${t.at(0, -10)})`);
+  ok(Math.abs(t.at(0, -20) - 8) < 0.2, 'ramp top meets the plateau');
+  ok(Math.abs(t.at(0, -34) - 8) < 1e-6, 'plateau top is flat at 8');
+  ok(Math.abs(t.at(40, 0) - 3) < 1e-6, 'mound peak');
+  ok(t.at(60, 0) === 0 && t.at(0, 60) === 0, 'untouched ground is 0');
+  ok(t.at(-40, 0) === 0, 'ground never dips below 0');
+  eq(t.at(100, 100), 0);
+});
+test('U16e: a ramp route is under the slope cap, and its sides are cliffs', () => {
+  const t = hillTerrain();
+  const r = routeSlope(t, [[0, 5], [0, -20], [0, -34]]);
+  ok(r < MAX_SLOPE, `route slope ${r.toFixed(3)} is under ${MAX_SLOPE}`);
+  ok(steepest(t, { minX: -60, maxX: 60, minZ: -60, maxZ: 20 }, 1).slope > MAX_SLOPE, 'the short skirts are steeper than a Guardian climbs');
+});
+test('U16e: the player walks up a ramp and back down, glued to the ground', () => {
+  const t = hillTerrain();
+  withLevel(t, () => {
+    const pos = { x: 0, y: 0, z: 2 }, vel = { x: 0, y: 0, z: -7 };
+    let res;
+    for (let i = 0; i < 160; i++) { res = moveBody(pos, vel, 1 / 60, 0.4, 1.8); vel.y = 0; ok(Math.abs(pos.y - t.at(pos.x, pos.z)) < 0.02 && res.onGround, `on the ground at step ${i} (y ${pos.y.toFixed(2)} vs ${t.at(pos.x, pos.z).toFixed(2)})`); }
+    ok(pos.y > 6, `climbed (${pos.y.toFixed(2)})`);
+    vel.z = 7;
+    for (let i = 0; i < 160; i++) { res = moveBody(pos, vel, 1 / 60, 0.4, 1.8); ok(res.onGround, `still grounded going down at step ${i}`); }
+    ok(pos.y < 1, 'back near the bottom');
+  });
+});
+test('U16e: ground steeper than the cap is a wall, and a jump gets over a low lip', () => {
+  const t = buildTerrain([{ type: 'plateau', x: 0, z: -20, w: 20, d: 20, h: 6, edge: 0.5 }]); // a near-cliff
+  withLevel(t, () => {
+    const pos = { x: 0, y: 0, z: 0 }, vel = { x: 0, y: 0, z: -7 };
+    for (let i = 0; i < 200; i++) moveBody(pos, vel, 1 / 60, 0.4, 1.8);
+    ok(pos.y < 1 && pos.z > -9.8, `stopped at the foot of the cliff (z ${pos.z.toFixed(2)}, y ${pos.y.toFixed(2)})`);
+  });
+});
+test('U16e: a body dropped onto a hill lands on it, and a ray finds the ground', () => {
+  const t = hillTerrain();
+  withLevel(t, () => {
+    const pos = { x: 40, y: 10, z: 0 }, vel = { x: 0, y: 0, z: 0 };
+    for (let i = 0; i < 120; i++) { vel.y -= 24 / 60; moveBody(pos, vel, 1 / 60, 0.4, 1.8); }
+    ok(Math.abs(pos.y - 3) < 0.05, `rests on the mound top (${pos.y.toFixed(2)})`);
+    const o = { x: 40, y: 10, z: 0 }, d = { x: 0, y: -1, z: 0 };
+    ok(Math.abs(rayGround(o, d, 50) - 7) < 0.05, 'a ray straight down hits the mound top 7 m below');
+    const side = { x: -0.8, y: 0, z: 0.6 }; // a level shot from the foot of the ramp toward the plateau is not blocked, but one into the slope is
+    ok(rayGround({ x: 0, y: 1, z: 5 }, { x: 0, y: 0, z: -1 }, 40) < 40, 'a level shot into the ramp hits the hillside');
+    ok(rayGround({ x: 0, y: 1, z: 5 }, { x: 0, y: 1, z: 0 }, 40) === Infinity, 'a shot straight up never hits ground');
+    ok(side.x < 0, 'unused guard');
+  });
+});
+test('U16e: the nav grid follows terrain, paths climb a ramp, and hillsides are not ledges', () => {
+  const t = hillTerrain();
+  const b = { minX: -60, maxX: 60, minZ: -60, maxZ: 20 };
+  const nav = buildNav([], b, { ground: t.at });
+  ok(Math.abs(heightAt(nav, 0, -10) - t.at(0.5, -9.5)) < 0.7, 'a ramp cell holds the ramp height');
+  const r = findPath(nav, 0, 5, 0, -34);
+  ok(r && !r.partial, 'a path climbs from the foot to the plateau');
+  eq(ledgeSpots(nav, floodReach(nav, 0, 5), 0, -10, 8, 1).length, 0);
+  const rc = Math.floor((-10 - b.minZ) / nav.cell) * nav.W + Math.floor((0 - b.minX) / nav.cell);
+  ok(nav.base[rc] > 3, 'base records the terrain under each cell');
+});
+test('U16e: a crate on a plateau is a ledge measured from the plateau, not from 0', () => {
+  const t = buildTerrain([{ type: 'plateau', x: 0, z: 0, w: 60, d: 60, h: 5, edge: 3 }]);
+  const nav = buildNav([{ min: { x: 4, y: 5, z: 4 }, max: { x: 6, y: 6.2, z: 6 } }], { minX: -30, maxX: 30, minZ: -30, maxZ: 30 }, { ground: t.at });
+  ok(Math.abs(heightAt(nav, 5, 5) - 6.2) < 1e-6, 'the crate top is standable at 6.2');
+  ok(heightAt(nav, -10, -10) > 4.9, 'plain plateau floor is walkable');
+});
+
+
+// ---------- runner ----------
+const out = document.getElementById('out');
+let pass = 0, fail = 0;
+for (const t of tests) {
+  const row = document.createElement('div');
+  try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }
+  catch (e) { fail++; row.className = 'fail'; row.textContent = `FAIL  ${t.name}: ${e.message}`; console.error(t.name, e); }
+  out.appendChild(row);
+}
+
+const sum = document.getElementById('summary');
+sum.textContent = `${pass} passed, ${fail} failed`;
+sum.className = fail ? 'fail' : 'pass';
+window.TEST_RESULTS = { pass, fail };

@@ -1,4 +1,5 @@
 import { G } from './state.js';
+import { MAX_SLOPE } from './terrain.js';
 // Collider math with no rendering dependency, so tools/tests.js can import it. physics.js re-exports it.
 
 /**
@@ -23,6 +24,33 @@ export function footprintHit(c, x, z, r) {
   const q = c.rot;
   if (!q) return true;
   return Math.abs(localX(q, x, z)) < q.hw + r && Math.abs(localZ(q, x, z)) < q.hd + r;
+}
+
+/** Ground height under (x, z): the map's terrain (U16e), 0 on a flat map. Everything that stands on the floor reads this. */
+export function groundAt(x, z) {
+  const g = G.level?.groundAt;
+  return g ? g(x, z) : 0;
+}
+
+/**
+ * Distance along a ray (origin, unit dir) to the ground within `far`, or Infinity. Flat maps use the y = 0 plane;
+ * terrain maps march the ray and bisect the crossing, so hills block shots and sight lines.
+ */
+export function rayGround(origin, dir, far = Infinity) {
+  const gf = G.level?.groundAt;
+  if (!gf) return dir.y < -1e-4 ? -origin.y / dir.y : Infinity;
+  const end = Math.min(far, 400);
+  let prev = 0;
+  for (let t = 0.75; ; t += 0.75) {
+    const tt = Math.min(t, end);
+    if (origin.y + dir.y * tt < gf(origin.x + dir.x * tt, origin.z + dir.z * tt)) {
+      let a = prev, b = tt;
+      for (let i = 0; i < 8; i++) { const m = (a + b) / 2; if (origin.y + dir.y * m < gf(origin.x + dir.x * m, origin.z + dir.z * m)) b = m; else a = m; }
+      return b;
+    }
+    if (tt >= end) return Infinity;
+    prev = tt;
+  }
 }
 
 function overlaps(p, r, h, c) {
@@ -59,8 +87,16 @@ function pushOutMin(p, r, c) {
 export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
   const C = G.colliders;
   const res = { onGround: false, hitWall: false };
+  const terrain = !!G.level?.groundAt;
+  const g0 = terrain ? groundAt(pos.x, pos.z) : 0;
+  const grounded = terrain && pos.y - g0 < 0.03; // standing on the terrain at the start of the step (not on a collider)
+  const dispH = Math.hypot(vel.x, vel.z) * dt;
   for (const axis of ['x', 'z']) {
+    const before = pos[axis];
     pos[axis] += vel[axis] * dt;
+    if (terrain && pos.y < groundAt(pos.x, pos.z) - Math.abs(vel[axis] * dt) * MAX_SLOPE - 0.03) { // ground steeper than a Guardian climbs is a wall
+      pos[axis] = before; res.hitWall = true; continue;
+    }
     for (const c of C) {
       if (c.pass || !overlaps(pos, r, h, c)) continue;
       if (c.max.y - pos.y <= stepUp && vel.y <= 0.5 && !blockedAt(pos, r, h, c.max.y)) { pos.y = c.max.y; continue; }
@@ -79,8 +115,10 @@ export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
     else if (vel.y > 0) { pos.y = Math.max(prevY, c.min.y - h - 1e-3); vel.y = 0; }
   }
   const open = !!G.level?.voidAt?.(pos.x, pos.z); // past an open edge there is no floor
-  if (pos.y <= 0 && !open) { pos.y = 0; if (vel.y < 0) vel.y = 0; }
-  res.onGround = (pos.y <= 1e-3 && !open) || C.some((c) => !c.pass && Math.abs(pos.y - c.max.y) < 0.03 &&
+  const gy = open ? -Infinity : (terrain ? groundAt(pos.x, pos.z) : 0);
+  if (!open && pos.y <= gy) { pos.y = gy; if (vel.y < 0) vel.y = 0; }
+  else if (grounded && !open && vel.y <= 0 && pos.y - gy <= dispH * 0.7 + 0.05) { pos.y = gy; vel.y = 0; } // walking downhill hugs the slope
+  res.onGround = (!open && pos.y - gy <= 1e-3) || C.some((c) => !c.pass && Math.abs(pos.y - c.max.y) < 0.03 &&
     footprintHit(c, pos.x, pos.z, r));
   return res;
 }

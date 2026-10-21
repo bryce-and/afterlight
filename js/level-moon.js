@@ -308,6 +308,15 @@ export default {
       { name: 'Chamber of Night', x: -10, z: -268, boss: true, room: { minX: -34.2, maxX: 14.2, minZ: -299.2, maxZ: -236.8 } },
     ],
     noEdge: true,
+    // U16e High Ground: the Temple is a climb (a grand causeway up to the wall gate), the Hellmouth a long descent from the wall's high
+    // ground back down to the tunnel mouth, with a shelf above the pit on the east. The cliff face and tunnels stay on the flat.
+    terrain: [
+      { type: 'ramp', x0: 0, z0: -30, x1: 0, z1: -76, width: 26, h0: 0, h1: 7.2 },                       // the causeway up to the gate (0.16 rise per metre)
+      { type: 'plateau', x: 2.5, z: -92, w: 166, d: 32, h: 7.2 },                                        // the high ground inside the wall
+      { type: 'ramp', x0: 2.5, z0: -108, x1: 2.5, z1: -156, width: 172, h0: 7.2, h1: 0, edge: 2 },       // the descent to the cliff
+      { type: 'ramp', x0: 62, z0: -108, x1: 62, z1: -126, width: 10, h0: 7.2, h1: 5 },                   // path to the shelf
+      { type: 'plateau', x: 62, z: -141, w: 36, d: 34, h: 5 },                                           // the shelf over the pit
+    ],
     build(K) {
       // ---- processional approach ----
       for (const z of [2, -12, -26]) for (const s of [-1, 1]) brazier(K, s * 9, z, 1.1);

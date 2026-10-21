@@ -2,6 +2,7 @@
 // and a few pure helpers the enemy AI uses. No wall-scaling: a cell is only reachable from a
 // neighbour when the height difference is a step the player could take (NAV.step), so a ledge is a
 // firing position only if a ramp or stairs lead to it.
+import { G } from './state.js';
 import { footprintHit } from './colliders.js';
 
 export const NAV = {
@@ -23,16 +24,21 @@ export function buildNav(colliders, bounds, o = {}) {
   const minX = bounds.minX, minZ = bounds.minZ;
   const W = Math.ceil((bounds.maxX - minX) / cell), D = Math.ceil((bounds.maxZ - minZ) / cell);
   const hgt = new Float32Array(W * D);
+  const base = new Float32Array(W * D); // the terrain under each cell (U16e); collider heights below are measured from it
   const blocked = new Uint8Array(W * D);
+  const ground = o.ground ?? G.level?.groundAt ?? null, rolling = !!ground; // a flat map keeps the exact old numbers
+  if (rolling) {
+    for (let j = 0; j < D; j++) for (let i = 0; i < W; i++) { const g = ground(minX + (i + 0.5) * cell, minZ + (j + 0.5) * cell); base[j * W + i] = g; hgt[j * W + i] = g; }
+  }
   for (const c of colliders) {
-    if (c.min.y >= NAV.bodyH || c.max.y <= 0.05) continue;
-    const platform = c.max.y <= NAV.ledgeMax;
+    if (!rolling && (c.min.y >= NAV.bodyH || c.max.y <= 0.05)) continue;
     const x0 = Math.max(0, Math.floor((c.min.x - r - minX) / cell)), x1 = Math.min(W - 1, Math.floor((c.max.x + r - minX) / cell));
     const z0 = Math.max(0, Math.floor((c.min.z - r - minZ) / cell)), z1 = Math.min(D - 1, Math.floor((c.max.z + r - minZ) / cell));
     for (let i = x0; i <= x1; i++) {
       for (let j = z0; j <= z1; j++) {
-        const cx = minX + (i + 0.5) * cell, cz = minZ + (j + 0.5) * cell, idx = j * W + i;
-        if (platform && footprintHit(c, cx, cz, 0)) { if (c.max.y > hgt[idx]) hgt[idx] = c.max.y; }
+        const cx = minX + (i + 0.5) * cell, cz = minZ + (j + 0.5) * cell, idx = j * W + i, g = base[idx];
+        if (c.min.y - g >= NAV.bodyH || c.max.y - g <= 0.05) continue; // overhead, or buried in the terrain
+        if (c.max.y - g <= NAV.ledgeMax && footprintHit(c, cx, cz, 0)) { if (c.max.y > hgt[idx]) hgt[idx] = c.max.y; }
         else if (footprintHit(c, cx, cz, r)) blocked[idx] = 1;
       }
     }
@@ -44,7 +50,7 @@ export function buildNav(colliders, bounds, o = {}) {
       if (blocked[idx] || edge) hgt[idx] = -1;
     }
   }
-  return { cell, minX, minZ, W, D, hgt };
+  return { cell, minX, minZ, W, D, hgt, base };
 }
 
 export const cellIndex = (nav, x, z) => {
@@ -201,7 +207,7 @@ export function ledgeSpots(nav, reach, cx, cz, rad, every = 2) {
   const R = Math.ceil(NAV.hopLen / nav.cell);
   for (let j = Math.max(0, j0); j <= Math.min(nav.D - 1, j1); j += every) {
     for (let i = Math.max(0, i0); i <= Math.min(nav.W - 1, i1); i += every) {
-      const idx = j * nav.W + i, h = nav.hgt[idx];
+      const idx = j * nav.W + i, h = nav.hgt[idx] - nav.base[idx]; // height above the terrain
       if (h < NAV.ledgeMin || h > NAV.hop) continue;
       const x = nav.minX + (i + 0.5) * nav.cell, z = nav.minZ + (j + 0.5) * nav.cell;
       if ((x - cx) ** 2 + (z - cz) ** 2 > rad * rad) continue;
@@ -211,8 +217,8 @@ export function ledgeSpots(nav, reach, cx, cz, rad, every = 2) {
         for (let di = -R; di <= R; di++) {
           const ni = i + di, nj = j + dj;
           if (ni < 0 || nj < 0 || ni >= nav.W || nj >= nav.D) continue;
-          const nb = nj * nav.W + ni, hn = nav.hgt[nb];
-          if (hn < 0 || !reach[nb] || hn > NAV.step || h - hn > NAV.hop) continue; // hop up from the floor, not from another ledge
+          const nb = nj * nav.W + ni, hn = nav.hgt[nb] - nav.base[nb];
+          if (nav.hgt[nb] < 0 || !reach[nb] || hn > NAV.step || h - hn > NAV.hop) continue; // hop up from the floor, not from another ledge
           const d = Math.hypot(di, dj) * nav.cell;
           if (d <= NAV.hopLen && d < bd) { bd = d; from = { x: nav.minX + (ni + 0.5) * nav.cell, z: nav.minZ + (nj + 0.5) * nav.cell }; }
         }

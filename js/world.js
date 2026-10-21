@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mulberry32, hashStr } from './util.js';
 import { buildCharacter } from './characters.js';
 import { orientedCollider } from './colliders.js';
+import { buildTerrain } from './terrain.js';
 import EARTH from './level-earth.js';
 import MOON from './level-moon.js';
 import MARS from './level-mars.js';
@@ -83,8 +84,11 @@ export function buildLevel(loc, def) {
   // ---- zones ----
   const set = LEVEL_SETS[def.id];
   if (!set) throw new Error(`No level map for mission ${def.id}; add one to js/level-${loc.id}.js`);
-  const zones = set.zones.map((z) => ({ center: new THREE.Vector3(z.x, 0, z.z), isBoss: !!z.boss, name: z.name, leash: z.leash, room: z.room }));
-  const spawn = new THREE.Vector3(set.spawn[0], 0, set.spawn[1]);
+  // U16e: a map may list terrain features (js/terrain.js); without them the ground is flat and every number below is unchanged
+  const terrain = buildTerrain(set.terrain), gAt = terrain ? terrain.at : null;
+  const GY = gAt || (() => 0);
+  const zones = set.zones.map((z) => ({ center: new THREE.Vector3(z.x, GY(z.x, z.z), z.z), isBoss: !!z.boss, name: z.name, leash: z.leash, room: z.room }));
+  const spawn = new THREE.Vector3(set.spawn[0], GY(set.spawn[0], set.spawn[1]), set.spawn[1]);
   const [minX, maxX, minZ, maxZ] = set.bounds;
   const bounds = { minX, maxX, minZ, maxZ };
 
@@ -93,12 +97,17 @@ export function buildLevel(loc, def) {
   const heightAt = (x, z) => {
     const n = Math.sin(x * 0.11 + s1) * Math.cos(z * 0.09 - s1) + 0.6 * Math.sin((x + z) * 0.23 + s1 * 2) + 0.3 * Math.cos(x * 0.41 - z * 0.37);
     const out = Math.max(0, bounds.minX - x, x - bounds.maxX, bounds.minZ - z, z - bounds.maxZ);
+    if (gAt) { // the play area is the terrain; past its edge the slopes rise from wherever the terrain ends
+      const base = gAt(Math.min(bounds.maxX, Math.max(bounds.minX, x)), Math.min(bounds.maxZ, Math.max(bounds.minZ, z)));
+      if (out <= 0) return base - 0.03;
+      return base + n * 0.12 + Math.min(out, 90) * 0.7 * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
+    }
     if (out <= 0) return loc.vista ? -0.08 : n * 0.12; // the Tower's paving sits above flat ground (no terrain bumps poking through, no z-fighting)
     if (loc.vista) return n * 0.12 - 1.2 - Math.min(out * out * 0.04, 139); // the Tower stands on a cliff above the Last City
     if (loc.sea) return n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // the play area is a deck above the sea
     return n * 0.12 + Math.min(out, 90) * 0.7 * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
   };
-  scene.add(buildGround(bounds, C, heightAt, rng));
+  scene.add(buildGround(bounds, C, heightAt, rng, gAt ? 2 : 5));
   if (loc.vista) loc.vista(scene, C);
   else if (loc.sea) {
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 }));
@@ -112,22 +121,42 @@ export function buildLevel(loc, def) {
   const inBounds = (x, z, r) => x - r > bounds.minX + 1 && x + r < bounds.maxX - 1 && z - r > bounds.minZ + 1 && z + r < bounds.maxZ - 1;
   const isClear = (x, z, r) => inBounds(x, z, r) && clear.every((c) => (x - c.x) ** 2 + (z - c.z) ** 2 > (c.r + r) ** 2);
 
-  const addCollider = (minX, minY, minZ, maxX, maxY, maxZ, mesh) => {
+  // U16e: every y a map gives is measured from the terrain under (x, z); a flat map has none, so nothing moves. `lift` is off for scenery
+  // outside the play area (it is placed at the absolute height of the slope).
+  let lift = !!gAt;
+  const gy = (x, z) => (lift ? gAt(x, z) : 0);
+  /** Lowest ground under a footprint: a box on a slope gets a skirt down to it so it never floats. */
+  const lowest = (x, z, w, d) => {
+    let m = Infinity;
+    for (const sx of [-0.5, 0, 0.5]) for (const sz of [-0.5, 0, 0.5]) m = Math.min(m, gAt(x + sx * w, z + sz * d));
+    return m;
+  };
+  const rawCollider = (minX, minY, minZ, maxX, maxY, maxZ, mesh) => {
     colliders.push({ min: new THREE.Vector3(minX, minY, minZ), max: new THREE.Vector3(maxX, maxY, maxZ) });
     if (mesh) staticMeshes.push(mesh);
   };
+  const addCollider = (minX, minY, minZ, maxX, maxY, maxZ, mesh) => {
+    const g = gy((minX + maxX) / 2, (minZ + maxZ) / 2);
+    rawCollider(minX, minY + g, minZ, maxX, maxY + g, maxZ, mesh);
+  };
   // yawed box collider (diagonal walls block only where they are); see physics.orientedCollider
   const addOriented = (cx, y0, cz, w, h, d, ry, mesh) => {
-    colliders.push(orientedCollider(cx, y0, cz, w, h, d, ry));
+    colliders.push(orientedCollider(cx, y0 + gy(cx, cz), cz, w, h, d, ry));
     if (mesh) staticMeshes.push(mesh);
   };
-  const addBox = (x, z, w, h, d, color, y = 0, collide = true, matOpts) => {
+  const addBox = (x, z, w, h, d, color, y = 0, collide = true, matOpts, abs = false) => {
+    let base = y, hh = h;
+    if (lift && !abs) {
+      const g = gAt(x, z);
+      base = y + g;
+      if (y === 0) { const skirt = g - lowest(x, z, w, d); base -= skirt; hh += skirt; }
+    }
     const m = new THREE.Mesh(BOX, mat(color, matOpts));
-    m.scale.set(w, h, d);
-    m.position.set(x, y + h / 2, z);
+    m.scale.set(w, hh, d);
+    m.position.set(x, base + hh / 2, z);
     m.castShadow = true; m.receiveShadow = true;
     scene.add(m);
-    if (collide) addCollider(x - w / 2, y, z - d / 2, x + w / 2, y + h, z + d / 2, m);
+    if (collide) rawCollider(x - w / 2, base, z - d / 2, x + w / 2, base + hh, z + d / 2, m);
     return m;
   };
   const addRock = (x, z, s, y = 0, collide = true) => {
@@ -135,15 +164,16 @@ export function buildLevel(loc, def) {
     const sy = R(0.6, 1.1);
     m.scale.set(R(0.9, 1.2), sy, R(0.9, 1.2));
     m.rotation.y = R(0, 6.28);
-    m.position.set(x, y + s * sy * 0.45, z);
+    const yy = y + gy(x, z);
+    m.position.set(x, yy + s * sy * 0.45, z);
     m.castShadow = true; m.receiveShadow = true;
     scene.add(m);
     const hw = s * 0.75;
-    if (collide) addCollider(x - hw, y, z - hw, x + hw, y + s * sy * 1.25, z + hw, m);
+    if (collide) rawCollider(x - hw, yy, z - hw, x + hw, yy + s * sy * 1.25, z + hw, m);
   };
   const addMesh = (geo, color, x, y, z, matOpts) => {
     const m = new THREE.Mesh(geo, mat(color, matOpts));
-    m.position.set(x, y, z);
+    m.position.set(x, y + gy(x, z), z);
     m.castShadow = true; m.receiveShadow = true;
     scene.add(m);
     return m;
@@ -336,6 +366,8 @@ export function buildLevel(loc, def) {
       C, loc, def, rng, R, RP, chance: (p) => rng() < p, bounds, spawn, zones, scene,
       mat: (color, k) => mat(color, glow(color, k)),
       collider: addCollider,
+      ground: GY, // terrain height at (x, z); every y the kit takes is measured from it (pass { abs: true } to a box for a world height)
+      terrain,
       ocollider: (x, z, w, h, d, ry, y0 = 0) => addOriented(x, y0, z, w, h, d, ry, null),
       // box yawed by ry, with an exact collider
       obox: (x, z, w, h, d, ry, color = C.wall, o = {}) => {
@@ -344,7 +376,7 @@ export function buildLevel(loc, def) {
         if (o.collide ?? true) addOriented(x, o.y ?? 0, z, w, h, d, ry, m);
         return m;
       },
-      box: (x, z, w, h, d, color = C.wall, o = {}) => addBox(x, z, w, h, d, color, o.y ?? 0, o.collide ?? true, glow(color, o.glow)),
+      box: (x, z, w, h, d, color = C.wall, o = {}) => addBox(x, z, w, h, d, color, o.y ?? 0, o.collide ?? true, glow(color, o.glow), !!o.abs),
       mesh(geo, color, x, y, z, o = {}) {
         const m = addMesh(geo, color, x, y, z, glow(color, o.glow));
         m.rotation.set(o.rx ?? 0, o.ry ?? 0, o.rz ?? 0);
@@ -358,7 +390,7 @@ export function buildLevel(loc, def) {
           const bb = new THREE.Box3().setFromObject(m);
           const k = o.collide === true ? 1 : o.collide; // shrink factor for round shapes
           const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
-          addCollider(cx - (cx - bb.min.x) * k, bb.min.y, cz - (cz - bb.min.z) * k, cx + (bb.max.x - cx) * k, bb.max.y, cz + (bb.max.z - cz) * k, m);
+          rawCollider(cx - (cx - bb.min.x) * k, bb.min.y, cz - (cz - bb.min.z) * k, cx + (bb.max.x - cx) * k, bb.max.y, cz + (bb.max.z - cz) * k, m);
         }
         return m;
       },
@@ -393,39 +425,49 @@ export function buildLevel(loc, def) {
       },
       // stairs climbing toward dir ('n' = -z, 's' = +z, 'e' = +x, 'w' = -x), starting at (x, z); returns the top edge point
       stairs(x, z, dir, w, rise, o = {}) {
-        const step = 0.4, run = 0.6, n = Math.max(1, Math.ceil(rise / step)), y0 = o.y ?? 0, color = o.color ?? C.metal;
+        const step = 0.4, run = 0.6, n = Math.max(1, Math.ceil(rise / step)), color = o.color ?? C.metal;
+        // on terrain the stairs start from the ground at their foot, so they land on the deck whatever the slope does between
+        const abs = !!(o.abs || lift), y0 = lift && !o.abs ? gAt(x, z) + (o.y ?? 0) : o.y ?? 0;
         const [dx, dz] = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[dir];
         for (let i = 0; i < n; i++) {
           const hh = Math.min(rise, (i + 1) * step), cxs = x + dx * (i + 0.5) * run, czs = z + dz * (i + 0.5) * run;
-          addBox(cxs, czs, dx ? run : w, hh, dz ? run : w, color, y0);
+          addBox(cxs, czs, dx ? run : w, hh, dz ? run : w, color, y0, true, undefined, abs);
         }
         return [x + dx * n * run, z + dz * n * run];
       },
       // raised deck with stairs on the given sides
       platform(x, z, w, d, h, o = {}) {
         const m = addBox(x, z, w, h, d, o.color ?? C.wall, o.y ?? 0);
-        const n = Math.ceil(h / 0.4) * 0.6;
-        const out = { n: [x, z - d / 2 - n, 's'], s: [x, z + d / 2 + n, 'n'], e: [x + w / 2 + n, z, 'w'], w: [x - w / 2 - n, z, 'e'] };
-        for (const side of o.stairs || []) { const [sx, sz, dir] = out[side]; K.stairs(sx, sz, dir, o.stairW ?? 2.4, h, { color: o.stairColor ?? C.metal, y: o.y }); }
+        const top = lift ? gAt(x, z) + (o.y ?? 0) + h : h + (o.y ?? 0); // world height of the deck
+        const out = (side, n) => ({ n: [x, z - d / 2 - n, 's'], s: [x, z + d / 2 + n, 'n'], e: [x + w / 2 + n, z, 'w'], w: [x - w / 2 - n, z, 'e'] })[side];
+        for (const side of o.stairs || []) {
+          if (!lift) { const [sx, sz, dir] = out(side, Math.ceil(h / 0.4) * 0.6); K.stairs(sx, sz, dir, o.stairW ?? 2.4, h, { color: o.stairColor ?? C.metal, y: o.y }); continue; }
+          // measure the foot on the ground just outside the deck, then climb whatever height that leaves
+          let [sx, sz, dir] = out(side, 0.6), foot = (o.y ?? 0) > 0 ? top - h : gAt(sx, sz), rise = top - foot;
+          [sx, sz, dir] = out(side, Math.ceil(rise / 0.4) * 0.6);
+          if ((o.y ?? 0) <= 0) { foot = gAt(sx, sz); rise = top - foot; }
+          if (rise > 0.2) K.stairs(sx, sz, dir, o.stairW ?? 2.4, rise, { color: o.stairColor ?? C.metal, y: foot, abs: true });
+        }
         return m;
       },
       // U15: any number of lights per map. Each gets a small glow bulb, and updateLights() lends the 6 nearest the player a real PointLight (point lights are expensive)
       light(x, y, z, color = C.accent, intensity = 8, dist = 22) {
         const bulb = new THREE.Mesh(BULB, new THREE.MeshBasicMaterial({ color, fog: false }));
-        bulb.position.set(x, y, z);
+        bulb.position.set(x, y + gy(x, z), z);
         scene.add(bulb);
-        lamps.push({ x, y, z, color, intensity, dist, d2: 0 });
+        lamps.push({ x, y: y + gy(x, z), z, color, intensity, dist, d2: 0 });
         return bulb;
       },
       // U15: a door that is a solid block until a zone clear (zone: index), a story beat (open it by id) or never (zone: null) opens it
       door(x, z, w, h, axis, o = {}) {
         const t = o.t ?? 0.7, color = o.color ?? C.metal;
         const m = addBox(x, z, axis === 'x' ? w : t, h, axis === 'x' ? t : w, color, o.y ?? 0, true, glow(o.trim ?? C.accent, 0.25));
+        const gd = gy(x, z); // the door's base sits on the terrain (a skirt, if any, hides below it)
         const stripe = new THREE.Mesh(BOX, mat(o.trim ?? C.accent, { emissive: o.trim ?? C.accent, emissiveIntensity: 1.6 }));
         stripe.scale.set(axis === 'x' ? w * 0.8 : t + 0.06, 0.18, axis === 'x' ? t + 0.06 : w * 0.8);
         stripe.position.set(0, 0, 0);
         const d = { id: o.id ?? `door${doors.length}`, zone: o.zone ?? null, mesh: m, stripe, y0: m.position.y, h, collider: colliders[colliders.length - 1], open: false, t: 0, x, z, w, t2: t, axis, lock: null, lockHeld: false };
-        stripe.position.set(x, (o.y ?? 0) + h * 0.7, z);
+        stripe.position.set(x, (o.y ?? 0) + gd + h * 0.7, z);
         scene.add(stripe);
         doors.push(d);
         return d;
@@ -444,7 +486,9 @@ export function buildLevel(loc, def) {
           else if (side === 1) { x = bounds.maxX + off; z = R(bounds.minZ - 40, bounds.maxZ + 40); }
           else if (side === 2) { z = bounds.minZ - off; x = R(bounds.minX - 40, bounds.maxX + 40); }
           else { z = bounds.maxZ + off; x = R(bounds.minX - 40, bounds.maxX + 40); }
+          lift = false; // slope scenery is placed at the absolute height of the slope
           fn(x, z, loc.sea ? -0.7 : heightAt(x, z) - 0.6);
+          lift = !!gAt;
         }
       },
     };
@@ -452,6 +496,7 @@ export function buildLevel(loc, def) {
   }
 
   // edge scenery on the slopes (no collision)
+  lift = false;
   if (!set.noEdge) for (let k = 0; k < 70; k++) {
     const side = Math.floor(rng() * 4);
     const off = R(6, 45);
@@ -463,14 +508,15 @@ export function buildLevel(loc, def) {
     const y = loc.sea ? -0.7 : heightAt(x, z) - 0.6;
     if (rng() < 0.5 && !loc.sea) addRock(x, z, R(3, 8), y, false); else themed(x, z, y, false);
   }
+  lift = !!gAt;
   // invisible boundary walls
   const T = 200;
   // U16d: a map can leave sides open (`open: { e: true }`): no boundary wall there, and past the edge there is no floor (see voidAt)
   const open = set.open || {};
-  if (!open.w) addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.minX, T, bounds.maxZ + 10, null);
-  if (!open.e) addCollider(bounds.maxX, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.maxZ + 10, null);
-  if (!open.n) addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.minZ, null);
-  if (!open.s) addCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
+  if (!open.w) rawCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.minX, T, bounds.maxZ + 10, null);
+  if (!open.e) rawCollider(bounds.maxX, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.maxZ + 10, null);
+  if (!open.n) rawCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.minZ, null);
+  if (!open.s) rawCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
   const voidAt = Object.keys(open).length ? (x, z) => (open.w && x < bounds.minX) || (open.e && x > bounds.maxX) || (open.n && z < bounds.minZ) || (open.s && z > bounds.maxZ) : null;
 
   // ---- light pool: the 6 nearest lamps get a real light, so a map can hold dozens (U15) ----
@@ -546,7 +592,7 @@ export function buildLevel(loc, def) {
   const bossIdx = zones.findIndex((z) => z.isBoss);
   if (bossIdx > 0 && set.lockIn !== false) for (const d of doors) if (d.zone === bossIdx - 1) d.lock = bossIdx;
 
-  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights, openDoors, updateDoors, syncLocks, voidAt };
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights, openDoors, updateDoors, syncLocks, voidAt, groundAt: gAt, terrain };
 }
 
 /**
@@ -565,11 +611,12 @@ function separateCoplanar(scene) {
   });
 }
 
-function buildGround(bounds, C, heightAt, rng) {
+function buildGround(bounds, C, heightAt, rng, cellSize = 5) {
+  const rolling = cellSize < 5; // terrain map: rock shows where the ground is steep, not just where it is high
   const pad = 130;
   const minX = bounds.minX - pad, maxX = bounds.maxX + pad, minZ = bounds.minZ - pad, maxZ = bounds.maxZ + pad;
   const W = maxX - minX, D = maxZ - minZ;
-  const geo = new THREE.PlaneGeometry(W, D, Math.round(W / 5), Math.round(D / 5));
+  const geo = new THREE.PlaneGeometry(W, D, Math.round(W / cellSize), Math.round(D / cellSize));
   geo.rotateX(-Math.PI / 2);
   geo.translate((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
   const pos = geo.attributes.position;
@@ -581,7 +628,8 @@ function buildGround(bounds, C, heightAt, rng) {
   const c = new THREE.Color(), cA = new THREE.Color(C.ground), cB = new THREE.Color(C.ground2), rA = new THREE.Color(C.rock), rB = new THREE.Color(C.rock2);
   for (let i = 0; i < p2.count; i += 3) {
     const y = (p2.getY(i) + p2.getY(i + 1) + p2.getY(i + 2)) / 3;
-    if (y > 1.2) c.lerpColors(rA, rB, rng()); else c.lerpColors(cA, cB, rng());
+    const steep = rolling ? g2.attributes.normal.getY(i) < 0.93 : y > 1.2;
+    if (steep) c.lerpColors(rA, rB, rng()); else c.lerpColors(cA, cB, rng());
     for (let k = 0; k < 3; k++) { colors[(i + k) * 3] = c.r; colors[(i + k) * 3 + 1] = c.g; colors[(i + k) * 3 + 2] = c.b; }
   }
   g2.setAttribute('color', new THREE.BufferAttribute(colors, 3));

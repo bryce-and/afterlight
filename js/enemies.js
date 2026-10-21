@@ -4,7 +4,7 @@ import { ENEMY_TYPES, ELEMENTS } from './data.js';
 import { STAGGER } from './combat.js';
 import { mat } from './world.js';
 import { rand, clamp, pick } from './util.js';
-import { hasLOS, pushOutCircle, pointInColliders } from './physics.js';
+import { hasLOS, pushOutCircle, pointInColliders, groundAt } from './physics.js';
 import { NAV, heightAt, cellIndex, lineClear, findPath, floodReach, ledgeSpots, nearestWalkable } from './nav.js';
 import { leashTarget, pastLeash, insideLeash, COVER, coverAllowed, CLOSE_MELEE, closeMeleeReach, SUICIDE, blastDamage } from './ai.js';
 import { sparks, ringFx, basicMat, explosionFx, flashLight } from './effects.js';
@@ -473,7 +473,7 @@ export class Enemy {
     this.cls = def.base || typeId; // U14: the base class (grunt, rusher, captain, heavy, suicide, boss) a unit extends; cover, stagger, XP and close melee key on it
     const faction = o.faction || UNITS[typeId]?.faction || { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion', dc: 'hollow', leviathan: 'legion' }[M.loc.id];
     this.name = o.name || unitName(typeId) || M.loc.enemyNames[this.cls];
-    this.pos = pos.clone(); this.pos.y = 0;
+    this.pos = pos.clone(); this.pos.y = groundAt(pos.x, pos.z);
     // U13b: minor or major (bosses have neither); a major shares its minor's abilities with more health and size
     this.tier = typeId === 'boss' ? null : (o.tier || 'minor');
     const T = TIERS[this.tier] || { hp: 1, dmg: 1, size: 1 };
@@ -752,6 +752,7 @@ export class Enemy {
         if (hh > this.pos.y) { if (hh - this.pos.y <= NAV.step + 0.05) this.pos.y = hh; }
         else this.pos.y = Math.max(hh, this.pos.y - 14 * dt);
       }
+      if (G.level.groundAt) this.pos.y = Math.max(this.pos.y, groundAt(this.pos.x, this.pos.z)); // never under the terrain (knockback, a step too steep for the grid)
     }
     if (!hopping || this.jet?.s === 'hover') pushOutCircle(this.pos, this.radius, this.height);
     const b = G.level.bounds;
@@ -1356,11 +1357,11 @@ function findCover(e, avoid = null) {
     dx /= dl; dz /= dl;
     const edge = Math.min(Math.abs(dx) > 1e-3 ? hx / Math.abs(dx) : Infinity, Math.abs(dz) > 1e-3 ? hz / Math.abs(dz) : Infinity);
     const off = edge + e.radius + 0.35;
-    _c.set(cx + dx * off, 0, cz + dz * off);
+    _c.set(cx + dx * off, 0, cz + dz * off); _c.y = groundAt(_c.x, _c.z);
     const pd = Math.hypot(_c.x - P.pos.x, _c.z - P.pos.z);
     if (pd < 7 || pd > e.def.range) continue;
     if (_c.x < b.minX + 1 || _c.x > b.maxX - 1 || _c.z < b.minZ + 1 || _c.z > b.maxZ - 1) continue;
-    if (pointInColliders(_c.clone().setY(0.5), e.radius)) continue;
+    if (pointInColliders(_c.clone().setY(_c.y + 0.5), e.radius)) continue;
     if (avoid && Math.hypot(_c.x - avoid.x, _c.z - avoid.z) < 2.5) continue;
     if (!coverReachable(e, _c)) continue;
     if (hasLOS(P.eye, _c.clone().setY(Math.min(1.0, h - 0.1)))) continue; // must actually block the view
@@ -1392,7 +1393,8 @@ function peekPoint(e, cover) {
   const px = -dz / d, pz = dx / d;
   for (const s of Math.random() < 0.5 ? [1, -1] : [-1, 1]) {
     const p = new THREE.Vector3(cover.x + px * s * 1.8 + (dx / d) * 0.6, 0, cover.z + pz * s * 1.8 + (dz / d) * 0.6);
-    if (!pointInColliders(p.clone().setY(0.5), e.radius)) return p;
+    p.y = groundAt(p.x, p.z);
+    if (!pointInColliders(p.clone().setY(p.y + 0.5), e.radius)) return p;
   }
   return new THREE.Vector3(cover.x + (dx / d) * 1.5, 0, cover.z + (dz / d) * 1.5);
 }
@@ -1424,7 +1426,7 @@ export function updateEnemyShots(dt) {
     let hit = s.life <= 0 ? 'expire' : null;
     for (let k = 0; k < steps && !hit; k++) {
       s.pos.addScaledVector(s.vel, dt / steps);
-      if (s.pos.y < 0.02) hit = 'ground';
+      if (s.pos.y < groundAt(s.pos.x, s.pos.z) + 0.02) hit = 'ground';
       else if (pointInColliders(s.pos)) hit = 'wall';
       else if (G.tickers.some((t) => t.ward && t.ward.p.distanceToSquared(s.pos) < t.ward.r2)) hit = 'wall'; // Bastion Ward
       else if (P.barrierBlocks?.(s.pos)) { hit = 'wall'; P.barrierBlocked(s.dmg); } // Sentinel Shield barrier (U9)
@@ -1474,9 +1476,10 @@ export function updateEnemyGrenades(dt) {
       if (pointInColliders(_v.set(nx, g.pos.y, nz))) { g.vel.x *= -0.3; g.vel.z *= -0.3; }
       else { g.pos.x = nx; g.pos.z = nz; }
       g.pos.y = ny;
-      if (g.pos.y <= 0.15) {
-        g.pos.y = 0.15; g.vel.set(0, 0, 0); g.fuse = 0.6;
-        ringFx(_v.copy(g.pos).setY(0.05), GRENADE.radius, g.color, 0.6); // the warning ring
+      const gnd = groundAt(g.pos.x, g.pos.z);
+      if (g.pos.y <= gnd + 0.15) {
+        g.pos.y = gnd + 0.15; g.vel.set(0, 0, 0); g.fuse = 0.6;
+        ringFx(_v.copy(g.pos).setY(gnd + 0.05), GRENADE.radius, g.color, 0.6); // the warning ring
         sfx.alert();
       } else if (!P.dead && g.pos.distanceTo(_v2.set(P.pos.x, P.pos.y + 1, P.pos.z)) < 0.7) boom = true;
     } else {

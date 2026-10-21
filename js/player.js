@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { CLASSES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF } from './data.js';
 import { clamp, lerp, damp } from './util.js';
-import { moveBody, hasLOS, pointInColliders } from './physics.js';
+import { moveBody, hasLOS, pointInColliders, rayGround, groundAt } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
 import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage, voidMote, VOID_FX } from './effects.js';
@@ -867,7 +867,7 @@ export class Player {
     ray.set(origin, dir);
     ray.far = range;
     const hits = ray.intersectObjects(getHitTargets(), false);
-    const groundT = dir.y < -1e-4 ? -origin.y / dir.y : Infinity;
+    const groundT = rayGround(origin, dir, range);
     let end = null;
     const seen = new Set();
     for (const h of hits) {
@@ -3393,6 +3393,7 @@ export class Player {
       const hit = _ray.intersectObjects(G.staticMeshes, false)[0];
       if (hit) _cp.copy(_pv).addScaledVector(dir, Math.max(0.2, hit.distance - 0.3));
       cam.position.lerpVectors(this.eye, _cp, this.tpsT);
+      if (G.level?.groundAt) cam.position.y = Math.max(cam.position.y, groundAt(cam.position.x, cam.position.z) + 0.2);
     }
     cam.rotation.set(this.pitch + sx, this.yaw + sy, this.dead ? 0.4 : 0);
     this.fovKick = damp(this.fovKick, 0, 5, dt);
