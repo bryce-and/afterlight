@@ -596,13 +596,72 @@ function buildPlanet(loc, locked = false, dim = 1) {
 // lit and spinning, locked ones are black silhouettes. `focus(id)` flies the camera to one planet; `onFrame`
 // hands the screen position and size of every node to the UI so it can place its click targets.
 // ---------------------------------------------------------------------------
-// [x, y, scale] per node. The Tower (a Traveler orb) sits in the centre; the destinations hang around it, the big
-// ones cropped by the screen edge, as in the Destiny 1 Director.
+// [x, y, scale] per node, all inside the part of the screen below the top bar. The Tower (a Traveler orb) is in the
+// middle; the Moon is a small planet above Earth with Titan beside it, the Reef is a nebula and the Leviathan is a ship.
 export const DIRECTOR_POS = {
-  tower: [0, 0.2, 1], earth: [0.4, -7.0, 1.2], moon: [-8.4, -3.4, 0.7], mars: [8.8, 3.6, 1.0], io: [-8.8, 3.6, 1.0], tangled: [4.4, 4.0, 0.55],
-  titan: [-11.2, -0.2, 0.6], dc: [11.0, -1.4, 0.65], leviathan: [5.4, -4.6, 0.5],
+  tower: [0, -0.3, 0.9], earth: [-5.6, -2.3, 0.62], moon: [-5.0, 0.9, 0.22], titan: [-7.7, 0.6, 0.38],
+  tangled: [-2.4, 2.1, 0.85], dc: [2.9, 2.3, 0.34], io: [6.0, 1.3, 0.45], mars: [6.2, -2.2, 0.55], leviathan: [0.4, -3.7, 0.9],
 };
 const FOCUS_SCALE = 0.62;
+const NODE_RADIUS = { tower: 1.5, tangled: 2.1, leviathan: 2.2 };
+const FOCUS = { tower: 1.5, tangled: 1.35, leviathan: 1.5 };
+
+let _glow = null;
+function glowTex() {
+  if (_glow) return _glow;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return (_glow = new THREE.CanvasTexture(c));
+}
+
+// the Reef: a purple and magenta nebula full of drifting rock
+function buildNebulaNode(locked) {
+  const g = new THREE.Group();
+  const cols = locked ? [0x2a3040] : [0x9b5cff, 0xe0489c, 0x3fb3d9, 0x6a3fd0];
+  let seed = 11; const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 20; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: cols[i % cols.length], transparent: true, opacity: locked ? 0.35 : 0.42, blending: locked ? THREE.NormalBlending : THREE.AdditiveBlending, depthWrite: false }));
+    const a = r() * Math.PI * 2, d = r() * 1.5;
+    sp.position.set(Math.cos(a) * d * 1.3, Math.sin(a) * d * 0.8, (r() - 0.5) * 0.6);
+    sp.scale.setScalar(1.6 + r() * 2.2);
+    g.add(sp);
+  }
+  const rock = new THREE.MeshStandardMaterial({ color: locked ? 0x0a0d14 : 0x3a3446, flatShading: true, roughness: 1 });
+  for (let i = 0; i < 18; i++) {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.05 + r() * 0.16, 0), rock);
+    const a = r() * Math.PI * 2, d = 0.4 + r() * 1.6;
+    m.position.set(Math.cos(a) * d * 1.2, Math.sin(a) * d * 0.75, (r() - 0.3) * 0.8);
+    m.rotation.set(r() * 3, r() * 3, 0);
+    g.add(m);
+  }
+  return g;
+}
+
+// the Leviathan: Calus's pleasure barge, a long gold hull with a crowned fore deck, a central spire and twin engines
+function buildShipNode(locked) {
+  const g = new THREE.Group();
+  const hull = new THREE.MeshStandardMaterial({ color: locked ? 0x080b12 : 0x9a7a3c, flatShading: true, roughness: 0.6, metalness: 0.3 });
+  const dark = new THREE.MeshStandardMaterial({ color: locked ? 0x080b12 : 0x5a4626, flatShading: true, roughness: 0.7 });
+  const lit = new THREE.MeshBasicMaterial({ color: locked ? 0x10141c : 0xffd27a });
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), hull);
+  body.scale.set(3.4, 0.55, 0.95); g.add(body);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.12, 0.9), dark); deck.position.y = 0.38; g.add(deck);
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), hull); crown.position.set(2.2, 0.3, 0); crown.scale.set(1.1, 0.8, 0.9); g.add(crown);
+  const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.34, 1.7, 6), hull); spire.position.set(-0.2, 1.1, 0); g.add(spire);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.6, 6), lit); tip.position.set(-0.2, 2.2, 0); g.add(tip);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.05, 6, 20), lit); ring.rotation.x = Math.PI / 2; ring.position.set(-0.2, 0.75, 0); g.add(ring);
+  for (const z of [-0.55, 0.55]) { // engines and fins
+    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.32, 1.1, 7), dark); eng.rotation.z = Math.PI / 2; eng.position.set(-3.1, -0.05, z); g.add(eng);
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 7), lit); fl.rotation.z = Math.PI / 2; fl.position.set(-3.75, -0.05, z); g.add(fl);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.7, 0.06), dark); fin.position.set(-2.6, 0.25, z * 1.5); fin.rotation.z = 0.25; g.add(fin);
+  }
+  for (let i = 0; i < 9; i++) { const w = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.02), lit); w.position.set(-2 + i * 0.5, 0.05, 0.9 - Math.abs(i - 4) * 0.03); g.add(w); }
+  g.scale.setScalar(0.6);
+  g.rotation.set(0.35, 0, 0.12);
+  return g;
+}
 
 function buildTowerNode(locked) {
   // the Traveler: a pale, cracked orb
@@ -665,15 +724,17 @@ function createDirector(scene, camera) {
         const pos = new THREE.Vector3(x, y, 0);
         const group = new THREE.Group();
         group.position.copy(pos);
-        const body = tower ? buildTowerNode(e.locked) : buildPlanet(e.loc, e.locked, 0.55);
-        const radius = tower ? 1.5 : 3.2;
-        body.scale.setScalar(sc);
+        const body = tower ? buildTowerNode(e.locked) : e.id === 'tangled' ? buildNebulaNode(e.locked) : e.id === 'leviathan' ? buildShipNode(e.locked) : buildPlanet(e.loc, e.locked, 0.55);
+        const radius = NODE_RADIUS[e.id] || 3.2;
+        if (e.id === 'leviathan') body.userData.base = 0.6;
+        body.scale.setScalar(e.id === 'leviathan' ? sc * 0.6 : sc);
         group.add(body);
         const ringR = radius * sc;
-        group.add(ringLine(ringR * 1.14, e.locked ? 0.1 : 0.32), ringLine(ringR * 1.3, 0.16, -0.2, true));
+        if (e.id === 'tangled' || e.id === 'leviathan') group.add(ringLine(ringR * 1.12, 0.16, -0.2, true));
+        else group.add(ringLine(ringR * 1.14, e.locked ? 0.1 : 0.32), ringLine(ringR * 1.3, 0.16, -0.2, true));
         if (tower) group.add(ringLine(ringR * 1.7, 0.2));
         root.add(group);
-        nodes.set(e.id, { group, body, pos, locked: e.locked, radius, mapScale: sc, focusScale: tower ? 1.5 : FOCUS_SCALE, scale: sc, rings: group.children.slice(1) });
+        nodes.set(e.id, { group, body, pos, locked: e.locked, radius, mapScale: sc, focusScale: FOCUS[e.id] || FOCUS_SCALE, scale: sc, rings: group.children.slice(1), base: e.id === 'leviathan' ? 0.6 : 1 });
       }
     },
     focus(id) { focusId = id && nodes.has(id) ? id : null; },
@@ -693,10 +754,11 @@ function createDirector(scene, camera) {
       for (const [id, n] of nodes) {
         const want = id === focusId ? n.focusScale : n.mapScale;
         n.scale += (want - n.scale) * k;
-        n.body.scale.setScalar(n.scale);
+        n.body.scale.setScalar(n.scale * n.base);
         const ringS = n.scale / n.mapScale;
         for (const r of n.rings) r.scale.setScalar(ringS);
-        n.body.rotation.y += dt * (n.locked ? 0.02 : id === 'tower' ? 0.06 : 0.1);
+        if (id === 'leviathan') n.body.rotation.y = Math.sin(performance.now() / 4000) * 0.35;
+        else if (id !== 'tangled') n.body.rotation.y += dt * (n.locked ? 0.02 : id === 'tower' ? 0.06 : 0.1);
         const v = n.pos.clone().project(camera);
         const rpx = ((n.radius * n.scale) / (tan * (camZ - n.pos.z))) * (innerHeight / 2);
         list.push({ id, x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight, r: rpx, focused: id === focusId });

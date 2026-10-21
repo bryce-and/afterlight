@@ -336,13 +336,8 @@ function renderDirector(main) {
       const d = Math.max(28, n.r * 2);
       el.style.cssText = `left:${n.x - off.left - d / 2}px;top:${n.y - off.top - d / 2}px;width:${d}px;height:${d}px`;
       el.classList.toggle('far', n.x < -d || n.x > innerWidth + d);
-      // a planet cropped by the screen edge keeps its name on screen
-      if (n.id !== 'tower') {
-        const lab = el.firstElementChild;
-        const mid = (c, r, lo, hi) => { const a = Math.max(c - r, lo), b = Math.min(c + r, hi); return b > a ? (a + b) / 2 : c; };
-        const dx = clamp(mid(n.x, n.r, 0, innerWidth), 90, innerWidth - 90) - n.x, dy = clamp(mid(n.y, n.r, 100, innerHeight), 130, innerHeight - 60) - n.y;
-        if (lab) { lab.style.left = `calc(50% + ${dx}px)`; lab.style.top = `calc(50% + ${dy}px)`; }
-      }
+      // small bodies carry their name underneath, big ones directly over themselves
+      el.classList.toggle('small', d < 110);
     }
   });
   nodes.forEach((b) => b.addEventListener('click', () => {

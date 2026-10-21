@@ -8,7 +8,7 @@ export const RELEASES = [
     version: '2.8', name: 'Vantage', date: '2026-10-21', accent: '#8fd0ff', glyph: '✦', artPending: true, // chained with the next updates: the title artwork comes with the last of them
     summary: 'The Director is a star map now: every destination hangs in view, click one to fly to it and pick a mission. The Tower finally has a sky, and enemies no longer stop at an invisible edge.',
     notes: [
-      'Director: a Destiny 1 style star map. Every destination is in view around the sun, locked ones are black silhouettes. Click a planet to fly to it, pick a mission, Launch. Esc or Star map goes back',
+      'Director: a star map in the style of Destiny\'s. Every destination is in view at once: the Tower in the middle, Earth with the Moon above it, Titan beside them, Mars, Io and the Dreaming City, the Reef as a nebula and the Leviathan as a ship. Locked ones are black silhouettes. Click one to fly to it, pick a mission, Launch. Esc or Star map goes back',
       'The Tower is a node beside Earth on the map: click it and Land',
       'The Tower: a sky with clouds, mountains on the horizon, the Wall, and the Last City spread out far below the cliff. Floor flicker is fixed, and the ground no longer pokes through the paving',
       'Zavala is Awoken: blue skin, with his armor unchanged',
