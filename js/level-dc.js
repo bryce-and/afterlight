@@ -323,7 +323,7 @@ export default {
       mist(K, -18, -236, 9, 0.5, 0.25); mist(K, 18, -250, 9, 0.5, 0.25);
       K.light(0, 9, -242, VIOLET, 12, 40);
 
-      K.edge(farSpire, 26, 6, 40);
+      K.edge((x, z, y) => farSpire(K, x, z, y), 26, 6, 40);
     },
   },
 
@@ -452,7 +452,7 @@ export default {
       for (const [x, z, w, d] of [[-12, -262, 4, 1], [12, -262, 4, 1], [-12, -290, 4, 1], [12, -290, 4, 1]]) stub(K, x, z, w, d, 1.4);
       for (const [x, z] of [[-8, -250], [8, -250], [0, -270]]) K.light(x, 11, z, ICE, 7, 26);
 
-      K.edge(farSpire, 26, 6, 40);
+      K.edge((x, z, y) => farSpire(K, x, z, y), 26, 6, 40);
     },
   },
 
@@ -562,7 +562,7 @@ export default {
       }
       // large pulsing growths on the rim and hanging stalactites
       for (const [x, z, s] of [[-26, -176, 4], [34, -172, 4.4], [-22, -212, 4.8], [38, -208, 3.6], [8, -222, 4]]) blight(K, x, z, s, { light: true });
-      for (let i = 0; i < 14; i++) K.mesh(g().cone5, BLIGHT2, R(-30, 42), R(14, 20), R(-218, -166), { rx: Math.PI, scale: [R(1, 2), R(5, 9), R(1, 2)], collide: false });
+      for (let i = 0; i < 8; i++) K.mesh(g().cone5, BLIGHT2, R(-30, 42), R(14, 20), R(-218, -166), { rx: Math.PI, scale: [R(1, 2), R(5, 9), R(1, 2)], collide: false });
       for (const [x, z] of [[-6, -172], [20, -178], [-8, -210], [24, -206]]) blight(K, x, z, R(1.4, 2), { light: true });
       for (const [x, z] of [[-30, -190], [40, -192]]) crystal(K, x, z, 1.3, VEIN);
       for (const [x, z] of [[-18, -170], [28, -214], [-12, -216]]) banner(K, x, z, R(5, 6.5));
@@ -595,7 +595,7 @@ export default {
       }
       blight(K, 0, -303, 3.6, { light: true });
       // bones of the wish-dragon: huge ribs arching over the dais
-      for (const dz of [-286, -293, -300, -307]) for (const s of [-1, 1]) {
+      for (const dz of [-288, -296, -304]) for (const s of [-1, 1]) {
         K.mesh(g().cone5, BONE, s * 17, 9, dz, { scale: [1.0, 16, 1.0], rz: s * 0.5, collide: false });
         K.mesh(g().cone5, BONE, s * 11, 15, dz, { scale: [0.7, 9, 0.7], rz: -s * 0.9, collide: false });
       }
@@ -615,7 +615,7 @@ export default {
       // tall ice-blue windows high in the walls, storm-lit
       for (const z of [-244, -268, -292]) for (const s of [-1, 1]) K.box(s * 43.4, z, 0.3, 8, 5, ICE, { y: 9, collide: false, glow: 0.9 });
 
-      K.edge(farSpire, 26, 6, 40);
+      K.edge((x, z, y) => farSpire(K, x, z, y), 26, 6, 40);
     },
   },
 };

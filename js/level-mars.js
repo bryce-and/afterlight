@@ -312,7 +312,7 @@ export default {
       turret(K, 38, -94, Math.PI * 0.75);
       turret(K, 30, -126, Math.PI * 0.6);
       mast(K, 52, -128, 15);
-      bulwark(K, 12, -90, 28, -90, 3, { t: 1.6 });
+      bulwark(K, 12, -87, 28, -87, 3, { t: 1.6 });
       supply(K, 20, -100); supply(K, 34, -115, true); supply(K, 12, -112);
       // overwatch deck behind the outpost (stairs up the south side)
       K.platform(42, -138, 10, 8, 2.8, { stairs: ['n'], color: CAB2, stairColor: CAB3 });

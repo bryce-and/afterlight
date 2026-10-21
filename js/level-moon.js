@@ -275,10 +275,10 @@ export default {
         hiveWall(K, -214, -166, s * 44, 9, { axis: 'z', t: 2, face: -s, rib: 7 });
         for (const z of [-170, -186, -202]) brazier(K, s * 29, z, 1.1);
       }
-      // south wall closes the plaza: one 10 m gate, sealed until Anchor of Light is cleared
-      hiveWall(K, -44, 44, -166, 12, { axis: 'x', t: 2.4, face: -1, rib: 8, teeth: 4, gaps: [[39, 49]] });
-      K.door(0, -166, 10, 12, 'x', { zone: 1, t: 2.4, color: HR2, trim: GREEN });
-      for (const s of [-1, 1]) { spire(K, s * 8.5, -166, 1.4, 18, { pinnacles: false }); brazier(K, s * 7, -163, 1.1); }
+      // south wall closes the plaza: one 14 m gate, sealed until Anchor of Light is cleared
+      hiveWall(K, -44, 44, -166, 12, { axis: 'x', t: 2.4, face: -1, rib: 8, teeth: 4, gaps: [[37, 51]] });
+      K.door(0, -166, 14, 12, 'x', { zone: 1, t: 2.4, color: HR2, trim: GREEN });
+      for (const s of [-1, 1]) { spire(K, s * 11, -166, 1.4, 18, { pinnacles: false }); brazier(K, s * 9.5, -163, 1.1); }
       // flank decks: firing positions over the plaza (stairs only)
       for (const s of [-1, 1]) {
         K.platform(s * 36.5, -190, 8, 24, 2.0, { stairs: ['s'], color: HR2, stairColor: HR });
