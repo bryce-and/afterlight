@@ -9,7 +9,7 @@ import { TIERS } from './tiers.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
-import { startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
+import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
 import { XP } from './progression.js';
 import { barrierStops } from './combat.js';
 import { playerPower } from './save.js';
@@ -165,6 +165,7 @@ export function announceKill(e, o) {
   broadcast({ t: 'kill', id: e.netId, by: o.by || net.myId, c: o.crit ? 1 : 0 });
 }
 
+export function announceSay(w, x) { if (net.isHost) broadcast({ t: 'say', w, x }); }
 export function announceBanner(ti, su, du, so) { if (net.isHost) broadcast({ t: 'bn', ti, su, du, so }); }
 
 export function announceLoot(pos) {
@@ -211,19 +212,21 @@ function myState() {
   };
 }
 
+let lastE = false;
 export function netTick(dt) {
   if (!net.active || !G.mission) return;
   updateRevives(dt);
   if (G.state !== 'playing') return;
   sendT -= dt; snapT -= dt; rosterT -= dt;
   if (net.isClient && sendT <= 0) { sendT = 0.05; send({ t: 'p', ...myState() }); }
+  if (net.isClient) { const e = !!G.input.keys.KeyE; if (e !== lastE) { lastE = e; send({ t: 'ih', on: e ? 1 : 0 }); } } // U15: host needs a member's E for consoles and items
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
     for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0)]);
     const M = G.mission;
     const z = M.zones[M.current];
-    const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0 };
+    const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0, ob: objSnapshot() };
     const ps = [myState()];
     for (const r of remotes.values()) if (r.inMission && r.state) ps.push(r.state);
     broadcast({ t: 's', e, ms, ps });
@@ -437,10 +440,12 @@ net.on('s', (m) => {
   const M = G.mission, ms = m.ms;
   if (M.phase !== 'loot' && M.phase !== 'done') {
     for (let i = 0; i < M.zones.length; i++) M.zones[i].state = i < ms.cur ? 'cleared' : i === ms.cur ? ms.zs : 'pending';
+    for (let i = 0; i < ms.cur; i++) openZoneDoors(i);
     M.current = ms.cur;
     M.objective = ms.obj;
     M.waypoint = ms.wp ? new THREE.Vector3(...ms.wp) : null;
     M.checkpoint.set(ms.cp[0], 0, ms.cp[1]);
+    syncObjMarkers(ms.ob);
   }
   M.lives = ms.lv;
   if (M.act && ms.w > (M.wave ?? 0)) {
@@ -468,6 +473,8 @@ net.on('kill', (m) => {
   }
   if (e.isBoss) explosionFx(e.center(new THREE.Vector3()), 6, G.mission.loc.colors.eye);
 });
+net.on('ih', (m, from) => { const r = remotes.get(from); if (r) { if (m.on && !r.ih) r.ihp = true; r.ih = !!m.on; } });
+net.on('say', (m) => { if (inMission()) ui.say(m.w, m.x); });
 net.on('bn', (m) => { if (inMission()) { ui.centerMessage(m.ti, m.su, m.du); sfx[m.so]?.(); } });
 net.on('es', (m) => { if (inMission()) fireEnemyShot(new THREE.Vector3(...m.f), new THREE.Vector3(...m.d), m.v, m.m, m.c, m.s, m.sp, true); });
 net.on('gr', (m) => { if (inMission()) spawnEnemyGrenade(new THREE.Vector3(...m.f), new THREE.Vector3(...m.v), m.m, m.c, true); });
@@ -475,7 +482,7 @@ net.on('dmg', (m) => { if (inMission() && !G.player.dead) damagePlayer(m.m, new 
 net.on('loot', (m) => {
   const M = G.mission;
   if (!inMission() || M.phase === 'loot' || M.phase === 'done') return;
-  for (const z of M.zones) z.state = 'cleared';
+  for (const z of M.zones) { z.state = 'cleared'; openZoneDoors(z.idx); }
   M.phase = 'loot';
   M.chest = spawnChest(new THREE.Vector3(m.x, 0, m.z));
   reviveForCompletion();

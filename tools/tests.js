@@ -38,7 +38,8 @@ function memStore(init = {}) {
   const m = new Map(Object.entries(init));
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), map: m };
 }
-const fresh = (init) => { const st = memStore(init); S.useStorage(st); return st; };
+const fresh = (init) => { const st = memStore(init); S.useStorage(st); S.SAVE_RULES.resetBelow = S.SAVE_VERSION; return st; };
+const freshOld = (init) => { const st = fresh(init); S.SAVE_RULES.resetBelow = 0; return st; }; // older saves migrate instead of resetting
 
 // ---------- progression ----------
 test('level 1 at 0 XP, 2 after the first step', () => {
@@ -342,11 +343,11 @@ test('aspect cooldown multipliers; recharge boosts are capped', () => {
 });
 test('save v2 upgrades to the current version: subclass choice kept, loadout defaults, nothing else touched', () => {
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
-  const st = fresh({ afterlight_save_v2: JSON.stringify(v2) });
+  const st = freshOld({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 8);
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 9);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 8, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 9, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -438,7 +439,7 @@ test('a v1.7 loadout (no super or jump) keeps working and gets the original supe
   s.loadout = { stalker: { gunslinger: { grenade: 'healing', class: 'gambler', aspects: ['gunpowder'], fragments: ['torches'] } } };
   const lo = S.getLoadout(s, 'stalker', 'gunslinger');
   eq(lo, { super: 'revolver', jump: 'double', grenade: 'healing', class: 'gambler', aspects: ['gunpowder'], fragments: ['torches'] });
-  eq(S.SAVE_VERSION, 8, 'loadouts did not need a save bump (v8 is Loot 2.0)');
+  ok(S.SAVE_VERSION >= 8, 'loadouts did not need a save bump (v8 is Loot 2.0)');
 });
 test('new super damage stays in the band of the originals', () => {
   const T = C.SUPER_TUNE;
@@ -577,7 +578,7 @@ test('save v3 upgrades through v4: weapons gain archetypes and fixed stats; perk
     { id: 'a1', kind: 'armor', slot: 'helmet', rarity: 'common', name: 'Field Helm', power: 10, stats: { mob: 2, res: 2, rec: 2 } },
   ];
   const v3 = { version: 3, classId: 'vanguard', glimmer: 5, inventory: inv, vault: [{ ...inv[1], id: 'w4' }], equipped: { heavy: 'w1' }, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
-  fresh({ afterlight_save_v2: JSON.stringify(v3) });
+  freshOld({ afterlight_save_v2: JSON.stringify(v3) });
   const s = S.loadSave();
   eq(s.version, S.SAVE_VERSION);
   const [w1, w2, w3, a1] = s.inventory;
@@ -727,7 +728,7 @@ test('save v4 upgrades to v5: stats become six, a matching perk becomes the mod,
     armor('l1', 'legs', 'legendary', 'kickstart', { mob: 8, res: 7, rec: 6 }),
   ];
   const v4 = { version: 4, classId: 'arcanist', glimmer: 9, inventory: inv, vault: [armor('v1', 'legs', 'legendary', 'plating', { mob: 5, res: 5, rec: 5 })], equipped: {}, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
-  fresh({ afterlight_save_v2: JSON.stringify(v4) });
+  freshOld({ afterlight_save_v2: JSON.stringify(v4) });
   const s = S.loadSave();
   eq(s.version, S.SAVE_VERSION);
   const [h1, g1, c1, l1] = s.inventory;
@@ -741,7 +742,7 @@ test('save v4 upgrades to v5: stats become six, a matching perk becomes the mod,
   ok(total(h1) >= AR.ARMOR_TOTAL.legendary - 2 && total(h1) <= AR.ARMOR_TOTAL.legendary + 2, 'legendary total');
   ok(total(l1) >= total(g1), 'a high roll stays high'); // l1 rolled 21 old points, g1 rolled 9
   // stable: migrating the same save again gives the same stats
-  fresh({ afterlight_save_v2: JSON.stringify(v4) });
+  freshOld({ afterlight_save_v2: JSON.stringify(v4) });
   eq(S.loadSave().inventory[0].stats, h1.stats);
   // a pre-level-5 migrated save: mods are kept but do nothing
   eq(AR.activeMods(h1, 4), []); eq(AR.activeMods(h1, 5), ['handson']);
@@ -825,7 +826,7 @@ test('save v5 upgrades to v6: legendary armor joins a stable set, shaders start 
   const armor = (id, slot, rarity) => ({ id, kind: 'armor', slot, rarity, name: `Old ${slot}`, power: 120, stats: { mob: 9, res: 9, rec: 9, dis: 9, int: 9, str: 9 }, mods: [null, 'handson', null, null] });
   const inv = [armor('L1', 'helmet', 'legendary'), armor('R1', 'arms', 'rare'), armor('X1', 'chest', 'exotic')];
   const v5 = { version: 5, classId: 'vanguard', glimmer: 3, inventory: inv, vault: [armor('L2', 'legs', 'legendary')], equipped: {}, cleared: {}, subclass: {}, loadout: {}, progression: { xp: 0, claimed: [] }, settings: {} };
-  fresh({ afterlight_save_v2: JSON.stringify(v5) });
+  freshOld({ afterlight_save_v2: JSON.stringify(v5) });
   const s = S.loadSave();
   eq(s.version, S.SAVE_VERSION);
   eq(s.shaders, { owned: [], applied: {} });
@@ -837,7 +838,7 @@ test('save v5 upgrades to v6: legendary armor joins a stable set, shaders start 
   eq(s.chars, {});
   for (const it of [L1, R1]) eq(it.name, inv.find((x) => x.id === it.id).name);
   for (const it of [L1, R1, X1]) { eq(it.power, 120); eq(it.mods, [null, 'handson', null, null]); eq(it.stats.mob, 9); }
-  fresh({ afterlight_save_v2: JSON.stringify(v5) });
+  freshOld({ afterlight_save_v2: JSON.stringify(v5) });
   eq(S.loadSave().inventory[0].set, L1.set, 'stable on a re-run');
 });
 
@@ -928,7 +929,7 @@ test('save v6 upgrades to v7: exoticsFound is seeded from every Guardian and the
   const ex = (id, name, kind = 'armor') => ({ id, kind, slot: kind === 'armor' ? 'helmet' : 'primary', rarity: 'exotic', name, power: 100, stats: { mob: 9, res: 9, rec: 9, dis: 9, int: 9, str: 9 }, mods: [null, null, null, null], classId: 'vanguard' });
   const v6 = { version: 6, classId: 'vanguard', glimmer: 5, inventory: [ex('a', 'Synthoceps'), ex('b', 'Thorn', 'weapon')], vault: [ex('c', 'Synthoceps')], equipped: {}, cleared: {}, subclass: {}, loadout: {},
     shaders: { owned: [], applied: {} }, chars: { stalker: { inventory: [ex('d', 'Raiden Flux')], equipped: {} } }, progression: { xp: 0, claimed: [] }, settings: {} };
-  fresh({ afterlight_save_v2: JSON.stringify(v6) });
+  freshOld({ afterlight_save_v2: JSON.stringify(v6) });
   const s = S.loadSave();
   eq(s.version, S.SAVE_VERSION);
   eq(s.exoticsFound.sort(), ['Raiden Flux', 'Synthoceps', 'Thorn']);
@@ -1048,9 +1049,9 @@ test('U10 save v8: XP moves to the new curve keeping the level and progress', ()
   eq(levelInfo(PG.convertXp(PG.xpForLevel(LEVEL_CAP, PG.xpToNextV1) + 5000)).level, LEVEL_CAP);
   const v7 = { version: 7, classId: 'vanguard', glimmer: 5, inventory: [], vault: [], equipped: {}, cleared: {}, subclass: {}, loadout: {},
     shaders: { owned: [], applied: {} }, chars: {}, exoticsFound: [], progression: { xp: PG.xpForLevel(12, PG.xpToNextV1), claimed: [3, 6, 9, 12] }, settings: {} };
-  fresh({ afterlight_save_v2: JSON.stringify(v7) });
+  freshOld({ afterlight_save_v2: JSON.stringify(v7) });
   const s = S.loadSave();
-  eq(s.version, 8); eq(S.playerLevel(s), 12); eq(s.progression.claimed, [3, 6, 9, 12]);
+  eq(s.version, S.SAVE_VERSION); eq(S.playerLevel(s), 12); eq(s.progression.claimed, [3, 6, 9, 12]);
 });
 test('U10 rarity gates: rare 5, legendary 10, exotic 20; drops never roll above the gate', () => {
   eq(PG.RARITY_GATE, { common: 1, uncommon: 1, rare: 5, legendary: 10, exotic: 20 });
@@ -1559,7 +1560,7 @@ test('Glaive bolt: a travelling projectile with shared falloff', () => {
 test('U14 factions: every unit extends a base class, has a name and a roster entry', () => {
   const bases = ['grunt', 'rusher', 'captain', 'heavy', 'suicide'];
   for (const [id, u] of Object.entries(FA.UNITS)) {
-    ok(bases.includes(u.base), `${id} base`); ok(FA.FACTIONS[u.faction], `${id} faction`); ok(u.name, `${id} name`);
+    ok(bases.includes(u.base), `${id} base`); ok(u.objective || FA.FACTIONS[u.faction], `${id} faction`); ok(u.name, `${id} name`);
     ok(ENEMY_TYPES[id] && ENEMY_TYPES[id].base === u.base && ENEMY_TYPES[id].hp > 0, `${id} registered with stats`);
     eq(FA.classOf(id), u.base);
   }

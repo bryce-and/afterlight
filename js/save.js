@@ -12,7 +12,13 @@ const KEY = 'afterlight_save_v2';
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
+// Tests lower this to exercise the older migrations (production always resets below SAVE_VERSION).
+export const SAVE_RULES = { resetBelow: 9 };
+// The Ghost's Story (v2.6) starts everyone over for the new campaign: a save older than v9 is copied here once, only its settings carry over.
+export const CAMPAIGN_BACKUP_KEY = 'afterlight_backup_v8';
+// Resetting from the character screen keeps the last save here.
+export const MANUAL_BACKUP_KEY = 'afterlight_backup_manual';
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
@@ -64,6 +70,8 @@ const MIGRATIONS = {
   // progress toward the next one stay the same. Owned weapons keep their perks (no weapon migration until the
   // campaign reset). Gear above the player's level is swapped out on load by enforceGates.
   7: (s) => { if (s.progression) s.progression.xp = convertXp(s.progression.xp); },
+  // The Ghost's Story (v2.6): loadSave resets any older save and keeps a backup, so this is only reached by tests that switch the reset off (SAVE_RULES).
+  8: () => {},
 };
 
 /** Names of every exotic in any Guardian's inventory or the vault. */
@@ -84,7 +92,9 @@ let store = (() => { try { return globalThis.localStorage; } catch { return null
 /** Swap the storage backend (tests use an in-memory one). */
 export function useStorage(st) { store = st; }
 
-let legacyArchived = false;
+let legacyArchived = false, campaignReset = false;
+/** True once, right after the campaign launch reset a pre-v9 save (the title screen tells the player). */
+export function takeCampaignNotice() { const v = campaignReset; campaignReset = false; return v; }
 /** True once, right after an old save was archived (the title screen tells the player). */
 export function takeLegacyNotice() { const v = legacyArchived; legacyArchived = false; return v; }
 
@@ -98,7 +108,10 @@ function archiveLegacy() {
 
 /** Settings from the archived pre-overhaul save, if there is one. */
 function backupSettings() {
-  try { return JSON.parse(store.getItem(BACKUP_KEY))?.settings ?? {}; } catch { return {}; }
+  for (const k of [MANUAL_BACKUP_KEY, CAMPAIGN_BACKUP_KEY, BACKUP_KEY]) {
+    try { const st = JSON.parse(store.getItem(k))?.settings; if (st) return st; } catch { /* try the next backup */ }
+  }
+  return {};
 }
 
 /**
@@ -141,6 +154,12 @@ export function loadSave() {
   if (!raw) return null;
   try {
     const s = JSON.parse(raw);
+    if (s && Number.isInteger(s.version) && s.version < SAVE_RULES.resetBelow) { // U15: the campaign launch resets everyone; the old save is kept as a backup and settings carry over
+      if (store.getItem(CAMPAIGN_BACKUP_KEY) == null) store.setItem(CAMPAIGN_BACKUP_KEY, raw);
+      store.removeItem(KEY);
+      campaignReset = true;
+      return null;
+    }
     if (!s || !Number.isInteger(s.version) || !Array.isArray(s.inventory) || !s.equipped || !s.classId) {
       console.error('Save file has an unexpected shape; ignoring it.', s);
       return null;
@@ -168,6 +187,7 @@ export function writeSave(s) {
 }
 
 export function resetSave() {
+  try { const raw = store.getItem(KEY); if (raw) store.setItem(MANUAL_BACKUP_KEY, raw); } catch (e) { console.error('Failed to back up the save before reset:', e); }
   try { store.removeItem(KEY); } catch (e) { console.error('Failed to clear save:', e); }
 }
 
@@ -282,12 +302,13 @@ export function switchCharacter(s, classId) {
   if (!CLASSES[classId]) throw new Error(`switchCharacter: no class ${classId}`);
   if (classId === s.classId) return;
   s.chars = s.chars || {};
-  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped };
+  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared };
   const next = s.chars[classId] || starterKit(classId);
   delete s.chars[classId];
   s.classId = classId;
   s.inventory = next.inventory;
   s.equipped = next.equipped;
+  s.cleared = next.cleared || {}; // U15: the campaign is per Guardian
   enforceGates(s);
   writeSave(s);
 }

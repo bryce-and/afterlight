@@ -52,6 +52,7 @@ function buildModel(e, C, faction) {
   const c = { g, add, B, pivot, bodyMat, dark, accent, C, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
   const bossBuilder = e.bossModel && BOSS_MODELS[e.bossModel];
   if (bossBuilder) bossBuilder(c);
+  else if (e.typeId === 'obj_node') objNode(c);
   else if (faction === 'taken') taken(c, e.typeId);
   else if (faction === 'scorn') scorn(c, e.typeId);
   else if (e.typeId === 'suicide') (faction === 'scrappers' ? shank : cursedThrall)(c);
@@ -271,6 +272,9 @@ function cabal(c, t) {
       B(0.05, 0.04, 0.03, s * 0.1, 0.12, 0.81, accent, body, true);
     }
     B(0.06, 0.06, 0.5, 0, 0.05, -0.7, under, body, false, [0.5, 0, 0]);
+    // harness strap and a row of back spikes
+    B(0.52, 0.06, 0.12, 0, 0.17, 0.15, mat(c.C.accent), body);
+    for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.05, 0.2, 4), metal, 0, 0.3, -0.35 + i * 0.18, body);
     for (const [x, z] of [[-0.2, 0.36], [0.2, 0.36], [0.2, -0.36], [-0.2, -0.36]]) {
       const hip = pivot(x, 0.6, z);
       B(0.12, 0.6, 0.14, 0, -0.3, 0, under, hip);
@@ -281,60 +285,150 @@ function cabal(c, t) {
     c.height = 1.15;
     return;
   }
-  const heavy = t === 'heavy', big = t === 'captain' || t === 'boss';
-  const W = heavy ? 1.5 : big ? 1.35 : 1.25;
-  legsBiped(c, 0.9, 0.17 * W, 0.17 * W, under, metal);
-  for (const s of [-1, 1]) B(0.2 * W, 0.24, 0.22, s * 0.17 * W, 0.62, 0.04, armor);
+  // Loyalist variant (Calus's guard): gold trims; Red Legion keeps the faction accent
+  const trim = c.C.loyalist ? mat(0xf2c14e, { emissive: 0xf2c14e, emissiveIntensity: 0.5 }) : mat(c.C.accent);
+  if (t === 'heavy') return colossus(c, armor, under, metal, trim);
+  if (t === 'captain') return centurion(c, armor, under, metal, trim);
+  if (t === 'boss') return cabalBoss(c, armor, under, metal);
+  legionary(c, armor, under, metal, trim);
+}
+
+/** Legionary: small plain soldier, round helm with one vertical visor slit, light plate, slug rifle two-handed. */
+function legionary(c, armor, under, metal, trim) {
+  const { B, add, pivot, accent } = c;
+  legsBiped(c, 0.85, 0.15, 0.16, under, metal);
+  for (const s of [-1, 1]) B(0.18, 0.2, 0.2, s * 0.15, 0.58, 0.04, armor);
+  const torso = pivot(0, 0.85, 0);
+  c.torso = torso;
+  B(0.38, 0.24, 0.28, 0, 0.12, 0, under, torso);
+  B(0.5, 0.42, 0.36, 0, 0.46, 0, armor, torso);
+  B(0.3, 0.14, 0.06, 0, 0.4, 0.2, metal, torso);
+  // rounded helm: a dome over a jaw block, one vertical slit
+  add(new THREE.SphereGeometry(0.17, 8, 6), armor, 0, 0.84, 0.03, torso, true);
+  B(0.2, 0.1, 0.22, 0, 0.74, 0.04, under, torso, true);
+  B(0.04, 0.18, 0.03, 0, 0.84, 0.2, accent, torso, true);
+  for (const s of [-1, 1]) B(0.2, 0.15, 0.3, s * 0.32, 0.64, 0, armor, torso, false, [0, 0, s * -0.15]);
+  // faction stripe across the left shoulder
+  B(0.22, 0.04, 0.32, -0.32, 0.725, 0, trim, torso, false, [0, 0, 0.15]);
+  const arms = [arm(c, torso, -0.32, 0.58, 0.5, 0.11, under, -1.25, 0.35), arm(c, torso, 0.32, 0.58, 0.5, 0.11, under, -1.3, -0.3)];
+  for (const a of arms) B(0.14, 0.16, 0.14, 0, -0.38, 0, armor, a);
+  c.arms.push(...arms);
+  // long slug rifle held in both hands
+  gun(c, torso, 0.04, 0.34, 0.5, 0.8, 0.09);
+  B(0.07, 0.14, 0.12, 0.04, 0.24, 0.35, metal, torso);
+  c.height = 1.75;
+}
+
+/** Centurion: tall officer. Plumed helm, cape, one oversized pauldron, jetpack, hand cannon. */
+function centurion(c, armor, under, metal, trim) {
+  const { B, add, pivot, accent } = c;
+  legsBiped(c, 1.0, 0.17, 0.17, under, metal);
+  for (const s of [-1, 1]) B(0.2, 0.26, 0.22, s * 0.17, 0.7, 0.04, armor);
+  const torso = pivot(0, 1.0, 0);
+  c.torso = torso;
+  B(0.42, 0.28, 0.3, 0, 0.14, 0, under, torso);
+  B(0.6, 0.56, 0.4, 0, 0.56, 0, armor, torso);
+  B(0.4, 0.2, 0.08, 0, 0.5, 0.22, trim, torso);
+  // helm with a tall plume
+  B(0.3, 0.3, 0.3, 0, 1.0, 0.04, armor, torso, true);
+  B(0.24, 0.1, 0.06, 0, 0.97, 0.2, under, torso, true);
+  B(0.2, 0.035, 0.03, 0, 0.98, 0.235, accent, torso, true);
+  B(0.05, 0.12, 0.42, 0, 1.2, 0, trim, torso, true);
+  B(0.05, 0.3, 0.1, 0, 1.3, -0.2, trim, torso, true, [-0.4, 0, 0]);
+  // asymmetric shoulders: one oversized pauldron on the left, small plate on the right
+  B(0.46, 0.3, 0.5, -0.46, 0.84, 0, armor, torso, false, [0, 0, 0.2]);
+  B(0.5, 0.06, 0.54, -0.46, 1.0, 0, trim, torso, false, [0, 0, 0.2]);
+  B(0.2, 0.14, 0.3, 0.38, 0.8, 0, armor, torso, false, [0, 0, -0.15]);
+  // cape down the back
+  B(0.5, 0.95, 0.03, 0, 0.3, -0.26, trim, torso, false, [0.08, 0, 0]);
+  // jetpack with thruster flames, hidden until lift-off (U13b)
+  for (const s of [-1, 1]) {
+    add(new THREE.CylinderGeometry(0.09, 0.11, 0.42, 8), metal, s * 0.14, 0.45, -0.32, torso);
+    add(new THREE.CylinderGeometry(0.07, 0.07, 0.04, 8), accent, s * 0.14, 0.22, -0.32, torso);
+    const fl = add(new THREE.ConeGeometry(0.09, 0.55, 6).rotateX(Math.PI), mat(0xffa030, { emissive: 0xff7a1a, emissiveIntensity: 2.4 }), s * 0.14, -0.05, -0.32, torso);
+    fl.visible = false;
+    (c.flames ||= []).push(fl);
+  }
+  // off arm raised, cannon arm forward
+  const arms = [arm(c, torso, -0.42, 0.7, 0.58, 0.14, under, -0.5, 0.3), arm(c, torso, 0.42, 0.7, 0.58, 0.14, under, -1.2, -0.12)];
+  for (const a of arms) B(0.18, 0.2, 0.18, 0, -0.44, 0, armor, a);
+  c.arms.push(...arms);
+  gun(c, torso, 0.36, 0.4, 0.5, 0.65, 0.16);
+  B(0.22, 0.22, 0.22, 0.36, 0.4, 0.82, metal, torso);
+  c.height = 2.3;
+}
+
+/** Colossus: squat and very wide. Sunken helm between huge shoulders, back slab and gas tank, gatling arm. */
+function colossus(c, armor, under, metal, trim) {
+  const { B, add, pivot, accent } = c;
+  legsBiped(c, 0.75, 0.3, 0.3, under, metal);
+  for (const s of [-1, 1]) B(0.34, 0.26, 0.34, s * 0.3, 0.52, 0.04, armor);
+  const torso = pivot(0, 0.75, 0);
+  c.torso = torso;
+  B(0.8, 0.3, 0.5, 0, 0.14, 0, under, torso);
+  B(1.0, 0.64, 0.62, 0, 0.6, 0, armor, torso);
+  B(0.7, 0.2, 0.08, 0, 0.5, 0.33, trim, torso);
+  // small helm sunk low, with a wide visor slit
+  B(0.26, 0.24, 0.26, 0, 1.0, 0.08, armor, torso, true);
+  B(0.2, 0.05, 0.06, 0, 1.0, 0.22, accent, torso, true);
+  // huge shoulders rise above the head line
+  for (const s of [-1, 1]) {
+    B(0.5, 0.36, 0.7, s * 0.7, 0.98, 0, armor, torso, false, [0, 0, s * -0.12]);
+    B(0.54, 0.06, 0.74, s * 0.7, 1.17, 0, trim, torso, false, [0, 0, s * -0.12]);
+  }
+  // heavy plated back slab and a gas tank
+  B(0.9, 0.8, 0.14, 0, 0.7, -0.38, metal, torso);
+  add(new THREE.CylinderGeometry(0.16, 0.16, 0.7, 8), under, 0.22, 0.7, -0.55, torso);
+  add(new THREE.CylinderGeometry(0.1, 0.1, 0.12, 8), accent, 0.22, 1.08, -0.55, torso);
+  // off arm hangs thick; gatling arm braced forward
+  const off = arm(c, torso, -0.78, 0.8, 0.6, 0.26, under, -0.6, 0.15);
+  B(0.32, 0.3, 0.32, 0, -0.46, 0, armor, off);
+  const gat = arm(c, torso, 0.78, 0.8, 0.5, 0.28, under, -1.0, -0.05);
+  B(0.34, 0.3, 0.34, 0, -0.4, 0, armor, gat);
+  c.arms.push(off, gat);
+  // slug-thrower gatling: six barrels around a drum
+  const gx = 0.66, gy = 0.46, gz = 0.6;
+  B(0.3, 0.3, 0.4, gx, gy, gz - 0.2, metal, torso);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    add(new THREE.CylinderGeometry(0.028, 0.028, 0.7, 6).rotateX(Math.PI / 2), under, gx + Math.cos(a) * 0.09, gy + Math.sin(a) * 0.09, gz + 0.2, torso);
+  }
+  c.muzzle.position.set(gx, gy, gz + 0.58); torso.add(c.muzzle);
+  c.height = 2.15;
+}
+
+/** Cabal boss fallback body: Centurion-sized officer with a crest (named bosses use js/bosses.js). */
+function cabalBoss(c, armor, under, metal) {
+  const { B, pivot, accent } = c;
+  legsBiped(c, 0.9, 0.23, 0.23, under, metal);
   const torso = pivot(0, 0.9, 0);
   c.torso = torso;
-  B(0.42 * W, 0.26, 0.3, 0, 0.12, 0, under, torso);
-  B(0.62 * W, 0.5, 0.42, 0, 0.5, 0, armor, torso);
-  B(0.5 * W, 0.18, 0.08, 0, 0.42, 0.22, metal, torso);
-  // big helmet with a visor strip
+  B(0.56, 0.26, 0.3, 0, 0.12, 0, under, torso);
+  B(0.84, 0.5, 0.42, 0, 0.5, 0, armor, torso);
+  B(0.5, 0.18, 0.08, 0, 0.42, 0.22, metal, torso);
   B(0.32, 0.3, 0.32, 0, 0.92, 0.04, armor, torso, true);
   B(0.24, 0.12, 0.06, 0, 0.9, 0.2, under, torso, true);
   B(0.2, 0.035, 0.03, 0, 0.92, 0.235, accent, torso, true);
-  for (const s of [-1, 1]) B(0.3 * W, 0.2, 0.42, s * 0.42 * W, 0.72, 0, armor, torso, false, [0, 0, s * -0.15]);
-  // jetpack (Legionary / Centurion) or ammo drums (Colossus)
-  if (heavy) {
-    for (const s of [-1, 1]) add(new THREE.CylinderGeometry(0.14, 0.14, 0.5, 8), metal, s * 0.2, 0.6, -0.34, torso);
-  } else {
-    for (const s of [-1, 1]) {
-      add(new THREE.CylinderGeometry(0.09, 0.11, 0.42, 8), metal, s * 0.16, 0.5, -0.3, torso);
-      add(new THREE.CylinderGeometry(0.07, 0.07, 0.04, 8), accent, s * 0.16, 0.27, -0.3, torso);
-      if (t === 'captain') {
-        // thruster flame under each pack; hidden until the Centurion lifts off (U13b)
-        const fl = add(new THREE.ConeGeometry(0.09, 0.55, 6).rotateX(Math.PI), mat(0xffa030, { emissive: 0xff7a1a, emissiveIntensity: 2.4 }), s * 0.16, 0.0, -0.3, torso);
-        fl.visible = false;
-        (c.flames ||= []).push(fl);
-      }
-    }
-  }
-  const arms = [arm(c, torso, -0.44 * W, 0.62, 0.55, 0.15, under, -1.1, 0.12), arm(c, torso, 0.44 * W, 0.62, 0.55, 0.15, under, -1.1, -0.12)];
+  for (const s of [-1, 1]) B(0.4, 0.2, 0.42, s * 0.56, 0.72, 0, armor, torso, false, [0, 0, s * -0.15]);
+  B(0.04, 0.16, 0.36, 0, 1.12, 0.02, mat(c.C.accent), torso);
+  for (let i = -2; i <= 2; i++) B(0.04, 0.2 + (2 - Math.abs(i)) * 0.08, 0.04, i * 0.07, 1.16, -0.04, accent, torso, true);
+  const arms = [arm(c, torso, -0.56, 0.62, 0.55, 0.15, under, -1.1, 0.12), arm(c, torso, 0.56, 0.62, 0.55, 0.15, under, -1.1, -0.12)];
   for (const a of arms) B(0.2, 0.22, 0.2, 0, -0.42, 0, armor, a);
   c.arms.push(...arms);
-  if (heavy) {
-    // Colossus slug-thrower gatling
-    const gx = 0.3, gy = 0.38, gz = 0.55;
-    B(0.22, 0.22, 0.3, gx, gy, gz - 0.2, metal, torso);
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      add(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6).rotateX(Math.PI / 2), under, gx + Math.cos(a) * 0.07, gy + Math.sin(a) * 0.07, gz + 0.15, torso);
-    }
-    c.muzzle.position.set(gx, gy, gz + 0.48); torso.add(c.muzzle);
-    c.height = 2.15;
-  } else {
-    gun(c, torso, 0.2, 0.4, 0.45, 0.6, 0.12);
-  }
-  if (big) {
-    // Centurion: crest and shoulder cape
-    B(0.04, 0.16, 0.36, 0, 1.12, 0.02, mat(c.C.accent), torso);
-    B(0.32, 0.8, 0.03, -0.32 * W, 0.3, -0.12, mat(c.C.accent), torso, false, [0.1, 0, 0.1]);
-    B(0.02, 0.3, 0.02, 0.16, 1.15, -0.1, metal, torso);
-  }
-  if (t === 'boss') {
-    for (let i = -2; i <= 2; i++) B(0.04, 0.2 + (2 - Math.abs(i)) * 0.08, 0.04, i * 0.07, 1.16, -0.04, accent, torso, true);
-  }
+  gun(c, torso, 0.2, 0.4, 0.45, 0.6, 0.12);
+}
+
+/** Story objective target: a plinth with a tilted crystal pylon and a glowing band; the crystal is the precision spot. */
+function objNode(c) {
+  const { B, add, accent } = c;
+  add(new THREE.CylinderGeometry(0.7, 0.9, 0.35, 8), c.dark, 0, 0.17, 0);
+  B(0.5, 1.3, 0.5, 0, 1.0, 0, c.bodyMat, c.g, false, [0.0, 0.5, 0.12]);
+  B(0.7, 0.14, 0.7, 0, 1.0, 0, accent, c.g);
+  add(new THREE.OctahedronGeometry(0.45), accent, 0, 1.95, 0, c.g, true);
+  B(0.08, 0.5, 0.08, 0.5, 0.75, 0, c.dark, c.g, false, [0, 0, -0.3]);
+  B(0.08, 0.5, 0.08, -0.5, 0.75, 0, c.dark, c.g, false, [0, 0, 0.3]);
+  c.muzzle.position.set(0, 1.4, 0.4); c.g.add(c.muzzle);
+  c.height = 2.4;
 }
 
 /** Cursed Thrall: a Thrall with a swollen, glowing sac strapped to its back. */
@@ -374,7 +468,7 @@ export class Enemy {
     // unique boss model (Servitor, Wizard, Kell...); falls back to the faction model
     this.bossModel = this.isBoss ? (o.model ?? M.bossModel ?? null) : null;
     this.cls = def.base || typeId; // U14: the base class (grunt, rusher, captain, heavy, suicide, boss) a unit extends; cover, stagger, XP and close melee key on it
-    const faction = o.faction || UNITS[typeId]?.faction || { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
+    const faction = o.faction || UNITS[typeId]?.faction || { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion', dc: 'hollow', leviathan: 'legion' }[M.loc.id];
     this.name = o.name || unitName(typeId) || M.loc.enemyNames[this.cls];
     this.pos = pos.clone(); this.pos.y = 0;
     // U13b: minor or major (bosses have neither); a major shares its minor's abilities with more health and size

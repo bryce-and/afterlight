@@ -8,9 +8,11 @@ import MARS from './level-mars.js';
 import TITAN from './level-titan.js';
 import TANGLED from './level-tangled.js';
 import IO from './level-io.js';
+import DC from './level-dc.js';
+import LEVIATHAN from './level-leviathan.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO };
+const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN };
 
 const matCache = new Map();
 export function mat(color, o = {}) {
@@ -24,6 +26,7 @@ export function mat(color, o = {}) {
 }
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
+const BULB = new THREE.SphereGeometry(0.16, 6, 4);
 
 // ---------------------------------------------------------------------------
 // Mission level
@@ -244,6 +247,42 @@ export function buildLevel(loc, def) {
       addBox(x + 0.45, z, 0.7, 1.6, 0.05, RP([C.enemy, 0x8a3a5a]), y + h - 1.9, false);
       return addBox(x, z, 0.2, 0.2, 0.2, C.accent, y + h, false, { emissive: C.accent, emissiveIntensity: 1.5 });
     },
+    dc: (x, z, y = 0, col = true) => {
+      const t = rng();
+      if (t < 0.4) { // ivory Awoken spire with a glowing crystal tip
+        const h = R(5, 11), r = R(0.5, 0.9);
+        addMesh(new THREE.CylinderGeometry(r * 0.6, r * 1.5, h * 0.25, 6), C.wall, x, y + h * 0.125, z);
+        const m = addMesh(new THREE.ConeGeometry(r, h, 6), C.wall, x, y + h / 2, z);
+        addMesh(new THREE.OctahedronGeometry(r * 0.7), C.accent, x, y + h + r * 0.4, z, { emissive: C.accent, emissiveIntensity: 1.2 });
+        if (col) addCollider(x - r, y, z - r, x + r, y + h, z + r, m);
+        return m;
+      } else if (t < 0.75) { // crystal cluster, pale blue
+        const n = 3 + Math.floor(rng() * 3);
+        let m = null;
+        for (let k = 0; k < n; k++) m = addMesh(new THREE.ConeGeometry(R(0.3, 0.6), R(1.4, 3.4), 5), 0x9fe8ff, x + R(-1, 1), y + 1, z + R(-1, 1), { emissive: 0x6ac8ff, emissiveIntensity: 0.5 });
+        if (col) addCollider(x - 1, y, z - 1, x + 1, y + 2.4, z + 1, null);
+        return m;
+      }
+      // overgrown low wall of ivory stone
+      const w = R(3, 6);
+      const m = addBox(x, z, w, 1.1, 0.7, C.wall, y, col);
+      addBox(x, z, w + 0.2, 0.15, 0.9, C.foliage, y + 1.1, false);
+      return m;
+    },
+    leviathan: (x, z, y = 0, col = true) => {
+      const t = rng();
+      if (t < 0.5) { // gold-banded black marble column
+        const h = R(4, 7);
+        const m = addBox(x, z, 1.3, h, 1.3, C.rock, y, col);
+        addBox(x, z, 1.5, 0.3, 1.5, C.accent, y + 0.4, false, { emissive: C.accent, emissiveIntensity: 0.6 });
+        addBox(x, z, 1.5, 0.3, 1.5, C.accent, y + h - 0.6, false, { emissive: C.accent, emissiveIntensity: 0.6 });
+        return m;
+      }
+      // banquet table with golden goblets
+      const m = addBox(x, z, 4.2, 0.9, 1.4, C.wall, y, col);
+      for (let k = -1; k <= 1; k++) addMesh(new THREE.CylinderGeometry(0.1, 0.07, 0.22, 6), C.accent, x + k * 1.2, y + 1.01, z, { emissive: C.accent, emissiveIntensity: 0.8 });
+      return m;
+    },
     io: (x, z, y = 0, col = true) => {
       const t = rng();
       if (t < 0.4) { // white mineral spire where the Traveler's Light crystallised
@@ -283,11 +322,11 @@ export function buildLevel(loc, def) {
     return table[0][0];
   };
 
+  const lamps = [], doors = [];
   set.build(makeKit());
 
   // ---- kit handed to hand-built mission maps (js/level-*.js) ----
   function makeKit() {
-    let lights = 0;
     const glow = (color, k) => (k ? { emissive: color, emissiveIntensity: k } : undefined);
     const K = {
       C, loc, def, rng, R, RP, chance: (p) => rng() < p, bounds, spawn, zones, scene,
@@ -366,13 +405,26 @@ export function buildLevel(loc, def) {
         for (const side of o.stairs || []) { const [sx, sz, dir] = out[side]; K.stairs(sx, sz, dir, o.stairW ?? 2.4, h, { color: o.stairColor ?? C.metal, y: o.y }); }
         return m;
       },
+      // U15: any number of lights per map. Each gets a small glow bulb, and updateLights() lends the 6 nearest the player a real PointLight (point lights are expensive)
       light(x, y, z, color = C.accent, intensity = 8, dist = 22) {
-        if (lights >= 6) return null; // point lights are expensive; a few accents only
-        lights++;
-        const l = new THREE.PointLight(color, intensity, dist, 1.6);
-        l.position.set(x, y, z);
-        scene.add(l);
-        return l;
+        const bulb = new THREE.Mesh(BULB, new THREE.MeshBasicMaterial({ color, fog: false }));
+        bulb.position.set(x, y, z);
+        scene.add(bulb);
+        lamps.push({ x, y, z, color, intensity, dist, d2: 0 });
+        return bulb;
+      },
+      // U15: a door that is a solid block until a zone clear (zone: index), a story beat (open it by id) or never (zone: null) opens it
+      door(x, z, w, h, axis, o = {}) {
+        const t = o.t ?? 0.7, color = o.color ?? C.metal;
+        const m = addBox(x, z, axis === 'x' ? w : t, h, axis === 'x' ? t : w, color, o.y ?? 0, true, glow(o.trim ?? C.accent, 0.25));
+        const stripe = new THREE.Mesh(BOX, mat(o.trim ?? C.accent, { emissive: o.trim ?? C.accent, emissiveIntensity: 1.6 }));
+        stripe.scale.set(axis === 'x' ? w * 0.8 : t + 0.06, 0.18, axis === 'x' ? t + 0.06 : w * 0.8);
+        stripe.position.set(0, 0, 0);
+        const d = { id: o.id ?? `door${doors.length}`, zone: o.zone ?? null, mesh: m, stripe, y0: m.position.y, h, collider: colliders[colliders.length - 1], open: false, t: 0 };
+        stripe.position.set(x, (o.y ?? 0) + h * 0.7, z);
+        scene.add(stripe);
+        doors.push(d);
+        return d;
       },
       clear: isClear, inBounds,
       scatter: (fn, cx, cz, rMin, rMax, n, size = 2) => { for (let i = 0; i < n; i++) placeRandom(fn, cx, cz, rMin, rMax, size); },
@@ -414,7 +466,45 @@ export function buildLevel(loc, def) {
   addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.minZ, null);
   addCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
 
-  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds };
+  // ---- light pool: the 6 nearest lamps get a real light, so a map can hold dozens (U15) ----
+  const pool = [];
+  for (let i = 0; i < Math.min(6, lamps.length); i++) { const l = new THREE.PointLight(0xffffff, 0, 1, 1.6); scene.add(l); pool.push(l); }
+  const updateLights = (p) => {
+    if (!pool.length) return;
+    for (const l of lamps) l.d2 = (l.x - p.x) ** 2 + (l.z - p.z) ** 2;
+    const near = lamps.length > pool.length ? lamps.slice().sort((a, b) => a.d2 - b.d2) : lamps;
+    pool.forEach((pl, i) => {
+      const l = near[i];
+      if (!l) { pl.intensity = 0; return; }
+      pl.color.setHex(l.color); pl.intensity = l.intensity; pl.distance = l.dist; pl.position.set(l.x, l.y, l.z);
+    });
+  };
+  updateLights(spawn);
+
+  /** Opens every closed door tied to a cleared zone (or a named door). Returns true if any opened. */
+  const openDoors = (zoneIdx, id = null) => {
+    let any = false;
+    for (const d of doors) {
+      if (d.open || (id ? d.id !== id : d.zone !== zoneIdx)) continue;
+      d.open = true; any = true;
+      const i = colliders.indexOf(d.collider);
+      if (i >= 0) colliders.splice(i, 1);
+      const j = staticMeshes.indexOf(d.mesh);
+      if (j >= 0) staticMeshes.splice(j, 1);
+    }
+    return any;
+  };
+  const updateDoors = (dt) => {
+    for (const d of doors) {
+      if (!d.open || d.t >= 1) continue;
+      d.t = Math.min(1, d.t + dt * 1.4);
+      d.mesh.position.y = d.y0 + d.t * (d.h + 0.2);
+      d.stripe.position.y = d.y0 + d.h * 0.7 + d.t * (d.h + 0.2);
+      if (d.t >= 1) { d.mesh.visible = false; d.stripe.visible = false; }
+    }
+  };
+
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights, openDoors, updateDoors };
 }
 
 function buildGround(bounds, C, heightAt, rng) {

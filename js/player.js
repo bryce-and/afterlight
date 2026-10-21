@@ -1834,8 +1834,8 @@ export class Player {
     const ap = (k) => this.ap[k] || 0;
     const cd = (v, perk) => Math.max(COOLDOWN_FLOOR, cooldownMult(v) * perk);
     this.cdMax.grenade = this.cdBase.grenade * cd(st.dis, 1 - 0.15 * ap('grenadier'));
-    this.cdMax.melee = this.cdBase.melee * cd(st.str, 1 - 0.15 * ap('brawler')) * (this.exo.has('synthoceps') ? 0.75 : 1);
-    this.cdMax.class = this.cdBase.class * cd(st[CLASS_STAT[this.cls.id]], 1 - 0.2 * ap('kickstart')) * (this.exo.has('stomp') ? 0.7 : 1);
+    this.cdMax.melee = this.cdBase.melee * cd(st.str, 1 - 0.15 * ap('brawler')) * (this.exo.has('synthoceps') ? 0.75 : 1) * (this.sets.has('leviathan') ? SET_TUNE.meleeCd : 1); // Emperor's Feast: Calus's Indulgence
+    this.cdMax.class = this.cdBase.class * cd(st[CLASS_STAT[this.cls.id]], 1 - 0.2 * ap('kickstart')) * (this.exo.has('stomp') ? 0.7 : 1) * (this.sets.has('dc') ? SET_TUNE.classCd : 1); // Dreaming Court: Queen's Grace
     if (this.exo.has('stomp')) { this.jumpV *= 1.3; this.speed *= 1.08; }
   }
 

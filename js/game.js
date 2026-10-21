@@ -27,7 +27,9 @@ import { castFx } from './abilities.js';
 import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction } from './factions.js';
 import { skillIncoming, skillHit } from './enemy-skills.js';
 import { buildVoidAxe } from './models.js';
-import { onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
+import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
+import { linesFor, objectiveFor, UNLOCKS } from './story.js';
+import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
 
 const _c = new THREE.Vector3();
 
@@ -69,6 +71,8 @@ export function startMission(li, mi) {
   ui.centerMessage(def.name, `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
   if (delta < -4) setTimeout(() => ui.feed(`Underpowered by ${-delta}: enemies hit harder and take less damage`, '#ff7a6b'), 1500);
   sfx.areaClear();
+  ui.clearSubtitles();
+  say('start');
 }
 
 export function retryMission() {
@@ -238,6 +242,8 @@ export function updateGame(dt) {
   const L = G.level;
   L.sun.position.copy(P.pos).add(L.sunOffset);
   L.sun.target.position.copy(P.pos);
+  L.updateLights(P.pos);
+  L.updateDoors(dt);
   ui.updateHUD(dt);
 }
 
@@ -257,6 +263,8 @@ function updateMission(dt) {
         M.phase = 'combat';
         spawnWave(z, 0);
         z.waveIdx = 1;
+        placeObjective(z);
+        say(z.isBoss ? 'boss' : `z${z.idx}`);
         if (z.isBoss) { banner(M.def.boss.name, `${FACTIONS[z.plan?.open]?.name || M.loc.faction} champion`, 3, 'bossIntro'); stinger('boss'); }
         else banner(z.name, `${FACTIONS[z.plan?.open]?.name || M.loc.faction} presence detected`, 2.2, 'alert');
       }
@@ -275,7 +283,12 @@ function updateMission(dt) {
       M.aggro = alive / fighters;
       M.objective = z.isBoss ? `Defeat ${M.def.boss.name}` : `Clear ${z.name}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
       M.waypoint = !z.isBoss && alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
-      if (step.cleared) zoneCleared(z);
+      const o = z.obj;
+      if (o && !o.done) {
+        tickZoneObjective(z, dt, alive);
+        if (!o.done) { M.objective = alive > 0 ? `${objectiveText(o)}  ·  ${alive} hostile${alive === 1 ? '' : 's'}` : objectiveText(o); M.waypoint = objectiveTarget(o, P.pos) || M.waypoint; }
+      } else if (M.objPrompt) { ui.prompt(null); M.objPrompt = false; }
+      if (step.cleared && (!o || o.done)) zoneCleared(z);
     }
   } else if (M.phase === 'loot') {
     M.objective = 'Open the cache';
@@ -304,9 +317,19 @@ export function banner(title, sub, dur, sound) {
   announceBanner(title, sub, dur, sound);
 }
 
+/** U15: opens the doors tied to a cleared zone (or a named door) and rebuilds the nav grid so enemies path through. */
+export function openZoneDoors(idx, id = null) {
+  const L = G.level;
+  if (!L?.openDoors(idx, id)) return;
+  G.nav = buildNav(G.colliders, L.bounds);
+  G.hitDirty = true;
+  sfx.areaClear?.();
+}
+
 function zoneCleared(z) {
   const M = G.mission, P = G.player;
   z.state = 'cleared';
+  openZoneDoors(z.idx);
   if (z.isBoss) {
     M.phase = 'loot';
     const dir = P.pos.clone().sub(z.center).setY(0);
@@ -320,9 +343,158 @@ function zoneCleared(z) {
     P.health = P.maxHealth; P.shield = P.maxShield;
   } else {
     banner('Area Secured', '', 2, 'areaClear');
+    say(`c${z.idx}`);
     M.current++;
     M.checkpoint = z.center.clone();
     M.phase = 'travel';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// U15 story: subtitles and zone objectives
+// ---------------------------------------------------------------------------
+/** Plays the script lines for a trigger (host and solo only; fireteam members get them over the network). */
+export function say(at) {
+  const M = G.mission;
+  if (!M || M.remote || M.act) return;
+  for (const l of linesFor(M.def.id, at)) { ui.say(l.who, l.text); announceSay(l.who, l.text); }
+}
+
+function freePoint(c, rMin, rMax, angle) {
+  const b = G.level.bounds;
+  for (let i = 0; i < 30; i++) {
+    const a = angle + (i ? rand(-0.6, 0.6) : 0), r = rand(rMin, rMax);
+    const p = new THREE.Vector3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r);
+    if (p.x > b.minX + 3 && p.x < b.maxX - 3 && p.z > b.minZ + 3 && p.z < b.maxZ - 3 && !pointInColliders(_c.copy(p).setY(0.5), 1.0)) return p;
+  }
+  return c.clone();
+}
+
+const OBJ_COLOR = 0xffd24d;
+function objMesh(kind, pos) {
+  const g = new THREE.Group();
+  if (kind === 'console') {
+    g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.6), mat(0x2b2f38)), { position: new THREE.Vector3(0, 0.55, 0) }));
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.12, 0.5), mat(OBJ_COLOR, { emissive: OBJ_COLOR, emissiveIntensity: 1.8 }));
+    top.position.y = 1.16; top.name = 'glow'; g.add(top);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 14, 6, 1, true), basicMat(OBJ_COLOR, true));
+    beam.material = beam.material.clone(); beam.material.opacity = 0.2; beam.position.y = 7; beam.name = 'beam'; g.add(beam);
+  } else if (kind === 'item') {
+    const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.4), mat(OBJ_COLOR, { emissive: OBJ_COLOR, emissiveIntensity: 2 }));
+    m.position.y = 1.1; m.name = 'glow'; g.add(m);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 14, 6, 1, true), basicMat(OBJ_COLOR, true));
+    beam.material = beam.material.clone(); beam.material.opacity = 0.2; beam.position.y = 7; beam.name = 'beam'; g.add(beam);
+  } else { // hold ring: an outline and a fill disc that grows with progress
+    const ring = new THREE.Mesh(new THREE.RingGeometry(OBJ.holdRadius - 0.35, OBJ.holdRadius, 48).rotateX(-Math.PI / 2), basicMat(OBJ_COLOR, true));
+    ring.position.y = 0.07; ring.material = ring.material.clone(); ring.material.opacity = 0.7; ring.name = 'ring';
+    const fill = new THREE.Mesh(new THREE.CircleGeometry(OBJ.holdRadius - 0.4, 48).rotateX(-Math.PI / 2), basicMat(OBJ_COLOR, true));
+    fill.material = fill.material.clone(); fill.material.opacity = 0.16; fill.position.y = 0.06; fill.name = 'fill'; fill.scale.setScalar(0.01);
+    g.add(ring, fill);
+  }
+  g.position.copy(pos).setY(0);
+  G.scene.add(g);
+  return g;
+}
+
+/** Builds a zone's objective (story.js) when the zone activates: places consoles, items, rings and targets. */
+function placeObjective(z) {
+  const M = G.mission;
+  const spec = z.isBoss ? null : objectiveFor(M.def.id, z.idx);
+  if (!spec) return;
+  const o = makeObjective(spec);
+  z.obj = o;
+  o.vis = [];
+  const away = Math.atan2(G.player.pos.x - z.center.x, G.player.pos.z - z.center.z);
+  if (o.t === 'hold') {
+    o.pos = z.center.clone();
+    o.vis.push(objMesh('ring', o.pos));
+  } else if (o.t === 'activate') {
+    o.nodes.forEach((n, i) => { n.pos = freePoint(z.center, 8, 15, away + (i / o.nodes.length) * Math.PI * 2 + 0.7); n.mesh = objMesh('console', n.pos); o.vis.push(n.mesh); });
+  } else if (o.t === 'retrieve') {
+    o.item.pos = freePoint(z.center, 8, 14, away + 2.3);
+    o.item.mesh = objMesh('item', o.item.pos); o.vis.push(o.item.mesh);
+  } else if (o.t === 'destroy') {
+    for (let i = 0; i < (spec.n ?? 3); i++) {
+      const pos = freePoint(z.center, 7, 15, away + (i / (spec.n ?? 3)) * Math.PI * 2 + 0.5);
+      o.targets.push(spawnUnit(z, 'obj_node', pos, { name: spec.what || 'Objective Target', noDrops: true, tier: 'minor' }));
+    }
+  }
+  G.hitDirty = true;
+  ui.feed(`New objective: ${spec.label}`, '#ffd24d');
+}
+
+/** Host: the current zone's objective in a few numbers, for fireteam members to draw. */
+export function objSnapshot() {
+  const M = G.mission, z = M?.zones[M.current], o = z?.obj;
+  if (!o || o.done || o.t === 'destroy' || o.t === 'survive') return 0;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const pts = o.t === 'hold' ? [[r2(o.pos.x), r2(o.pos.z), 0]] : o.t === 'activate' ? o.nodes.map((n) => [r2(n.pos.x), r2(n.pos.z), n.done ? 1 : 0]) : [[r2(o.item.pos.x), r2(o.item.pos.z), o.item.taken ? 1 : 0]];
+  return { k: `${M.current}${o.t}`, t: o.t, pts, p: o.t === 'hold' ? Math.round((o.prog / o.need) * 100) : 0 };
+}
+
+/** Fireteam member: draws the leader's objective markers and shows the E prompt. */
+export function syncObjMarkers(ob) {
+  const M = G.mission;
+  if (!M) return;
+  if (!ob) { if (M.cliObj) { G.scene.remove(M.cliObj.group); M.cliObj = null; if (M.cliPrompt) { ui.prompt(null); M.cliPrompt = false; } } return; }
+  if (!M.cliObj || M.cliObj.k !== ob.k) {
+    if (M.cliObj) G.scene.remove(M.cliObj.group);
+    const group = new THREE.Group();
+    const kind = ob.t === 'hold' ? 'ring' : ob.t === 'activate' ? 'console' : 'item';
+    const meshes = ob.pts.map(([x, z]) => { const m = objMesh(kind, new THREE.Vector3(x, 0, z)); G.scene.remove(m); group.add(m); return m; });
+    G.scene.add(group);
+    M.cliObj = { k: ob.k, group, meshes };
+  }
+  ob.pts.forEach(([x, z, done], i) => {
+    const m = M.cliObj.meshes[i];
+    if (ob.t === 'hold') m.getObjectByName('fill').scale.setScalar(Math.max(0.01, ob.p / 100));
+    else m.visible = !done;
+  });
+  const P = G.player;
+  const near = ob.pts.find(([x, z, d]) => !d && Math.hypot(P.pos.x - x, P.pos.z - z) < (ob.t === 'hold' ? OBJ.holdRadius : OBJ.interactRange));
+  const text = near && !P.dead ? (ob.t === 'activate' ? '[Hold E]  Activate' : ob.t === 'retrieve' ? '[E]  Take' : null) : null;
+  if (text) { ui.prompt(text); M.cliPrompt = true; } else if (M.cliPrompt) { ui.prompt(null); M.cliPrompt = false; }
+}
+
+function objCtx() {
+  const near = (pl, p, r) => !pl.dead && Math.hypot(pl.pos.x - p.x, pl.pos.z - p.z) < r;
+  const held = (pl) => (pl === G.player ? G.input.keys.KeyE : pl.ih);
+  const press = (pl) => { if (pl === G.player) return G.input.pressed.KeyE; const v = pl.ihp; pl.ihp = false; return v; };
+  return {
+    inside: (p, r) => allPlayers().some((pl) => near(pl, p, r)),
+    holding: (p, r) => allPlayers().some((pl) => near(pl, p, r) && held(pl)),
+    pressed: (p, r) => allPlayers().some((pl) => near(pl, p, r) && press(pl)),
+  };
+}
+
+function tickZoneObjective(z, dt, alive) {
+  const M = G.mission, P = G.player, o = z.obj;
+  const was = o.done;
+  tickObjective(o, dt, objCtx());
+  // pulse the markers and show progress
+  const tt = performance.now() / 1000;
+  if (o.t === 'hold') {
+    const fill = o.vis[0].getObjectByName('fill'), ring = o.vis[0].getObjectByName('ring');
+    fill.scale.setScalar(Math.max(0.01, o.prog / o.need));
+    ring.material.opacity = 0.5 + Math.sin(tt * 4) * 0.2;
+  } else if (o.t === 'activate') {
+    for (const n of o.nodes) { const gl = n.mesh.getObjectByName('glow'); if (n.done) { gl.material = mat(0x5cff9a, { emissive: 0x5cff9a, emissiveIntensity: 1.8 }); const b = n.mesh.getObjectByName('beam'); if (b) b.visible = false; } }
+  } else if (o.t === 'retrieve') {
+    const m = o.item.mesh; if (m) { m.visible = !o.item.taken; const gl = m.getObjectByName('glow'); if (gl) { gl.rotation.y = tt * 2; gl.position.y = 1.1 + Math.sin(tt * 2) * 0.12; } }
+  }
+  if (o.defend && o.t === 'hold' && !o.mid && o.prog >= o.need / 2) { o.mid = true; spawnWave(z, Math.min(1, z.waves.length - 1)); }
+  if (wantsReinforcement(o, dt, alive)) spawnWave(z, Math.min(1, z.waves.length - 1));
+  // E prompt for the local player
+  let prompt = null;
+  const near = (p, r) => p && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r && !P.dead;
+  if (o.t === 'activate') { const n = o.nodes.find((x) => !x.done && near(x.pos, OBJ.interactRange)); if (n) prompt = n.prog > 0 ? `Activating  ${Math.round((n.prog / OBJ.activateTime) * 100)}%` : '[Hold E]  Activate'; }
+  else if (o.t === 'retrieve' && !o.item.taken && near(o.item.pos, OBJ.interactRange)) prompt = '[E]  Take';
+  else if (o.t === 'hold' && !o.done && !near(o.pos, OBJ.holdRadius) && o.prog < o.need) prompt = 'Return to the ring';
+  if (prompt) { ui.prompt(prompt); M.objPrompt = true; } else if (M.objPrompt) { ui.prompt(null); M.objPrompt = false; }
+  if (!was && o.done) {
+    for (const v of o.vis) v.visible = o.t === 'activate';
+    ui.feed('Objective complete', '#7fffa0'); sfx.areaClear();
+    if (M.objPrompt) { ui.prompt(null); M.objPrompt = false; }
   }
 }
 
@@ -363,12 +535,12 @@ function openChest() {
   for (let i = 0; i < n; i++) {
     const lvl = playerLevel(G.save);
     let rIdx = capRarity(Math.max(i === 0 ? 2 : 1, rollRarity(lvl, first ? 5 : 2)), lvl);
-    if (first && M.mi === 2 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
+    if (first && M.mi === M.loc.missions.length - 1 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
     rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
-  const shader = rollShader(G.save.shaders.owned, first && M.mi === 2);
+  const shader = rollShader(G.save.shaders.owned, first && M.mi === M.loc.missions.length - 1);
   if (shader) {
     G.save.shaders.owned.push(shader);
     M.rewardShader = shader;
@@ -384,6 +556,8 @@ function openChest() {
   writeSave(G.save);
   M.phase = 'done';
   M.doneT = 3.8;
+  say('end');
+  if (M.mi === M.loc.missions.length - 1) for (const [who, text] of UNLOCKS[M.loc.id] || []) { ui.say(who, text); announceSay(who, text); }
 }
 
 export function grantItem(item) {

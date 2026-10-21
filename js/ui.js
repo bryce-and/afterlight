@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
+import { SPEAKERS, CHAPTERS, linesFor, lineDuration } from './story.js';
 import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, activeMods, energyCap, energyUsed, usesCharge } from './armor.js';
 import { openMods } from './mods-ui.js';
 import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
-import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice } from './save.js';
+import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice } from './save.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { openInspect, openCollection, lootScreenOpen } from './loot-ui.js';
 import { RELEASES, ROADMAP, titleRelease } from './releases.js';
@@ -98,7 +99,11 @@ export function showTitle() {
   const cur = titleRelease();
   $('#t-update').innerHTML = `<div class="tu-art">${cur.art || ''}</div><div class="tu-info"><span>Version ${esc(cur.version)}</span><b class="${cur.name.split(' ').some((w) => w.length > 8) ? 'long' : ''}" style="color:${cur.accent}">${esc(cur.name)}</b></div>`;
   closeTitlePanel();
-  if (takeLegacyNotice()) {
+  if (takeCampaignNotice()) {
+    const n = $('#t-notice');
+    n.textContent = "The Ghost's Story begins. Every Guardian starts the new campaign from the Cosmodrome. Your old save is backed up and your settings carry over.";
+    n.classList.remove('hidden');
+  } else if (takeLegacyNotice()) {
     const n = $('#t-notice');
     n.textContent = 'Afterlight has been reborn. Every Guardian begins anew in First Light. Your settings carry over.';
     n.classList.remove('hidden');
@@ -267,12 +272,12 @@ function renderDirector(main) {
           const done = l.missions.filter((mm) => s.cleared[mm.id]).length;
           return `<button class="loc ${i === selLoc ? 'sel' : ''} ${un ? '' : 'locked'}" data-loc="${i}" ${un ? '' : 'disabled'}>
             <div class="loc-planet">${l.planetName}</div><div class="loc-name">${l.name}</div>
-            <div class="loc-prog">${un ? `${done}/3 cleared` : 'Locked'}</div></button>`;
+            <div class="loc-prog">${un ? `${done}/${l.missions.length} cleared` : 'Locked'}</div></button>`;
         }).join('')}
         ${fireteamHTML()}
       </aside>
       <section class="loc-detail">
-        <div class="eyebrow">${loc.planetName}  ·  ${loc.faction}</div>
+        <div class="eyebrow">${CHAPTERS[loc.id]?.title || loc.planetName}  ·  ${loc.planetName}  ·  ${loc.faction}</div>
         <h1 class="screen-title">${loc.name}</h1>
         <p class="desc">${loc.desc}</p>
         <div class="missions">
@@ -280,7 +285,8 @@ function renderDirector(main) {
             const un = isUnlocked(s, selLoc, mi), cl = s.cleared[mm.id];
             return `<button class="mission ${selMission === mi ? 'sel' : ''} ${un ? '' : 'locked'}" data-m="${mi}" ${un ? '' : 'disabled'}>
               <div class="m-top"><span class="m-name">${mm.name}</span><span class="m-power">◆ ${mm.power}</span></div>
-              <div class="m-desc">${un ? mm.desc : 'Clear the previous mission to unlock.'}</div>
+              <div class="m-desc">${un ? mm.desc : mi === 0 ? esc(CHAPTERS[loc.id]?.locked || 'Locked.') : 'Clear the previous mission to unlock.'}</div>
+              ${un && selMission === mi && linesFor(mm.id, 'start')[0] ? `<div class="m-ghost"><b>${esc(SPEAKERS[linesFor(mm.id, 'start')[0].who]?.name || '')}</b>  ${esc(linesFor(mm.id, 'start')[0].text)}</div>` : ''}
               <div class="m-foot">${cl ? '<span class="tag done">Cleared</span>' : un ? '<span class="tag new">New</span>' : '<span class="tag">Locked</span>'}
                 <span class="m-boss">Boss: ${mm.boss.name}</span></div>
             </button>`;
@@ -1112,6 +1118,7 @@ export function setMissionHeader() {
 let cmT = 0, hitT = 0, flashV = 0;
 export function updateHUD(dt) {
   const P = G.player, M = G.mission, cam = G.camera;
+  updateSubtitle(dt);
   setStyle(hud.shield, 'sh', 'width', `${(P.shield / P.maxShield) * 100}%`);
   setStyle(hud.health, 'hp', 'width', `${(P.health / P.maxHealth) * 100}%`);
   setStyle(hud.over, 'ov', 'width', `${Math.round((P.over / 60) * 100)}%`);
@@ -1217,6 +1224,27 @@ export function updateHUD(dt) {
 export function setScope(on) {
   const el = $('#scope');
   if (el && el.classList.contains('hidden') === on) el.classList.toggle('hidden', !on);
+}
+
+// U15: subtitle bar. Lines queue and play one at a time; the Ghost and comms speak here (story.js).
+const subQ = [];
+let subT = 0;
+export function say(who, text, dur = lineDuration(text)) {
+  subQ.push({ who, text, dur });
+}
+export function clearSubtitles() { subQ.length = 0; subT = 0; const el = $('#subtitle'); if (el) el.classList.add('hidden'); }
+function updateSubtitle(dt) {
+  const el = $('#subtitle');
+  if (!el) return;
+  if (subT > 0) { subT -= dt; if (subT <= 0 && !subQ.length) el.classList.add('hidden'); }
+  if (subT <= 0 && subQ.length) {
+    const l = subQ.shift(), sp = SPEAKERS[l.who] || SPEAKERS.ghost;
+    const w = el.querySelector('.st-who');
+    w.textContent = sp.name; w.style.color = sp.color;
+    el.querySelector('.st-text').textContent = l.text;
+    el.classList.remove('hidden');
+    subT = l.dur;
+  }
 }
 
 export function centerMessage(title, sub = '', dur = 2.5) {

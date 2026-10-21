@@ -58,12 +58,22 @@ export const SETS = {
     bonus: { name: "Traveler's Echo", desc: 'Your super charges 10% faster over time.' },
     look: look(C(0xd9b46a, 0xf2ead2, 0x3a2a1c, 0xb8662c), { visor: 'round', crest: 'halo' }, { cuff: 'layered', light: true }, { plate: 'emblem', shoulder: 'tall' }, { knee: 'guard', shin: 'stripe' }),
   },
+  dc: {
+    name: 'Dreaming Court', dest: 'The Dreaming City', pieces: pieces('Court', 'Veil', 'Wraps', 'Mantle', 'Slippers'),
+    bonus: { name: "Queen's Grace", desc: 'Your class ability recharges 15% faster.' },
+    look: look(C(0xe8e0d0, 0x7fd8ff, 0x3a3250, 0xb48ae0), { visor: 'eyes', crest: 'halo' }, { cuff: 'plain', light: true }, { plate: 'emblem', shoulder: 'tall' }, { knee: 'plain', shin: 'stripe' }),
+  },
+  leviathan: {
+    name: "Emperor's Feast", dest: 'The Leviathan', pieces: pieces('Feast', 'Crown', 'Gauntlets', 'Cuirass', 'Greaves'),
+    bonus: { name: "Calus's Indulgence", desc: 'Your powered melee recharges 15% faster.' },
+    look: look(C(0x2a2030, 0xffc247, 0x14101a, 0x8a1e2e), { visor: 'wide', crest: 'crown' }, { cuff: 'layered', light: true }, { plate: 'layered', shoulder: 'big' }, { knee: 'guard', shin: 'plated' }),
+  },
 };
 export const SET_IDS = Object.keys(SETS);
 for (const id of SET_IDS) LOOKS[id] = SETS[id].look;
 
 /** Set bonus numbers (the Player reads these). */
-export const SET_TUNE = { reload: 0.85, precHeal: 0.2, orbCharge: 1, regenDelay: 0.75, outlawDmg: 1.15, outlawT: 6, superPassive: 1.1 };
+export const SET_TUNE = { reload: 0.85, precHeal: 0.2, orbCharge: 1, regenDelay: 0.75, outlawDmg: 1.15, outlawT: 6, superPassive: 1.1, classCd: 0.85, meleeCd: 0.85 };
 
 /** The look an armor piece shows: its set, the exotic look, or a plain look by rarity. */
 export function lookOf(item) {

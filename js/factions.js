@@ -54,6 +54,8 @@ export const UNITS = {
   sc_lurker:    { faction: 'scorn', base: 'grunt', name: 'Scorn Lurker', hp: 150, speed: 3.0, skills: ['frontGuard'], frontGuard: { mult: 0.2, knock: null } },
   sc_abomination: { faction: 'scorn', base: 'heavy', name: 'Scorn Abomination', hp: 1000, dmg: 14, burst: 2, burstGap: 0.2, fireCd: [2.2, 3.2], shotColor: 0x5fd3ff, skills: [], enrage: true },
   sc_chieftain: { faction: 'scorn', base: 'captain', name: 'Scorn Chieftain', hp: 340, shield: 160, shieldEl: 'solar', skills: ['totem'], totem: { cd: [14, 19], max: 2, life: 22 } },
+  // U15: a story objective target (consoles, totems, emitters): a standing glowing pylon, takes the destination's colors, never moves or shoots
+  obj_node:     { base: 'grunt', name: 'Objective Target', hp: 380, speed: 0, static: true, support: true, noDrops: true, objective: true, skills: [] },
   sc_totem:     { faction: 'scorn', base: 'grunt', name: 'Ether Totem', hp: 420, speed: 0, static: true, noDrops: true, support: true, scale: 1.0, skills: ['totemAura'], totemAura: { radius: 11, mult: 0.55 } },
 };
 
@@ -134,6 +136,11 @@ export function composeWave(faction, waveIdx, zi, g, more = 1) {
 export const MISSION_FACTIONS = {
   io1: [[null, null], [null, 'taken'], 'boss:taken'],
   ts3: [[null, null], [null, 'scorn'], ['scorn', 'scorn'], 'boss:scorn'],
+  // U15: the Dreaming City is Taken throughout; the Leviathan is Loyalist Cabal, and the Taken stalk the Royal Pools (zone 2)
+  dc1: [['taken', 'taken'], 'boss:taken'],
+  dc2: [['taken', 'taken'], 'boss:taken'],
+  dc3: [['taken', 'taken'], 'boss:taken'],
+  lev1: [[null, null], [null, null], ['taken', 'taken'], [null, null], [null, null]],
 };
 // Missions that only brush the second faction: a lone reinforcement wave in the deepest zone before the boss.
 export const MISSION_TASTE = { io2: 'taken', ts2: 'scorn' };
