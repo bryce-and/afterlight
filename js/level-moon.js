@@ -413,6 +413,18 @@ export default {
       for (const [x, z] of [[-40, -191], [-20, -191], [-40, -209], [-20, -209]]) K.light(x, 4, z, GREEN, 4, 14);
       tunnel(-22, -221, -236);
       K.light(-22, 6, -228, GREEN, 5, 18);
+      // U16d: the caverns have levels. A bone-ribbed bridge crosses the hall 3.6 m up on a stair at each end, and a gallery runs
+      // along each wall; the floor between is open ground, so the bridge and galleries are firing positions above the fight.
+      K.platform(-30, -200, 5, 22, 3.6, { stairs: ['s', 'n'], stairW: 3.5, color: HR2, stairColor: HR });
+      for (const s of [-1, 1]) {
+        K.box(-30 + s * 2.4, -200, 0.3, 1.0, 22, HR, { y: 3.6, collide: false });
+        for (let z = -209; z <= -191; z += 6) boneSpike(K, -30 + s * 2.4, z, 1.8, { y: 4.6, rx: 0 });
+      }
+      K.platform(-49.4, -200, 4, 28, 3.6, { stairs: ['s'], stairW: 3, color: HR2, stairColor: HR });
+      K.platform(-10.6, -200, 4, 28, 3.6, { stairs: ['s'], stairW: 3, color: HR2, stairColor: HR });
+      K.box(-47.3, -200, 0.3, 1.0, 28, HR, { y: 3.6, collide: false });
+      K.box(-12.7, -200, 0.3, 1.0, 28, HR, { y: 3.6, collide: false });
+      for (const z of [-190, -200, -210]) { K.light(-49.4, 7, z, GREEN, 4, 16); K.light(-10.6, 7, z, GREEN, 4, 16); }
 
       // ---- Chamber of Night: roofed cathedral, pillar rows, braziers, raised altar ----
       K.room(-10, -268, 50, 64, 16, { t: 1.6, doors: { s: 8 }, doorOffset: { s: -12 }, roof: true, color: HR2, roofColor: CHIT });

@@ -1,13 +1,13 @@
 // Hand-built Leviathan finale map (see makeKit in world.js).
-// Emperor Calus's world-ship: black marble and gold, five halls in a row. A Loyalist hangar, the Pleasure
+// Emperor Calus's world-ship: white marble and gold, five halls in a row. A Loyalist hangar, the Pleasure
 // Gardens under a glass dome, the Royal Pools (the Taken stalk here), the long red-gold Gauntlet and the
 // Throne Room. Halls are closed rooms joined by gold doors that open as each zone is cleared.
 import * as THREE from 'three';
 
-// black marble, gold, cream stone, Loyalist crimson
-const MARB = 0x15111b, MARB2 = 0x251e2d, MARB3 = 0x3a2f46;
-const GOLD = 0xd9a43a, GOLDL = 0xffc247, GOLDD = 0x8a6a22, CREAM = 0xa89878;
-const BANR = 0x7e1a22, CARPET = 0x5a1620, DECK = 0x383044, DECK2 = 0x1f3048;
+// white marble, gold, cream stone, Loyalist crimson (U16d: opulent and bright; black only as a thin accent)
+const MARB = 0xece6da, MARB2 = 0xdad2c3, MARB3 = 0xc2b9a8;
+const GOLD = 0xd9a43a, GOLDL = 0xffc247, GOLDD = 0x8a6a22, CREAM = 0xe8dcc0;
+const BANR = 0x7e1a22, CARPET = 0x5a1620, DECK = 0xd2ccbf, DECK2 = 0xc3ced8;
 // gardens
 const HEDGE = 0x2d6a38, HEDGE2 = 0x3e8a48, LAWN = 0x3a7a42, SOIL = 0x3a2a1e, BLOOM = [0xd04a8a, 0xe8883a, 0xe8d04a];
 // pools and Taken blight
@@ -44,7 +44,7 @@ function lamp(K, x, y, z, color = GOLDL, intensity = 7, dist = 28) {
   K.light(x, y, z, color, intensity, dist);
 }
 
-// Leviathan wall: black marble with a gold cornice. gaps are [centre, width] in world coordinates along the wall;
+// Leviathan wall: white marble with a gold cornice. gaps are [centre, width] in world coordinates along the wall;
 // each gets a lintel up to the wall top (door height doorH) and gold posts. Doors are placed separately with K.door.
 function lwall(K, x1, z1, x2, z2, h, o = {}) {
   const horiz = Math.abs(x2 - x1) >= Math.abs(z2 - z1);
@@ -70,7 +70,7 @@ function banner(K, x, y, z, axis = 'z', h = 6) {
   vbox(K, x, y + h * 0.15, z, ...f(0.9, 0.9, 0.3), GOLDL, { glow: 1.2, ry: Math.PI / 4 });
 }
 
-// black marble pillar with gold bands, a capital and a banner on the inside face (face: +1 or -1 along z)
+// white marble pillar with gold bands, a capital and a banner on the inside face (face: +1 or -1 along z)
 function bpillar(K, x, z, h, face, o = {}) {
   const w = o.w ?? 2.2;
   K.box(x, z, w, h, w, MARB2);
@@ -291,7 +291,7 @@ export default {
       banner(K, 0, 10, -5.7, 'z', 8); banner(K, -18, 9, -84.3, 'z', 7);
 
       // =====================================================================
-      // Zone 2: The Royal Pools. Raised black marble basins, a canal crossed by gold bridges, blue light, Taken blight
+      // Zone 2: The Royal Pools. Raised white marble basins, a canal crossed by gold bridges, blue light, Taken blight
       // =====================================================================
       vbox(K, 0, 0, -118, 112, 0.24, 66, DECK2);
       poolBlock(K, -54, -130, -26, -96);
@@ -336,7 +336,7 @@ export default {
       // =====================================================================
       // Zone 3: The Gauntlet. A 124 m red-gold hold in three sections, banner pillars, gates in series
       // =====================================================================
-      vbox(K, 0, 0, -165.5, 124, 0.24, 28, 0x3a2228);
+      vbox(K, 0, 0, -165.5, 124, 0.24, 28, 0xcfc6b4);
       vbox(K, 0, 0.14, -165.5, 124, 0.05, 5, CARPET);
       for (const dz of [-2.8, 2.8]) vbox(K, 0, 0.17, -165.5 + dz, 124, 0.04, 0.3, GOLD, { glow: 0.7 });
       for (const px of [-54, -42, -30, -18, -6, 6, 18, 30, 42, 54]) {
@@ -365,7 +365,7 @@ export default {
       // Zone 4: The Throne Room (boss). Closed chamber, gold dais, pillar ring, balconies and gold light shafts
       // =====================================================================
       const tc = -220.5;
-      vbox(K, 0, 0, tc, 100, 0.24, 80, 0x2a2236);
+      vbox(K, 0, 0, tc, 100, 0.24, 80, 0xe6dfd0);
       for (const [r0, r1, c] of [[34, 36, GOLD], [23.4, 24.2, GOLD], [12, 12.5, GOLD]]) K.mesh(new THREE.RingGeometry(r0, r1, 48).rotateX(-Math.PI / 2), c, 0, 0.17, tc, { glow: 0.6 });
       for (let k = 0; k < 8; k++) vbox(K, 0, 0.2, tc, 68, 0.03, 0.5, GOLD, { glow: 0.6, ry: k * Math.PI / 8 });
       K.mesh(new THREE.CylinderGeometry(9.2, 9.2, 0.05, 32), GOLDL, 0, 0.22, tc, { glow: 0.7 });

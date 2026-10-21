@@ -505,15 +505,15 @@ export const LOCATIONS = [
   },
   {
     id: 'leviathan', name: 'The Leviathan', planetName: 'The Leviathan', faction: 'Cabal',
-    desc: "Emperor Calus's world-ship, gold and black marble, a feast prepared in your honor. Accept his invitation and end the Emperor on his throne.",
+    desc: "Emperor Calus's world-ship, white marble and gold, a feast prepared in your honor. Accept his invitation and end the Emperor on his throne.",
     fog: [34, 180], sunDir: [0.3, 1, 0.2], light: { hemi: 1.5, sun: 1.5 },
-    colors: { sky: 0x1c1224, fog: 0x2a1c34, hemiTop: 0xffe3a8, hemiBot: 0x2a1c30, sun: 0xffd9a0, ground: 0x4a3a52, ground2: 0x3a2c44, rock: 0x33283c, rock2: 0x2a2030, wall: 0x6a5a4e, metal: 0x4e4458, accent: 0xffc247, crate: 0x5a4a3a, foliage: 0x3a6a4a, enemy: 0x8a6a2a, enemy2: 0x2a2018, eye: 0xffc247, loyalist: true },
+    colors: { sky: 0xe6d9bc, fog: 0xd8c9a8, hemiTop: 0xfff6e2, hemiBot: 0xb8a888, sun: 0xfff0d8, ground: 0xd8d0c0, ground2: 0xcbc2b0, rock: 0xbfb5a0, rock2: 0xa99f8c, wall: 0xe4dccb, metal: 0xb9a98a, accent: 0xffc247, crate: 0x5a4a3a, foliage: 0x3a6a4a, enemy: 0x8a6a2a, enemy2: 0x2a2018, eye: 0xffc247, loyalist: true },
     planetColors: { sea: false, c: [0x2a1c34, 0x6a5a4e, 0xffc247, 0xffe3a8] }, atmo: 0xffc247,
     skyBody: { color: 0xd8a64a, size: 90, pos: [-300, 180, -440] },
     enemyNames: { grunt: 'Loyalist Legionary', rusher: 'War Beast', captain: 'Loyalist Centurion', heavy: 'Loyalist Colossus' },
     zoneNames: ['Docking Bay', 'The Pleasure Gardens', 'The Royal Pools', 'The Gauntlet', 'The Throne Room'],
     missions: [
-      { id: 'lev1', mood: 'night', name: "The Emperor's Throne", power: 200, zones: 5, boss: { name: 'Emperor Calus', element: 'void', model: 'calus' }, desc: "Cross the docking bay, the Pleasure Gardens, the Royal Pools and the Gauntlet to the Emperor's throne. Calus is expecting you." },
+      { id: 'lev1', name: "The Emperor's Throne", power: 200, zones: 5, boss: { name: 'Emperor Calus', element: 'void', model: 'calus' }, desc: "Cross the docking bay, the Pleasure Gardens, the Royal Pools and the Gauntlet to the Emperor's throne. Calus is expecting you." },
     ],
   },
 ];

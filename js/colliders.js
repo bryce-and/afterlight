@@ -78,8 +78,9 @@ export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
     if (vel.y <= 0 && prevY >= c.max.y - 0.02) { pos.y = c.max.y; vel.y = 0; }
     else if (vel.y > 0) { pos.y = Math.max(prevY, c.min.y - h - 1e-3); vel.y = 0; }
   }
-  if (pos.y <= 0) { pos.y = 0; if (vel.y < 0) vel.y = 0; }
-  res.onGround = pos.y <= 1e-3 || C.some((c) => !c.pass && Math.abs(pos.y - c.max.y) < 0.03 &&
+  const open = !!G.level?.voidAt?.(pos.x, pos.z); // past an open edge there is no floor
+  if (pos.y <= 0 && !open) { pos.y = 0; if (vel.y < 0) vel.y = 0; }
+  res.onGround = (pos.y <= 1e-3 && !open) || C.some((c) => !c.pass && Math.abs(pos.y - c.max.y) < 0.03 &&
     footprintHit(c, pos.x, pos.z, r));
   return res;
 }

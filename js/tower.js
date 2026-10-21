@@ -88,7 +88,7 @@ function buildTowerCast() {
     mark.scale.y = 1.5;
     mark.position.set(spot.x, (spot.y ?? 0) + model.height + 0.6, spot.z);
     G.scene.add(mark);
-    T.npcs.push({ id, label, x: spot.x, z: spot.z, yaw: (spot.yaw || 0) + Math.PI, model, mark, r: S.talkRadius || 3.2 });
+    T.npcs.push({ id, label, x: spot.x, z: spot.z, yaw: (spot.yaw || 0) + Math.PI, model, mark, r: spot.r || S.talkRadius || 3.2 });
   }
   T.pads = [
     { id: 'quest', x: S.questKiosk.x, z: S.questKiosk.z, r: 2.4, label: 'Open the Quest Kiosk', act: () => openPanel(openQuestKiosk) },
@@ -223,6 +223,9 @@ export function updateTower(dt) {
     n.mark.visible = has;
     if (has) { n.mark.rotation.y += dt * 1.6; n.mark.position.y = n.model.group.position.y + n.model.height + 0.6 + Math.sin(G.time * 2.4) * 0.08; }
   }
+
+  // the edges are open: step off and you fall (the floor ends at the map's open sides), and the Tower catches you a moment later
+  if (!P.dead && pp.y < -3 && G.level.voidAt?.(pp.x, pp.z)) P.fallDie();
 
   // the Range: inside the box you hold your weapons and see through your own eyes
   const rb = S.rangeBox;

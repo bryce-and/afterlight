@@ -424,7 +424,7 @@ export function buildLevel(loc, def) {
         const stripe = new THREE.Mesh(BOX, mat(o.trim ?? C.accent, { emissive: o.trim ?? C.accent, emissiveIntensity: 1.6 }));
         stripe.scale.set(axis === 'x' ? w * 0.8 : t + 0.06, 0.18, axis === 'x' ? t + 0.06 : w * 0.8);
         stripe.position.set(0, 0, 0);
-        const d = { id: o.id ?? `door${doors.length}`, zone: o.zone ?? null, mesh: m, stripe, y0: m.position.y, h, collider: colliders[colliders.length - 1], open: false, t: 0 };
+        const d = { id: o.id ?? `door${doors.length}`, zone: o.zone ?? null, mesh: m, stripe, y0: m.position.y, h, collider: colliders[colliders.length - 1], open: false, t: 0, x, z, w, t2: t, axis, lock: null, lockHeld: false };
         stripe.position.set(x, (o.y ?? 0) + h * 0.7, z);
         scene.add(stripe);
         doors.push(d);
@@ -465,10 +465,13 @@ export function buildLevel(loc, def) {
   }
   // invisible boundary walls
   const T = 200;
-  addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.minX, T, bounds.maxZ + 10, null);
-  addCollider(bounds.maxX, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.maxZ + 10, null);
-  addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.minZ, null);
-  addCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
+  // U16d: a map can leave sides open (`open: { e: true }`): no boundary wall there, and past the edge there is no floor (see voidAt)
+  const open = set.open || {};
+  if (!open.w) addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.minX, T, bounds.maxZ + 10, null);
+  if (!open.e) addCollider(bounds.maxX, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.maxZ + 10, null);
+  if (!open.n) addCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.minZ, null);
+  if (!open.s) addCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
+  const voidAt = Object.keys(open).length ? (x, z) => (open.w && x < bounds.minX) || (open.e && x > bounds.maxX) || (open.n && z < bounds.minZ) || (open.s && z > bounds.maxZ) : null;
 
   // ---- light pool: the 6 nearest lamps get a real light, so a map can hold dozens (U15) ----
   const pool = [];
@@ -489,7 +492,7 @@ export function buildLevel(loc, def) {
   const openDoors = (zoneIdx, id = null) => {
     let any = false;
     for (const d of doors) {
-      if (d.open || (zoneIdx === 'all' ? false : id ? d.id !== id : d.zone !== zoneIdx)) continue;
+      if (d.open || d.lockHeld || (zoneIdx === 'all' ? false : id ? d.id !== id : d.zone !== zoneIdx)) continue;
       d.open = true; any = true;
       const i = colliders.indexOf(d.collider);
       if (i >= 0) colliders.splice(i, 1);
@@ -500,6 +503,12 @@ export function buildLevel(loc, def) {
   };
   const updateDoors = (dt) => {
     for (const d of doors) {
+      if (!d.open && d.lockHeld && d.t > 0) { // a sealed boss room door sliding shut
+        d.t = Math.max(0, d.t - dt * 1.4);
+        d.mesh.position.y = d.y0 + d.t * (d.h + 0.2);
+        d.stripe.position.y = d.y0 + d.h * 0.7 + d.t * (d.h + 0.2);
+        continue;
+      }
       if (!d.open || d.t >= 1) continue;
       d.t = Math.min(1, d.t + dt * 1.4);
       d.mesh.position.y = d.y0 + d.t * (d.h + 0.2);
@@ -508,7 +517,36 @@ export function buildLevel(loc, def) {
     }
   };
 
-  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights, openDoors, updateDoors };
+  // U16d boss lock-in: the doors that led into a boss room shut again once the boss fight starts and everyone is inside, and open
+  // when it ends or when someone is outside (a respawn, a Guardian who lagged behind). `want` is the set of boss zone indexes that
+  // should be sealed now; `points` are the players' positions, so a door never closes on someone standing in it.
+  // Returns 'sealed', 'opened' or null when nothing changed.
+  const syncLocks = (want, points) => {
+    let res = null;
+    for (const d of doors) {
+      if (d.lock == null) continue;
+      if (want.has(d.lock) && !d.lockHeld && d.open) {
+        const hx = (d.axis === 'x' ? d.w : d.t2) / 2 + 1.3, hz = (d.axis === 'x' ? d.t2 : d.w) / 2 + 1.3;
+        if (points.some((p) => Math.abs(p.x - d.x) < hx && Math.abs(p.z - d.z) < hz)) continue;
+        d.open = false; d.lockHeld = true; d.t = 1;
+        d.mesh.visible = true; d.stripe.visible = true;
+        if (!colliders.includes(d.collider)) colliders.push(d.collider);
+        if (!staticMeshes.includes(d.mesh)) staticMeshes.push(d.mesh);
+        res = 'sealed';
+      } else if (!want.has(d.lock) && d.lockHeld) {
+        d.lockHeld = false; d.open = true; d.t = 0;
+        const i = colliders.indexOf(d.collider); if (i >= 0) colliders.splice(i, 1);
+        const j = staticMeshes.indexOf(d.mesh); if (j >= 0) staticMeshes.splice(j, 1);
+        res = res || 'opened';
+      }
+    }
+    return res;
+  };
+  // every door into a boss room (it opens on the zone before) can seal behind the party
+  const bossIdx = zones.findIndex((z) => z.isBoss);
+  if (bossIdx > 0 && set.lockIn !== false) for (const d of doors) if (d.zone === bossIdx - 1) d.lock = bossIdx;
+
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights, openDoors, updateDoors, syncLocks, voidAt };
 }
 
 /**

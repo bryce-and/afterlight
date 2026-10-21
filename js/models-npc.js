@@ -110,36 +110,36 @@ function zavala() {
   const blue = M(0x2c5fb0, { metalness: 0.35 }), navy = M(0x1b3358), white = M(0xe8ecf2, { metalness: 0.3 });
   const gold = metal(0xc9a24b), dark = M(0x23262d);
   const f = figure({
-    hipW: 0.14, thigh: 0.19, pants: navy, boot: dark, chestW: 0.62, chestD: 0.36, shirt: navy,
-    armT: 0.17, sleeve: blue, glove: white, hand: white, skin,
+    hipW: 0.14, thigh: 0.2, pants: navy, boot: dark, chestW: 0.5, chestD: 0.3, shirt: navy,
+    armT: 0.2, sleeve: blue, glove: white, hand: white, skin,
   });
   const { group, torso, head } = f;
-  // head: shaved, short grey-flecked beard
+  // head: shaved, clean-shaven
   humanHead(head, skin, 0.2, 0.24);
-  box(0.2, 0.09, 0.15, 0, 0.07, 0.04, M(0x4a4846), head); // grey beard
-  box(0.17, 0.03, 0.03, 0, 0.12, 0.1, M(0x4a4846), head);
-  box(0.015, 0.04, 0.012, 0.045, 0.1, 0.11, M(0xb9b7b2), head); // grey flecks
   box(0.21, 0.04, 0.2, 0, 0.24, 0, skinDk, head); // brow/scalp shade
-  // chest plate with the Titan mark
-  box(0.66, 0.4, 0.4, 0, 0.36, 0.01, blue, torso);
-  box(0.4, 0.34, 0.06, 0, 0.36, 0.2, white, torso);
-  cone(0.1, 0.18, 3, 0, 0.36, 0.24, glow(0x9fd0ff, 1.2), torso, [Math.PI / 2, 0, 0]); // mark
-  box(0.04, 0.2, 0.02, 0, 0.36, 0.235, navy, torso);
-  box(0.66, 0.05, 0.4, 0, 0.58, 0.0, gold, torso); // collar trim
-  cyl(0.12, 0.14, 0.1, 6, 0, 0.64, 0, blue, torso); // gorget
+  // chest plate with the Titan mark: a V taper, broad pecs over a narrow waist (muscular, not bulky)
+  box(0.74, 0.24, 0.3, 0, 0.46, 0.0, blue, torso);          // pecs
+  box(0.56, 0.2, 0.28, 0, 0.27, 0.0, blue, torso);          // ribs
+  box(0.4, 0.18, 0.26, 0, 0.1, 0.0, navy, torso);           // waist
+  box(0.5, 0.2, 0.05, 0, 0.46, 0.16, white, torso);         // chest panel
+  box(0.3, 0.2, 0.04, 0, 0.27, 0.15, white, torso);
+  cone(0.09, 0.16, 3, 0, 0.46, 0.2, glow(0x9fd0ff, 1.2), torso, [Math.PI / 2, 0, 0]); // mark
+  box(0.04, 0.16, 0.02, 0, 0.46, 0.2, navy, torso);
+  box(0.74, 0.05, 0.3, 0, 0.6, 0.0, gold, torso); // collar trim
+  cyl(0.12, 0.15, 0.1, 6, 0, 0.66, 0, blue, torso); // thick neck guard
   // heavy shoulders
   for (const s of [-1, 1]) {
-    const pad = pivot(s * 0.39, 0.62, 0, torso, 'pauldron');
-    box(0.3, 0.2, 0.34, 0, 0, 0, blue, pad, [0, 0, s * 0.12]);
-    box(0.32, 0.05, 0.36, 0, 0.1, 0, white, pad, [0, 0, s * 0.12]);
+    const pad = pivot(s * 0.44, 0.6, 0, torso, 'pauldron');
+    box(0.32, 0.22, 0.34, 0, 0, 0, blue, pad, [0, 0, s * 0.14]);
+    box(0.34, 0.05, 0.36, 0, 0.11, 0, white, pad, [0, 0, s * 0.14]);
     box(0.06, 0.05, 0.3, s * 0.12, -0.12, 0, gold, pad);
   }
   // belt
-  box(0.5, 0.07, 0.34, 0, 0.0, 0, gold, torso);
+  box(0.42, 0.07, 0.28, 0, 0.0, 0, gold, torso);
   // cape over the right shoulder
-  const cape = pivot(-0.3, 0.7, -0.19, torso, 'cape');
-  box(0.34, 0.9, 0.04, 0, -0.42, 0, cloth(0x2c5fb0), cape, [0.05, 0, 0]);
-  box(0.34, 0.06, 0.05, 0, -0.88, 0.005, M(0xe8ecf2), cape, [0.05, 0, 0]);
+  const cape = pivot(-0.34, 0.68, -0.17, torso, 'cape');
+  box(0.3, 0.9, 0.04, 0, -0.42, 0, cloth(0x2c5fb0), cape, [0.05, 0, 0]);
+  box(0.3, 0.06, 0.05, 0, -0.88, 0.005, M(0xe8ecf2), cape, [0.05, 0, 0]);
   // arms folded across the chest
   for (const [side, a] of [[1, f.armL], [-1, f.armR]]) {
     a.arm.rotation.set(-0.45, side * 0.15, side * 0.35);

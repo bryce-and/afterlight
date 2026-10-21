@@ -34,6 +34,18 @@ import { linesFor, objectiveFor, UNLOCKS } from './story.js';
 import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
 
 const _c = new THREE.Vector3();
+const _sr = new THREE.Vector3(), _su = new THREE.Vector3(), _sd = new THREE.Vector3();
+const SHADOW_TEXEL = 100 / 2048; // the shadow box is 100 m across on a 2048 map
+
+/** Moves the sun's shadow box with the player in whole shadow texels, so shadow edges do not swim or pop as you walk. */
+function snapSun(L, pos) {
+  _sd.copy(L.sunOffset).normalize();
+  _sr.set(0, 1, 0).cross(_sd).normalize();
+  _su.copy(_sd).cross(_sr);
+  const a = Math.round(pos.dot(_sr) / SHADOW_TEXEL) * SHADOW_TEXEL, b = Math.round(pos.dot(_su) / SHADOW_TEXEL) * SHADOW_TEXEL, c = pos.dot(_sd);
+  L.sun.target.position.copy(_sr).multiplyScalar(a).addScaledVector(_su, b).addScaledVector(_sd, c);
+  L.sun.position.copy(L.sun.target.position).add(L.sunOffset);
+}
 
 // ---------------------------------------------------------------------------
 // Mission lifecycle
@@ -244,16 +256,34 @@ export function updateGame(dt) {
   updateMusic(dt);
   netTick(dt);
   const L = G.level;
-  L.sun.position.copy(P.pos).add(L.sunOffset);
-  L.sun.target.position.copy(P.pos);
+  snapSun(L, P.pos);
   L.updateLights(P.pos);
   L.updateDoors(dt);
   ui.updateHUD(dt);
 }
 
+/** U16d: seals the way back into a boss room while its fight is on (see syncLocks in world.js). Runs for every player, driven by zone state. */
+function syncBossLocks() {
+  const L = G.level, M = G.mission;
+  if (!L?.syncLocks || M.act) return;
+  const want = new Set();
+  const live = allPlayers().filter((p) => !p.dead);
+  for (const z of M.zones) {
+    const r = z.room;
+    if (!z.isBoss || z.state !== 'active' || !r || !live.length) continue;
+    if (live.every((p) => p.pos.x > r.minX + 0.5 && p.pos.x < r.maxX - 0.5 && p.pos.z > r.minZ + 0.5 && p.pos.z < r.maxZ - 0.5)) want.add(z.idx);
+  }
+  const res = L.syncLocks(want, allPlayers().map((p) => p.pos));
+  if (!res) return;
+  G.nav = buildNav(G.colliders, L.bounds);
+  G.hitDirty = true;
+  if (res === 'sealed') ui.centerMessage('The Way Back Is Sealed', 'Finish the fight', 2.5);
+}
+
 function updateMission(dt) {
   const M = G.mission, P = G.player;
   if (M.tower) { updateTower(dt); return; } // U16: the Tower has no zones
+  syncBossLocks();
   if (M.act) { updateActivity(dt); return; }
   // fireteam members get zones/objectives from the leader; only the cache is local
   if (M.remote && M.phase !== 'loot' && M.phase !== 'done') return;

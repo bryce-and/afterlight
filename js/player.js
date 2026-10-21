@@ -258,6 +258,12 @@ export class Player {
     const swinging = this.swingT > 0 && prop === 'sword';
     b.position.copy(this.pos);
     b.rotation.y = this.yaw + Math.PI;
+    const fig = b.children[0];
+    if (this.ragdoll) { // tumbling about the body's middle on the way down
+      const r = this.ragdoll; r.t += dt;
+      b.position.y += 0.9; if (fig) fig.position.y = -0.9;
+      b.rotation.set(r.sx * r.t, b.rotation.y + r.sy * r.t, r.sz * r.t, 'YXZ');
+    } else { if (fig) fig.position.y = 0; b.rotation.x = 0; b.rotation.z = 0; }
     this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, swing: swinging ? { k: 1 - this.swingT / this.swingMax, heavy: !!this.swingHeavy, kind: this.swingKind || 'cleave', dir: this.swingDir || 1 } : null, swordGuard: prop === 'sword' && !!this.wGuard, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
   }
 
@@ -2024,17 +2030,30 @@ export class Player {
     sfx.death();
   }
 
+  /** U16d: fell off the Tower. No revive is spent; the body tumbles on the way down and you are back at the Watch a moment later. */
+  fallDie() {
+    if (this.dead) return;
+    this.dead = true; this.health = 0; this.shield = 0;
+    this.superActive = null;
+    this.viewmodel.visible = false;
+    this.respawnT = 3.6;
+    this.ragdoll = { t: 0, sx: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3), sy: (Math.random() - 0.5) * 4, sz: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 3) };
+    ui.showDeath('You Fell', 'The Last City is a long way down');
+    sfx.death();
+  }
+
   /** inPlace: revived by a teammate where we fell; otherwise back at the checkpoint. quiet: no banner (the activity just ended). */
   respawn(inPlace = false, quiet = false) {
     const M = G.mission;
     this.dead = false;
+    this.ragdoll = null;
     this.health = this.maxHealth; this.shield = this.maxShield;
     if (!inPlace) this.pos.copy(M.checkpoint).add(new THREE.Vector3(0, 0, 6));
     this.vel.set(0, 0, 0);
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    if (!quiet) ui.centerMessage('Revived', M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   /** Invisibility (Nightstalker). Graviton Forfeit makes it last longer. */

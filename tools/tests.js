@@ -31,7 +31,7 @@ import * as FA from '../js/factions.js';
 import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
-import { TOWER_SPOTS } from '../js/tower-data.js';
+import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1127,11 +1127,19 @@ test('U16 Tower stops: every stop names real destinations and NPCs, and has a sc
   for (const n of [...Q.TOWER_NPCS, 'kadi']) ok(ST_.TOWER_IDLE[n].length >= 2, `${n} idle lines`);
 });
 test('U16 Tower map: posts for every Tower NPC, kiosks, a launch pad and a Range with dummies inside its box', () => {
-  const S_ = TOWER_SPOTS, b = [-60, 60, -62, 79]; // the map's bounds
+  const S_ = TOWER_SPOTS, b = [-82, 120, -76, 74]; // the map's bounds
   for (const n of [...Q.TOWER_NPCS, 'kadi']) { ok(S_[n] && Number.isFinite(S_[n].x), `${n} has a post`); ok(S_[n].x > b[0] && S_[n].x < b[1] && S_[n].z > b[2] && S_[n].z < b[3], `${n} is inside the map`); }
   for (const k of ['questKiosk', 'exoticKiosk', 'launchPad', 'rangeBox', 'rangeFirePoint', 'rangeBoss']) ok(S_[k], k);
   const rb = S_.rangeBox;
   ok(S_.rangeDummies.length >= 6 && [...S_.rangeDummies, S_.rangeBoss].every((d) => d.x > rb.minX && d.x < rb.maxX && d.z > rb.minZ && d.z < rb.maxZ), 'dummies stand inside the Range');
+});
+test('U16d Tower: every empty NPC post is inside the map and names a symbol', () => {
+  const b = [-82, 120, -76, 74];
+  for (const [id, p] of Object.entries(TOWER_FUTURE_POSTS)) {
+    ok(p.x > b[0] && p.x < b[1] && p.z > b[2] && p.z < b[3], `${id} is inside the map`);
+    ok(['shield', 'cube', 'bullet', 'x', 'burst', 'hex'].includes(p.symbol), `${id} has a known symbol`);
+  }
+  eq(Object.keys(TOWER_FUTURE_POSTS).length, 10);
 });
 test('U16 Exotic Kiosk: priced at 7777 glimmer', () => { eq(S.KIOSK_PRICE, 7777); eq(S.POSTMASTER_CAP, 21); });
 test('U16 Postmaster: overflow goes to the Postmaster, it caps at 21, exotics are never lost, items can be collected', () => {
