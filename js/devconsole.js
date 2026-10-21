@@ -28,7 +28,7 @@ function grant(item) {
   const dropped = addItem(G.save, item);
   writeSave(G.save);
   ui.lootToast(item);
-  if (dropped) ui.feed(`Inventory full: auto-dismantled ${dropped.name}`, '#aaa');
+  if (dropped) ui.feed(`Inventory full: ${dropped.sent.name} sent to the Postmaster`, '#aaa');
 }
 
 function open() {

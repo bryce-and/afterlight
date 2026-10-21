@@ -27,6 +27,8 @@ import { castFx } from './abilities.js';
 import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction } from './factions.js';
 import { skillIncoming, skillHit } from './enemy-skills.js';
 import { buildVoidAxe } from './models.js';
+import { updateTower } from './tower.js';
+import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
 import { linesFor, objectiveFor, UNLOCKS } from './story.js';
 import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
@@ -92,7 +94,8 @@ export function abandonMission(silent = false) {
   ui.showOrbit();
 }
 
-function cleanupMission() {
+export function cleanupMission() {
+  if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
   clearEffects();
   G.scene = null; G.level = null; G.player = null; G.mission = null;
@@ -249,6 +252,7 @@ export function updateGame(dt) {
 
 function updateMission(dt) {
   const M = G.mission, P = G.player;
+  if (M.tower) { updateTower(dt); return; } // U16: the Tower has no zones
   if (M.act) { updateActivity(dt); return; }
   // fireteam members get zones/objectives from the leader; only the cache is local
   if (M.remote && M.phase !== 'loot' && M.phase !== 'done') return;
@@ -575,7 +579,7 @@ export function grantItem(item) {
   if (G.mission && !G.mission.loot.includes(item)) G.mission.loot.push(item);
   ui.lootToast(item);
   sfx.engram(rarityIndex(item.rarity));
-  if (auto) ui.feed(`Inventory full: auto-dismantled ${auto.name}`, '#aaa');
+  if (auto) ui.feed(auto.dismantled ? `Inventory full: ${auto.sent.name} sent to the Postmaster (${auto.dismantled.name} dismantled)` : `Inventory full: ${auto.sent.name} sent to the Postmaster`, '#aaa');
   writeSave(G.save);
 }
 

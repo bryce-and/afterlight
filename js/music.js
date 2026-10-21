@@ -12,6 +12,7 @@ const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 
 // root = MIDI note of the key; prog = scale degrees (0-based) per bar
 const THEMES = {
+  tower: { root: 53, scale: MAJOR, tempo: 72, prog: [0, 3, 4, 0], pad: 'strings', lead: 'bell', drums: null, choir: 0.7 }, // U16: the Tower, warm and open
   orbit: { root: 51, scale: MAJOR, tempo: 64, prog: [0, 5, 3, 4], pad: 'strings', lead: 'bell', drums: null, choir: 0.5 },
   earth: { root: 50, scale: MINOR, tempo: 84, prog: [0, 5, 2, 6], pad: 'strings', lead: 'bell', drums: 'taiko', choir: 0.8 },
   moon: { root: 49, scale: PHRYGIAN, tempo: 70, prog: [0, 1, 0, 4], pad: 'drone', lead: 'glass', drums: 'deep', choir: 1 },

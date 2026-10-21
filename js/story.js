@@ -13,6 +13,7 @@ export const SPEAKERS = {
   asher:   { name: 'Asher Mir', color: '#ffe08a' },
   spider:  { name: 'The Spider', color: '#d8a8ff' },
   petra:   { name: 'Petra Venj', color: '#a8ffe0' },
+  kadi:    { name: 'Kadi 55-30', color: '#ffe08a' },
   mara:    { name: 'Mara Sov', color: '#f4e3a8' },
   riven:   { name: 'Riven',    color: '#ff9a3c' },
   calus:   { name: 'Emperor Calus', color: '#ffd24d' },
@@ -293,3 +294,86 @@ export function objectiveFor(missionId, zoneIdx) {
 export function lineDuration(text) {
   return Math.min(8, Math.max(2.6, text.length / 16 + 1.2));
 }
+
+// ---------------------------------------------------------------------------
+// U16 "The Last City": what the Vanguard say in the Tower. Keyed by Tower stop (quests.js TOWER_STOPS), then NPC.
+// Each entry is a list of [speaker, text]. The Guardian never speaks; the Ghost may answer.
+// ---------------------------------------------------------------------------
+export const TOWER_TALKS = {
+  earth: {
+    zavala: [
+      ['zavala', 'A Guardian, walking out of the Cosmodrome. We stopped believing in that years ago. Welcome to the Tower.'],
+      ['zavala', 'The Last City holds, but only just. I will need every Guardian I can find.'],
+      ['ghost', 'He does that. Say "thank you" and look sturdy.'],
+    ],
+    ikora: [
+      ['ikora', 'You took a coin from the Winter Kell. Gold, stamped with a seal I do not know. Fallen do not buy things.'],
+      ['ikora', 'Somebody is paying them. I would like to know who before they pay anyone else.'],
+    ],
+    cayde: [
+      ['cayde', 'Fresh Guardian! Let me guess: the Ghost does all the talking. They always do.'],
+      ['cayde', 'Rule one: never trust anyone who says "trust me." Except me. I am extremely trustworthy.'],
+      ['ghost', 'He is not.'],
+    ],
+  },
+  moon: {
+    ikora: [
+      ['ikora', 'Eris Morn walked out of the Hellmouth alone. I have never seen anyone carry that much quiet.'],
+      ['ikora', 'You brought back what the Hive left of her fireteam. Thank you. The Traveler remembers you for it.'],
+      ['ikora', 'Rasputin is warning of Cabal on Mars. When Rasputin is afraid, so am I.'],
+    ],
+  },
+  mars: {
+    zavala: [
+      ['zavala', 'Ghaul is dead. The Red Legion has lost its head, and a wounded army is the most dangerous kind.'],
+      ['zavala', 'You did what the whole City could not. I will not forget it.'],
+    ],
+    ikora: [
+      ['ikora', 'Calus has sent a gift to a Tower he cannot see, and an invitation to a Guardian he has never met.'],
+      ['ikora', 'He is not a man who gives. Keep the invitation. Do not answer it. Not yet.'],
+    ],
+  },
+  io: {
+    zavala: [
+      ['zavala', 'Titan. My home. The Hive have climbed out of the methane, and the arcology is the next to fall.'],
+      ['zavala', 'I cannot leave the City. You can. Go, and tell them the Vanguard has not forgotten Titan.'],
+    ],
+  },
+  titan: {
+    cayde: [
+      ['cayde', 'The Spider says the Fallen Barons are strangling his trade on the Reef. Barons! Loud, greedy, terrible at hiding.'],
+      ['cayde', 'I would go myself, but somebody has to stay here and look important. Hit them hard, Guardian.'],
+      ['ghost', 'He has never once looked important.'],
+    ],
+  },
+  tangled: {
+    ikora: [
+      ['ikora', 'A second invitation. The Awoken Queen does nothing without a reason, and she does nothing for free.'],
+      ['ikora', 'The Dreaming City has been closed for a very long time. If its veil opens for you, go carefully.'],
+    ],
+  },
+  dc: {
+    zavala: [
+      ['zavala', 'The Taken are quiet. That frightens me more than if they were not.'],
+      ['zavala', 'Calus waits at the end of this. Whatever he tells you, remember what the Light is for.'],
+    ],
+    ikora: [
+      ['ikora', 'He will say he knows why the Light chose you. He will say it kindly. That is how it begins.'],
+    ],
+    cayde: [
+      ['cayde', 'Big ship, fancy throne, a sulking Emperor. Classic. Shoot first, banter second.'],
+      ['cayde', 'Come back in one piece. I have a bet with Zavala and I am winning.'],
+    ],
+  },
+};
+
+/** Said when you speak to someone with nothing new for you. */
+export const TOWER_IDLE = {
+  zavala: ['The City is safe tonight because of Guardians like you.', 'Keep your Light bright, Guardian.', 'Stay vigilant. The Darkness does not rest.'],
+  ikora: ['The Traveler has been quiet. I choose to find that hopeful.', 'Knowledge is a weapon too. Use it.', 'If you find something strange out there, tell me first.'],
+  cayde: ['Got any spare glimmer? Asking for a friend. The friend is me.', 'I would tell you a joke, but the Ghost has banned them.', 'Nice gear. Mine is better.'],
+  kadi: ['Mail for you? Always. It is never the good kind.', 'Everything the field could not carry is right here.'],
+};
+
+/** The first time the Postmaster is met, and the Quest Kiosk. */
+export const KADI_LINES = [['kadi', 'Postmaster Kadi 55-30. When your pack is full, what you could not carry waits here for you. Take what you need.']];

@@ -30,6 +30,8 @@ import { ENEMY_TYPES } from '../js/data.js';
 import * as FA from '../js/factions.js';
 import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
+import * as Q from '../js/quests.js';
+import { TOWER_SPOTS } from '../js/tower-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -40,7 +42,7 @@ function memStore(init = {}) {
   const m = new Map(Object.entries(init));
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), map: m };
 }
-const fresh = (init) => { const st = memStore(init); S.useStorage(st); S.SAVE_RULES.resetBelow = S.SAVE_VERSION; return st; };
+const fresh = (init) => { const st = memStore(init); S.useStorage(st); S.SAVE_RULES.resetBelow = 9; return st; }; // the campaign reset (U15) is below v9; later versions migrate
 const freshOld = (init) => { const st = fresh(init); S.SAVE_RULES.resetBelow = 0; return st; }; // older saves migrate instead of resetting
 
 // ---------- progression ----------
@@ -347,9 +349,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = freshOld({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 9);
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 10);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 9, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 10, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -1070,8 +1072,84 @@ test('U15 gating: a new save opens only the first mission; each clear opens the 
   fresh();
   const s = S.createSave('vanguard');
   eq([S.isUnlocked(s, 0, 0), S.isUnlocked(s, 0, 1), S.isUnlocked(s, 1, 0)], [true, false, false]);
-  for (const m of S.ALL_MISSIONS) { ok(S.isUnlocked(s, m.li, m.mi), `${m.id} open after the previous clear`); s.cleared[m.id] = true; }
+  for (const m of S.ALL_MISSIONS) { ok(S.isUnlocked(s, m.li, m.mi), `${m.id} open after the previous clear`); s.cleared[m.id] = true; const st = Q.dueStop(s); if (st) for (const n of st.npcs) Q.talkTo(s, n); } // U16: the Tower debrief opens the next destination
   ok(!S.isUnlocked({ cleared: { dc3: false } }, 7, 0), 'the Leviathan needs the Dreaming City');
+});
+test('U16 quests: every Guardian starts with the campaign; it cannot be abandoned; a custom quest can be dropped and picked up', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  eq(s.quests.active, ['campaign']);
+  ok(Q.abandonQuest(s, 'campaign'), 'the campaign refuses to be abandoned'); eq(s.quests.active, ['campaign']);
+  Q.QUESTS.test_exotic = { id: 'test_exotic', name: 'Test', desc: '', abandonable: true };
+  s.quests.active.push('test_exotic');
+  eq(Q.abandonQuest(s, 'test_exotic'), null); eq(s.quests.dropped, ['test_exotic']);
+  ok(Q.abandonQuest(s, 'test_exotic'), 'cannot abandon twice');
+  eq(Q.pickUpQuest(s, 'test_exotic'), null); ok(s.quests.active.includes('test_exotic') && !s.quests.dropped.length, 'picked back up');
+  delete Q.QUESTS.test_exotic;
+  S.switchCharacter(s, 'stalker');
+  eq(s.quests.active, ['campaign'], 'a new Guardian has its own campaign quest');
+  s.cleared.earth3 = true;
+  S.switchCharacter(s, 'vanguard');
+  ok(!s.cleared.earth3, 'quest and progress are per Guardian');
+});
+test('U16 Tower stops: a finished destination stays closed until the Vanguard have been spoken to', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  for (const m of LOCATIONS[0].missions) s.cleared[m.id] = true;
+  const st = Q.dueStop(s);
+  eq(st.id, 'earth'); ok(!S.isUnlocked(s, 1, 0), 'the Moon is closed'); ok(Q.towerLockReason(s, 1).includes('Tower'));
+  ok(Q.npcHasQuest(s, 'zavala') && !Q.npcHasQuest(s, 'kadi'));
+  const r1 = Q.talkTo(s, 'zavala'); ok(r1.counted && !r1.finished);
+  ok(!Q.talkTo(s, 'zavala').counted, 'a second talk does not count');
+  ok(!S.isUnlocked(s, 1, 0), 'still closed after one of three');
+  Q.talkTo(s, 'ikora'); const r3 = Q.talkTo(s, 'cayde'); ok(r3.finished);
+  ok(S.isUnlocked(s, 1, 0), 'the Moon is open'); eq(Q.dueStop(s), null);
+  const v = Q.questList(s)[0]; eq(v.state, 'active'); ok(v.step.length > 5 && v.log.length >= 3);
+});
+test('U16 Tower stops: a Guardian who already passed a stop before the Tower existed is not sent back', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  for (const li of [0, 1]) for (const m of LOCATIONS[li].missions) s.cleared[m.id] = true;
+  s.cleared[LOCATIONS[2].missions[0].id] = true; // already started Mars
+  eq(Q.dueStop(s), null); ok(S.isUnlocked(s, 2, 1));
+});
+test('U16 Tower stops: every stop names real destinations and NPCs, and has a script', () => {
+  for (const st of Q.TOWER_STOPS) {
+    ok(LOCATIONS.some((l) => l.id === st.after), `${st.id} destination`);
+    ok(!/[–—]/.test(st.text), 'no dashes');
+    for (const n of st.npcs) {
+      ok(Q.TOWER_NPCS.includes(n), `${st.id}/${n} is a Tower NPC`);
+      const lines = ST_.TOWER_TALKS[st.id]?.[n];
+      ok(lines && lines.length >= 1, `${st.id}/${n} has a script`);
+      for (const [who, text] of lines) { ok(ST_.SPEAKERS[who], `speaker ${who}`); ok(text.length > 5 && !/[–—]/.test(text), `${st.id}/${n} text`); }
+    }
+  }
+  for (const n of [...Q.TOWER_NPCS, 'kadi']) ok(ST_.TOWER_IDLE[n].length >= 2, `${n} idle lines`);
+});
+test('U16 Tower map: posts for every Tower NPC, kiosks, a launch pad and a Range with dummies inside its box', () => {
+  const S_ = TOWER_SPOTS, b = [-60, 60, -62, 79]; // the map's bounds
+  for (const n of [...Q.TOWER_NPCS, 'kadi']) { ok(S_[n] && Number.isFinite(S_[n].x), `${n} has a post`); ok(S_[n].x > b[0] && S_[n].x < b[1] && S_[n].z > b[2] && S_[n].z < b[3], `${n} is inside the map`); }
+  for (const k of ['questKiosk', 'exoticKiosk', 'launchPad', 'rangeBox', 'rangeFirePoint', 'rangeBoss']) ok(S_[k], k);
+  const rb = S_.rangeBox;
+  ok(S_.rangeDummies.length >= 6 && [...S_.rangeDummies, S_.rangeBoss].every((d) => d.x > rb.minX && d.x < rb.maxX && d.z > rb.minZ && d.z < rb.maxZ), 'dummies stand inside the Range');
+});
+test('U16 Exotic Kiosk: priced at 7777 glimmer', () => { eq(S.KIOSK_PRICE, 7777); eq(S.POSTMASTER_CAP, 21); });
+test('U16 Postmaster: overflow goes to the Postmaster, it caps at 21, exotics are never lost, items can be collected', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  const base = s.inventory.find((i) => i.kind === 'weapon' && !S.isEquipped(s, i));
+  const mk = (id, extra = {}) => ({ ...base, id, locked: false, ...extra });
+  while (s.inventory.length < S.INVENTORY_CAP) s.inventory.push(mk(`f${s.inventory.length}`));
+  for (let i = 0; i < S.POSTMASTER_CAP; i++) eq(S.addItem(s, mk(`p${i}`)).dismantled, null);
+  eq(s.postmaster.length, S.POSTMASTER_CAP);
+  const g0 = s.glimmer, r = S.addItem(s, mk('p-new'));
+  eq(s.postmaster.length, S.POSTMASTER_CAP); ok(r.dismantled && r.dismantled.id === 'p0', 'the oldest was dismantled'); ok(s.glimmer > g0);
+  s.postmaster = s.postmaster.map((i) => ({ ...i, rarity: 'exotic' }));
+  const r2 = S.addItem(s, mk('p-ex', { rarity: 'exotic' }));
+  eq(r2.dismantled, null); eq(s.postmaster.length, S.POSTMASTER_CAP + 1, 'a full Postmaster of exotics grows rather than lose one');
+  ok(S.collectPostmaster(s, 'p-ex'), 'cannot collect into a full inventory');
+  s.inventory.pop(); eq(S.collectPostmaster(s, 'p-ex'), null); ok(S.getItem(s, 'p-ex') && !s.postmaster.some((i) => i.id === 'p-ex'));
+  S.switchCharacter(s, 'arcanist'); eq(s.postmaster, [], 'the Postmaster is per Guardian');
 });
 test('U15 story script: every mission has lines, valid zone triggers and objective plans', () => {
   for (const m of S.ALL_MISSIONS) {
@@ -1117,7 +1195,7 @@ test('U15 campaign reset: a pre-v9 save is backed up once and cleared, settings 
   eq(S.loadSave(), null, 'starts fresh');
   eq(st.getItem(S.CAMPAIGN_BACKUP_KEY), old, 'backup'); eq(st.getItem('afterlight_save_v2'), null, 'old key cleared');
   ok(S.takeCampaignNotice() && !S.takeCampaignNotice(), 'notice once');
-  const s = S.createSave('vanguard'); eq([s.settings.sens, s.settings.fov], [2.2, 99], 'settings kept'); eq(s.cleared, {}); eq(s.version, 9);
+  const s = S.createSave('vanguard'); eq([s.settings.sens, s.settings.fov], [2.2, 99], 'settings kept'); eq(s.cleared, {}); eq(s.version, S.SAVE_VERSION);
   S.resetSave(); ok(st.getItem(S.MANUAL_BACKUP_KEY), 'manual reset kept a backup');
   fresh({ afterlight_save_v2: JSON.stringify({ version: 5, classId: 'vanguard', inventory: [], equipped: {} }), afterlight_backup_v8: 'earlier' });
   S.loadSave(); eq(S.CAMPAIGN_BACKUP_KEY, 'afterlight_backup_v8');
@@ -1141,7 +1219,7 @@ test('U15 item lock: a locked item is never auto-dismantled, cannot be dismantle
   eq(S.dismantleItem(s, weakest.id), 0, 'a locked item is not dismantled by hand'); ok(S.getItem(s, weakest.id), 'still owned');
   while (s.inventory.length < S.INVENTORY_CAP) S.addItem(s, { ...weakest, id: `fill${s.inventory.length}`, locked: false, power: weakest.power + 5 });
   const gone = S.addItem(s, { ...weakest, id: 'overflow', locked: false, power: weakest.power + 6 });
-  ok(gone && gone.id !== weakest.id, 'something else was auto-dismantled'); ok(S.getItem(s, weakest.id), 'the locked item survived the overflow');
+  ok(gone && gone.sent.id === 'overflow', 'the overflow went to the Postmaster'); ok(S.getItem(s, weakest.id), 'the locked item survived the overflow');
   eq(S.toggleLock(s, weakest.id), false); ok(!weakest.locked, 'unlocked');
   eq(S.toggleLock(s, 'nope'), null);
 });

@@ -5,6 +5,21 @@
 
 export const RELEASES = [
   {
+    version: '2.7', name: 'The Last City', date: '2026-10-21', accent: '#ffd88a', glyph: '◇',
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="tlBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b3a63"/><stop offset="0.55" stop-color="#6aa6d8"/><stop offset="1" stop-color="#f0d9a8"/></linearGradient><radialGradient id="tlTrav" cx="0.4" cy="0.35" r="0.8"><stop offset="0" stop-color="#fffbe8"/><stop offset="0.6" stop-color="#e9ddb4"/><stop offset="1" stop-color="#b7a574"/></radialGradient><radialGradient id="tlGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff6d0" stop-opacity="0.7"/><stop offset="1" stop-color="#fff6d0" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#tlBg)"/><circle cx="214" cy="62" r="78" fill="url(#tlGlow)"/><circle cx="214" cy="62" r="46" fill="url(#tlTrav)"/><path d="M190 52 L204 64 L198 80 M226 38 L218 56 L234 70 M214 18 L212 40" stroke="#8a7646" stroke-width="1.6" fill="none"/><path d="M0 180 L0 128 L22 128 L22 96 L30 84 L38 96 L38 124 L64 124 L64 108 L96 108 L96 70 L104 52 L112 70 L112 112 L138 112 L138 134 L170 134 L170 100 L178 82 L186 100 L186 138 L210 138 L210 118 L246 118 L246 90 L256 66 L266 90 L266 124 L296 124 L296 104 L320 104 L320 180 Z" fill="#26364f"/><path d="M0 180 L0 150 L48 150 L48 140 L120 140 L120 152 L200 152 L200 144 L280 144 L280 156 L320 156 L320 180 Z" fill="#162033"/><rect x="100" y="96" width="8" height="10" fill="#ffd88a" opacity="0.85"/><rect x="250" y="106" width="6" height="8" fill="#ffd88a" opacity="0.85"/><rect x="174" y="118" width="6" height="8" fill="#ffd88a" opacity="0.7"/></svg>',
+    summary: 'The Tower is back. A walkable hub between the battles, reached from Orbit: the Vanguard debriefs you between acts, your Quests tab tracks the campaign, and the Postmaster, the Exotic Kiosk and a shooting range wait inside.',
+    notes: [
+      'The Tower: a walkable hub copied from Destiny 1, with Tower Watch, the Hall of Guardians, Tower North, the Hangar and the Speaker\'s chamber. Reach it from Orbit with the Tower button. You walk in third person and your weapons stay holstered',
+      'Campaign: the Vanguard debriefs you in the Tower between acts. A finished destination stays closed until you speak to Zavala, Ikora Rey or Cayde-6, as the Quests tab says. Seven stops: after Earth, the Moon, Mars, Io, Titan, the Tangled Shore and the Dreaming City. Saves already past a stop are not sent back',
+      'Quests tab: for each Guardian it tracks the campaign, with the current step, where to go and a progress log. The campaign cannot be abandoned; the Quest Kiosk is built for quests you can drop and pick up again, for future exotic quests',
+      'Postmaster (Kadi 55-30, Tower Watch): when your inventory is full, new gear goes to your Postmaster (21 slots per Guardian) instead of being dismantled. A full Postmaster dismantles its oldest unlocked non-exotic; exotics are never lost',
+      'Exotic Kiosk (Hall of Guardians): pull any exotic you have found at your current Light for 7,777 glimmer. Armor rolls random stats, weapons have fixed perks. One copy at a time',
+      'Shooting Range (South Tower, sealed in Destiny 1): first person, weapons free, infinite ammo. Training dummies and a boss dummy at your Light, with a DPS readout',
+      'Low-poly Zavala, Ikora Rey, Cayde-6 and Kadi 55-30 stand in the Tower, in their Destiny looks',
+      'Save: save version 10, nothing lost. Each Guardian gets a Postmaster and a quest log. Fireteams cannot visit the Tower yet, so leave the fireteam first',
+    ],
+  },
+  {
     version: '2.6', name: 'The Ghost\'s Story', date: '2026-10-20', accent: '#ffd24d', glyph: '◈',
     art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="gsBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b0814"/><stop offset="0.55" stop-color="#241638"/><stop offset="1" stop-color="#4a2a1c"/></linearGradient><radialGradient id="gsGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#9fe8ff" stop-opacity="0.7"/><stop offset="1" stop-color="#9fe8ff" stop-opacity="0"/></radialGradient><radialGradient id="gsSun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd24d" stop-opacity="0.55"/><stop offset="1" stop-color="#ffd24d" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#gsBg)"/><circle cx="262" cy="52" r="70" fill="url(#gsSun)"/><path d="M0 150 Q80 118 160 134 T320 120 V180 H0Z" fill="#12091c"/><path d="M0 164 Q100 140 190 152 T320 146 V180 H0Z" fill="#0a0612"/><g fill="#ffd24d" opacity="0.9"><path d="M214 66 l30 -7 l34 4 l18 12 l-22 6 l-40 -2z"/><path d="M226 64 l-6 -14 l8 6z M262 62 l4 -16 l6 16z"/></g><g fill="#2a1a10" opacity="0.8"><path d="M222 69 l50 3 l-8 6 l-40 -3z"/></g><g fill="#fff" opacity="0.85"><circle cx="40" cy="104" r="2.2"/><circle cx="76" cy="90" r="2.6"/><circle cx="112" cy="80" r="3"/><circle cx="148" cy="74" r="3.2"/><circle cx="184" cy="72" r="3.4"/></g><path d="M40 104 Q112 60 184 72" fill="none" stroke="#fff" stroke-opacity="0.25" stroke-dasharray="2 4"/><circle cx="116" cy="108" r="40" fill="url(#gsGlow)"/><g transform="translate(116 108)"><path d="M0 -22 L18 0 L0 22 L-18 0Z" fill="#dff7ff"/><path d="M0 -22 L18 0 L0 4Z" fill="#9fe8ff"/><path d="M-18 0 L0 -22 L0 4Z" fill="#c4eeff"/><circle cx="0" cy="0" r="6" fill="#0b0814"/><circle cx="0" cy="0" r="2.6" fill="#9fe8ff"/></g></svg>',
     summary: 'The campaign is a story now. Your Ghost leads you from the Cosmodrome to the Leviathan across eight destinations, the Dreaming City among them, with missions that ask for more than killing everything. Everyone starts the new campaign fresh.',
@@ -383,11 +398,6 @@ export const titleRelease = () => RELEASES.find((r) => r.version.split('.').leng
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
 export const ROADMAP = [
-  {
-    name: 'The Last City', status: 'Future Transmission', accent: '#e9eef5', glyph: '⌂',
-    teaser: 'The lights of the Tower are coming back on. Somewhere to rest, somewhere to gather, somewhere to call home.',
-    themes: ['A place between battles'],
-  },
   {
     name: 'The Emperor\'s Shadow', status: 'Future Transmission', accent: '#c9a046', glyph: '♛',
     teaser: 'A golden vessel drifts at the edge of the system. Someone aboard has been watching you for a very long time.',

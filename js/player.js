@@ -207,9 +207,11 @@ export class Player {
   }
   get holdingAxe() { return !this.superActive && !this.dead && this.status.has('voidaxe'); } // U9: a picked-up Twilight Arsenal axe
   get holdingSword() { return !this.superActive && !this.dead && !!this.weapon?.A?.sword; } // Swords are fought in third person
-  get thirdPerson() { return !this.dead && ((!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe || this.holdingSword); }
+  /** U16: the Tower is third person with weapons holstered, until you walk into the Range. */
+  get social() { const T = G.mission?.tower; return !!T && !T.inRange; }
+  get thirdPerson() { return !this.dead && (this.social || (!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe || this.holdingSword); }
   /** The prop held in third person: the super's id, or 'twilight' for a picked-up axe. */
-  get tpsProp() { return !this.thirdPerson ? null : this.superActive ? this.superActive.type : this.holdingAxe ? 'twilight' : 'sword'; }
+  get tpsProp() { return !this.thirdPerson || this.social ? null : this.superActive ? this.superActive.type : this.holdingAxe ? 'twilight' : 'sword'; }
 
   /** Aim direction from the eye. In third person: toward whatever is under the crosshair, so shots land where you aim. */
   aimForward(out) {
@@ -330,8 +332,7 @@ export class Player {
       this.pitch -= rec; this.recoilAcc -= rec;
     }
     this.updateMovement(dt);
-    this.updateCombat(dt);
-    this.updateAbilities(dt);
+    if (!this.social) { this.updateCombat(dt); this.updateAbilities(dt); }
     this.updateRegen(dt);
     this.updateCamera(dt);
     this.updateViewmodel(dt);

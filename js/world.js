@@ -10,9 +10,10 @@ import TANGLED from './level-tangled.js';
 import IO from './level-io.js';
 import DC from './level-dc.js';
 import LEVIATHAN from './level-leviathan.js';
+import { TOWER } from './level-tower.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN };
+const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
 
 const matCache = new Map();
 export function mat(color, o = {}) {

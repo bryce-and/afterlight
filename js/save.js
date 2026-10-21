@@ -5,6 +5,7 @@ import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP, convertXp, canUseRarity,
 import { randInt } from './util.js';
 import { frameFor, weaponStats } from './frames.js';
 import { MODS, blankMods, migrateArmorStats } from './armor.js';
+import { newQuests, ensureQuests, actOpen } from './quests.js';
 import { setForLegacy, appearance, shaderFor, SHADERS } from './style.js';
 
 const KEY = 'afterlight_save_v2';
@@ -12,7 +13,7 @@ const KEY = 'afterlight_save_v2';
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 // Tests lower this to exercise the older migrations (production always resets below SAVE_VERSION).
 export const SAVE_RULES = { resetBelow: 9 };
 // The Ghost's Story (v2.6) starts everyone over for the new campaign: a save older than v9 is copied here once, only its settings carry over.
@@ -21,6 +22,9 @@ export const CAMPAIGN_BACKUP_KEY = 'afterlight_backup_v8';
 export const MANUAL_BACKUP_KEY = 'afterlight_backup_manual';
 export const INVENTORY_CAP = 60;
 export const VAULT_CAP = 100;
+export const POSTMASTER_CAP = 21;
+/** Exotic Kiosk price in glimmer (U16): one exotic from your Collection at your current Light. */
+export const KIOSK_PRICE = 7777;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
 
 // MIGRATIONS[n] upgrades a version n save to version n + 1, in place.
@@ -72,6 +76,12 @@ const MIGRATIONS = {
   7: (s) => { if (s.progression) s.progression.xp = convertXp(s.progression.xp); },
   // The Ghost's Story (v2.6): loadSave resets any older save and keeps a backup, so this is only reached by tests that switch the reset off (SAVE_RULES).
   8: () => {},
+  // The Last City (v2.7): quests and the Postmaster, per Guardian. Nothing is lost; a Guardian already past a Tower stop counts as having reported.
+  9: (s) => {
+    s.postmaster = Array.isArray(s.postmaster) ? s.postmaster : [];
+    s.quests = newQuests();
+    for (const c of Object.values(s.chars || {})) { c.postmaster = c.postmaster || []; c.quests = c.quests || newQuests(); }
+  },
 };
 
 /** Names of every exotic in any Guardian's inventory or the vault. */
@@ -194,7 +204,7 @@ export function resetSave() {
 export function createSave(classId) {
   const kit = starterKit(classId);
   const s = {
-    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, subclass: {}, loadout: {},
+    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, postmaster: [], quests: newQuests(), subclass: {}, loadout: {},
     shaders: { owned: [], applied: {} }, chars: {}, exoticsFound: [],
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
@@ -302,13 +312,15 @@ export function switchCharacter(s, classId) {
   if (!CLASSES[classId]) throw new Error(`switchCharacter: no class ${classId}`);
   if (classId === s.classId) return;
   s.chars = s.chars || {};
-  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared };
+  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared, postmaster: s.postmaster || [], quests: ensureQuests(s) };
   const next = s.chars[classId] || starterKit(classId);
   delete s.chars[classId];
   s.classId = classId;
   s.inventory = next.inventory;
   s.equipped = next.equipped;
   s.cleared = next.cleared || {}; // U15: the campaign is per Guardian
+  s.postmaster = next.postmaster || []; // U16: so are the Postmaster and the quests
+  s.quests = next.quests || newQuests();
   enforceGates(s);
   writeSave(s);
 }
@@ -434,19 +446,33 @@ export function toggleLock(s, id) {
   return !!it.locked;
 }
 
-/** Adds an item; if over cap, auto-dismantles the weakest unequipped item and returns it. */
+/**
+ * Adds an item. Over the inventory cap, the new item goes to this Guardian's Postmaster (U16) instead of being lost.
+ * A full Postmaster dismantles its oldest unlocked non-exotic for glimmer; exotics are never lost.
+ * Returns null, or { sent, dismantled } (dismantled may be null).
+ */
 export function addItem(s, it) {
-  s.inventory.push(it);
   noteExotic(s, it);
-  if (s.inventory.length <= INVENTORY_CAP) return null;
-  const rIdx = (x) => RARITIES.findIndex((r) => r.id === x.rarity);
-  const candidates = s.inventory.filter((i) => !isEquipped(s, i) && i !== it && i.rarity !== 'exotic' && !i.locked); // a locked item is never auto-dismantled
-  candidates.sort((a, b) => rIdx(a) - rIdx(b) || a.power - b.power);
-  const victim = candidates[0];
-  if (!victim) return null;
-  s.inventory = s.inventory.filter((i) => i !== victim);
-  s.glimmer += dismantleValue(victim);
-  return victim;
+  if (s.inventory.length < INVENTORY_CAP) { s.inventory.push(it); return null; }
+  s.postmaster = s.postmaster || [];
+  let dismantled = null;
+  if (s.postmaster.length >= POSTMASTER_CAP) {
+    const victim = s.postmaster.find((i) => i.rarity !== 'exotic' && !i.locked);
+    if (victim) { s.postmaster = s.postmaster.filter((i) => i !== victim); s.glimmer += dismantleValue(victim); dismantled = victim; }
+  }
+  s.postmaster.push(it);
+  return { sent: it, dismantled };
+}
+
+/** Collects a Postmaster item into the inventory. Returns an error string or null. */
+export function collectPostmaster(s, id) {
+  const it = (s.postmaster || []).find((i) => i.id === id);
+  if (!it) return 'That item is gone.';
+  if (s.inventory.length >= INVENTORY_CAP) return 'Your inventory is full.';
+  s.postmaster = s.postmaster.filter((i) => i !== it);
+  s.inventory.push(it);
+  writeSave(s);
+  return null;
 }
 
 export const ALL_MISSIONS = LOCATIONS.flatMap((l, li) => l.missions.map((m, mi) => ({ ...m, li, mi, g: li * 3 + mi })));
@@ -454,5 +480,6 @@ export const ALL_MISSIONS = LOCATIONS.flatMap((l, li) => l.missions.map((m, mi) 
 export function isUnlocked(s, li, mi) {
   const g = li * 3 + mi;
   if (g === 0) return true;
+  if (mi === 0 && !actOpen(s, li)) return false; // U16: the Vanguard's debrief in the Tower opens the next destination
   return !!s.cleared[ALL_MISSIONS[g - 1].id];
 }

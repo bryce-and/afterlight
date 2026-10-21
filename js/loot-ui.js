@@ -17,7 +17,7 @@ import { esc, clamp } from './util.js';
 
 let closeOpen = null; // closes whichever overlay is open
 
-function overlay(cls) {
+export function overlay(cls) {
   closeOpen?.();
   const el = document.createElement('div');
   el.className = `loot-ov ${cls}`;

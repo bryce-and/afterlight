@@ -22,6 +22,8 @@ import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
 import { profile, launchFireteam, launchActivity } from './coop.js';
+import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
+import { startTower } from './tower.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -189,7 +191,7 @@ let orbitTab = 'director', selLoc = null, selMission = null, selAct = 0;
 export function showOrbit(tab) {
   G.state = 'orbit';
   if (tab) orbitTab = tab;
-  if (!['director', 'activities', 'level'].includes(orbitTab)) orbitTab = 'character';
+  if (!['director', 'quests', 'activities', 'level'].includes(orbitTab)) orbitTab = 'character';
   showOnly('orbit');
   setVolume(G.save.settings.volume);
   setMusicVolume(G.save.settings.musicVolume ?? 0.5);
@@ -213,8 +215,9 @@ function renderOrbit() {
     <header class="topbar">
       <button class="brand" id="brand" title="Back to the title screen">AFTERLIGHT</button>
       <nav class="tabs">
-        ${['director', 'activities', 'character', 'level'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}${t === 'level' && readyRewards ? `<span class="badge">${readyRewards}</span>` : ''}</button>`).join('')}
+        ${['director', 'quests', 'activities', 'character', 'level'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'quests' && dueStop(s) ? '<span class="badge">!</span>' : ''}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}${t === 'level' && readyRewards ? `<span class="badge">${readyRewards}</span>` : ''}</button>`).join('')}
       </nav>
+      <button class="btn tower-btn${dueStop(s) ? ' due' : ''}" id="go-tower" title="${net.active ? 'Leave your fireteam to visit the Tower' : 'Land at the Tower'}" ${net.active ? 'disabled' : ''}>The Tower</button>
       <button class="btn install-app hidden" id="install-app" title="Install Afterlight as an app">Install App</button>
       <div class="pstats">
         <span class="cls-chip" style="--cc:${cls.color}">${cls.name}</span>
@@ -231,6 +234,7 @@ function renderOrbit() {
     if (net.active) leaveFireteam();
     showTitle();
   });
+  $('#go-tower').addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
   $('#install-app').addEventListener('click', async () => {
     const p = G.installPrompt;
     if (!p) return;
@@ -242,6 +246,7 @@ function renderOrbit() {
   refreshInstall();
   const main = $('#orbit-main');
   if (orbitTab === 'director') renderDirector(main);
+  else if (orbitTab === 'quests') renderQuests(main);
   else if (orbitTab === 'activities') renderActivities(main);
   else if (orbitTab === 'level') renderLevel(main);
   else renderCharScreen(main);
@@ -280,12 +285,13 @@ function renderDirector(main) {
         <div class="eyebrow">${CHAPTERS[loc.id]?.title || loc.planetName}  ·  ${loc.planetName}  ·  ${loc.faction}</div>
         <h1 class="screen-title">${loc.name}</h1>
         <p class="desc">${loc.desc}</p>
+        ${dueStop(s) ? `<div class="tower-due"><b>Quest:</b> ${esc(dueStop(s).text)}. <button class="btn" id="due-tower" ${net.active ? 'disabled' : ''}>Go to the Tower</button></div>` : ''}
         <div class="missions">
           ${missions.map((mm, mi) => {
             const un = isUnlocked(s, selLoc, mi), cl = s.cleared[mm.id];
             return `<button class="mission ${selMission === mi ? 'sel' : ''} ${un ? '' : 'locked'}" data-m="${mi}" ${un ? '' : 'disabled'}>
               <div class="m-top"><span class="m-name">${mm.name}</span><span class="m-power">◆ ${mm.power}</span></div>
-              <div class="m-desc">${un ? mm.desc : mi === 0 ? esc(CHAPTERS[loc.id]?.locked || 'Locked.') : 'Clear the previous mission to unlock.'}</div>
+              <div class="m-desc">${un ? mm.desc : mi === 0 ? esc(towerLockReason(s, selLoc) || CHAPTERS[loc.id]?.locked || 'Locked.') : 'Clear the previous mission to unlock.'}</div>
               ${un && selMission === mi && linesFor(mm.id, 'start')[0] ? `<div class="m-ghost"><b>${esc(SPEAKERS[linesFor(mm.id, 'start')[0].who]?.name || '')}</b>  ${esc(linesFor(mm.id, 'start')[0].text)}</div>` : ''}
               <div class="m-foot">${cl ? '<span class="tag done">Cleared</span>' : un ? '<span class="tag new">New</span>' : '<span class="tag">Locked</span>'}
                 <span class="m-boss">Boss: ${mm.boss.name}</span></div>
@@ -305,7 +311,45 @@ function renderDirector(main) {
     lockPointer();
     startMission(selLoc, selMission);
   });
+  $('#due-tower', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
   wireFireteam(main);
+}
+
+// U16: the Quests tab. Quests are per Guardian; the campaign cannot be abandoned (other quests can, and are picked up again at the Quest Kiosk in the Tower).
+let selQuest = 'campaign';
+function renderQuests(main) {
+  const s = G.save, rows = questList(s);
+  G.menu.setMode('planet');
+  G.menu.setLocation(LOCATIONS[selLoc]);
+  G.menu.setOffset(4.4);
+  const r = rows.find((x) => x.quest.id === selQuest) || rows[0];
+  const NPC = { zavala: 'Zavala', ikora: 'Ikora Rey', cayde: 'Cayde-6' };
+  main.innerHTML = `
+    <div class="director quests">
+      <aside class="loc-list">
+        <div class="eyebrow">Quests  ·  ${CLASSES[s.classId].name}</div>
+        ${rows.map((x) => `<button class="loc ${x.quest.id === r.quest.id ? 'sel' : ''}" data-q="${x.quest.id}">
+          <div class="loc-planet">${x.quest.id === 'campaign' ? 'Campaign' : 'Quest'}${x.state === 'dropped' ? '  ·  at the Quest Kiosk' : x.state === 'done' ? '  ·  complete' : ''}</div>
+          <div class="loc-name">${esc(x.quest.name)}</div>
+          <div class="loc-prog">${esc(x.step)}</div></button>`).join('')}
+      </aside>
+      <section class="loc-detail">
+        <div class="eyebrow">${r.quest.id === 'campaign' ? 'Campaign' : 'Quest'}  ·  ${CLASSES[s.classId].name}</div>
+        <h1 class="screen-title">${esc(r.quest.name)}</h1>
+        <p class="desc">${esc(r.quest.desc)}</p>
+        <div class="q-step"><div class="eyebrow">Current step</div>
+          <div class="q-now">${esc(r.step)}</div>
+          ${r.place ? `<div class="q-place">${esc(r.place)}${r.npcs?.length ? '  ·  ' + r.npcs.map((n) => NPC[n]).join(', ') : ''}</div>` : ''}
+          ${dueStop(s) && r.quest.id === 'campaign' ? '<button class="btn primary" id="q-tower"' + (net.active ? ' disabled' : '') + '>Go to the Tower</button>' : ''}
+        </div>
+        <div class="eyebrow">Progress</div>
+        <ul class="q-log">${r.log.length ? r.log.slice().reverse().map((l) => `<li>${esc(l)}</li>`).join('') : '<li>Nothing yet.</li>'}</ul>
+        <div class="q-foot">${r.quest.abandonable ? '<button class="btn danger" id="q-abandon">Abandon (hold)</button>' : '<span class="hint">The campaign cannot be abandoned.</span>'}</div>
+      </section>
+    </div>`;
+  $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); selQuest = b.dataset.q; renderOrbit(); }));
+  $('#q-abandon', main)?.addEventListener('click', () => { if (!confirm(`Abandon ${r.quest.name}? You can pick it up again at the Quest Kiosk in the Tower.`)) return; const e = abandonQuest(s, r.quest.id); if (e) alert(e); else { writeSave(s); renderOrbit(); } });
+  $('#q-tower', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
 }
 
 function renderActivities(main) {
@@ -1508,7 +1552,7 @@ export function showPause() {
       </div>
       <div class="row-btns">
         <button class="btn primary" id="p-resume">Resume</button>
-        <button class="btn danger" id="p-abandon">${coop ? (net.isHost ? 'End Mission for Fireteam' : 'Leave Mission') : 'Abandon Mission'}</button>
+        <button class="btn danger" id="p-abandon">${G.mission.tower ? 'Return to Orbit' : coop ? (net.isHost ? 'End Mission for Fireteam' : 'Leave Mission') : 'Abandon Mission'}</button>
       </div>
       <div class="ctl-grid">${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</div>
     </div>`;
