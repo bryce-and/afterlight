@@ -65,7 +65,7 @@ function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, flames: c.flames };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, flames: c.flames, onDeath: c.onDeath, deathStep: c.deathStep };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -565,6 +565,7 @@ export class Enemy {
     skillOnDeath(this);
     if (this.def.suicide && !this.noBlast) this.detonate();
     if (this.model.shield) this.model.shield.visible = false;
+    this.model.onDeath?.(); // boss models with a death reveal (Calus)
     sparks(this.center(_v), G.mission.loc.colors.eye, this.isBoss ? 40 : 10, this.isBoss ? 10 : 5, 0.1, 0.6);
   }
 
@@ -578,6 +579,7 @@ export class Enemy {
       m.group.rotation.x = -k * 1.4 * this.fallDir;
       m.group.position.y = this.pos.y - Math.max(0, this.dieT - 0.9) * 1.5;
       m.bodyMat.emissive.setRGB(0, 0, 0);
+      m.deathStep?.(this.dieT);
       if (this.dieT > 1.8) { this.remove(); return false; }
       return true;
     }

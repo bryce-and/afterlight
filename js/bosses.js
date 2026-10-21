@@ -763,4 +763,297 @@ export const BOSS_MODELS = {
     body.add(c.muzzle);
     c.height = 2.6;
   },
+
+  // -------------------------------------------------------------------------
+  // U15: Dreaming City and Leviathan story bosses
+  // -------------------------------------------------------------------------
+  takenchampion(c) {
+    const { B, add } = c;
+    // An Awoken warrior eaten by the Taken: slender, long coat, cracked blue-grey skin under black ooze
+    const black = mat(0x14131c), skin = mat(0x9fb9cc), ooze = mat(0x07070b);
+    const glow = mat(0xff9a3c, { emissive: 0xff9a3c, emissiveIntensity: 2.6 });
+    const eye = mat(0xdfe8ff, { emissive: 0xdfe8ff, emissiveIntensity: 3 });
+    legs(c, 1.15, 0.13, 0.11, black, ooze);
+    const torso = c.pivot(0, 1.15, 0);
+    torso.rotation.x = 0.1;
+    c.torso = torso;
+    B(0.4, 0.28, 0.26, 0, 0.14, 0, black, torso);
+    B(0.5, 0.58, 0.32, 0, 0.55, 0, black, torso);
+    // cracked pale skin plate on the chest, split by orange blight
+    B(0.3, 0.4, 0.04, -0.06, 0.58, 0.18, skin, torso);
+    B(0.04, 0.46, 0.05, 0.1, 0.56, 0.2, glow, torso, false, [0, 0, 0.35]);
+    B(0.16, 0.03, 0.05, 0.0, 0.62, 0.2, glow, torso, false, [0, 0, -0.5]);
+    // tattered long coat to the shins
+    for (let i = 0; i < 6; i++) {
+      const L = 1.0 + (i % 3) * 0.18;
+      B(0.11, L, 0.03, -0.27 + i * 0.108, 0.0 - (L - 1.0) * 0.4 - 0.05, -0.2, black, torso, false, [0.14, 0, (i - 2.5) * 0.05]);
+    }
+    B(0.56, 0.12, 0.34, 0, 0.84, 0, ooze, torso);
+    // head: pale Awoken face under a blight crown
+    B(0.22, 0.26, 0.24, 0, 1.0, 0.04, skin, torso, true);
+    B(0.24, 0.1, 0.26, 0, 1.09, 0.02, ooze, torso, true);
+    for (const x of [-0.055, 0.055]) add(new THREE.SphereGeometry(0.03, 6, 5), eye, x, 1.0, 0.165, torso, true);
+    B(0.03, 0.1, 0.03, 0.0, 0.93, 0.165, glow, torso, true, [0, 0, 0.5]);
+    // spiked halo of blight standing behind the head
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * PI * 2;
+      cone(c, 0.035, 0.34, 4, i % 3 === 0 ? glow : ooze, Math.cos(a) * 0.32, 1.1 + Math.sin(a) * 0.32, -0.16, torso, true, [0, 0, a - PI / 2]);
+    }
+    add(new THREE.TorusGeometry(0.32, 0.016, 4, 14), glow, 0, 1.1, -0.16, torso, true);
+    // shoulder spikes
+    for (const s of [-1, 1]) cone(c, 0.07, 0.4, 4, black, s * 0.34, 0.92, -0.04, torso, false, [0, 0, s * -0.9]);
+    // arms: right hand carries a long blight blade, left hand trails Taken ooze
+    const L = arm(c, torso, -0.32, 0.8, 0.6, 0.08, black, -1.0, 0.1);
+    const R = arm(c, torso, 0.32, 0.8, 0.6, 0.08, black, -1.2, -0.1);
+    B(0.1, 0.12, 0.1, 0, -0.62, 0, skin, L);
+    B(0.1, 0.12, 0.1, 0, -0.62, 0, skin, R);
+    c.arms.push(L, R);
+    sword(c, R, 1.3, 0.62, 0.07, black, ooze);
+    B(0.015, 0.03, 1.2, 0, -0.62, 0.8, glow, R);
+    c.muzzle.position.set(0.32, 0.4, 0.9);
+    torso.add(c.muzzle);
+    c.height = 2.5;
+  },
+
+  morgeth(c) {
+    const { B, add } = c;
+    // A Taken Ogre: bulk, heavy shoulders, an orange-lit chest cavity and a spire of ivory stone
+    const black = mat(0x14131c), ooze = mat(0x07070b), ivory = mat(0xd9d2bc);
+    const glow = mat(0xff9a3c, { emissive: 0xff9a3c, emissiveIntensity: 2.6 });
+    const eye = mat(0xdfe8ff, { emissive: 0xdfe8ff, emissiveIntensity: 3 });
+    legs(c, 1.2, 0.3, 0.3, black, ooze);
+    for (const s of [-1, 1]) B(0.4, 0.22, 0.5, s * 0.3, 0.12, 0.08, ooze);
+    const torso = c.pivot(0, 1.2, 0);
+    torso.rotation.x = 0.22;
+    c.torso = torso;
+    B(0.8, 0.36, 0.6, 0, 0.16, 0, ooze, torso);
+    B(1.3, 0.8, 0.8, 0, 0.8, 0, black, torso);
+    // glowing chest cavity: a ribbed hollow with a blight core
+    B(0.55, 0.5, 0.06, 0, 0.8, 0.4, ooze, torso);
+    B(0.34, 0.34, 0.07, 0, 0.8, 0.42, glow, torso, true);
+    for (const y of [0.64, 0.8, 0.96]) B(0.62, 0.04, 0.09, 0, y, 0.44, black, torso);
+    // hunched back spines
+    for (const x of [-0.4, 0, 0.4]) cone(c, 0.08, 0.5, 4, ooze, x, 1.3, -0.3, torso, false, [-0.5, 0, 0]);
+    // small low head sunk between the shoulders
+    B(0.38, 0.34, 0.4, 0, 1.38, 0.22, black, torso, true);
+    B(0.3, 0.12, 0.1, 0, 1.28, 0.44, ooze, torso, true);
+    for (const x of [-0.08, 0.08]) add(new THREE.SphereGeometry(0.04, 6, 5), eye, x, 1.4, 0.43, torso, true);
+    for (const s of [-1, 1]) cone(c, 0.06, 0.4, 4, ivory, s * 0.18, 1.62, 0.12, torso, true, [0.3, 0, s * -0.3]);
+    // enormous pauldrons
+    for (const s of [-1, 1]) {
+      B(0.62, 0.34, 0.8, s * 0.88, 1.28, 0, black, torso, false, [0, 0, s * -0.25]);
+      for (let k = 0; k < 3; k++) cone(c, 0.07, 0.4, 4, ooze, s * (0.78 + k * 0.17), 1.52 - k * 0.05, 0, torso, false, [0, 0, s * -0.5]);
+    }
+    // thick arms; right swings the spire club
+    const L = arm(c, torso, -0.88, 1.12, 1.05, 0.34, black, -0.7, 0.12);
+    const R = arm(c, torso, 0.88, 1.12, 1.05, 0.34, black, -1.15, -0.12);
+    for (const a of [L, R]) B(0.42, 0.4, 0.42, 0, -1.1, 0, ooze, a);
+    c.arms.push(L, R);
+    // spire: ivory pillar, a pointed tip, wrapped in blight bands
+    B(0.3, 0.3, 1.9, 0, -1.1, 1.1, ivory, R);
+    cone(c, 0.2, 0.5, 4, ivory, 0, -1.1, 2.3, R, false, [PI / 2, 0, 0]);
+    for (const z of [0.55, 0.95, 1.35, 1.75]) {
+      B(0.36, 0.36, 0.1, 0, -1.1, z, ooze, R);
+      B(0.38, 0.04, 0.12, 0, -1.1 + 0.18, z, glow, R);
+    }
+    c.muzzle.position.set(0.88, 0.6, 1.1);
+    torso.add(c.muzzle);
+    c.height = 3.4;
+  },
+
+  veshra(c) {
+    const { B, add } = c;
+    // Riven's brood, a young Ahamkara: low sleek quadruped, split jaw, four head plates, six eyes, no wings
+    const tent = mat(0x5a2a44), hide = mat(0x2a1d2c), bone = mat(0xcdbf9c), flesh = mat(0x8a3a4a), mottle = mat(0x14101a);
+    const glow = mat(0xff9a3c, { emissive: 0xff9a3c, emissiveIntensity: 2.8 });
+    const gold = mat(0xffd36b, { emissive: 0xc9962a, emissiveIntensity: 1.2 });
+    const eye = mat(0xffd9a0, { emissive: 0xff9a3c, emissiveIntensity: 3.2 });
+    // four legs; order makes the shared walk swing trot in diagonal pairs
+    for (const [x, z] of [[-0.24, 0.55], [0.24, 0.55], [-0.24, -0.5], [0.24, -0.5]]) {
+      const hip = c.pivot(x, 0.62, z);
+      B(0.14, 0.34, 0.16, 0, -0.14, 0.04, hide, hip, false, [-0.35, 0, 0]);
+      B(0.1, 0.36, 0.12, 0, -0.44, 0.0, hide, hip, false, [0.3, 0, 0]);
+      B(0.18, 0.07, 0.24, 0, -0.6, 0.08, mottle, hip);
+      for (let k = -1.5; k <= 1.5; k++) cone(c, 0.018, 0.1, 3, bone, k * 0.045, -0.6, 0.23, hip, false, [PI / 2, 0, 0]);
+      c.legs.push(hip);
+    }
+    const body = c.pivot(0, 0.72, 0);
+    c.torso = body;
+    B(0.62, 0.48, 1.5, 0, 0.0, 0, hide, body);
+    B(0.5, 0.2, 1.3, 0, 0.3, -0.05, mottle, body);
+    for (let i = 0; i < 6; i++) B(0.12 + (i % 2) * 0.06, 0.1, 0.16, ((i * 7) % 5 - 2) * 0.1, 0.27, 0.5 - i * 0.2, i % 2 ? gold : mottle, body);
+    // back spines
+    for (let i = 0; i < 6; i++) cone(c, 0.03, 0.18, 4, bone, 0, 0.42, 0.5 - i * 0.22, body);
+    // blight heart: glowing crystal mass in the exposed chest
+    B(0.42, 0.34, 0.1, 0, 0.0, 0.76, mottle, body);
+    ico(c, 0.17, 0, glow, 0, 0.0, 0.8, body, true);
+    for (const [x, y, r] of [[-0.12, -0.08, 0.6], [0.13, 0.1, -0.5], [0.0, 0.14, 0.2]]) cone(c, 0.05, 0.22, 4, glow, x, y, 0.84, body, true, [PI / 2 - 0.2, 0, r]);
+    // neck rising to a low, forward-reaching head
+    const neck = c.pivot(0, 0.12, 0.7, body);
+    neck.rotation.x = -0.5;
+    B(0.3, 0.3, 0.7, 0, 0, 0.3, hide, neck);
+    const head = c.pivot(0, 0.04, 0.72, neck);
+    head.rotation.x = 0.55;
+    B(0.34, 0.24, 0.62, 0, 0, 0.12, hide, head, true);
+    B(0.2, 0.14, 0.2, 0, -0.02, 0.5, hide, head, true);
+    // six glowing eyes, three per side
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) add(new THREE.SphereGeometry(0.028, 6, 5), eye, s * (0.17 - k * 0.01), 0.08 - k * 0.02, 0.22 + k * 0.1, head, true);
+    // four bone plates folded back and slightly open, showing flesh underneath
+    for (const [x, y, z, rz, len] of [[-0.22, 0.12, 0.1, 0.55, 0.52], [0.22, 0.12, 0.1, -0.55, 0.52], [-0.12, 0.17, 0.06, 0.25, 0.46], [0.12, 0.17, 0.06, -0.25, 0.46]]) {
+      B(0.14, 0.04, len, x * 0.7, y - 0.03, z - 0.02, flesh, head, true, [-0.22, 0, rz]);
+      B(0.14, 0.04, len, x, y + 0.02, z - 0.02, bone, head, true, [-0.3, 0, rz]);
+    }
+    for (const s of [-1, 1]) cone(c, 0.04, 0.34, 4, bone, s * 0.16, 0.2, -0.2, head, true, [-1.2, 0, s * 0.2]);
+    // split lower jaw: two halves swung apart, rows of shark teeth
+    for (const s of [-1, 1]) {
+      const jaw = c.pivot(s * 0.03, -0.1, 0.3, head);
+      jaw.rotation.x = 0.5;
+      jaw.rotation.y = s * -0.2;
+      B(0.09, 0.07, 0.56, s * 0.05, 0, 0.24, bone, jaw, true);
+      for (let k = 0; k < 6; k++) cone(c, 0.018, 0.09, 3, bone, s * 0.05, 0.07, 0.05 + k * 0.09, jaw, true);
+      for (let k = 0; k < 5; k++) cone(c, 0.018, 0.09, 3, bone, s * 0.05, -0.001 + 0.14, 0.2 + k * 0.07 - 0.2, head, true, [PI, 0, 0]);
+    }
+    // three large spined tentacles a side off the neck, smaller ones beneath
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) {
+      const t = c.pivot(s * 0.14, 0.08 - k * 0.04, 0.1 + k * 0.1, neck);
+      t.rotation.set(0.15 + k * 0.2, -s * (0.7 + k * 0.3), 0);
+      B(0.09, 0.09, 0.8, 0, 0, -0.4, tent, t);
+      for (let j = 0; j < 4; j++) cone(c, 0.025, 0.14, 3, j % 2 ? gold : bone, 0, 0.08, -0.15 - j * 0.18, t);
+      const u = c.pivot(s * 0.1, -0.12, 0.14 + k * 0.1, neck);
+      u.rotation.set(0.9, -s * (0.5 + k * 0.4), 0);
+      B(0.05, 0.05, 0.4, 0, 0, -0.2, tent, u);
+    }
+    // long serpentine tail
+    let tp = c.pivot(0, 0.0, -0.72, body);
+    for (let i = 0; i < 7; i++) {
+      const w = 0.28 - i * 0.032;
+      B(w, w * 0.9, 0.42, 0, 0, -0.2, i % 3 === 2 ? mottle : hide, tp);
+      if (i % 2) cone(c, w * 0.15, 0.1, 3, bone, 0, w * 0.5, -0.2, tp);
+      const nx = c.pivot(0, 0, -0.4, tp);
+      nx.rotation.set(0.05, Math.sin(i * 1.1) * 0.28, 0);
+      tp = nx;
+    }
+    cone(c, 0.05, 0.3, 4, gold, 0, 0, -0.15, tp, false, [-PI / 2, 0, 0]);
+    // Taken mottling over the hide
+    for (const [x, y, z, w] of [[0.32, 0.05, 0.1, 0.1], [-0.31, -0.05, -0.2, 0.12], [0.31, 0.0, -0.5, 0.09], [-0.31, 0.1, 0.45, 0.1]]) B(0.03, w, w * 1.6, x, y, z, glow, body);
+    c.muzzle.position.set(0, 0.45, 1.5);
+    body.add(c.muzzle);
+    c.height = 1.6;
+  },
+
+  calus(c) {
+    const { B, add, bodyMat } = c;
+    // Emperor Calus: black marble and gold on the outside, a hidden automaton underneath
+    const marble = mat(0x16141a), gold = mat(0xd9a93c, { metalness: 0.7, roughness: 0.35 });
+    const glow = mat(0xffc247, { emissive: 0xffc247, emissiveIntensity: 2.8 });
+    const capeM = mat(0x5a1018);
+    const steel = mat(0x4a4e56, { metalness: 0.8, roughness: 0.4 });
+    const wire = mat(0x6a1a1a);
+    const redEye = mat(0xff2a1a, { emissive: 0xff2a1a, emissiveIntensity: 1.2 });
+    const W = 1.5;
+    legs(c, 1.1, 0.17 * W, 0.19 * W, marble, gold);
+    // exposed servo joints on the knees (a thing no flesh Cabal has)
+    for (const k of c.legs) cyl(c, 0.075, 0.075, 0.26, 6, steel, 0, -0.55, 0.0, k, false, [0, 0, PI / 2]);
+    const torso = c.pivot(0, 1.1, 0);
+    c.torso = torso;
+    B(0.44 * W, 0.28, 0.32, 0, 0.13, 0, marble, torso);
+    B(0.7 * W, 0.62, 0.5, 0, 0.55, 0, marble, torso);
+    B(0.56 * W, 0.2, 0.08, 0, 0.9, 0.2, gold, torso);
+    // the plates that fly off at death are children of one group
+    const plates = c.pivot(0, 0, 0, torso);
+    plates.userData.parts = [];
+    const part = (m) => { plates.userData.parts.push(m); return m; };
+    // cracked chest plate with a gleam of servo behind it
+    B(0.34, 0.34, 0.03, 0, 0.55, 0.255, steel, torso);
+    part(B(0.3 * W, 0.4, 0.05, -0.03, 0.55, 0.28, gold, plates, false, [0, 0, 0.04]));
+    part(B(0.025, 0.46, 0.06, 0.07, 0.55, 0.31, marble, plates, false, [0, 0, 0.3]));
+    part(B(0.2, 0.025, 0.06, -0.04, 0.6, 0.31, marble, plates, false, [0, 0, -0.3]));
+    // wires poking from the crack
+    for (const [x, y, r] of [[0.07, 0.4, 0.4], [-0.05, 0.62, -0.3], [0.1, 0.7, 0.1]]) B(0.012, 0.16, 0.012, x, y, 0.27, wire, torso, false, [0.3, 0, r]);
+    // head, crown and crest
+    B(0.34, 0.34, 0.34, 0, 1.05, 0.04, marble, torso, true);
+    B(0.26, 0.1, 0.06, 0, 1.0, 0.22, c.dark, torso, true);
+    B(0.22, 0.035, 0.03, 0, 1.03, 0.255, glow, torso, true);
+    part(B(0.4, 0.07, 0.4, 0, 1.25, 0.04, gold, plates, true));
+    for (let i = 0; i < 7; i++) {
+      const a = (i - 3) / 3;
+      part(cone(c, 0.035, 0.22 + 0.12 * (1 - Math.abs(a)), 4, gold, a * 0.18, 1.35 + 0.05 * (1 - Math.abs(a)), 0.04, plates, true, [0, 0, -a * 0.35]));
+    }
+    // golden pauldrons
+    for (const s of [-1, 1]) {
+      part(B(0.34 * W, 0.2, 0.56, s * 0.5 * W, 0.92, 0, gold, plates, false, [0, 0, s * -0.2]));
+      part(cone(c, 0.07, 0.42, 4, gold, s * 0.62 * W, 1.12, -0.05, plates, false, [0, 0, s * -0.65]));
+    }
+    // ceremonial cape
+    part(B(1.0, 0.18, 0.16, 0, 0.98, -0.28, gold, plates));
+    part(B(1.1, 2.0, 0.04, 0, -0.1, -0.34, capeM, plates, false, [0.1, 0, 0]));
+    part(B(1.1, 0.06, 0.06, 0, -1.1, -0.44, gold, plates, false, [0.1, 0, 0]));
+    // arms with exposed servo elbows; the right holds a huge golden hand cannon
+    const arms = [arm(c, torso, -0.5 * W, 0.8, 0.6, 0.17, marble, -1.0, 0.12), arm(c, torso, 0.5 * W, 0.8, 0.6, 0.17, marble, -1.15, -0.12)];
+    for (const a of arms) {
+      cyl(c, 0.1, 0.1, 0.3, 6, steel, 0, -0.32, 0, a, false, [0, 0, PI / 2]);
+      B(0.22, 0.24, 0.22, 0, -0.66, 0, gold, a);
+      B(0.012, 0.3, 0.012, 0.09, -0.28, 0.09, wire, a);
+    }
+    c.arms.push(...arms);
+    c.B(0.2, 0.3, 0.3, 0.55 * W, 0.62, 0.45, gold, torso);
+    B(0.16, 0.2, 1.0, 0.55 * W, 0.7, 0.95, gold, torso);
+    B(0.1, 0.1, 0.5, 0.55 * W, 0.7, 1.55, marble, torso);
+    B(0.06, 0.05, 0.5, 0.55 * W, 0.82, 1.0, glow, torso);
+    cyl(c, 0.06, 0.06, 0.5, 8, glow, 0.55 * W, 0.7, 0.95, torso, false, [PI / 2, 0, 0]);
+    c.muzzle.position.set(0.55 * W, 0.7, 1.85);
+    torso.add(c.muzzle);
+
+    // ---- hidden automaton, revealed at death. Plain meshes: never hit targets while hidden.
+    const sk = new THREE.Group();
+    sk.visible = false;
+    const bit = (w, h, d, x, y, z, m, rot) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      mesh.position.set(x, y, z);
+      if (rot) mesh.rotation.set(rot[0], rot[1], rot[2]);
+      sk.add(mesh);
+      return mesh;
+    };
+    bit(0.08, 0.9, 0.08, 0, 0.55, 0, steel);
+    for (let i = 0; i < 4; i++) {
+      bit(0.62 - i * 0.07, 0.04, 0.04, 0, 0.35 + i * 0.14, 0.12, steel);
+      for (const s of [-1, 1]) bit(0.04, 0.04, 0.3, s * (0.3 - i * 0.035), 0.35 + i * 0.14, 0, steel, [0, s * 0.3, 0]);
+    }
+    bit(0.28, 0.26, 0.28, 0, 1.0, 0.04, steel);
+    bit(0.12, 0.05, 0.04, 0, 1.0, 0.2, redEye).material = redEye;
+    bit(0.34, 0.1, 0.1, 0, 0.1, 0, steel);
+    for (const s of [-1, 1]) {
+      bit(0.07, 0.07, 0.5, s * 0.5 * W, 0.8, 0.1, steel);
+      bit(0.1, 0.1, 0.1, s * 0.5 * W, 0.8, 0.0, steel);
+    }
+    for (let i = 0; i < 9; i++) bit(0.012, 0.012, 0.35, (i - 4) * 0.06, 0.35 + (i % 3) * 0.2, 0.08, wire, [i * 0.3, (i - 4) * 0.2, 0]);
+    torso.add(sk);
+    // sparks: plates tumble away under gravity over the death fade, the skeleton takes their place
+    const sparkM = new THREE.MeshBasicMaterial({ color: 0xffc247 });
+    c.onDeath = () => {
+      sk.visible = true;
+      for (const m of plates.userData.parts) {
+        m.userData.start = m.position.clone();
+        m.userData.v = new THREE.Vector3(m.position.x * 3 + (Math.random() - 0.5), 1.5 + Math.random() * 2.5, m.position.z * 2 + (Math.random() - 0.3) * 3);
+        m.userData.spin = new THREE.Vector3(Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3);
+      }
+      c.dead = true;
+    };
+    c.deathStep = (t) => {
+      if (!c.dead) return;
+      for (const m of plates.userData.parts) {
+        const u = m.userData, k = Math.min(t, 1.4);
+        m.position.set(u.start.x + u.v.x * k, u.start.y + u.v.y * k - 4.9 * k * k, u.start.z + u.v.z * k);
+        m.rotation.set(u.spin.x * k, u.spin.y * k, u.spin.z * k);
+      }
+      if (Math.random() < 0.5) {
+        const sp = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.04), sparkM);
+        sp.position.set((Math.random() - 0.5) * 0.5, 0.4 + Math.random() * 0.7, 0.3);
+        sp.scale.setScalar(1 + Math.random());
+        torso.add(sp);
+        setTimeout(() => torso.remove(sp), 120);
+      }
+    };
+    c.height = 3.1;
+  },
 };

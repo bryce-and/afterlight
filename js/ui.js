@@ -7,7 +7,7 @@ import { openMods } from './mods-ui.js';
 import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
-import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice } from './save.js';
+import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock } from './save.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { openInspect, openCollection, lootScreenOpen } from './loot-ui.js';
 import { RELEASES, ROADMAP, titleRelease } from './releases.js';
@@ -432,6 +432,8 @@ function itemCard(it, { equipped = false, selected = false, compact = false } = 
 // ---------------------------------------------------------------------------
 let flySlot = null, hoverId = null, dismantle = null, vaultOpen = false, modsScreen = null;
 
+const LOCK_ICON = '<svg class="t-lock" viewBox="0 0 16 16" aria-label="Locked"><path d="M5 7V5a3 3 0 0 1 6 0v2h1.2v7H3.8V7zm1.6 0h2.8V5a1.4 1.4 0 0 0-2.8 0z"/></svg>';
+
 function tileHTML(it, equipped = false) {
   const rar = RARITIES[rarityIndex(it.rarity)];
   const weapon = it.kind === 'weapon';
@@ -441,7 +443,7 @@ function tileHTML(it, equipped = false) {
   return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}${other ? ' other-class' : ''}${low ? ' lvl-low' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
     ${art}${other ? `<span class="t-cls">${CLASSES[it.classId].name}</span>` : ''}${low ? `<span class="t-lvl">Lv ${RARITY_GATE[it.rarity]}</span>` : ''}
     ${weapon ? `${elementIcon(it.element, 'el-ico t-el')}<span class="t-ammo ammo-ico" style="--ac:${AMMO[it.slot].color}"></span>` : ''}
-    <span class="t-power">${it.power}</span>${it.isNew ? '<i class="t-new"></i>' : ''}
+    <span class="t-power">${it.power}</span>${it.isNew ? '<i class="t-new"></i>' : ''}${it.locked ? LOCK_ICON : ''}
   </button>`;
 }
 
@@ -556,6 +558,19 @@ function renderCharScreen(main) {
     if (t) showTip(t); else if (!e.target.closest('#cs-tip')) hideTip();
   });
   root.addEventListener('mouseleave', hideTip);
+  root.addEventListener('mousedown', (e) => { if (e.button === 1 && e.target.closest('.tile[data-id]')) e.preventDefault(); }); // no autoscroll on a middle click
+  root.addEventListener('auxclick', (e) => { // U15: middle click locks or unlocks a weapon or armor piece
+    if (e.button !== 1) return;
+    const t = e.target.closest('.tile[data-id]');
+    if (!t) return;
+    e.preventDefault();
+    const now = toggleLock(s, t.dataset.id);
+    if (now === null) return;
+    sfx.ui();
+    t.querySelector('.t-lock')?.remove();
+    if (now) t.insertAdjacentHTML('beforeend', LOCK_ICON);
+    showTip(t);
+  });
   root.addEventListener('contextmenu', (e) => {
     const t = e.target.closest('.tile[data-id]');
     if (!t) return;
@@ -781,11 +796,12 @@ function tipHTML(it, side) {
   }
   if (!canUseRarity(it.rarity, playerLevel(s))) body += `<div class="tt-note warn">Requires level ${RARITY_GATE[it.rarity]}. ${LEVEL_TOO_LOW}</div>`;
   const inf = infuseInfo(s, it);
-  const foot = side === 'vault' ? '<div class="tt-foot"><span>Click: Move to character</span></div>'
-    : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span><span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span><i class="tt-hold"><em></em></i></div>`
+  const lockLine = `<span>Middle-click: ${it.locked ? 'Unlock' : 'Lock'}</span>`;
+  const foot = side === 'vault' ? `<div class="tt-foot"><span>Click: Move to character</span>${lockLine}</div>`
+    : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span>${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span><i class="tt-hold"><em></em></i></div>`
     : equipped
-    ? '<div class="tt-foot">Equipped</div>'
-    : `<div class="tt-foot"><span>Click: Equip</span>${it.kind === 'weapon' ? '<span>Right-click: Inspect</span>' : ''}<span>Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
+    ? `<div class="tt-foot">Equipped${lockLine}</div>`
+    : `<div class="tt-foot"><span>Click: Equip</span>${it.kind === 'weapon' ? '<span>Right-click: Inspect</span>' : ''}${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
   return `<div class="tt-head r-${it.rarity}" style="--rc:${rar.color}"><div class="tt-name">${esc(it.name)}</div><div class="tt-type">${rar.name} ${typeLine(it)}</div></div><div class="tt-body">${body}</div>${foot}`;
 }
 
@@ -817,6 +833,7 @@ function startDismantle() {
   if (dismantle || !hoverId) return;
   const it = getItem(G.save, hoverId);
   if (!it || isEquipped(G.save, it)) { sfx.denied(); return; }
+  if (it.locked) { sfx.denied(); feedOrbit(`${it.name} is locked. Middle-click it to unlock.`); return; }
   const bar = $('#cs-tip .tt-hold em');
   const t0 = performance.now(), DUR = 900;
   const id = it.id;

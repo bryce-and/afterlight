@@ -28,6 +28,8 @@ import * as AI from '../js/ai.js';
 import * as TR from '../js/tiers.js';
 import { ENEMY_TYPES } from '../js/data.js';
 import * as FA from '../js/factions.js';
+import * as OB from '../js/objectives.js';
+import * as ST_ from '../js/story.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1052,6 +1054,96 @@ test('U10 save v8: XP moves to the new curve keeping the level and progress', ()
   freshOld({ afterlight_save_v2: JSON.stringify(v7) });
   const s = S.loadSave();
   eq(s.version, S.SAVE_VERSION); eq(S.playerLevel(s), 12); eq(s.progression.claimed, [3, 6, 9, 12]);
+});
+// ---------- U15 The Ghost's Story ----------
+test('U15 campaign order: one destination at a time, Light rises by about 9 from 10 to 200, the Leviathan closes', () => {
+  eq(LOCATIONS.map((l) => l.id), ['earth', 'moon', 'mars', 'io', 'titan', 'tangled', 'dc', 'leviathan']);
+  const all = S.ALL_MISSIONS;
+  eq(all.length, 22);
+  for (let i = 1; i < all.length; i++) ok(all[i].power > all[i - 1].power, `${all[i].id} power rises`);
+  eq([all[0].power, all[21].power], [10, 200]);
+  eq(LOCATIONS[7].missions.length, 1);
+  eq(all.map((m) => m.g), all.map((m, i) => i), 'flat index matches li * 3 + mi through the Leviathan');
+  eq(LOCATIONS[3].missions.map((m) => m.id), ['io2', 'io1', 'io3']);
+});
+test('U15 gating: a new save opens only the first mission; each clear opens the next across destinations', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  eq([S.isUnlocked(s, 0, 0), S.isUnlocked(s, 0, 1), S.isUnlocked(s, 1, 0)], [true, false, false]);
+  for (const m of S.ALL_MISSIONS) { ok(S.isUnlocked(s, m.li, m.mi), `${m.id} open after the previous clear`); s.cleared[m.id] = true; }
+  ok(!S.isUnlocked({ cleared: { dc3: false } }, 7, 0), 'the Leviathan needs the Dreaming City');
+});
+test('U15 story script: every mission has lines, valid zone triggers and objective plans', () => {
+  for (const m of S.ALL_MISSIONS) {
+    const sc = ST_.MISSIONS[m.id];
+    ok(sc, `${m.id} has a script`);
+    ok(ST_.linesFor(m.id, 'start').length >= 1, `${m.id} opens with a line`);
+    ok(ST_.linesFor(m.id, 'boss').length >= 1, `${m.id} has a boss line`);
+    ok(ST_.linesFor(m.id, 'end').length >= 1, `${m.id} has an end line`);
+    for (const l of sc.lines) { ok(ST_.SPEAKERS[l.who], `${m.id} speaker ${l.who}`); ok(l.text.length > 8 && !/[–—]/.test(l.text), `${m.id} line text`); ok(/^(start|boss|end|[zc]\d)$/.test(l.at), `${m.id} trigger ${l.at}`); }
+    for (const [zi, spec] of Object.entries(sc.obj)) { ok(+zi >= 0 && +zi < m.zones - 1, `${m.id} objective zone ${zi} is not the boss`); ok(OB.OBJECTIVE_TYPES.includes(spec.t), `${m.id} objective type`); ok(spec.label, `${m.id} label`); if (spec.t === 'destroy') ok(spec.what, `${m.id} names its targets`); }
+  }
+  for (const l of LOCATIONS) { ok(ST_.CHAPTERS[l.id]?.title, `${l.id} chapter`); ok(l.id === 'leviathan' || ST_.UNLOCKS[l.id].length >= 1, `${l.id} unlock line`); }
+  ok(Object.keys(ST_.MISSIONS).length === 22, 'one script per mission');
+});
+test('U15 objectives: hold fills only while a Guardian is in the ring; activate needs E held; retrieve needs a press; destroy needs every target dead', () => {
+  const none = { inside: () => false, holding: () => false, pressed: () => false };
+  const hold = OB.makeObjective({ t: 'hold', secs: 3, label: 'h' }); hold.pos = { x: 0, z: 0 };
+  OB.tickObjective(hold, 1, none); eq(hold.prog, 0);
+  const inRing = { ...none, inside: () => true };
+  OB.tickObjective(hold, 2, inRing); ok(!hold.done); OB.tickObjective(hold, 2, inRing); ok(hold.done && hold.prog === 3);
+  const act = OB.makeObjective({ t: 'activate', n: 2, label: 'a' }); act.nodes.forEach((n, i) => { n.pos = { x: i * 20, z: 0 }; });
+  OB.tickObjective(act, 5, none); ok(!act.done);
+  const holdAll = { ...none, holding: () => true };
+  OB.tickObjective(act, OB.OBJ.activateTime + 0.1, holdAll); ok(act.done, 'both consoles woke');
+  const ret = OB.makeObjective({ t: 'retrieve', label: 'r' }); ret.item.pos = { x: 1, z: 1 };
+  OB.tickObjective(ret, 1, holdAll); ok(!ret.done, 'holding is not a press');
+  OB.tickObjective(ret, 1, { ...none, pressed: () => true }); ok(ret.done);
+  const des = OB.makeObjective({ t: 'destroy', n: 2, label: 'd' }); des.targets = [{ alive: true }, { alive: true }];
+  OB.tickObjective(des, 1, none); ok(!des.done); des.targets.forEach((e) => { e.alive = false; }); OB.tickObjective(des, 1, none); ok(des.done);
+  ok(OB.objectiveText(hold).includes('3 / 3') && OB.objectiveText(act).includes('2 / 2'), 'HUD text');
+  let threw = false; try { OB.makeObjective({ t: 'banana' }); } catch { threw = true; } ok(threw, 'unknown objective types raise');
+});
+test('U15 objectives: reinforcements come only while a hold is unfinished and the field is empty, and are capped', () => {
+  const o = OB.makeObjective({ t: 'hold', secs: 99, label: 'h' });
+  ok(!OB.wantsReinforcement(o, 100, 3), 'enemies alive: none');
+  let n = 0; for (let i = 0; i < 100; i++) if (OB.wantsReinforcement(o, OB.OBJ.reinforceEvery + 1, 0)) n++;
+  eq(n, OB.OBJ.maxReinforce);
+  ok(!OB.wantsReinforcement(OB.makeObjective({ t: 'activate', n: 1 }), 100, 0), 'consoles are not timed');
+});
+test('U15 campaign reset: a pre-v9 save is backed up once and cleared, settings carry over, and the manual reset keeps a backup', () => {
+  const old = JSON.stringify({ version: 8, classId: 'stalker', inventory: [{ id: 'x' }], equipped: {}, cleared: { e1: true }, glimmer: 1234, settings: { sens: 2.2, fov: 99 } });
+  const st = fresh({ afterlight_save_v2: old });
+  eq(S.loadSave(), null, 'starts fresh');
+  eq(st.getItem(S.CAMPAIGN_BACKUP_KEY), old, 'backup'); eq(st.getItem('afterlight_save_v2'), null, 'old key cleared');
+  ok(S.takeCampaignNotice() && !S.takeCampaignNotice(), 'notice once');
+  const s = S.createSave('vanguard'); eq([s.settings.sens, s.settings.fov], [2.2, 99], 'settings kept'); eq(s.cleared, {}); eq(s.version, 9);
+  S.resetSave(); ok(st.getItem(S.MANUAL_BACKUP_KEY), 'manual reset kept a backup');
+  fresh({ afterlight_save_v2: JSON.stringify({ version: 5, classId: 'vanguard', inventory: [], equipped: {} }), afterlight_backup_v8: 'earlier' });
+  S.loadSave(); eq(S.CAMPAIGN_BACKUP_KEY, 'afterlight_backup_v8');
+});
+test('U15 campaign is per Guardian: switching class swaps the cleared missions', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  s.cleared = { e1: true, e2: true };
+  S.switchCharacter(s, 'stalker');
+  eq(s.cleared, {}, 'a new Guardian starts at the Cosmodrome');
+  s.cleared = { e1: true };
+  S.switchCharacter(s, 'vanguard');
+  eq(s.cleared, { e1: true, e2: true }, 'the Titan kept their progress');
+  S.switchCharacter(s, 'stalker'); eq(s.cleared, { e1: true });
+});
+test('U15 item lock: a locked item is never auto-dismantled, cannot be dismantled by hand, and toggles back', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  const weakest = s.inventory.filter((i) => !S.isEquipped(s, i)).sort((x, y) => x.power - y.power)[0];
+  eq(S.toggleLock(s, weakest.id), true); ok(weakest.locked, 'locked');
+  eq(S.dismantleItem(s, weakest.id), 0, 'a locked item is not dismantled by hand'); ok(S.getItem(s, weakest.id), 'still owned');
+  while (s.inventory.length < S.INVENTORY_CAP) S.addItem(s, { ...weakest, id: `fill${s.inventory.length}`, locked: false, power: weakest.power + 5 });
+  const gone = S.addItem(s, { ...weakest, id: 'overflow', locked: false, power: weakest.power + 6 });
+  ok(gone && gone.id !== weakest.id, 'something else was auto-dismantled'); ok(S.getItem(s, weakest.id), 'the locked item survived the overflow');
+  eq(S.toggleLock(s, weakest.id), false); ok(!weakest.locked, 'unlocked');
+  eq(S.toggleLock(s, 'nope'), null);
 });
 test('U10 rarity gates: rare 5, legendary 10, exotic 20; drops never roll above the gate', () => {
   eq(PG.RARITY_GATE, { common: 1, uncommon: 1, rare: 5, legendary: 10, exotic: 20 });

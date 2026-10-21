@@ -401,7 +401,7 @@ export function fromVault(s, id) {
 export function dismantleItem(s, id) {
   const it = getItem(s, id);
   if (!it) throw new Error(`dismantleItem: no item ${id}`);
-  if (isEquipped(s, it)) return 0;
+  if (isEquipped(s, it) || it.locked) return 0;
   s.inventory = s.inventory.filter((i) => i.id !== id);
   const v = dismantleValue(it);
   s.glimmer += v;
@@ -424,13 +424,23 @@ export function infuseItem(s, id) {
   return true;
 }
 
+/** Middle-click lock: a locked weapon or armor piece is never auto-dismantled and cannot be dismantled by hand until unlocked. Returns the new state, or null for an unknown item. */
+export function toggleLock(s, id) {
+  const it = getItem(s, id) || s.vault.find((i) => i.id === id);
+  if (!it) return null;
+  it.locked = !it.locked;
+  if (!it.locked) delete it.locked;
+  writeSave(s);
+  return !!it.locked;
+}
+
 /** Adds an item; if over cap, auto-dismantles the weakest unequipped item and returns it. */
 export function addItem(s, it) {
   s.inventory.push(it);
   noteExotic(s, it);
   if (s.inventory.length <= INVENTORY_CAP) return null;
   const rIdx = (x) => RARITIES.findIndex((r) => r.id === x.rarity);
-  const candidates = s.inventory.filter((i) => !isEquipped(s, i) && i !== it && i.rarity !== 'exotic');
+  const candidates = s.inventory.filter((i) => !isEquipped(s, i) && i !== it && i.rarity !== 'exotic' && !i.locked); // a locked item is never auto-dismantled
   candidates.sort((a, b) => rIdx(a) - rIdx(b) || a.power - b.power);
   const victim = candidates[0];
   if (!victim) return null;
