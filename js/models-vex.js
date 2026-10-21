@@ -278,22 +278,45 @@ const EXTRA = {
     c.height = 2.2;
   },
   hv_shrieker(c) {
-    // a metal sentry: a rounded shell around an energy core, a swivelling eye that points where it shoots, barbed spines
-    const shell = mat(0x7d7d8a), spine = mat(0xd9cfb6), core = mat(0xb26bff, { emissive: 0xb26bff, emissiveIntensity: 2.4 });
+    // Destiny 2 Shrieker: four swept, jagged chitin plates (purple-veined) caging a crackling energy orb, a spiked sigil with a
+    // green glyph hanging in the middle (the weak spot). About twice the old size; hovers and swivels to aim.
+    const shell = new THREE.MeshStandardMaterial({ color: 0x4a3640, flatShading: true, side: THREE.DoubleSide, roughness: 0.7, metalness: 0.2 });
+    const vein = new THREE.MeshStandardMaterial({ color: 0x7a45c0, emissive: 0x5a259a, emissiveIntensity: 0.6, flatShading: true, side: THREE.DoubleSide });
+    const orbM = new THREE.MeshBasicMaterial({ color: 0x8a3df0, transparent: true, opacity: 0.42, depthWrite: false });
+    const rimM = new THREE.MeshBasicMaterial({ color: 0xd9c4ff, transparent: true, opacity: 0.45, depthWrite: false });
+    const glyph = mat(0xb8ff6a, { emissive: 0xb8ff6a, emissiveIntensity: 3 });
     c.hover = true;
-    const b = c.pivot(0, 1.0, 0);
+    const b = c.pivot(0, 1.9, 0);
     c.torso = b;
-    ico(c, 0.6, 1, shell, 0, 0, 0, b);
-    ico(c, 0.3, 1, core, 0, 0, 0, b);
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * PI * 2;
-      cone(c, 0.07, 0.5, spine, Math.cos(a) * 0.62, Math.sin(a * 1.5) * 0.15, Math.sin(a) * 0.62, b, [Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2], false, 4);
+    // a jagged blade, root at the origin, pointing +x; sx -1 mirrors it
+    const plate = (len, wid, sx, depth) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(0, -wid * 0.1); sh.lineTo(len * 0.3, wid * 0.55); sh.lineTo(len * 0.42, wid * 0.32); sh.lineTo(len * 0.68, wid * 0.78);
+      sh.lineTo(len * 0.8, wid * 0.4); sh.lineTo(len, wid * 0.05); sh.lineTo(len * 0.62, -wid * 0.28); sh.lineTo(len * 0.36, -wid * 0.12); sh.lineTo(len * 0.14, -wid * 0.3);
+      const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false });
+      g.translate(0, 0, -depth / 2);
+      if (sx < 0) g.scale(-1, 1, 1);
+      return g;
+    };
+    for (const s of [-1, 1]) {
+      // upper plates sweep up and out, lower plates down and out, the lower pair larger and heavier
+      c.add(plate(1.9, 1.05, s, 0.2), shell, s * 0.3, 0.5, -0.05, b, false, [0, s * 0.35, s * 0.4]);
+      c.add(plate(1.55, 0.42, s, 0.05), vein, s * 0.4, 0.78, 0.1, b, false, [0, s * 0.35, s * 0.4]);
+      c.add(plate(2.1, 1.2, s, 0.22), shell, s * 0.28, -0.5, -0.05, b, false, [0, s * 0.35, s * -0.48]);
+      c.add(plate(1.7, 0.45, s, 0.05), vein, s * 0.36, -0.7, 0.12, b, false, [0, s * 0.35, s * -0.48]);
     }
-    // the eye: on the face, the weak spot
-    c.add(new THREE.TorusGeometry(0.2, 0.06, 5, 10), spine, 0, 0.0, 0.58, b);
-    ico(c, 0.14, 1, core, 0, 0.0, 0.58, b, true).scale.z = 0.6;
-    c.muzzle.position.set(0, 0, 0.7); b.add(c.muzzle);
-    c.height = 1.9;
+    // the orb: a halo ring and a glowing sphere
+    c.add(new THREE.SphereGeometry(0.78, 14, 10), orbM, 0, 0, 0, b);
+    c.add(new THREE.TorusGeometry(0.8, 0.045, 5, 20), rimM, 0, 0, 0, b);
+    c.add(new THREE.SphereGeometry(0.4, 8, 6), new THREE.MeshBasicMaterial({ color: 0xd9b8ff, transparent: true, opacity: 0.18, depthWrite: false }), 0, 0, -0.05, b);
+    // the sigil: a spiked blade with a glowing glyph, precision hits
+    const sig = c.add(new THREE.OctahedronGeometry(0.2, 0), shell, 0, 0.02, 0.1, b, true);
+    sig.scale.set(0.8, 2.2, 0.8);
+    cone(c, 0.07, 0.34, shell, 0, 0.58, 0.1, b, null, true, 4);
+    cone(c, 0.07, 0.34, shell, 0, -0.55, 0.1, b, [PI, 0, 0], true, 4);
+    c.add(new THREE.BoxGeometry(0.1, 0.22, 0.05), glyph, 0, 0.02, 0.24, b, true);
+    c.muzzle.position.set(0, 0, 0.9); b.add(c.muzzle);
+    c.height = 3.7;
   },
   lg_incendior(c, taken = false) {
     // Barant infantry with a reinforced helmet (no precision hits) and twin fuel tanks on the back (the weak spot), a Magma Launcher
