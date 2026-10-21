@@ -323,19 +323,26 @@ function renderDirector(main) {
   }
   main.innerHTML = `
     <div class="dir-map ${dirFocus === null ? 'overview' : 'focused'}">
-      ${dirFocus === null ? '<div class="dir-title"><div class="eyebrow">Director</div><h1 class="screen-title">Choose a destination</h1></div>' : ''}
       ${nodeHTML}
       ${panel}
-      <aside class="dir-ft">${fireteamHTML()}</aside>
+      <details class="dir-ft" ${net.active || net.status ? 'open' : ''}><summary>${net.active ? `Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}` : 'Fireteam'}</summary>${fireteamHTML()}</details>
     </div>`;
   const nodes = $$('.dir-node', main);
   G.menu.director.onFrame((list) => {
+    const off = main.getBoundingClientRect(); // the map is drawn full-window, the click targets live under the top bar
     for (const n of list) {
       const el = nodes.find((x) => x.dataset.id === n.id);
       if (!el) continue;
       const d = Math.max(28, n.r * 2);
-      el.style.cssText = `left:${n.x - d / 2}px;top:${n.y - d / 2 - 0}px;width:${d}px;height:${d}px`;
+      el.style.cssText = `left:${n.x - off.left - d / 2}px;top:${n.y - off.top - d / 2}px;width:${d}px;height:${d}px`;
       el.classList.toggle('far', n.x < -d || n.x > innerWidth + d);
+      // a planet cropped by the screen edge keeps its name on screen
+      if (n.id !== 'tower') {
+        const lab = el.firstElementChild;
+        const mid = (c, r, lo, hi) => { const a = Math.max(c - r, lo), b = Math.min(c + r, hi); return b > a ? (a + b) / 2 : c; };
+        const dx = clamp(mid(n.x, n.r, 0, innerWidth), 90, innerWidth - 90) - n.x, dy = clamp(mid(n.y, n.r, 100, innerHeight), 130, innerHeight - 60) - n.y;
+        if (lab) { lab.style.left = `calc(50% + ${dx}px)`; lab.style.top = `calc(50% + ${dy}px)`; }
+      }
     }
   });
   nodes.forEach((b) => b.addEventListener('click', () => {

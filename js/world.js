@@ -561,7 +561,7 @@ function planetNoise(v) {
     + 0.25 * Math.sin(v.x * 13 + v.y * 11 - v.z * 9);
 }
 
-function buildPlanet(loc, locked = false) {
+function buildPlanet(loc, locked = false, dim = 1) {
   const geo = new THREE.IcosahedronGeometry(3.2, 4);
   const pos = geo.attributes.position;
   const v = new THREE.Vector3();
@@ -580,7 +580,7 @@ function buildPlanet(loc, locked = false) {
   for (let i = 0; i < pos.count; i += 3) {
     const e = Math.max(elev[i], elev[i + 1], elev[i + 2]);
     const c = e <= 0.0 ? cols[0] : e < 0.35 ? cols[1] : e < 0.75 ? cols[2] : cols[3];
-    for (let k = 0; k < 3; k++) { colors[(i + k) * 3] = c.r; colors[(i + k) * 3 + 1] = c.g; colors[(i + k) * 3 + 2] = c.b; }
+    for (let k = 0; k < 3; k++) { colors[(i + k) * 3] = c.r * dim; colors[(i + k) * 3 + 1] = c.g * dim; colors[(i + k) * 3 + 2] = c.b * dim; }
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const planet = new THREE.Mesh(geo, locked ? new THREE.MeshBasicMaterial({ color: 0x080b12 }) : new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
@@ -596,47 +596,59 @@ function buildPlanet(loc, locked = false) {
 // lit and spinning, locked ones are black silhouettes. `focus(id)` flies the camera to one planet; `onFrame`
 // hands the screen position and size of every node to the UI so it can place its click targets.
 // ---------------------------------------------------------------------------
-export const DIRECTOR_POS = { earth: [-8.2, -1.2], moon: [-5.6, 2.4], mars: [-3.2, -2.2], io: [-0.4, 1.6], titan: [2.2, -1.8], tangled: [4.6, 2.0], dc: [7.0, -1.4], leviathan: [9.2, 2.2], tower: [-6.6, -3.3] };
-const MAP_X = 0.9, MAP_SCALE = 0.4, FOCUS_SCALE = 0.62, SUN = new THREE.Vector3(-16, 0, -3);
+// [x, y, scale] per node. The Tower (a Traveler orb) sits in the centre; the destinations hang around it, the big
+// ones cropped by the screen edge, as in the Destiny 1 Director.
+export const DIRECTOR_POS = {
+  tower: [0, 0.2, 1], earth: [0.4, -7.0, 1.2], moon: [-8.4, -3.4, 0.7], mars: [8.8, 3.6, 1.0], io: [-8.8, 3.6, 1.0], tangled: [4.4, 4.0, 0.55],
+  titan: [-11.2, -0.2, 0.6], dc: [11.0, -1.4, 0.65], leviathan: [5.4, -4.6, 0.5],
+};
+const FOCUS_SCALE = 0.62;
 
 function buildTowerNode(locked) {
+  // the Traveler: a pale, cracked orb
   const g = new THREE.Group();
-  const stone = new THREE.MeshStandardMaterial({ color: locked ? 0x080b12 : 0xece5d3, flatShading: true, roughness: 0.8 });
-  const roof = new THREE.MeshStandardMaterial({ color: locked ? 0x080b12 : 0x7f98ae, flatShading: true, roughness: 0.8 });
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 0.9, 7), stone);
-  g.add(base);
-  for (const [x, z, h] of [[0, 0, 4.4], [-1.1, 0.5, 3], [1.1, 0.4, 3.4], [0.2, -1.0, 2.6]]) {
-    const t = new THREE.Mesh(new THREE.BoxGeometry(0.8, h, 0.8), stone);
-    t.position.set(x, 0.45 + h / 2, z);
-    const c = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.1, 4), roof);
-    c.position.set(x, 0.45 + h + 0.55, z); c.rotation.y = Math.PI / 4;
-    g.add(t, c);
-  }
-  g.userData.radius = 2.6;
+  const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 3), new THREE.MeshStandardMaterial({ color: locked ? 0x080b12 : 0xc9d2da, flatShading: true, roughness: 0.7 }));
+  const cut = new THREE.Mesh(new THREE.TorusGeometry(1.52, 0.04, 6, 40, Math.PI * 0.9), new THREE.MeshBasicMaterial({ color: 0x0b0e14 }));
+  cut.rotation.set(0.5, 0.2, -0.6);
+  g.add(orb, cut);
   return g;
+}
+
+function ringLine(r, opacity, z = -0.2, dash = false) {
+  const pts = [];
+  for (let i = 0; i <= 96; i++) { const t = (i / 96) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(t) * r, Math.sin(t) * r, 0)); }
+  const m = dash ? new THREE.LineDashedMaterial({ color: 0x9fb4c8, transparent: true, opacity, dashSize: 0.25, gapSize: 0.18 }) : new THREE.LineBasicMaterial({ color: 0x9fb4c8, transparent: true, opacity });
+  const l = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), m);
+  if (dash) l.computeLineDistances();
+  l.position.z = z;
+  return l;
 }
 
 function createDirector(scene, camera) {
   const root = new THREE.Group();
   root.visible = false;
   scene.add(root);
-  const sunMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(3.4, 2), new THREE.MeshBasicMaterial({ color: 0xffd98a }));
-  const sunGlow = new THREE.Mesh(new THREE.IcosahedronGeometry(5.4, 2), new THREE.MeshBasicMaterial({ color: 0xffb94a, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
-  sunMesh.position.copy(SUN); sunGlow.position.copy(SUN);
-  root.add(sunMesh, sunGlow);
-  const sunLight = new THREE.PointLight(0xfff0d0, 90, 0, 1.4);
-  sunLight.position.copy(SUN).add(new THREE.Vector3(3, 1, 4));
-  root.add(sunLight);
+  // faint chart grid and the rays round the Tower
+  const grid = [];
+  for (let x = -22; x <= 22; x += 2.2) grid.push(x, -14, -1, x, 14, -1);
+  for (let y = -14; y <= 14; y += 2.2) grid.push(-22, y, -1, 22, y, -1);
+  const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(grid, 3));
+  root.add(new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: 0x6f8a86, transparent: true, opacity: 0.05 })));
+  const rays = [];
+  for (let i = 0; i < 48; i++) { const t = (i / 48) * Math.PI * 2, r0 = 2.4, r1 = i % 4 ? 4.2 : 6.5; rays.push(Math.cos(t) * r0, Math.sin(t) * r0 + 0.2, -0.3, Math.cos(t) * r1, Math.sin(t) * r1 + 0.2, -0.3); }
+  const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rays, 3));
+  root.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xb9cdd8, transparent: true, opacity: 0.16 })));
+  const keyLight = new THREE.DirectionalLight(0xdfe8ee, 1.6);
+  keyLight.position.set(-6, 8, 10);
+  root.add(keyLight);
 
-  const nodes = new Map(); // id -> { group, body, basePos, scale, target, locked, radius }
+  const nodes = new Map();
   let key = '', focusId = null, cb = null;
-  let focusT = 0; // 0 = whole map, 1 = flown to the focused node
-  let camX = 0, camY = 0.3, camZ = 18;
+  let camX = 0, camY = 0, camZ = 18;
 
   function clear() {
     for (const n of nodes.values()) root.remove(n.group);
     nodes.clear();
-    for (const o of [...root.children]) if (o.userData.ring) root.remove(o);
   }
 
   const api = {
@@ -648,24 +660,20 @@ function createDirector(scene, camera) {
       key = k;
       clear();
       for (const e of entries) {
-        const p = DIRECTOR_POS[e.id] || [0, 0];
-        const pos = new THREE.Vector3(p[0] * MAP_X, p[1], 0);
+        const [x, y, sc] = DIRECTOR_POS[e.id] || [0, 0, 1];
+        const tower = e.id === 'tower';
+        const pos = new THREE.Vector3(x, y, 0);
         const group = new THREE.Group();
         group.position.copy(pos);
-        const body = e.id === 'tower' ? buildTowerNode(e.locked) : buildPlanet(e.loc, e.locked);
-        const radius = e.id === 'tower' ? 2.6 : 3.2;
-        body.scale.setScalar(e.id === 'tower' ? 0.16 : MAP_SCALE);
-        if (e.id === 'tower') body.rotation.x = 0.35;
+        const body = tower ? buildTowerNode(e.locked) : buildPlanet(e.loc, e.locked, 0.55);
+        const radius = tower ? 1.5 : 3.2;
+        body.scale.setScalar(sc);
         group.add(body);
+        const ringR = radius * sc;
+        group.add(ringLine(ringR * 1.14, e.locked ? 0.1 : 0.32), ringLine(ringR * 1.3, 0.16, -0.2, true));
+        if (tower) group.add(ringLine(ringR * 1.7, 0.2));
         root.add(group);
-        nodes.set(e.id, { group, body, pos, locked: e.locked, radius, mapScale: e.id === 'tower' ? 0.16 : MAP_SCALE, focusScale: e.id === 'tower' ? 0.55 : FOCUS_SCALE, scale: e.id === 'tower' ? 0.16 : MAP_SCALE });
-        if (e.id !== 'tower') { // orbit ring around the sun through the planet
-          const a = pos.x - SUN.x, b = a * 0.3, pts = [];
-          for (let i = 0; i <= 96; i++) { const t = (i / 96) * Math.PI * 2; pts.push(new THREE.Vector3(SUN.x + Math.cos(t) * a, Math.sin(t) * b * 0.9 + 0, -0.5)); }
-          const ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x8fa6c8, transparent: true, opacity: e.locked ? 0.07 : 0.16 }));
-          ring.userData.ring = true;
-          root.add(ring);
-        }
+        nodes.set(e.id, { group, body, pos, locked: e.locked, radius, mapScale: sc, focusScale: tower ? 1.5 : FOCUS_SCALE, scale: sc, rings: group.children.slice(1) });
       }
     },
     focus(id) { focusId = id && nodes.has(id) ? id : null; },
@@ -674,11 +682,10 @@ function createDirector(scene, camera) {
       const aspect = camera.aspect, tan = Math.tan((camera.fov * Math.PI) / 360);
       const k = 1 - Math.exp(-dt * 4.5);
       const f = focusId ? nodes.get(focusId) : null;
-      focusT += ((f ? 1 : 0) - focusT) * k;
       const mapZ = 18 * Math.max(1, 1.78 / aspect), fz = 12 * Math.max(1, 1.5 / aspect);
       const tz = f ? fz : mapZ;
       const offX = f ? tan * fz * aspect * 0.42 : 0; // the planet sits left of centre, the panel on the right
-      const tx = f ? f.pos.x + offX : 0, ty = f ? f.pos.y * 0.6 : 0.3;
+      const tx = f ? f.pos.x + offX : 0, ty = f ? f.pos.y * 0.6 : 0;
       camX += (tx - camX) * k; camY += (ty - camY) * k; camZ += (tz - camZ) * k;
       camera.position.set(camX, camY, camZ);
       camera.lookAt(camX, camY, 0);
@@ -687,13 +694,13 @@ function createDirector(scene, camera) {
         const want = id === focusId ? n.focusScale : n.mapScale;
         n.scale += (want - n.scale) * k;
         n.body.scale.setScalar(n.scale);
-        if (!n.locked || id === 'tower') n.body.rotation.y += dt * (id === 'tower' ? 0.15 : 0.12);
-        else n.body.rotation.y += dt * 0.03;
+        const ringS = n.scale / n.mapScale;
+        for (const r of n.rings) r.scale.setScalar(ringS);
+        n.body.rotation.y += dt * (n.locked ? 0.02 : id === 'tower' ? 0.06 : 0.1);
         const v = n.pos.clone().project(camera);
         const rpx = ((n.radius * n.scale) / (tan * (camZ - n.pos.z))) * (innerHeight / 2);
         list.push({ id, x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight, r: rpx, focused: id === focusId });
       }
-      sunMesh.rotation.y += dt * 0.05;
       cb?.(list);
     },
   };
