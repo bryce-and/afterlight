@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32, hashStr } from './util.js';
 import { buildCharacter } from './characters.js';
+import { orientedCollider } from './colliders.js';
 import EARTH from './level-earth.js';
 import MOON from './level-moon.js';
 import MARS from './level-mars.js';
@@ -78,7 +79,7 @@ export function buildLevel(loc, def) {
   // ---- zones ----
   const set = LEVEL_SETS[def.id];
   if (!set) throw new Error(`No level map for mission ${def.id}; add one to js/level-${loc.id}.js`);
-  const zones = set.zones.map((z) => ({ center: new THREE.Vector3(z.x, 0, z.z), isBoss: !!z.boss, name: z.name }));
+  const zones = set.zones.map((z) => ({ center: new THREE.Vector3(z.x, 0, z.z), isBoss: !!z.boss, name: z.name, leash: z.leash, room: z.room }));
   const spawn = new THREE.Vector3(set.spawn[0], 0, set.spawn[1]);
   const [minX, maxX, minZ, maxZ] = set.bounds;
   const bounds = { minX, maxX, minZ, maxZ };
@@ -107,6 +108,11 @@ export function buildLevel(loc, def) {
 
   const addCollider = (minX, minY, minZ, maxX, maxY, maxZ, mesh) => {
     colliders.push({ min: new THREE.Vector3(minX, minY, minZ), max: new THREE.Vector3(maxX, maxY, maxZ) });
+    if (mesh) staticMeshes.push(mesh);
+  };
+  // yawed box collider (diagonal walls block only where they are); see physics.orientedCollider
+  const addOriented = (cx, y0, cz, w, h, d, ry, mesh) => {
+    colliders.push(orientedCollider(cx, y0, cz, w, h, d, ry));
     if (mesh) staticMeshes.push(mesh);
   };
   const addBox = (x, z, w, h, d, color, y = 0, collide = true, matOpts) => {
@@ -287,12 +293,24 @@ export function buildLevel(loc, def) {
       C, loc, def, rng, R, RP, chance: (p) => rng() < p, bounds, spawn, zones, scene,
       mat: (color, k) => mat(color, glow(color, k)),
       collider: addCollider,
+      ocollider: (x, z, w, h, d, ry, y0 = 0) => addOriented(x, y0, z, w, h, d, ry, null),
+      // box yawed by ry, with an exact collider
+      obox: (x, z, w, h, d, ry, color = C.wall, o = {}) => {
+        const m = addBox(x, z, w, h, d, color, o.y ?? 0, false, glow(color, o.glow));
+        m.rotation.y = ry;
+        if (o.collide ?? true) addOriented(x, o.y ?? 0, z, w, h, d, ry, m);
+        return m;
+      },
       box: (x, z, w, h, d, color = C.wall, o = {}) => addBox(x, z, w, h, d, color, o.y ?? 0, o.collide ?? true, glow(color, o.glow)),
       mesh(geo, color, x, y, z, o = {}) {
         const m = addMesh(geo, color, x, y, z, glow(color, o.glow));
         m.rotation.set(o.rx ?? 0, o.ry ?? 0, o.rz ?? 0);
         if (o.scale) m.scale.set(...[].concat(o.scale, o.scale, o.scale).slice(0, 3));
-        if (o.collide) {
+        const yawOnly = geo.type === 'BoxGeometry' && o.ry && !o.rx && !o.rz && o.collide === true;
+        if (yawOnly) {
+          const sc = m.scale, gp = geo.parameters;
+          addOriented(x, y - gp.height * sc.y / 2, z, gp.width * sc.x, gp.height * sc.y, gp.depth * sc.z, o.ry, m);
+        } else if (o.collide) {
           m.updateMatrixWorld(true);
           const bb = new THREE.Box3().setFromObject(m);
           const k = o.collide === true ? 1 : o.collide; // shrink factor for round shapes

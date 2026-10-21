@@ -4,6 +4,7 @@ export const G = {
   save: null,
   time: 0,
   renderer: null, camera: null, scene: null, level: null, menu: null,
+  nav: null, navBudget: 0,
   colliders: [], staticMeshes: [], hitTargets: [], hitDirty: true,
   enemies: [], projectiles: [], enemyShots: [], pickups: [], tickers: [],
   player: null, mission: null,

@@ -21,6 +21,11 @@ import { makeArmor } from '../js/loot.js';
 import * as ST from '../js/style.js';
 import { sfx, SHOT_RECIPES, ELEMENT_TINT, ABILITY_RECIPES, FACTION_SOUND, spatial } from '../js/audio.js';
 import { musicSectionFor } from '../js/music.js';
+import { G } from '../js/state.js';
+import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody } from '../js/colliders.js';
+import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV } from '../js/nav.js';
+import * as AI from '../js/ai.js';
+import { ENEMY_TYPES } from '../js/data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -629,7 +634,7 @@ test('Ready Up: launches only with a pick and every current member ready', () =>
 });
 test('title shows the newest major update: name, version and artwork; hotfixes leave it alone', () => {
   const r = titleRelease();
-  ok(r.name && r.version && /^<svg[\s\S]*<\/svg>$/.test(r.art), 'art');
+  ok(r.name && r.version && (r.artPending || /^<svg[\s\S]*<\/svg>$/.test(r.art)), 'art'); // artPending: chained updates get their artwork with the last update of the chain
   eq(r.version.split('.').length, 2, 'a major update');
   ok(RELEASES.indexOf(r) === RELEASES.findIndex((x) => x.version.split('.').length === 2), 'the newest one');
 });
@@ -1325,6 +1330,143 @@ test('music: sections need a closer approach to enter than to stay in, and the b
   eq(musicSectionFor('combat', 10, 60), 'boss');
   eq(musicSectionFor('boss', 10, 80), 'boss');
   eq(musicSectionFor('boss', 10, 100), 'combat');
+});
+
+// ---------- U13a: Hostile Intent ----------
+const boxC = (x0, y0, z0, x1, y1, z1) => ({ min: { x: x0, y: y0, z: z0 }, max: { x: x1, y: y1, z: z1 } });
+const navBounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };
+
+test('U13a: a diagonal wall blocks only where it is, not across its bounding box', () => {
+  const wall = orientedCollider(0, 0, 0, 10, 3, 1, Math.PI / 4); // long axis runs (0.71, -0.71) in world XZ
+  ok(wall.min.x < -3.5 && wall.max.x > 3.5, 'bounding box spans the wall');
+  ok(footprintHit(wall, 3, -3, 0.1), 'a point on the wall');
+  ok(!footprintHit(wall, 3, 3, 0.1), 'the empty corner of the bounding box');
+  ok(!footprintHit(wall, -3, -3, 0.1), 'and the opposite corner');
+  ok(footprintHit(wall, -3, 3, 0.1), 'while the other diagonal is the wall itself');
+  ok(footprintHit(wall, 0, 0, 0.1), 'centre');
+  ok(!footprintHit(wall, 6.5, -6.5, 0.1), 'past the wall end');
+});
+test('U13a: enemies are pushed out of a diagonal wall along its normal, and shots test the exact shape', () => {
+  const old = G.colliders;
+  G.colliders = [orientedCollider(0, 0, 0, 10, 3, 1, Math.PI / 4)];
+  const p = { x: 0.1, y: 0, z: 0.1 };
+  pushOutCircle(p, 0.5, 2);
+  const nx = Math.SQRT1_2, nz = Math.SQRT1_2; // wall normal in world XZ
+  ok(Math.abs(p.x * nx + p.z * nz) >= 0.99, 'ended clear of the wall by body radius plus half thickness');
+  ok(!footprintHit(G.colliders[0], p.x, p.z, 0.499), 'no longer overlapping');
+  ok(pointInColliders({ x: 3, y: 1, z: -3 }) && !pointInColliders({ x: 3, y: 1, z: 3 }), 'shots hit the wall, not its corner');
+  G.colliders = old;
+});
+test('U13a: the player stops at a diagonal wall and slides along it instead of passing through', () => {
+  const old = G.colliders;
+  G.colliders = [orientedCollider(0, 0, 0, 10, 3, 1, Math.PI / 4)];
+  const pos = { x: -3, y: 0, z: -3 }, vel = { x: 5, y: 0, z: 5 };
+  for (let i = 0; i < 90; i++) moveBody(pos, vel, 1 / 60, 0.4, 1.8);
+  ok((pos.x + pos.z) * Math.SQRT1_2 < -0.89, 'still on the near side of the wall');
+  ok(!footprintHit(G.colliders[0], pos.x, pos.z, 0.39), 'not inside it');
+  const q = { x: -3, y: 0, z: -3 }, v2 = { x: 5, y: 0, z: 0 };
+  for (let i = 0; i < 90; i++) moveBody(q, v2, 1 / 60, 0.4, 1.8);
+  ok(q.x > -3, 'walking along a diagonal still makes progress (slide)');
+  G.colliders = old;
+});
+test('U13a: axis-aligned colliders behave as before (no rot)', () => {
+  const old = G.colliders;
+  G.colliders = [boxC(-1, 0, -1, 1, 2, 1)];
+  const p = { x: 0.9, y: 0, z: 0 };
+  pushOutCircle(p, 0.4, 2);
+  ok(Math.abs(p.x - 1.4) < 0.01 && p.z === 0, 'pushed out along x');
+  G.colliders = old;
+});
+test('U13a: A* goes around a wall, string-pulled, and reports the longer route', () => {
+  const nav = buildNav([boxC(-1, 0, -15, 1, 4, 15)], navBounds);
+  ok(!lineClear(nav, -10, 0, 10, 0), 'straight line is blocked');
+  const r = findPath(nav, -10, 0, 10, 0);
+  ok(r && !r.partial, 'a path exists');
+  ok(r.pts.some((q) => Math.abs(q.z) >= 14), 'it rounds the end of the wall');
+  ok(r.pts.length <= 4, `string-pulled to few waypoints (${r.pts.length})`);
+  eq(r.pts[r.pts.length - 1], { x: 10, z: 0 }, 'ends on the goal');
+});
+test('U13a: a goal sealed inside walls gives a partial path that ends as close as it can', () => {
+  const room = [boxC(5, 0, 5, 15, 3, 6), boxC(5, 0, 14, 15, 3, 15), boxC(5, 0, 5, 6, 3, 15), boxC(14, 0, 5, 15, 3, 15)];
+  const nav = buildNav(room, navBounds);
+  const r = findPath(nav, -10, 0, 10, 10);
+  ok(r && r.partial, 'partial');
+  const end = r.pts[r.pts.length - 1];
+  ok(Math.hypot(end.x - 10, end.z - 10) < 12, 'still closes in');
+});
+test('U13a: enemies do not climb walls; steps and low curbs are fine, a crate is a hop-up ledge', () => {
+  const nav = buildNav([boxC(0, 0, 0, 12, 0.4, 12), boxC(-12, 0, -12, -9, 3, -9), boxC(8, 0, -9, 10, 1.2, -7)], navBounds);
+  ok(heightAt(nav, 6, 6) > 0.39 && heightAt(nav, 6, 6) < 0.41, 'a 0.4 m curb is walkable at its top');
+  ok(heightAt(nav, -10.5, -10.5) < 0, 'a 3 m wall is blocked, not standable');
+  ok(heightAt(nav, 9, -8) > 1.19, 'a 1.2 m crate top is a standable surface');
+  const reach = floodReach(nav, -10, 5);
+  ok(!reach[Math.floor((-8 - nav.minZ) / nav.cell) * nav.W + Math.floor((9 - nav.minX) / nav.cell)], 'but plain steps do not lead onto it');
+  const spots = ledgeSpots(nav, reach, 9, -8, 6, 1);
+  ok(spots.length > 0 && spots.every((q) => q.from && q.h >= NAV.ledgeMin), 'it is offered as a firing position reached by a hop from the floor');
+});
+test('U13a: a ledge taller than a hop is never a firing position', () => {
+  const nav = buildNav([boxC(8, 0, -9, 10, 2.1, -7)], navBounds);
+  const reach = floodReach(nav, -10, 5);
+  eq(ledgeSpots(nav, reach, 9, -8, 6, 1).length, 0);
+});
+test('U13a: nearestWalkable snaps a blocked point to open ground', () => {
+  const nav = buildNav([boxC(-1, 0, -15, 1, 4, 15)], navBounds);
+  const q = nearestWalkable(nav, 0, 0, 4);
+  ok(q && heightAt(nav, q.x, q.z) >= 0 && Math.abs(q.x) >= 1, 'moved off the wall');
+});
+test('U13a: zone leash holds units to the zone plus margin, and a room wins over the radius', () => {
+  const zone = { center: { x: 0, z: 0 }, isBoss: false };
+  eq(AI.leashTarget(zone, 10, 0), { x: 10, z: 0, held: false }, 'in reach');
+  const far = AI.leashTarget(zone, 100, 0);
+  ok(far.held && Math.abs(far.x - (AI.LEASH.radius - 1)) < 1e-6, 'held at the edge');
+  ok(AI.leashRadius({ ...zone, isBoss: true }) > AI.leashRadius(zone), 'boss zones have more room');
+  ok(AI.leashRadius({ ...zone, leash: 20 }) === 20, 'a zone can set its own radius');
+  ok(!AI.pastLeash(zone, 30, 0) && AI.pastLeash(zone, 40, 0), 'past the leash only beyond radius plus slack');
+  const room = { center: { x: 0, z: 0 }, room: { minX: -10, maxX: 10, minZ: -10, maxZ: 10 } };
+  eq(AI.insideLeash(room, 50, 3), { x: 9, z: 3 }, 'clamped into the room');
+  ok(AI.pastLeash(room, 12.5, 0) && !AI.pastLeash(room, 11, 0), 'room edges use the same slack');
+});
+test('U13a: activation range is inside the leash with a real margin (units do not chase across the map)', () => {
+  ok(AI.LEASH.radius >= 24 + 8 && AI.LEASH.bossRadius >= 28 + 8, 'at least 8 m beyond the activation distance');
+  ok(AI.LEASH.bossRadius <= 60, 'but not map-wide');
+});
+test('U13a: cover is for small units only when not outnumbered and no heavy is near; flushing stops it', () => {
+  ok(AI.coverAllowed({ usesCover: true, aggro: 1 }), 'baseline');
+  ok(!AI.coverAllowed({ usesCover: false, aggro: 0 }), 'heavies and bosses never (usesCover false)');
+  ok(!AI.coverAllowed({ usesCover: true, aggro: 3 }), 'outnumbered 3:1 pushes');
+  ok(!AI.coverAllowed({ usesCover: true, aggro: 1, heavyNear: true }), 'a heavy nearby');
+  ok(!AI.coverAllowed({ usesCover: true, aggro: 1, flushed: true }), 'flushed units stay out');
+  ok(AI.COVER.hide[0] >= 1 && AI.COVER.bursts === 2, 'a readable rhythm: a real pause, then two bursts');
+});
+test('U13a: only grunts and captains hide behind cover; heavies, bosses, rushers and suicide units never do', () => {
+  const src = ENEMY_TYPES;
+  const hiders = Object.keys(src).filter((k) => k === 'grunt' || k === 'captain');
+  eq(hiders, ['grunt', 'captain']);
+  ok(!src.heavy.melee && !src.suicide.melee, 'sanity');
+});
+test('U13a: every unit that shoots can also melee at very close range, rushers and suicide units use their own attack', () => {
+  for (const [k, d] of Object.entries(ENEMY_TYPES)) {
+    if (d.fireCd) { ok(d.closeMelee, `${k} flagged closeMelee`); ok(AI.CLOSE_MELEE[k]?.dmg > 0 && AI.CLOSE_MELEE[k]?.range > 0, `${k} has melee numbers`); }
+    else ok(!d.closeMelee, `${k} is not a shooter`);
+  }
+  ok(AI.CLOSE_MELEE.heavy.dmg > AI.CLOSE_MELEE.captain.dmg && AI.CLOSE_MELEE.captain.dmg > AI.CLOSE_MELEE.grunt.dmg, 'bigger units hit harder');
+  ok(AI.closeMeleeReach('heavy', 0.74) > AI.closeMeleeReach('grunt', 0.45), 'and reach further');
+  ok(AI.closeMeleeReach('rusher', 0.4) === 0, 'no entry, no reach');
+});
+test('U13a: Cursed Thrall (Hive) and Explosive Shank (Fallen) exist; Cabal has none', () => {
+  ok(ENEMY_TYPES.suicide?.suicide && ENEMY_TYPES.suicide.hp < ENEMY_TYPES.grunt.hp, 'fragile suicide unit');
+  const names = Object.fromEntries(LOCATIONS.map((l) => [l.id, l.enemyNames.suicide]));
+  eq([names.moon, names.titan], ['Cursed Thrall', 'Cursed Thrall']);
+  eq([names.earth, names.tangled], ['Explosive Shank', 'Explosive Shank']);
+  eq([names.mars, names.io], [undefined, undefined]);
+});
+test('U13a: the blast hurts most at the centre, half at the edge, nothing beyond', () => {
+  const R = AI.SUICIDE.radius;
+  eq(AI.blastDamage(40, 0), 40);
+  eq(AI.blastDamage(40, R / 2), 30);
+  ok(AI.blastDamage(40, R - 0.01) > 19 && AI.blastDamage(40, R - 0.01) < 21, 'about half at the rim');
+  eq(AI.blastDamage(40, R), 0);
+  ok(AI.SUICIDE.fuse >= 0.4 && AI.SUICIDE.trigger > AI.SUICIDE.radius * 0.5, 'a fair warning before the blast');
 });
 
 // ---------- runner ----------

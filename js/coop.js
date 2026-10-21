@@ -20,7 +20,7 @@ import * as ui from './ui.js';
 //  - Members: mirror enemies as "remote" proxies, send their state + hits.
 //  - Everyone rolls their own loot from kill events (client-side loot).
 
-const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss'];
+const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss', 'suicide'];
 const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive']; // snapshot bit order
 /** Host: an enemy's debuffs as a bitmask. */
 const debuffBits = (en) => DEBUFF_BITS.reduce((b, k, i) => (en.status.has(k) ? b | (1 << i) : b), 0);
@@ -214,7 +214,7 @@ export function netTick(dt) {
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
-    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100)]);
+    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0)]);
     const M = G.mission;
     const z = M.zones[M.current];
     const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0 };
@@ -415,10 +415,11 @@ net.on('fx', (m, from) => {
 net.on('sp', (m) => { if (inMission() && !netEnemies.has(m.id)) proxy(m.id, m.ty, m.x, m.z, m); });
 net.on('s', (m) => {
   if (!inMission()) return;
-  for (const [id, ti, x, z, yaw, hp, sh, db = 0, st = 0] of m.e) {
+  for (const [id, ti, x, z, yaw, hp, sh, db = 0, st = 0, y = 0, fl = 0] of m.e) {
     const e = netEnemies.get(id) || proxy(id, TYPES[ti], x, z);
     if (!e.alive) continue;
-    e.netPos.set(x, 0, z);
+    e.netPos.set(x, y, z);
+    e.netFl = fl; // bit 1: swinging at someone in reach, bit 2: suicide fuse lit
     e.netYaw = yaw;
     e.hp = (hp / 1000) * e.maxHp;
     e.shield = (sh / 1000) * e.maxShield;

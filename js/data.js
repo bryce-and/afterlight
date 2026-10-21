@@ -387,11 +387,13 @@ export function classKit(classId, subId) {
 
 // ---------- Enemies ----------
 export const ENEMY_TYPES = {
-  grunt: { hp: 95, speed: 3.4, range: 26, prefer: 14, fireCd: [1.9, 3.0], burst: 3, burstGap: 0.14, dmg: 6, projSpeed: 26, shotSize: 0.11, scale: 1.0 },
+  grunt: { hp: 95, speed: 3.4, range: 26, prefer: 14, fireCd: [1.9, 3.0], burst: 3, burstGap: 0.14, dmg: 6, projSpeed: 26, shotSize: 0.11, scale: 1.0, closeMelee: true },
   rusher: { hp: 70, speed: 7.2, melee: true, meleeDmg: 16, scale: 0.9 },
-  captain: { hp: 300, shield: 180, speed: 3.8, range: 30, prefer: 16, fireCd: [1.6, 2.6], burst: 5, burstGap: 0.1, dmg: 7, projSpeed: 30, shotSize: 0.12, scale: 1.2 },
-  heavy: { hp: 900, speed: 2.3, range: 34, prefer: 13, fireCd: [2.8, 3.8], burst: 1, burstGap: 0.2, dmg: 26, projSpeed: 17, shotSize: 0.3, splash: 3, scale: 1.65 },
-  boss: { hp: 5200, shield: 1500, speed: 2.6, range: 45, prefer: 16, fireCd: [1.6, 2.4], burst: 5, burstGap: 0.12, dmg: 12, projSpeed: 24, shotSize: 0.22, splash: 2.5, scale: 2.6 },
+  // U13a: Cursed Thrall (Hive) and Explosive Shank (Fallen). Numbers for the blast are in ai.js SUICIDE.
+  suicide: { hp: 45, speed: 7.0, suicide: true, scale: 0.9 },
+  captain: { hp: 300, shield: 180, speed: 3.8, range: 30, prefer: 16, fireCd: [1.6, 2.6], burst: 5, burstGap: 0.1, dmg: 7, projSpeed: 30, shotSize: 0.12, scale: 1.2, closeMelee: true },
+  heavy: { hp: 900, speed: 2.3, range: 34, prefer: 13, fireCd: [2.8, 3.8], burst: 1, burstGap: 0.2, dmg: 26, projSpeed: 17, shotSize: 0.3, splash: 3, scale: 1.65, closeMelee: true },
+  boss: { hp: 5200, shield: 1500, speed: 2.6, range: 45, prefer: 16, fireCd: [1.6, 2.4], burst: 5, burstGap: 0.12, dmg: 12, projSpeed: 24, shotSize: 0.22, splash: 2.5, scale: 2.6, closeMelee: true },
 };
 
 // ---------- Locations ----------
@@ -403,7 +405,7 @@ export const LOCATIONS = [
     colors: { sky: 0xe7b585, fog: 0xdcaa7c, hemiTop: 0xffe3bd, hemiBot: 0x5e4a36, sun: 0xfff1d8, ground: 0x9c7d57, ground2: 0x8a6c47, rock: 0x7f6f5f, rock2: 0x675a4c, wall: 0x8c8378, metal: 0x6d7279, accent: 0xb0562c, crate: 0x7a8a5a, foliage: 0x3f5a3a, enemy: 0x46627f, enemy2: 0x262f3a, eye: 0x7fd8ff },
     planetColors: { sea: true, c: [0x2b5d8f, 0x3f7d4a, 0x8a7350, 0xe2e2e2] }, atmo: 0x6fb2ff,
     skyBody: { color: 0xeaeef2, size: 38, pos: [-260, 150, -420] },
-    enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig' },
+    enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' },
     zoneNames: ['The Steppes', 'Skywatch', 'The Divide', 'Forgotten Shore', 'Rocketyard', 'Mothyards'],
     missions: [
       { id: 'e1', mood: 'dawn', name: 'A Guardian Rises', power: 10, zones: 3, boss: { name: 'Riksis, Devil Archon', element: 'arc' , model: 'archon' }, desc: 'Your Ghost has brought you back. Fight through the Fallen and get to the Wall.' },
@@ -418,7 +420,7 @@ export const LOCATIONS = [
     colors: { sky: 0x0b0e16, fog: 0x161c29, hemiTop: 0xaab6cc, hemiBot: 0x2a2e36, sun: 0xd8e4ff, ground: 0x9da2a8, ground2: 0x8a8f95, rock: 0x6c7177, rock2: 0x575c62, wall: 0x7d7f86, metal: 0x50555d, accent: 0x58ff9c, crate: 0x5c6a62, foliage: 0x3b4a44, enemy: 0xd6cfb8, enemy2: 0x3a382f, eye: 0x6dff8e },
     planetColors: { sea: false, c: [0x5d6268, 0x7d8288, 0x9ea3a8, 0xc8ccd0] }, atmo: 0x9fb4d0,
     skyBody: { color: 0x4d8fd8, size: 60, pos: [200, 120, -400] },
-    enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
+    enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' },
     zoneNames: ["Archer's Line", 'Anchor of Light', 'Hellmouth', 'Temple of Crota', 'Gatehouse', "World's Grave"],
     missions: [
       { id: 'm1', mood: 'night', name: 'The Dark Beyond', power: 40, zones: 3, boss: { name: 'Sardok, Eye of Oryx', element: 'void' , model: 'knight' }, desc: 'Follow the trail of a lost Guardian into the Hive tunnels.' },
@@ -448,7 +450,7 @@ export const LOCATIONS = [
     colors: { sky: 0x9fb5a9, fog: 0xa9bcae, hemiTop: 0xd8e6dc, hemiBot: 0x3a4a44, sun: 0xfff4e0, ground: 0x6f7a74, ground2: 0x5f6a64, rock: 0x4f5a55, rock2: 0x414b47, wall: 0xc9cfcb, metal: 0x7a8580, accent: 0xffc56a, crate: 0x8a7a5a, foliage: 0x3b4a44, sea: 0x2f4f4a, enemy: 0xd6cfb8, enemy2: 0x2a2d2a, eye: 0x6dff8e },
     planetColors: { sea: true, c: [0x2f4a46, 0x8c7a52, 0xb59a62, 0xdcc48e] }, atmo: 0xe8c890,
     skyBody: { color: 0xe0c89a, size: 80, pos: [300, 170, -420], ring: true },
-    enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre' },
+    enemyNames: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' },
     zoneNames: ['The Rig', "Siren's Watch", 'The Solarium', 'Arcology Interior', 'The Methane Sea', 'Spine of Keres'],
     missions: [
       { id: 't1', mood: 'storm', name: 'Hope', power: 100, zones: 4, boss: { name: 'Kathok, Swordbearer', element: 'arc' , model: 'swordbearer' }, desc: 'Find the Guardians holed up in the Arcology and break the Hive siege on the rigs.' },
@@ -463,7 +465,7 @@ export const LOCATIONS = [
     colors: { sky: 0x8a78a8, fog: 0x7c6c98, hemiTop: 0xeadcff, hemiBot: 0x3a2e38, sun: 0xffe2c4, ground: 0x7a5e52, ground2: 0x6a5048, rock: 0x5e4842, rock2: 0x4a3a36, wall: 0x6e6460, metal: 0x58606a, accent: 0xff9a3c, crate: 0x6a5a48, foliage: 0x4a3a4a, enemy: 0x5a4a78, enemy2: 0x241e2c, eye: 0xc37aff },
     planetColors: { sea: false, c: [0x3a2e3a, 0x6a5048, 0x8a7a6a, 0xb8a890] }, atmo: 0xb89aff,
     skyBody: { color: 0xd8c8b0, size: 34, pos: [-240, 150, -400] },
-    enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Baron\'s Captain', heavy: 'Fallen Brig' },
+    enemyNames: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Baron\'s Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' },
     zoneNames: ["Thieves' Landing", 'The Rift', 'Four-Holed Cove', "Trapper's Cave", 'Jetsam of Saturn', 'Spider\'s Market'],
     missions: [
       { id: 'ts1', mood: 'dusk', name: 'The Trickster', power: 130, zones: 3, boss: { name: 'Araskes, the Trickster', element: 'arc' , model: 'baron' }, desc: 'Chase one of Uldren\'s Barons through the scrap alleys of Thieves\' Landing. Mind the mines.' },

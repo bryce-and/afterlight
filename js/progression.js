@@ -10,7 +10,7 @@ export const LIGHT_CAP = 200;
 
 // XP sources. Kills are shared by the whole fireteam; mission and cache XP go to whoever opens it.
 export const XP = {
-  kill: { grunt: 10, rusher: 8, captain: 30, heavy: 50, boss: 400 },
+  kill: { grunt: 10, rusher: 8, suicide: 8, captain: 30, heavy: 50, boss: 400 },
   mission: 500,
   firstClear: 1000,
   actCache: 300, // each Horde / Endless cache

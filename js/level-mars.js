@@ -200,10 +200,8 @@ function harvester(K, x, z, o = {}) {
     [W * 1.9, 0.5, L * 0.18, 0, H * 0.7, L * 0.22, CAB, { rz: 0 }],
   ], x, y, z, { rx: o.rx ?? 0, ry: o.ry ?? 0, rz: o.rz ?? 0 });
   if (o.collide) {
-    // only axis-aligned headings (ry 0 / PI along z, PI/2 along x) get colliders
-    const alongX = Math.abs(Math.sin(o.ry ?? 0)) > 0.5;
-    const hw = (alongX ? L * 0.42 : W * 0.8), hd = (alongX ? W * 0.8 : L * 0.42);
-    K.collider(x - hw, 0, z - hd, x + hw, y + H * 1.2, z + hd, null);
+    // yawed hull: exact oriented footprint (U13a)
+    K.ocollider(x, z, W * 1.6, y + H * 1.2, L * 0.84, o.ry ?? 0);
   }
 }
 

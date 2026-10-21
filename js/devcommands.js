@@ -8,8 +8,8 @@ import { LEVEL_CAP, xpForLevel } from './progression.js';
 import { playerPower, playerLevel, writeSave } from './save.js';
 
 /** Session-only rules. Never saved, so a reload clears them. */
-export const DEV = { invulnerable: false, mayhem: false, infiniteammo: false };
-const RULE_NAMES = { invulnerable: 'Invulnerable', mayhem: 'Mayhem', infiniteammo: 'InfiniteAmmo' };
+export const DEV = { invulnerable: false, mayhem: false, infiniteammo: false, navdebug: false };
+const RULE_NAMES = { invulnerable: 'Invulnerable', mayhem: 'Mayhem', infiniteammo: 'InfiniteAmmo', navdebug: 'NavDebug' };
 
 /** Every giveable item by display name: { name, kind, rarity, ... } (weapons keep their named entry, armor its slot and class). */
 export function giveCatalog() {
@@ -73,7 +73,7 @@ export const COMMANDS = {
     },
   },
   gamerule: {
-    usage: '/gamerule <Invulnerable|Mayhem|InfiniteAmmo> [true|false]',
+    usage: '/gamerule <Invulnerable|Mayhem|InfiniteAmmo|NavDebug> [true|false]',
     options: () => Object.values(RULE_NAMES),
     run(args) {
       const [rule, val] = args.trim().split(/\s+/);

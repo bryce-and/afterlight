@@ -7,6 +7,8 @@ import { Player } from './player.js';
 import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
 import { pointInColliders } from './physics.js';
+import { buildNav, NAV } from './nav.js';
+import { updateNavDebug } from './navdebug.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
 import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
@@ -37,6 +39,7 @@ export function startMission(li, mi) {
   G.scene = level.scene;
   G.colliders = level.colliders;
   G.staticMeshes = level.staticMeshes;
+  G.nav = buildNav(G.colliders, level.bounds);
   G.hitDirty = true;
   G.scene.add(G.camera);
   initEffects(G.scene);
@@ -51,7 +54,7 @@ export function startMission(li, mi) {
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
-    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', waves: makeWaves(i, z.isBoss, g, def, fireteam), waveIdx: 0, enemies: [] })),
+    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', waves: makeWaves(i, z.isBoss, g, def, fireteam, loc), waveIdx: 0, enemies: [] })),
   };
   G.time = 0;
   G.player = new Player(G.save);
@@ -86,7 +89,7 @@ function cleanupMission() {
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
   clearEffects();
   G.scene = null; G.level = null; G.player = null; G.mission = null;
-  G.colliders = []; G.staticMeshes = []; G.hitTargets = [];
+  G.colliders = []; G.staticMeshes = []; G.hitTargets = []; G.nav = null;
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
 }
 
@@ -105,7 +108,7 @@ function finishMission() {
 // ---------------------------------------------------------------------------
 // Waves
 // ---------------------------------------------------------------------------
-function makeWaves(zi, isBoss, g, def, fireteam = 1) {
+function makeWaves(zi, isBoss, g, def, fireteam = 1, loc = null) {
   // each extra fireteam member adds ~50% more enemies
   const more = 1 + 0.5 * (fireteam - 1);
   const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type, element: type === 'captain' ? pick(SHIELD_ELEMENTS) : undefined }));
@@ -117,6 +120,11 @@ function makeWaves(zi, isBoss, g, def, fireteam = 1) {
   const w2 = [...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 2 + Math.floor(g / 3))];
   if (g >= 1 || zi >= 1) w2.push(...T('captain', 1 + (g >= 5 && zi >= 1 ? 1 : 0)));
   if (zi >= 1 && g >= 1) w2.push(...T('heavy', 1 + Math.floor(g / 5)));
+  // U13a: Hive and Fallen sends a few suicide units (Cursed Thrall, Explosive Shank); Cabal has none
+  if (loc?.enemyNames?.suicide) {
+    if (zi >= 1) w1.push(...T('suicide', 1));
+    if (g >= 1 || zi >= 1) w2.push(...T('suicide', 1 + (g >= 4 && zi >= 1 ? 1 : 0)));
+  }
   const waves = [w1, w2];
   if (g >= 4 && zi >= 2) waves.push([...T('grunt', 3), ...T('captain', 1), ...T('heavy', 1)]);
   return waves;
@@ -176,9 +184,11 @@ export function updateGame(dt) {
   const P = G.player;
   P.update(dt);
   if (G.state !== 'playing') return; // mission may have failed during player update
+  G.navBudget = NAV.budget; // path requests allowed this frame, shared by every enemy
   for (let i = G.enemies.length - 1; i >= 0; i--) {
     if (!G.enemies[i].update(dt)) G.enemies.splice(i, 1);
   }
+  updateNavDebug(dt);
   updateEnemyShots(dt);
   updateProjectiles(dt);
   updateTickers(dt);
@@ -422,6 +432,7 @@ export function dealDamage(e, amount, o = {}) {
   if (!o.raw && !o.jolted && !o.companion && o.element === 'arc' && (o.source === 'ability' || o.source === 'melee' || o.source === 'super')) G.player?.aftershock?.();
   // debuffs go on the registry (members show them on the plate; the owner's copy is the real one)
   for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
+  if (o.suppress) e.flush?.();
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
     sendHit(e, dmg, o);
@@ -498,6 +509,7 @@ export function killEnemy(e, o = {}) {
   e.onDeath();
   const M = G.mission;
   announceKill(e, o);
+  if (o.self) { sfx.enemyDie(e.pos, e.faction); return; } // a suicide unit's own blast: no kill credit, XP or drops
   const mine = !o.by || o.by === net.myId;
   if (mine) {
     M.kills++;
@@ -511,7 +523,7 @@ export function killEnemy(e, o = {}) {
   if (e.isBoss) {
     G.player.shake = 0.5;
     explosionFx(e.center(new THREE.Vector3()), 6, M.loc.colors.eye);
-    for (const o2 of e.zone.enemies) if (o2.alive) killEnemy(o2, {});
+    for (const o2 of e.zone.enemies) if (o2.alive) { o2.noBlast = true; killEnemy(o2, {}); }
   }
 }
 
@@ -558,6 +570,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
     if (d > radius) continue;
     const f = 1 - 0.5 * (d / radius);
     const kb = c.clone().sub(pos).setY(0).normalize().multiplyScalar((6 * f) / (e.scale ?? e.def.scale));
+    e.flush?.(); // splash drives units out of cover
     dealDamage(e, dmg * f, { element, source: o.source || 'explosion', weapon: o.weapon, pos: c.clone().setY(c.y + e.height * 0.3), knock: kb, ...o.debuffs });
   }
   const P = G.player;
@@ -839,6 +852,7 @@ function loadArena(i, first = false) {
   }
   const level = buildLevel(loc, def);
   G.level = level; G.scene = level.scene; G.colliders = level.colliders; G.staticMeshes = level.staticMeshes;
+  G.nav = buildNav(G.colliders, level.bounds);
   G.hitDirty = true;
   G.scene.add(G.camera);
   initEffects(G.scene);
@@ -850,7 +864,7 @@ function loadArena(i, first = false) {
   const start = arena.center.clone().addScaledVector(dir.normalize(), 13);
   Object.assign(M, { loc, arenaDef: def, arenaIdx: i, checkpoint: start.clone(), bossModel: def.boss.model, chest: null });
   playMusic(loc.id);
-  M.zones = [{ center: arena.center.clone(), name: arena.name, isBoss: false, idx: 0, state: 'active', waves: [], waveIdx: 0, enemies: [] }];
+  M.zones = [{ center: arena.center.clone(), name: arena.name, isBoss: false, leash: arena.leash, room: arena.room, idx: 0, state: 'active', waves: [], waveIdx: 0, enemies: [] }];
   if (first) G.player = new Player(G.save);
   const P = G.player;
   P.spawn(start);
