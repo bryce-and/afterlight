@@ -57,6 +57,8 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/game.js` | Missions, waves, combat, projectiles, pickups, loot cache |
 | `js/player.js` | Movement, weapons, abilities, supers |
 | `js/enemies.js` | Enemy models, AI, boss mechanics, enemy projectiles |
+| `js/colliders.js`, `js/physics.js` | Collider math (including yawed boxes) and line of sight |
+| `js/nav.js`, `js/ai.js`, `js/navdebug.js` | Enemy navigation grid and A*, leash, cover and melee rules, nav debug overlay |
 | `js/world.js` | Procedural level generation and the orbit planet |
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |
@@ -76,7 +78,7 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 
 ## Tests
 
-With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot and weapon archetypes, armor stats and mods, sets and shaders, characters, save and migrations, content data, subclass loadouts, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top).
+With the game running locally, open http://localhost:8123/tools/tests.html. It runs the unit tests (progression, loot and weapon archetypes, armor stats and mods, sets and shaders, characters, save and migrations, content data, subclass loadouts, status effects, combat rules, Update Log/Roadmap) against an in-memory store, so your real save is untouched. `tools/leveltest.js` smoke-tests a mission map from the browser console (see the comment at its top), and `tools/navtest.js` does the same for enemy navigation and the new attacks.
 
 ## Releasing
 

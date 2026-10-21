@@ -111,6 +111,13 @@ The module map is in the README. These notes cover systems added during the over
 - `setEffectsVolume` drives `settings.effectsVolume` (pause menu, default 1, read with `??`, so no save version change).
 - Co-op: teammates' gunfire is placed in the world and paced by archetype rpm (capped at 600).
 
+## Enemy AI systems (v2.3, `js/colliders.js`, `js/nav.js`, `js/ai.js`)
+- `js/colliders.js` holds the collider math with no rendering dependency (`moveBody`, `pushOutCircle`, `pointInColliders`, `footprintHit`, `orientedCollider`); `js/physics.js` re-exports it and adds `hasLOS`. A collider is `{ min, max }` (the world-axis bounding box, still used by every broad-phase user) plus an optional `rot` for a box yawed about Y. In a level kit use `K.obox(x, z, w, h, d, ry)` or `K.ocollider(...)`; `K.mesh` on a box with only a yaw and `collide: true` gets one automatically.
+- `js/nav.js` builds `G.nav` per level (`buildNav`, in `startMission` and the arena swap). A cell is -1 (blocked or off the map) or its standable height. Colliders up to `NAV.ledgeMax` (2.2 m) are surfaces, taller ones are walls, overhead ones are ignored. `findPath` (A*, string-pulled, partial path when the goal is sealed off), `lineClear`, `floodReach`, `ledgeSpots` (`from` is the floor point a unit hops up from). Path requests are capped per frame by `G.navBudget`.
+- `js/ai.js` is pure rules: leash (`LEASH`, `leashTarget`, `pastLeash`, `insideLeash`), cover (`COVER`, `coverAllowed`), close-range melee (`CLOSE_MELEE`), suicide blast (`SUICIDE`, `blastDamage`). New enemy types plug in through `ENEMY_TYPES` flags: `closeMelee: true`, `suicide: true`.
+- `Enemy.steer` moves straight when the grid line is clear, otherwise follows a path; `updatePost` picks a ledge; `closeMeleeStep`, `suicideStep` and `detonate` are the new attacks; `flush` drives a unit out of cover (called from `explode`, suppression and the flank check). Enemy `pos.y` follows the nav height (it is no longer always 0). The co-op snapshot entry carries `y` and a flag byte (1 swing, 2 fuse lit).
+- Dev: `/gamerule NavDebug true` draws the grid, paths and leash (`js/navdebug.js`); `tools/navtest.js` in the console runs `testNav(li, mi, seconds)`.
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
@@ -120,3 +127,4 @@ The module map is in the README. These notes cover systems added during the over
 - Celestial Nighthawk's 2.5× (4× for Golden Gun) applies to the first super hit while the super is active. Nova Bomb's projectile can land after the 0.8 s super ends, losing the 4× (unchanged from v1.1).
 - `afterlight.html` (an older single-file entry) is stale and not maintained. `index.html` is the game.
 - After a deploy, a browser can briefly pair a cached `index.html` with new modules. `tools/stamp_version.py` cache-busts every release; run it before each push.
+- No current level has ramps or stairs, so units reach ledges only by hopping (up to 1.6 m). Dynamic colliders (Guardian barricades) are not on the nav grid; units path into them and are pushed out. Fireteam members see the leader's close-range swing as a raised arm and the suicide fuse as a blink, not the full animation.

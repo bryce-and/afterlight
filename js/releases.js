@@ -1,8 +1,22 @@
 // Player-facing Update Log and Roadmap on the title screen.
 // RELEASES: only updates that have actually shipped, newest first.
 // ROADMAP: curated teasers, not the internal plan (see docs/OVERHAUL_ROADMAP.md). No dates.
+// A major update chained with later ones may set artPending: true and skip `art`; the last update of the chain adds it.
 
 export const RELEASES = [
+  {
+    version: '2.3', name: 'Hostile Intent', date: '2026-10-20', accent: '#ff6a4a', glyph: '⚠', artPending: true, // chained with U13b: the title artwork comes with the last update of the chain
+    summary: 'Enemies find their way around walls, hop up onto crates to shoot down at you, stay near their own area instead of chasing you across the map, and fight dirty at close range. Hive and Fallen now send suicide units.',
+    notes: [
+      'Pathfinding: enemies walk around walls, crates and ruins instead of pushing into them. Diagonal walls now block only where the wall actually is, for you and for them',
+      'High ground: gunners will hop up onto crates and low walls (up to about 1.6 meters) to take a firing position above you. They never climb walls to get at you',
+      'Leashes: each group stays near its own area. Run far enough away and they hold at the edge instead of following you across the map',
+      'Cover: Vandals, Acolytes, Legionaries and Captains duck behind cover, wait, lean out for two bursts, and move to different cover. Heavies and bosses never hide, and nobody hides when outnumbered or when a heavy is close. Flank them, hit them with an explosion or suppress them and they come out',
+      'Close range: every gunner, brute and boss now swings at you with a wind-up if you get right up against them. Bigger units hit harder and reach farther',
+      'Cursed Thrall (Hive) and Explosive Shank (Fallen): fragile units that run at you, light a short fuse and blow up, hurting you if you are close. Shoot them early and they still explode where they die. Their blast hurts only Guardians',
+      'No save changes',
+    ],
+  },
   {
     version: '2.2.3', name: 'Hotfix', date: '2026-10-20', accent: '#ffb547', glyph: '✚',
     summary: 'Rocket-Assisted Sidearms and Pulse Rifles fire fast rockets, the burst Linear Fusion Rifle spaces its bolts, and every gun has a harder, drier sound.',
