@@ -7,6 +7,9 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 
 | ID | Requirement | Current (code) | Update | Status |
 |---|---|---|---|---|
+| R01 | Social space: the Tower, hangout | Missing | U16 | Complete and published (v2.7): walkable Tower hub reached from Orbit; visits at act boundaries |
+| R02 | Postmaster | Missing (overflow auto-dismantles) | U16 | Complete and published (v2.7): Postmaster holds overflow gear (21 slots per Guardian); a full Postmaster dismantles its oldest unlocked non-exotic |
+| R03 | Shooting range at-light | Missing | U16 | Complete and published (v2.7): first-person range in the South Tower; training dummies and a boss dummy at your Light; DPS readout |
 | R08 | Player level 1 to 40 | XP curve in `progression.js`; kills shared by fireteam, mission and cache XP; HUD XP bar; Level tab | U1 | Complete and published (v1.1) |
 | R09 | Third subclass drops at level 10 | `unlockLevel: 10` on Sentinel, Arcstrider, Stormcaller; unlock message mid-mission | U1 | Complete and published (v1.1) |
 | R10 | Starters: Titan Sunbreaker+Fists of Havoc, Warlock Nova+Dawnblade, Hunter Golden Gun+Shadowshot | Gated in class select and the subclass panel; unit-tested | U1 | Complete and published (v1.1) |
@@ -159,3 +162,4 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | V75 | Enemy cover AI: heavies never, smaller units only when not outnumbered and no heavy is near, peek and return | U13a (moved from U9) | Complete and published (v2.3): grunts and captains only; no cover when outnumbered 3:1, with a heavy within 12 m, or after being flushed (splash, suppression, flanking); cover to cover on the nav grid |
 | F08 | Campaign progress per Guardian (today `cleared` is one account-wide map in the save); lands with the campaign reset | U15 | Complete and published (v2.6): progress per Guardian; save v9 |
 | F25 | Full progress reset for everyone when the campaign launches; old save backed up, settings kept | U15 | Complete and published (v2.6): save v9 resets older saves with a backup (`afterlight_backup_v8`), settings kept |
+| F16 | Exotic Kiosk in the Tower: retrieve earned exotics at your current Light; armor rolls random stats, exotic weapons have fixed stats | U16 | Complete and published (v2.7): pulls an exotic you have found at your current Light for 7,777 glimmer (`KIOSK_PRICE` in `save.js`); one copy at a time |

@@ -143,6 +143,10 @@ The module map is in the README. These notes cover systems added during the over
 - Traversal rule for level builders: plain ground jump only (gravity 24, jump 8.2: apex 1.4 m, about 4.2 m of travel); required gaps at most 3 m and rises at most 1 m, stairs for more.
 - Item lock: `item.locked` (middle click, `toggleLock`); `addItem` overflow and `dismantleItem` skip locked items.
 
+## The Last City: Tower, quests, Postmaster (v2.7)
+- Files: `js/quests.js` (pure quest and Tower-stop logic; `s.quests` is per Guardian, swapped in `save.js`), `js/tower.js` (hub shell, NPCs, range dummies), `js/tower-ui.js` (Postmaster, Exotic Kiosk, Quest Kiosk, range HUD), `js/level-tower.js` and `js/tower-data.js` (pure data, imported by unit tests), `js/models-npc.js` (low-poly NPCs).
+- Save v10 adds `postmaster` and `quests`. `isUnlocked` also asks `actOpen`.
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.

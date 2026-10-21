@@ -8,9 +8,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 
 | ID | Requirement | Current (code) | Update | Status |
 |---|---|---|---|---|
-| R01 | Social space: the Tower, hangout | Missing | U16 | Planned |
-| R02 | Postmaster | Missing (overflow auto-dismantles) | U16 | Planned |
-| R03 | Shooting range at-light | Missing | U16 | Planned |
 | R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U22 | Planned |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13b | Complete and published (v2.4) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
@@ -64,7 +61,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U19 | Planned |
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
 | F14 | A patrol zone on every destination | U17 | Planned |
-| F16 | Exotic Kiosk in the Tower: retrieve earned exotics at your current Light; armor rolls random stats, exotic weapons have fixed stats | U16 | Planned |
 | F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U19 (difficulty scaling) | Complete and published (v2.4) |
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U27 (optional) | Planned |
 | F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U19 | Planned |

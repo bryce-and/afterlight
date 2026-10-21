@@ -150,3 +150,9 @@
 | 2026-10-20 | Objectives use E, not F (F is the super): hold E at consoles, press E for items. Bryce's direction mid-build. | Bryce |
 | 2026-10-20 | Added mid-build by Bryce: Cabal models redesigned (Legionary, Centurion, Colossus each distinct, after their Destiny 1 looks) and middle-click item lock (locked weapons and armor are never auto-dismantled and cannot be dismantled by hand). | Bryce |
 | 2026-10-20 | Save v9 is a full reset for every older save (backup under `afterlight_backup_v8`, settings kept) and the campaign is per Guardian. The in-game Reset now writes `afterlight_backup_manual` first (it never wrote a backup before). | Bryce (reset, confirmed 2026-10-17), Claude (backup fix) |
+| 2026-10-21 | U16 answers from Bryce: Tower trips happen at act boundaries only; the campaign cannot be abandoned, but the quest framework supports abandonable quests picked up again at the Quest Kiosk; Postmaster cap is 21 slots per Guardian; Exotic Kiosk costs 7,777 glimmer; the Tower is third person until the Range, which is first person; the Tower is copied from Destiny 1 (Tower Watch, Hall of Guardians with the Vanguard and Exotic/Quest kiosks, Hangar, Tower North with the Speaker; the Range is placed in the South Tower that Destiny 1 sealed); NPCs are low-poly versions of their Destiny look; all of U16 is one update. | Bryce |
+| 2026-10-21 | Tower runs as a mission-shaped shell (`G.mission.tower`), so HUD, player and effects share code. | Claude |
+| 2026-10-21 | Postmaster sends the NEW item to the Postmaster when the pack is full. | Claude |
+| 2026-10-21 | Exotic Kiosk refuses an exotic you already hold. The kiosk price is `KIOSK_PRICE` in `save.js`. | Claude |
+| 2026-10-21 | The Tower is unavailable while in a fireteam in v2.7. | Claude |
+| 2026-10-21 | Tower data is pure in `js/tower-data.js` so unit tests can import it. | Claude |
