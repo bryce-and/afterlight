@@ -72,7 +72,7 @@ export function buildLevel(loc, def) {
   const sunOffset = new THREE.Vector3(...loc.sunDir).normalize().multiplyScalar(90);
 
   // U16e sky: a data-driven dome, stars, bodies and silhouettes (js/sky.js); a destination without a spec keeps the plain sky body
-  const skySpec = skyFor(loc, def);
+  const skySpec = skyFor(loc, def, LEVEL_SETS[def.id]?.sky); // a map may carry its own `sky` overrides
   let sky = null;
   if (skySpec) {
     const spec = { ...skySpec, horizon: skySpec.horizon ?? C.fog };

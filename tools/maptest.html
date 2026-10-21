@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Afterlight map test</title>
+</head>
+<body>
+<!-- Headless per-map check, run by tools/maptest.sh: ?loc=moon&mi=0,1,2. Loads the real game in an iframe, then for each mission runs
+     tools/leveltest.js testLevel (zones cleared, spawns, reachability) and tools/zfight.js, and prints terrain facts. -->
+<pre id="result">running</pre>
+<iframe id="f" src="../index.html" style="position:fixed;inset:0;width:100%;height:100%;border:0"></iframe>
+<script>
+const q = new URLSearchParams(location.search), LOC = q.get('loc'), MIS = (q.get('mi') || '0,1,2').split(',').map(Number), VIEWS = q.get('views');
+const f = document.getElementById('f');
+f.addEventListener('load', async () => {
+  const out = document.getElementById('result');
+  try {
+    await new Promise((r) => setTimeout(r, 1500));
+    if (VIEWS) { // screenshot mode (tools/mapshot.sh): render the given views full-page, no report
+      await f.contentWindow.eval(`(async () => {
+        const T = await import('/tools/leveltest.js'), d = await import('/js/data.js');
+        await T.shots(d.LOCATIONS.findIndex((l) => l.id === ${JSON.stringify(LOC)}), ${MIS[0]}, ${VIEWS}, { size: [690, 390], bright: ${Number(q.get('bright') ?? 0.5)}, fov: ${Number(q.get('fov') ?? 75)} });
+      })()`);
+      out.style.display = 'none'; // the views are drawn into an overlay inside the game frame
+      document.body.dataset.done = '1';
+      return;
+    }
+    out.textContent = await f.contentWindow.eval(`(async () => {
+      const T = await import('/tools/leveltest.js'), Z = await import('/tools/zfight.js'), d = await import('/js/data.js'), { G } = await import('/js/state.js');
+      const li = d.LOCATIONS.findIndex((l) => l.id === ${JSON.stringify(LOC)}), lines = [];
+      if (li < 0) return 'NO SUCH LOCATION';
+      for (const mi of ${JSON.stringify(MIS)}) {
+        lines.push(await T.testLevel(li, mi));
+        const fights = Z.findZFights(G.scene);
+        const t = G.level.terrain;
+        lines.push('  zfight pairs: ' + fights.length + (fights.length ? ' e.g. ' + fights.slice(0, 3).map((x) => x.at).join(' | ') : ''));
+        if (t) {
+          let lo = Infinity, hi = -Infinity; const b = G.level.bounds;
+          for (let x = b.minX; x <= b.maxX; x += 4) for (let z = b.minZ; z <= b.maxZ; z += 4) { const h = t.at(x, z); lo = Math.min(lo, h); hi = Math.max(hi, h); }
+          lines.push('  terrain: ' + lo.toFixed(1) + ' to ' + hi.toFixed(1) + ' m, ' + t.features.length + ' features');
+        } else lines.push('  terrain: flat');
+      }
+      return lines.join('\\n');
+    })()`);
+  } catch (e) { out.textContent = 'HARNESS ERROR ' + e.message; }
+  document.body.dataset.done = '1';
+});
+</script>
+</body>
+</html>

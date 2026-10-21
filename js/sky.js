@@ -96,10 +96,10 @@ const MISSION_SKIES = {
   dc3: { zenith: 0x120e24, mid: 0x3a2a60, horizon: 0x7a5aa0, stars: { n: 60, color: 0xe8d8ff, size: 2, min: 0.5 }, aurora: [{ color: 0xa05aff, y: 160, r: 540, h: 200, arc: [0, TAU], opacity: 0.45, waves: 6 }], floaters: [{ kind: 'spire', n: 14, r: [340, 600], y: [50, 250], size: [18, 42], color: 0x9a8cb8, glow: 0xb08cff, haze: 0.2 }] },
 };
 
-export function skyFor(loc, def) {
+export function skyFor(loc, def, own = null) {
   const base = SKIES[loc.id];
   if (!base) return null;
-  return { ...base, ...(MISSION_SKIES[def.id] || {}) };
+  return { ...base, ...(MISSION_SKIES[def.id] || {}), ...(own || {}) }; // destination, then mission, then the map's own `sky`
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
