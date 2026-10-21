@@ -1,35 +1,31 @@
-// Enemy AI rules that need no scene (U13a): zone leash, cover eligibility, cover rhythm, close-range
+// Enemy AI rules that need no scene (U13a): room containment, cover eligibility, cover rhythm, close-range
 // melee and suicide blast numbers. Kept pure so tools/tests.js can exercise them.
 
-// ---- zone leash ----
-// A unit never chases past its zone plus a margin. Zone activation is at 24 m (28 for a boss), so
-// 34 m / 42 m leave 10 to 14 m of margin. A zone may carry its own `leash` radius or a closed `room`
-// rectangle (arena zones); a room wins over the radius.
-export const LEASH = { radius: 34, bossRadius: 42, slack: 2 };
+// ---- zone containment ----
+// U16b: the open-zone leash is gone (playtesting: units held at an invisible edge felt bad). Units chase
+// wherever the nav grid lets them. Only a closed `room` (arena and boss rooms) still contains its units.
+// `leash` / `LEASH` names stay so callers keep working: they now mean "the room, if the zone has one".
+export const LEASH = { radius: Infinity, bossRadius: Infinity, slack: 2 };
 
 export function leashRadius(zone) {
   return zone.leash ?? (zone.isBoss ? LEASH.bossRadius : LEASH.radius);
 }
 
-/** Nearest point inside the allowed area to (x, z), inset 1 m from its edge. */
+/** Nearest point inside the room to (x, z), inset 1 m from its edge. Zones without a room contain nobody. */
 export function insideLeash(zone, x, z) {
-  const c = zone.center;
-  if (zone.room) {
-    const r = zone.room;
-    return { x: Math.min(Math.max(x, r.minX + 1), r.maxX - 1), z: Math.min(Math.max(z, r.minZ + 1), r.maxZ - 1) };
-  }
-  const R = leashRadius(zone), dx = x - c.x, dz = z - c.z, d = Math.hypot(dx, dz);
-  return d <= R - 1 ? { x, z } : { x: c.x + (dx / d) * (R - 1), z: c.z + (dz / d) * (R - 1) };
+  if (!zone.room) return { x, z };
+  const r = zone.room;
+  return { x: Math.min(Math.max(x, r.minX + 1), r.maxX - 1), z: Math.min(Math.max(z, r.minZ + 1), r.maxZ - 1) };
 }
 
-/** True when (x, z) is past the leash (beyond `slack`). */
+/** True when (x, z) is outside the zone's room (beyond `slack`). Always false without a room. */
 export function pastLeash(zone, x, z, slack = LEASH.slack) {
-  const c = zone.center;
-  if (zone.room) { const r = zone.room; return x < r.minX - slack || x > r.maxX + slack || z < r.minZ - slack || z > r.maxZ + slack; }
-  return Math.hypot(x - c.x, z - c.z) > leashRadius(zone) + slack;
+  if (!zone.room) return false;
+  const r = zone.room;
+  return x < r.minX - slack || x > r.maxX + slack || z < r.minZ - slack || z > r.maxZ + slack;
 }
 
-/** Where a unit should head given its real target: the target itself, or the nearest edge of its area when the target is out of reach. */
+/** Where a unit should head given its real target: the target itself, or the nearest point of its room when the target is outside it. */
 export function leashTarget(zone, tx, tz) {
   if (!zone?.center || !pastLeash(zone, tx, tz, 0)) return { x: tx, z: tz, held: false };
   const p = insideLeash(zone, tx, tz);

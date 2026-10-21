@@ -5,11 +5,11 @@ import { LEGENDARY_WEAPONS, NAMED_WEAPONS, frameSlot } from './frames.js';
 import { SETS } from './style.js';
 import { makeWeapon, makeExotic, makeArmor } from './loot.js';
 import { LEVEL_CAP, xpForLevel } from './progression.js';
-import { playerPower, playerLevel, writeSave } from './save.js';
+import { playerPower, playerLevel, writeSave, UNLOCK } from './save.js';
 
 /** Session-only rules. Never saved, so a reload clears them. */
-export const DEV = { invulnerable: false, mayhem: false, infiniteammo: false, navdebug: false };
-const RULE_NAMES = { invulnerable: 'Invulnerable', mayhem: 'Mayhem', infiniteammo: 'InfiniteAmmo', navdebug: 'NavDebug' };
+export const DEV = { invulnerable: false, mayhem: false, infiniteammo: false, navdebug: false, destinationunlock: false };
+const RULE_NAMES = { invulnerable: 'Invulnerable', mayhem: 'Mayhem', infiniteammo: 'InfiniteAmmo', navdebug: 'NavDebug', destinationunlock: 'DestinationUnlock' };
 
 /** Every giveable item by display name: { name, kind, rarity, ... } (weapons keep their named entry, armor its slot and class). */
 export function giveCatalog() {
@@ -73,7 +73,7 @@ export const COMMANDS = {
     },
   },
   gamerule: {
-    usage: '/gamerule <Invulnerable|Mayhem|InfiniteAmmo|NavDebug> [true|false]',
+    usage: '/gamerule <Invulnerable|Mayhem|InfiniteAmmo|NavDebug|DestinationUnlock> [true|false]',
     options: () => Object.values(RULE_NAMES),
     run(args) {
       const [rule, val] = args.trim().split(/\s+/);
@@ -81,6 +81,7 @@ export const COMMANDS = {
       if (!k) return { ok: false, msg: `Unknown rule "${rule || ''}". Rules: ${Object.values(RULE_NAMES).join(', ')}` };
       if (val !== undefined && val !== 'true' && val !== 'false') return { ok: false, msg: `Value must be true or false, not "${val}".` };
       DEV[k] = val === undefined ? !DEV[k] : val === 'true';
+      if (k === 'destinationunlock') { UNLOCK.all = DEV[k]; }
       return { ok: true, msg: `${RULE_NAMES[k]} is now ${DEV[k] ? 'ON' : 'OFF'}.` };
     },
   },

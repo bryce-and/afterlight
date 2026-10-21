@@ -477,7 +477,11 @@ export function collectPostmaster(s, id) {
 
 export const ALL_MISSIONS = LOCATIONS.flatMap((l, li) => l.missions.map((m, mi) => ({ ...m, li, mi, g: li * 3 + mi })));
 
+/** Session-only (U16b): the DestinationUnlock gamerule opens every destination and mission. Never saved. */
+export const UNLOCK = { all: false };
+
 export function isUnlocked(s, li, mi) {
+  if (UNLOCK.all) return true;
   const g = li * 3 + mi;
   if (g === 0) return true;
   if (mi === 0 && !actOpen(s, li)) return false; // U16: the Vanguard's debrief in the Tower opens the next destination

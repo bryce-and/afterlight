@@ -261,7 +261,7 @@ export const TOWER = {
 
       // ================= paving =================
       slab(K, -24, -22, 24, 26, FLOOR);                 // Tower Watch
-      slab(K, -26, -46, -8, -22, FLOORH);               // Hall of Guardians
+      slab(K, -26, -46, -8, -22, FLOORH, FL + 0.005);               // Hall of Guardians
       slab(K, -59, -62, -24, 26, FLOOR2);               // Tower North
       slab(K, 24, -34, 59, 26, FLOOR);                  // Hangar
       slab(K, 45, 12, 59, 26, 0x9fb0c0, FL + 0.01);      // lounge (lowest part of the hangar)
@@ -523,11 +523,109 @@ export const TOWER = {
   },
 };
 
+
+// ---------------------------------------------------------------------------
+// U16b vista: the Tower stands on a cliff above the Last City, with mountains on the horizon and the Wall
+// curving round the south. Everything here is far scenery (no colliders), unfogged and pre-hazed so it
+// reads against the pale sky. Called once by buildLevel (world.js) for a location with `vista`.
+// ---------------------------------------------------------------------------
+const CITY_Y = -140;
+function hazy(hex, k) { return new THREE.Color(hex).lerp(new THREE.Color(0xcfe3f2), k); }
+function flat(color, extra = {}) { return new THREE.MeshLambertMaterial({ color, flatShading: true, fog: false, ...extra }); }
+
+export function buildTowerVista(scene) {
+  const g = new THREE.Group();
+  // gradient sky dome
+  const dome = new THREE.SphereGeometry(850, 24, 12);
+  const pos = dome.attributes.position, col = new Float32Array(pos.count * 3);
+  const top = new THREE.Color(0x3f86d6), mid = new THREE.Color(0x8fc3ee), hor = new THREE.Color(0xd6e8f4), c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const t = Math.max(0, pos.getY(i) / 850);
+    if (t < 0.25) c.lerpColors(hor, mid, t / 0.25); else c.lerpColors(mid, top, Math.min(1, (t - 0.25) / 0.6));
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  dome.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.add(new THREE.Mesh(dome, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })));
+  // a few flat clouds
+  const cloudM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, fog: false });
+  const rng = (() => { let a = 7; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  for (let i = 0; i < 16; i++) {
+    const ang = rng() * Math.PI * 2, r = 380 + rng() * 360, y = 70 + rng() * 150;
+    const cl = new THREE.Group();
+    for (let k = 0; k < 4; k++) {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(16 + rng() * 18, 0), cloudM);
+      m.scale.set(1.8, 0.5, 1); m.position.set((k - 1.5) * 24, rng() * 5, rng() * 12);
+      cl.add(m);
+    }
+    cl.position.set(Math.cos(ang) * r, y, Math.sin(ang) * r - 20); cl.rotation.y = rng() * 3;
+    g.add(cl);
+  }
+  // the ground far below: farmland and the city floor
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(880, 40).rotateX(-Math.PI / 2), flat(hazy(0x7f9a68, 0.25)));
+  floor.position.y = CITY_Y - 1; g.add(floor);
+  // mountain ranges: three rings, nearer is darker and less hazy
+  const ranges = [{ r: 780, n: 24, h: [150, 330], w: [110, 190], k: 0.62, col: 0x6a7f9a }, { r: 660, n: 22, h: [110, 230], w: [90, 150], k: 0.42, col: 0x586f8a }, { r: 540, n: 20, h: [70, 150], w: [70, 120], k: 0.22, col: 0x4a6a57 }];
+  for (const rg of ranges) {
+    for (let i = 0; i < rg.n; i++) {
+      const ang = (i / rg.n) * Math.PI * 2 + rng() * 0.12, h = rg.h[0] + rng() * (rg.h[1] - rg.h[0]), w = rg.w[0] + rng() * (rg.w[1] - rg.w[0]);
+      const peak = new THREE.Mesh(new THREE.ConeGeometry(w, h, 5 + Math.floor(rng() * 2)), flat(hazy(rg.col, rg.k)));
+      peak.position.set(Math.cos(ang) * rg.r, CITY_Y + h / 2 - 8, Math.sin(ang) * rg.r - 20); peak.rotation.y = rng() * 3;
+      g.add(peak);
+      if (h > 200) { // snow cap
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(w * 0.34, h * 0.3, 5), flat(hazy(0xf4f7fb, rg.k * 0.5)));
+        cap.position.set(peak.position.x, CITY_Y + h - h * 0.15 - 8, peak.position.z); cap.rotation.y = peak.rotation.y;
+        g.add(cap);
+      }
+    }
+  }
+  // the Wall: a long curved rampart on the south side, with Traveler-white stone and tower stubs
+  const wallM = flat(hazy(0xeae4d2, 0.12));
+  for (let i = 0; i < 26; i++) {
+    const a = Math.PI * (0.18 + (i / 25) * 0.64) ;
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(46, 60, 14), wallM);
+    seg.position.set(Math.cos(a) * 430, CITY_Y + 30, Math.sin(a) * 430 - 20); seg.rotation.y = -a + Math.PI / 2;
+    g.add(seg);
+    if (i % 5 === 0) { const t2 = new THREE.Mesh(new THREE.BoxGeometry(22, 90, 22), wallM); t2.position.set(seg.position.x, CITY_Y + 45, seg.position.z); g.add(t2); }
+  }
+  // the Last City: terraced blocks in rings, taller near the Tower's base, with a few domes and spires
+  const roofM = [flat(hazy(0x9fb4c6, 0.1)), flat(hazy(0xc9a36a, 0.1)), flat(hazy(0xb86a58, 0.1))];
+  const wallS = flat(hazy(0xf0ead8, 0.08)), wallS2 = flat(hazy(0xd6cdb4, 0.08));
+  const BOX = new THREE.BoxGeometry(1, 1, 1);
+  const blocks = [];
+  for (let i = 0; i < 560; i++) {
+    const ang = rng() * Math.PI * 2, r = 70 + Math.pow(rng(), 0.8) * 320;
+    const x = Math.cos(ang) * r, z = Math.sin(ang) * r - 20;
+    if (Math.abs(x) < 95 && z > -90 && z < 120 && r < 120) continue; // keep the cliff foot clear
+    const w = 8 + rng() * 14, d = 8 + rng() * 14, h = 9 + rng() * 26 * (1.3 - r / 420);
+    blocks.push({ x, z, w, d, h, ry: Math.round(rng() * 3) * 0.2 + ang * 0.0 });
+  }
+  const bodies = new THREE.InstancedMesh(BOX, wallS, blocks.length), roofs = new THREE.InstancedMesh(BOX, roofM[0], blocks.length);
+  const rc = [new THREE.Color(roofM[0].color), new THREE.Color(roofM[1].color), new THREE.Color(roofM[2].color)];
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  roofs.material = flat(0xffffff);
+  blocks.forEach((b, i) => {
+    q.setFromEuler(e.set(0, b.ry, 0));
+    bodies.setMatrixAt(i, m4.compose(v.set(b.x, CITY_Y + b.h / 2, b.z), q, sc.set(b.w, b.h, b.d)));
+    roofs.setMatrixAt(i, m4.compose(v.set(b.x, CITY_Y + b.h + 0.9, b.z), q, sc.set(b.w + 1.2, 1.8, b.d + 1.2)));
+    roofs.setColorAt(i, rc[i % 3]);
+  });
+  g.add(bodies, roofs);
+  // domes and spires
+  for (let i = 0; i < 10; i++) {
+    const ang = rng() * Math.PI * 2, r = 120 + rng() * 220, x = Math.cos(ang) * r, z = Math.sin(ang) * r - 20;
+    if (Math.abs(x) < 95 && z > -90 && z < 120) continue;
+    if (i % 2) { const d = new THREE.Mesh(new THREE.SphereGeometry(14, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), flat(hazy(0x9fb4c6, 0.1))); d.position.set(x, CITY_Y + 18, z); g.add(d); }
+    else { const sp = new THREE.Mesh(new THREE.ConeGeometry(8, 70, 4), flat(hazy(0xece5d3, 0.08))); sp.position.set(x, CITY_Y + 35, z); g.add(sp); }
+  }
+  scene.add(g);
+  return g;
+}
+
 export const TOWER_LOC = {
   id: 'tower', name: 'The Tower', planetName: 'Earth', faction: 'Vanguard', sea: true, theme: 'earth',
   desc: "The last safe city's Tower, the Vanguard's home: the Watch, the Hall of Guardians, the Hangar and the South Tower range.",
-  fog: [90, 330], sunDir: [0.5, 1, 0.35], light: { hemi: 2.0, sun: 2.5 },
-  colors: { sky: 0xa6d2f5, fog: 0xdcebf6, hemiTop: 0xfff6e2, hemiBot: 0xb4bfa8, sun: 0xfff0d0, ground: 0xd5ccb6, ground2: 0xc7bea8, rock: 0x9aa5ae, rock2: 0x7c8893, wall: 0xe6dfcd, metal: 0x8c9aa6, accent: 0xd9a64a, crate: 0x9a7e55, foliage: 0x4f9a4a, sea: 0xeaf2f8, enemy: 0x8a8f96, enemy2: 0x3a3f46, eye: 0x7fd8ff },
+  fog: [170, 640], vista: buildTowerVista, sunDir: [0.5, 1, 0.35], light: { hemi: 2.0, sun: 2.5 },
+  colors: { sky: 0xa6d2f5, fog: 0xd6e8f4, hemiTop: 0xfff6e2, hemiBot: 0xb4bfa8, sun: 0xfff0d0, ground: 0xd5ccb6, ground2: 0xc7bea8, rock: 0x9aa5ae, rock2: 0x7c8893, wall: 0xe6dfcd, metal: 0x8c9aa6, accent: 0xd9a64a, crate: 0x9a7e55, foliage: 0x4f9a4a, sea: 0xeaf2f8, enemy: 0x8a8f96, enemy2: 0x3a3f46, eye: 0x7fd8ff },
   planetColors: { sea: true, c: [0x2b5d8f, 0x3f7d4a, 0x8a7350, 0xe2e2e2] }, atmo: 0x9fd0ff,
   skyBody: { color: 0xf3e9c8, size: 150, pos: [-420, 80, -340], ring: false },
   enemyNames: {},

@@ -968,3 +968,25 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 /* the Tower holsters everything: only health, level and prompts show until you step into the Range */
 #hud.tower-social #crosshair, #hud.tower-social #abilities, #hud.tower-social #super, #hud.tower-social #weapons, #hud.tower-social #revives,
 #hud.tower-social #objective, #hud.tower-social #bossbar, #hud.tower-social #reload-hint, #hud.tower-social #waypoint { display: none; }
+
+/* ---- U16b Director star map ---- */
+#orbit-main.tab-director { background: none; position: relative; }
+.dir-map { position: absolute; inset: 0; overflow: hidden; }
+.dir-title { position: absolute; left: 36px; top: 28px; pointer-events: none; }
+.dir-node { position: absolute; border-radius: 50%; border: 1px solid transparent; background: transparent; cursor: pointer; padding: 0; transition: border-color 0.15s, box-shadow 0.15s; min-width: 28px; min-height: 28px; }
+.dir-node:hover:not(:disabled), .dir-node:focus-visible { border-color: rgba(255,255,255,0.7); box-shadow: 0 0 22px rgba(160,200,255,0.35); outline: none; }
+.dir-node.sel { border-color: rgba(255,255,255,0.0); }
+.dir-node.locked { cursor: default; }
+.dir-node.far { display: none; }
+.dn-label { position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%); white-space: nowrap; text-align: center; pointer-events: none; text-shadow: 0 1px 6px #000; }
+.dn-label b { display: block; font-family: var(--head); font-weight: 700; font-size: 17px; letter-spacing: 0.14em; text-transform: uppercase; }
+.dn-label small { display: block; font-size: 12px; color: #b9c4d4; letter-spacing: 0.04em; }
+.dir-node.locked .dn-label b { color: #6d7790; }
+.dir-node.locked .dn-label small { color: #5a6479; max-width: 160px; white-space: normal; }
+.dir-map.focused .dir-node:not(.sel) .dn-label small { display: none; }
+.dir-map.focused .dir-node.sel .dn-label { display: none; }
+.dir-panel { position: absolute; right: 0; top: 0; bottom: 0; width: min(560px, 46vw); padding: 28px 32px; overflow-y: auto; background: linear-gradient(270deg, rgba(5,7,11,0.94) 0%, rgba(5,7,11,0.86) 70%, rgba(5,7,11,0) 100%); }
+.dir-back { margin-bottom: 14px; }
+.dir-ft { position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px; width: 240px; max-height: 32%; overflow-y: auto; }
+.dir-map.focused .dir-ft { display: none; }
+@media (max-width: 860px) { .dir-panel { width: 100%; background: rgba(5,7,11,0.9); } .dir-title { left: 16px; } }

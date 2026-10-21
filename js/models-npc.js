@@ -106,7 +106,7 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 // ---------------------------------------------------------------------------
 function zavala() {
-  const skin = M(0x6b4a36), skinDk = M(0x5a3d2c);
+  const skin = M(0x6a98d4), skinDk = M(0x4f7cb8); // Awoken: blue skin, lighter than his armor so the two read apart
   const blue = M(0x2c5fb0, { metalness: 0.35 }), navy = M(0x1b3358), white = M(0xe8ecf2, { metalness: 0.3 });
   const gold = metal(0xc9a24b), dark = M(0x23262d);
   const f = figure({

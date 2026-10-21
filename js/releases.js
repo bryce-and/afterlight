@@ -5,6 +5,19 @@
 
 export const RELEASES = [
   {
+    version: '2.8', name: 'Vantage', date: '2026-10-21', accent: '#8fd0ff', glyph: '✦', artPending: true, // chained with the next updates: the title artwork comes with the last of them
+    summary: 'The Director is a star map now: every destination hangs in view, click one to fly to it and pick a mission. The Tower finally has a sky, and enemies no longer stop at an invisible edge.',
+    notes: [
+      'Director: a Destiny 1 style star map. Every destination is in view around the sun, locked ones are black silhouettes. Click a planet to fly to it, pick a mission, Launch. Esc or Star map goes back',
+      'The Tower is a node beside Earth on the map: click it and Land',
+      'The Tower: a sky with clouds, mountains on the horizon, the Wall, and the Last City spread out far below the cliff. Floor flicker is fixed, and the ground no longer pokes through the paving',
+      'Zavala is Awoken: blue skin, with his armor unchanged',
+      'Enemies chase you wherever the map lets them. The invisible leash is gone. Boss and arena rooms still hold their enemies inside',
+      'Dev console: /gamerule DestinationUnlock opens every destination and mission for the session. Never saved',
+      'No save changes',
+    ],
+  },
+  {
     version: '2.7', name: 'The Last City', date: '2026-10-21', accent: '#ffd88a', glyph: '◇',
     art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="tlBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b3a63"/><stop offset="0.55" stop-color="#6aa6d8"/><stop offset="1" stop-color="#f0d9a8"/></linearGradient><radialGradient id="tlTrav" cx="0.4" cy="0.35" r="0.8"><stop offset="0" stop-color="#fffbe8"/><stop offset="0.6" stop-color="#e9ddb4"/><stop offset="1" stop-color="#b7a574"/></radialGradient><radialGradient id="tlGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff6d0" stop-opacity="0.7"/><stop offset="1" stop-color="#fff6d0" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#tlBg)"/><circle cx="214" cy="62" r="78" fill="url(#tlGlow)"/><circle cx="214" cy="62" r="46" fill="url(#tlTrav)"/><path d="M190 52 L204 64 L198 80 M226 38 L218 56 L234 70 M214 18 L212 40" stroke="#8a7646" stroke-width="1.6" fill="none"/><path d="M0 180 L0 128 L22 128 L22 96 L30 84 L38 96 L38 124 L64 124 L64 108 L96 108 L96 70 L104 52 L112 70 L112 112 L138 112 L138 134 L170 134 L170 100 L178 82 L186 100 L186 138 L210 138 L210 118 L246 118 L246 90 L256 66 L266 90 L266 124 L296 124 L296 104 L320 104 L320 180 Z" fill="#26364f"/><path d="M0 180 L0 150 L48 150 L48 140 L120 140 L120 152 L200 152 L200 144 L280 144 L280 156 L320 156 L320 180 Z" fill="#162033"/><rect x="100" y="96" width="8" height="10" fill="#ffd88a" opacity="0.85"/><rect x="250" y="106" width="6" height="8" fill="#ffd88a" opacity="0.85"/><rect x="174" y="118" width="6" height="8" fill="#ffd88a" opacity="0.7"/></svg>',
     summary: 'The Tower is back. A walkable hub between the battles, reached from Orbit: the Vanguard debriefs you between acts, your Quests tab tracks the campaign, and the Postmaster, the Exotic Kiosk and a shooting range wait inside.',

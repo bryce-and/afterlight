@@ -93,12 +93,14 @@ export function buildLevel(loc, def) {
   const heightAt = (x, z) => {
     const n = Math.sin(x * 0.11 + s1) * Math.cos(z * 0.09 - s1) + 0.6 * Math.sin((x + z) * 0.23 + s1 * 2) + 0.3 * Math.cos(x * 0.41 - z * 0.37);
     const out = Math.max(0, bounds.minX - x, x - bounds.maxX, bounds.minZ - z, z - bounds.maxZ);
-    if (out <= 0) return n * 0.12;
+    if (out <= 0) return loc.vista ? -0.08 : n * 0.12; // the Tower's paving sits above flat ground (no terrain bumps poking through, no z-fighting)
+    if (loc.vista) return n * 0.12 - 1.2 - Math.min(out * out * 0.04, 139); // the Tower stands on a cliff above the Last City
     if (loc.sea) return n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // the play area is a deck above the sea
     return n * 0.12 + Math.min(out, 90) * 0.7 * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
   };
   scene.add(buildGround(bounds, C, heightAt, rng));
-  if (loc.sea) {
+  if (loc.vista) loc.vista(scene, C);
+  else if (loc.sea) {
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 }));
     sea.position.set(0, -0.7, (bounds.minZ + bounds.maxZ) / 2);
     scene.add(sea);
@@ -325,6 +327,7 @@ export function buildLevel(loc, def) {
 
   const lamps = [], doors = [];
   set.build(makeKit());
+  if (loc.vista) separateCoplanar(scene);
 
   // ---- kit handed to hand-built mission maps (js/level-*.js) ----
   function makeKit() {
@@ -508,6 +511,22 @@ export function buildLevel(loc, def) {
   return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights, openDoors, updateDoors };
 }
 
+/**
+ * Coplanar faces of different colours (trim against walls, slab edges) flicker at distance. Each material gets its own
+ * small depth offset from its colour, so any two such faces always resolve the same way instead of fighting.
+ */
+function separateCoplanar(scene) {
+  const seen = new Set();
+  scene.traverse((o) => {
+    const m = o.isMesh && !o.isInstancedMesh && o.material;
+    if (!m || seen.has(m) || !m.color || m.transparent || m.fog === false) return;
+    seen.add(m);
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = 1;
+    m.polygonOffsetUnits = 1 + (m.color.getHex() % 7);
+  });
+}
+
 function buildGround(bounds, C, heightAt, rng) {
   const pad = 130;
   const minX = bounds.minX - pad, maxX = bounds.maxX + pad, minZ = bounds.minZ - pad, maxZ = bounds.maxZ + pad;
@@ -542,7 +561,7 @@ function planetNoise(v) {
     + 0.25 * Math.sin(v.x * 13 + v.y * 11 - v.z * 9);
 }
 
-function buildPlanet(loc) {
+function buildPlanet(loc, locked = false) {
   const geo = new THREE.IcosahedronGeometry(3.2, 4);
   const pos = geo.attributes.position;
   const v = new THREE.Vector3();
@@ -564,11 +583,121 @@ function buildPlanet(loc) {
     for (let k = 0; k < 3; k++) { colors[(i + k) * 3] = c.r; colors[(i + k) * 3 + 1] = c.g; colors[(i + k) * 3 + 2] = c.b; }
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const planet = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
-  const atmo = new THREE.Mesh(new THREE.IcosahedronGeometry(3.55, 3), new THREE.MeshBasicMaterial({ color: loc.atmo, transparent: true, opacity: 0.12, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const planet = new THREE.Mesh(geo, locked ? new THREE.MeshBasicMaterial({ color: 0x080b12 }) : new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
+  const atmo = new THREE.Mesh(new THREE.IcosahedronGeometry(3.55, 3), new THREE.MeshBasicMaterial({ color: locked ? 0x6c7a96 : loc.atmo, transparent: true, opacity: 0.12, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false }));
   const g = new THREE.Group();
   g.add(planet, atmo);
   return g;
+}
+
+
+// ---------------------------------------------------------------------------
+// U16b Director star map: every destination in view around the sun (Destiny 1 style). Unlocked planets are
+// lit and spinning, locked ones are black silhouettes. `focus(id)` flies the camera to one planet; `onFrame`
+// hands the screen position and size of every node to the UI so it can place its click targets.
+// ---------------------------------------------------------------------------
+export const DIRECTOR_POS = { earth: [-8.2, -1.2], moon: [-5.6, 2.4], mars: [-3.2, -2.2], io: [-0.4, 1.6], titan: [2.2, -1.8], tangled: [4.6, 2.0], dc: [7.0, -1.4], leviathan: [9.2, 2.2], tower: [-6.6, -3.3] };
+const MAP_X = 0.9, MAP_SCALE = 0.4, FOCUS_SCALE = 0.62, SUN = new THREE.Vector3(-16, 0, -3);
+
+function buildTowerNode(locked) {
+  const g = new THREE.Group();
+  const stone = new THREE.MeshStandardMaterial({ color: locked ? 0x080b12 : 0xece5d3, flatShading: true, roughness: 0.8 });
+  const roof = new THREE.MeshStandardMaterial({ color: locked ? 0x080b12 : 0x7f98ae, flatShading: true, roughness: 0.8 });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 0.9, 7), stone);
+  g.add(base);
+  for (const [x, z, h] of [[0, 0, 4.4], [-1.1, 0.5, 3], [1.1, 0.4, 3.4], [0.2, -1.0, 2.6]]) {
+    const t = new THREE.Mesh(new THREE.BoxGeometry(0.8, h, 0.8), stone);
+    t.position.set(x, 0.45 + h / 2, z);
+    const c = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.1, 4), roof);
+    c.position.set(x, 0.45 + h + 0.55, z); c.rotation.y = Math.PI / 4;
+    g.add(t, c);
+  }
+  g.userData.radius = 2.6;
+  return g;
+}
+
+function createDirector(scene, camera) {
+  const root = new THREE.Group();
+  root.visible = false;
+  scene.add(root);
+  const sunMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(3.4, 2), new THREE.MeshBasicMaterial({ color: 0xffd98a }));
+  const sunGlow = new THREE.Mesh(new THREE.IcosahedronGeometry(5.4, 2), new THREE.MeshBasicMaterial({ color: 0xffb94a, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+  sunMesh.position.copy(SUN); sunGlow.position.copy(SUN);
+  root.add(sunMesh, sunGlow);
+  const sunLight = new THREE.PointLight(0xfff0d0, 90, 0, 1.4);
+  sunLight.position.copy(SUN).add(new THREE.Vector3(3, 1, 4));
+  root.add(sunLight);
+
+  const nodes = new Map(); // id -> { group, body, basePos, scale, target, locked, radius }
+  let key = '', focusId = null, cb = null;
+  let focusT = 0; // 0 = whole map, 1 = flown to the focused node
+  let camX = 0, camY = 0.3, camZ = 18;
+
+  function clear() {
+    for (const n of nodes.values()) root.remove(n.group);
+    nodes.clear();
+    for (const o of [...root.children]) if (o.userData.ring) root.remove(o);
+  }
+
+  const api = {
+    root,
+    /** entries: [{ id, loc, locked }]. Rebuilt only when the set or lock state changes. */
+    setup(entries) {
+      const k = entries.map((e) => e.id + (e.locked ? 'L' : 'U')).join(',');
+      if (k === key) return;
+      key = k;
+      clear();
+      for (const e of entries) {
+        const p = DIRECTOR_POS[e.id] || [0, 0];
+        const pos = new THREE.Vector3(p[0] * MAP_X, p[1], 0);
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        const body = e.id === 'tower' ? buildTowerNode(e.locked) : buildPlanet(e.loc, e.locked);
+        const radius = e.id === 'tower' ? 2.6 : 3.2;
+        body.scale.setScalar(e.id === 'tower' ? 0.16 : MAP_SCALE);
+        if (e.id === 'tower') body.rotation.x = 0.35;
+        group.add(body);
+        root.add(group);
+        nodes.set(e.id, { group, body, pos, locked: e.locked, radius, mapScale: e.id === 'tower' ? 0.16 : MAP_SCALE, focusScale: e.id === 'tower' ? 0.55 : FOCUS_SCALE, scale: e.id === 'tower' ? 0.16 : MAP_SCALE });
+        if (e.id !== 'tower') { // orbit ring around the sun through the planet
+          const a = pos.x - SUN.x, b = a * 0.3, pts = [];
+          for (let i = 0; i <= 96; i++) { const t = (i / 96) * Math.PI * 2; pts.push(new THREE.Vector3(SUN.x + Math.cos(t) * a, Math.sin(t) * b * 0.9 + 0, -0.5)); }
+          const ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x8fa6c8, transparent: true, opacity: e.locked ? 0.07 : 0.16 }));
+          ring.userData.ring = true;
+          root.add(ring);
+        }
+      }
+    },
+    focus(id) { focusId = id && nodes.has(id) ? id : null; },
+    onFrame(fn) { cb = fn; },
+    update(dt) {
+      const aspect = camera.aspect, tan = Math.tan((camera.fov * Math.PI) / 360);
+      const k = 1 - Math.exp(-dt * 4.5);
+      const f = focusId ? nodes.get(focusId) : null;
+      focusT += ((f ? 1 : 0) - focusT) * k;
+      const mapZ = 18 * Math.max(1, 1.78 / aspect), fz = 12 * Math.max(1, 1.5 / aspect);
+      const tz = f ? fz : mapZ;
+      const offX = f ? tan * fz * aspect * 0.42 : 0; // the planet sits left of centre, the panel on the right
+      const tx = f ? f.pos.x + offX : 0, ty = f ? f.pos.y * 0.6 : 0.3;
+      camX += (tx - camX) * k; camY += (ty - camY) * k; camZ += (tz - camZ) * k;
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(camX, camY, 0);
+      const list = [];
+      for (const [id, n] of nodes) {
+        const want = id === focusId ? n.focusScale : n.mapScale;
+        n.scale += (want - n.scale) * k;
+        n.body.scale.setScalar(n.scale);
+        if (!n.locked || id === 'tower') n.body.rotation.y += dt * (id === 'tower' ? 0.15 : 0.12);
+        else n.body.rotation.y += dt * 0.03;
+        const v = n.pos.clone().project(camera);
+        const rpx = ((n.radius * n.scale) / (tan * (camZ - n.pos.z))) * (innerHeight / 2);
+        list.push({ id, x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight, r: rpx, focused: id === focusId });
+      }
+      sunMesh.rotation.y += dt * 0.05;
+      cb?.(list);
+    },
+  };
+  return api;
 }
 
 export function createMenuScene() {
@@ -610,9 +739,10 @@ export function createMenuScene() {
   holder.rotation.z = 0.25;
   scene.add(holder);
   let planet = null, currentId = null;
+  const director = createDirector(scene, camera);
 
   return {
-    scene, camera,
+    scene, camera, director,
     setLocation(loc) {
       if (currentId === loc.id) return;
       currentId = loc.id;
@@ -624,6 +754,7 @@ export function createMenuScene() {
     setMode(m, classId, elementId, look) {
       mode = m;
       holder.visible = m === 'planet';
+      director.root.visible = m === 'director';
       charHolder.visible = m === 'character';
       if (m === 'character') {
         const key = classId + elementId + JSON.stringify(look || null);
@@ -637,7 +768,7 @@ export function createMenuScene() {
         const dist = 5.4 * Math.max(1, 0.95 / camera.aspect);
         camera.position.set(0, 1.25, dist);
         camera.lookAt(0, 1.08, 0);
-      } else {
+      } else if (m !== 'director') {
         camera.position.set(0, 0.6, 18);
         camera.lookAt(0, 0, 0);
       }
@@ -646,6 +777,7 @@ export function createMenuScene() {
     update(dt) {
       if (character && mode === 'character') { character.update(dt); character.group.rotation.y = charYaw; }
       if (planet) planet.rotation.y += dt * 0.08;
+      if (mode === 'director') director.update(dt);
       stars.rotation.y += dt * 0.004;
     },
     resize() { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); },

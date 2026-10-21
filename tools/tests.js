@@ -1586,21 +1586,23 @@ test('U13a: nearestWalkable snaps a blocked point to open ground', () => {
   const q = nearestWalkable(nav, 0, 0, 4);
   ok(q && heightAt(nav, q.x, q.z) >= 0 && Math.abs(q.x) >= 1, 'moved off the wall');
 });
-test('U13a: zone leash holds units to the zone plus margin, and a room wins over the radius', () => {
+test('U16b: DestinationUnlock opens every mission and is session-only', () => {
+  const sv = S.createSave ? S.createSave() : null;
+  S.UNLOCK.all = false;
+  ok(!S.isUnlocked(sv, 3, 0), 'locked on a new save');
+  S.UNLOCK.all = true;
+  ok(S.isUnlocked(sv, 3, 0) && S.isUnlocked(sv, 8, 0), 'unlocked with the rule on');
+  S.UNLOCK.all = false;
+});
+test('U16b: open zones have no leash; a closed room still contains its units', () => {
   const zone = { center: { x: 0, z: 0 }, isBoss: false };
-  eq(AI.leashTarget(zone, 10, 0), { x: 10, z: 0, held: false }, 'in reach');
-  const far = AI.leashTarget(zone, 100, 0);
-  ok(far.held && Math.abs(far.x - (AI.LEASH.radius - 1)) < 1e-6, 'held at the edge');
-  ok(AI.leashRadius({ ...zone, isBoss: true }) > AI.leashRadius(zone), 'boss zones have more room');
-  ok(AI.leashRadius({ ...zone, leash: 20 }) === 20, 'a zone can set its own radius');
-  ok(!AI.pastLeash(zone, 30, 0) && AI.pastLeash(zone, 40, 0), 'past the leash only beyond radius plus slack');
+  eq(AI.leashTarget(zone, 500, 0), { x: 500, z: 0, held: false }, 'chases anywhere');
+  ok(!AI.pastLeash(zone, 900, 900), 'never past the leash without a room');
+  eq(AI.insideLeash(zone, 70, 3), { x: 70, z: 3 }, 'not clamped');
   const room = { center: { x: 0, z: 0 }, room: { minX: -10, maxX: 10, minZ: -10, maxZ: 10 } };
   eq(AI.insideLeash(room, 50, 3), { x: 9, z: 3 }, 'clamped into the room');
-  ok(AI.pastLeash(room, 12.5, 0) && !AI.pastLeash(room, 11, 0), 'room edges use the same slack');
-});
-test('U13a: activation range is inside the leash with a real margin (units do not chase across the map)', () => {
-  ok(AI.LEASH.radius >= 24 + 8 && AI.LEASH.bossRadius >= 28 + 8, 'at least 8 m beyond the activation distance');
-  ok(AI.LEASH.bossRadius <= 60, 'but not map-wide');
+  ok(AI.pastLeash(room, 12.5, 0) && !AI.pastLeash(room, 11, 0), 'room edges use the slack');
+  ok(AI.leashTarget(room, 50, 0).held, 'target outside the room is held at its edge');
 });
 test('U13a: cover is for small units only when not outnumbered and no heavy is near; flushing stops it', () => {
   ok(AI.coverAllowed({ usesCover: true, aggro: 1 }), 'baseline');

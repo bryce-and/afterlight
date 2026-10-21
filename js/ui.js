@@ -24,6 +24,7 @@ import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setRead
 import { profile, launchFireteam, launchActivity } from './coop.js';
 import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
 import { startTower } from './tower.js';
+import { TOWER_LOC } from './level-tower.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -252,36 +253,52 @@ function renderOrbit() {
   else renderCharScreen(main);
 }
 
+// U16b: the Director is a Destiny 1 style star map. Every destination hangs in view; locked ones are silhouettes.
+// Click one to fly to it and see its missions, then Launch. The Tower is a node beside Earth.
+let dirFocus = null; // null = the whole map, otherwise a LOCATIONS index or 'tower'
+const dirId = (f) => (f === 'tower' ? 'tower' : LOCATIONS[f]?.id);
+
+function lockedHint(s, li) {
+  return li === 0 ? 'Locked' : esc(towerLockReason(s, li) || CHAPTERS[LOCATIONS[li].id]?.locked || 'Clear the previous destination to unlock.');
+}
+
 function renderDirector(main) {
   const s = G.save;
-  const loc = LOCATIONS[selLoc];
-  G.menu.setMode('planet');
-  G.menu.setLocation(loc);
-  G.menu.setOffset(4.4);
-  const missions = loc.missions;
-  if (selMission === null || !isUnlocked(s, selLoc, selMission)) {
-    selMission = missions.findIndex((m, mi) => isUnlocked(s, selLoc, mi) && !s.cleared[m.id]);
-    if (selMission < 0) selMission = missions.reduce((acc, m, mi) => (isUnlocked(s, selLoc, mi) ? mi : acc), -1);
-  }
-  const pp = playerPower(s);
-  const m = missions[selMission];
-  const diff = m ? pp - m.power : 0;
-  // the leader's pick (set before drawing, so the Ready Up bar shows it)
-  if (net.isHost && m && (net.sel?.li !== selLoc || net.sel?.mi !== selMission)) setSelection(selLoc, selMission);
-  main.innerHTML = `
-    <div class="director">
-      <aside class="loc-list">
-        <div class="eyebrow">Destinations</div>
-        ${LOCATIONS.map((l, i) => {
-          const un = isUnlocked(s, i, 0);
-          const done = l.missions.filter((mm) => s.cleared[mm.id]).length;
-          return `<button class="loc ${i === selLoc ? 'sel' : ''} ${un ? '' : 'locked'}" data-loc="${i}" ${un ? '' : 'disabled'}>
-            <div class="loc-planet">${l.planetName}</div><div class="loc-name">${l.name}</div>
-            <div class="loc-prog">${un ? `${done}/${l.missions.length} cleared` : 'Locked'}</div></button>`;
-        }).join('')}
-        ${fireteamHTML()}
-      </aside>
-      <section class="loc-detail">
+  G.menu.setMode('director');
+  G.menu.director.setup([...LOCATIONS.map((l, i) => ({ id: l.id, loc: l, locked: !isUnlocked(s, i, 0) })), { id: 'tower', loc: TOWER_LOC, locked: false }]);
+  if (dirFocus !== null && dirFocus !== 'tower' && !isUnlocked(s, dirFocus, 0)) dirFocus = null;
+  G.menu.director.focus(dirFocus === null ? null : dirId(dirFocus));
+  const nodeHTML = [...LOCATIONS.map((l, i) => {
+    const un = isUnlocked(s, i, 0), done = l.missions.filter((mm) => s.cleared[mm.id]).length;
+    return `<button class="dir-node ${un ? '' : 'locked'} ${dirFocus === i ? 'sel' : ''}" data-node="${i}" data-id="${l.id}" ${un ? '' : 'disabled'} title="${un ? '' : lockedHint(s, i)}">
+      <span class="dn-label"><b>${un ? l.planetName : 'Locked'}</b><small>${un ? `${l.name}  ·  ${done}/${l.missions.length}` : lockedHint(s, i)}</small></span></button>`;
+  }), `<button class="dir-node tower ${dirFocus === 'tower' ? 'sel' : ''}" data-node="tower" data-id="tower"><span class="dn-label"><b>The Tower</b><small>The Last City${dueStop(s) ? '  ·  Quest waiting' : ''}</small></span></button>`].join('');
+  let panel = '';
+  if (dirFocus === 'tower') {
+    const due = dueStop(s);
+    panel = `<section class="dir-panel">
+      <button class="btn ghost dir-back" id="dir-back">◀ Star map</button>
+      <div class="eyebrow">Earth  ·  The Last City</div>
+      <h1 class="screen-title">The Tower</h1>
+      <p class="desc">${esc(TOWER_LOC.desc)}</p>
+      ${due ? `<div class="tower-due"><b>Quest:</b> ${esc(due.text)}.</div>` : ''}
+      <div class="launch-row"><div class="power-cmp">Safe ground</div>
+        <button id="launch" class="btn primary" ${net.active ? 'disabled title="Leave your fireteam to visit the Tower"' : ''}>Land</button></div>
+    </section>`;
+  } else if (dirFocus !== null) {
+    selLoc = dirFocus;
+    const loc = LOCATIONS[selLoc];
+    const missions = loc.missions;
+    if (selMission === null || !isUnlocked(s, selLoc, selMission)) {
+      selMission = missions.findIndex((m, mi) => isUnlocked(s, selLoc, mi) && !s.cleared[m.id]);
+      if (selMission < 0) selMission = missions.reduce((acc, m, mi) => (isUnlocked(s, selLoc, mi) ? mi : acc), -1);
+    }
+    const pp = playerPower(s);
+    const m = missions[selMission];
+    const diff = m ? pp - m.power : 0;
+    if (net.isHost && m && (net.sel?.li !== selLoc || net.sel?.mi !== selMission)) setSelection(selLoc, selMission);
+    panel = `<section class="dir-panel">
+        <button class="btn ghost dir-back" id="dir-back">◀ Star map</button>
         <div class="eyebrow">${CHAPTERS[loc.id]?.title || loc.planetName}  ·  ${loc.planetName}  ·  ${loc.faction}</div>
         <h1 class="screen-title">${loc.name}</h1>
         <p class="desc">${loc.desc}</p>
@@ -302,18 +319,45 @@ function renderDirector(main) {
           <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
           ${net.active ? readyBarHTML() : `<button id="launch" class="btn primary" ${m ? '' : 'disabled'}>Launch</button>`}
         </div>
-      </section>
+      </section>`;
+  }
+  main.innerHTML = `
+    <div class="dir-map ${dirFocus === null ? 'overview' : 'focused'}">
+      ${dirFocus === null ? '<div class="dir-title"><div class="eyebrow">Director</div><h1 class="screen-title">Choose a destination</h1></div>' : ''}
+      ${nodeHTML}
+      ${panel}
+      <aside class="dir-ft">${fireteamHTML()}</aside>
     </div>`;
-  $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); selLoc = +b.dataset.loc; selMission = null; renderOrbit(); }));
+  const nodes = $$('.dir-node', main);
+  G.menu.director.onFrame((list) => {
+    for (const n of list) {
+      const el = nodes.find((x) => x.dataset.id === n.id);
+      if (!el) continue;
+      const d = Math.max(28, n.r * 2);
+      el.style.cssText = `left:${n.x - d / 2}px;top:${n.y - d / 2 - 0}px;width:${d}px;height:${d}px`;
+      el.classList.toggle('far', n.x < -d || n.x > innerWidth + d);
+    }
+  });
+  nodes.forEach((b) => b.addEventListener('click', () => {
+    sfx.ui();
+    dirFocus = b.dataset.node === 'tower' ? 'tower' : +b.dataset.node;
+    if (dirFocus !== 'tower') { selLoc = dirFocus; selMission = null; }
+    renderOrbit();
+  }));
+  $('#dir-back', main)?.addEventListener('click', () => { sfx.ui(); dirFocus = null; renderOrbit(); });
   $$('.mission', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); selMission = +b.dataset.m; renderOrbit(); }));
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
     lockPointer();
-    startMission(selLoc, selMission);
+    if (dirFocus === 'tower') startTower(); else startMission(selLoc, selMission);
   });
   $('#due-tower', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
   wireFireteam(main);
 }
+
+addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && G.state === 'orbit' && orbitTab === 'director' && dirFocus !== null && !lootScreenOpen?.()) { dirFocus = null; renderOrbit(); }
+});
 
 // U16: the Quests tab. Quests are per Guardian; the campaign cannot be abandoned (other quests can, and are picked up again at the Quest Kiosk in the Tower).
 let selQuest = 'campaign';

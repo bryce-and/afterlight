@@ -1,11 +1,10 @@
 // Dev overlay for enemy navigation (U13a): /gamerule NavDebug true.
 // Red points = blocked cells, yellow = ledge cells, blue = open ground near the Guardian;
-// cyan lines = each enemy's current path, green ring = the active zone's leash.
+// cyan lines = each enemy's current path, green rectangle = the active zone's closed room.
 import * as THREE from 'three';
 import { G } from './state.js';
 import { DEV } from './devcommands.js';
 import { NAV, cellIndex } from './nav.js';
-import { leashRadius } from './ai.js';
 
 let group = null, t = 0;
 
@@ -51,13 +50,9 @@ export function updateNavDebug(dt) {
     group.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x40ffff, depthTest: false })));
   }
   const z = G.mission?.zones?.[G.mission.current];
-  if (z?.center) {
-    const ring = [];
-    const r = leashRadius(z);
-    for (let a = 0; a < 48; a++) {
-      const a0 = (a / 48) * Math.PI * 2, a1 = ((a + 1) / 48) * Math.PI * 2;
-      ring.push(z.center.x + Math.sin(a0) * r, 0.2, z.center.z + Math.cos(a0) * r, z.center.x + Math.sin(a1) * r, 0.2, z.center.z + Math.cos(a1) * r);
-    }
+  if (z?.room) {
+    const q = z.room, y = 0.2;
+    const ring = [q.minX, y, q.minZ, q.maxX, y, q.minZ, q.maxX, y, q.minZ, q.maxX, y, q.maxZ, q.maxX, y, q.maxZ, q.minX, y, q.maxZ, q.minX, y, q.maxZ, q.minX, y, q.minZ];
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(ring, 3));
     group.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x40ff60, depthTest: false })));
