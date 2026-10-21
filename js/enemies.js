@@ -3,15 +3,16 @@ import { G } from './state.js';
 import { ENEMY_TYPES, ELEMENTS } from './data.js';
 import { STAGGER } from './combat.js';
 import { mat } from './world.js';
-import { rand, clamp } from './util.js';
+import { rand, clamp, pick } from './util.js';
 import { hasLOS, pushOutCircle, pointInColliders } from './physics.js';
-import { NAV, heightAt, cellIndex, lineClear, findPath, floodReach, ledgeSpots } from './nav.js';
+import { NAV, heightAt, cellIndex, lineClear, findPath, floodReach, ledgeSpots, nearestWalkable } from './nav.js';
 import { leashTarget, pastLeash, insideLeash, COVER, coverAllowed, CLOSE_MELEE, closeMeleeReach, SUICIDE, blastDamage } from './ai.js';
 import { sparks, ringFx, basicMat, explosionFx, flashLight } from './effects.js';
 import { sfx } from './audio.js';
-import { damagePlayer, spawnBossAdds, killEnemy } from './game.js';
+import { damagePlayer, spawnBossAdds, killEnemy, dealDamage } from './game.js';
 import * as ui from './ui.js';
-import { pickTarget, allPlayers, damageRemote, announceShot, remoteBarrierBlocks, sendFx } from './coop.js';
+import { pickTarget, allPlayers, damageRemote, announceShot, announceGrenade, remoteBarrierBlocks, sendFx } from './coop.js';
+import { TIERS, FACTION_PROFILES, SHIELD, shieldFor, GRENADE, grenadeThrower, lobVelocity, JET, ENRAGE, isEnraged, SUICIDE_BLAST, suicideCore, BOSS_PHASE, bossPhaseTime, shieldBurstDamage } from './tiers.js';
 import { BOSS_MODELS } from './bosses.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
@@ -56,7 +57,7 @@ function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, flames: c.flames };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -294,6 +295,12 @@ function cabal(c, t) {
     for (const s of [-1, 1]) {
       add(new THREE.CylinderGeometry(0.09, 0.11, 0.42, 8), metal, s * 0.16, 0.5, -0.3, torso);
       add(new THREE.CylinderGeometry(0.07, 0.07, 0.04, 8), accent, s * 0.16, 0.27, -0.3, torso);
+      if (t === 'captain') {
+        // thruster flame under each pack; hidden until the Centurion lifts off (U13b)
+        const fl = add(new THREE.ConeGeometry(0.09, 0.55, 6).rotateX(Math.PI), mat(0xffa030, { emissive: 0xff7a1a, emissiveIntensity: 2.4 }), s * 0.16, 0.0, -0.3, torso);
+        fl.visible = false;
+        (c.flames ||= []).push(fl);
+      }
     }
   }
   const arms = [arm(c, torso, -0.44 * W, 0.62, 0.55, 0.15, under, -1.1, 0.12), arm(c, torso, 0.44 * W, 0.62, 0.55, 0.15, under, -1.1, -0.12)];
@@ -362,14 +369,21 @@ export class Enemy {
     this.name = o.name || M.loc.enemyNames[typeId];
     this.pos = pos.clone(); this.pos.y = 0;
     const faction = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion' }[M.loc.id];
+    // U13b: minor or major (bosses have neither); a major shares its minor's abilities with more health and size
+    this.tier = typeId === 'boss' ? null : (o.tier || 'minor');
+    const T = TIERS[this.tier] || { hp: 1, dmg: 1, size: 1 };
+    this.prof = FACTION_PROFILES[faction];
     // H3: Hive Thralls are a little bigger than other rushers
-    this.scale = def.scale * (faction === 'hollow' && typeId === 'rusher' ? THRALL_SCALE : 1);
+    this.scale = def.scale * T.size * (faction === 'hollow' && typeId === 'rusher' ? THRALL_SCALE : 1);
     this.radius = 0.45 * this.scale;
     this.height = 2.05 * this.scale;
-    this.maxHp = def.hp * o.hpMult; this.hp = this.maxHp;
-    this.maxShield = def.shield ? def.shield * o.hpMult : 0; this.shield = this.maxShield;
-    this.shieldEl = o.element || 'arc';
-    this.dmgMult = o.dmgMult;
+    this.maxHp = def.hp * o.hpMult * T.hp; this.hp = this.maxHp;
+    // shields are elemental and belong to certain units per faction (tiers.js SHIELD): Captains everywhere, Colossi for the Cabal
+    const shieldEls = shieldFor(faction, typeId);
+    const shieldBase = def.shield || (typeId === 'heavy' && shieldEls ? SHIELD[faction].heavyHp : 0);
+    this.maxShield = shieldBase ? shieldBase * o.hpMult * T.hp : 0; this.shield = this.maxShield;
+    this.shieldEl = o.element || (shieldEls ? pick(shieldEls) : 'arc');
+    this.dmgMult = o.dmgMult * T.dmg;
     this.zone = o.zone;
     this.alive = true; this.dieT = 0; this.spawnT = 0;
     this.status = new StatusSet(ENEMY_STATUS); // debuffs: weaken, slow, suppress, burn, poison, jolt
@@ -384,7 +398,7 @@ export class Enemy {
     this.specialT = rand(4, 6);
     this.thresholds = this.isBoss ? [0.66, 0.33] : [];
     // shooters hide behind cover between bursts
-    this.usesCover = typeId === 'grunt' || typeId === 'captain';
+    this.usesCover = (typeId === 'grunt' || typeId === 'captain') && Math.random() < this.prof.coverMul; // Hive seldom hide
     this.ai = { state: 'advance', t: rand(0.2, 1.2), cover: null, peek: null, exposeT: 0, noCoverT: 0, cycles: 0 };
     // U13a: navigation, close-range melee, suicide fuse
     this.path = null; this.pathIdx = 0; this.pathT = 0; this.pathGoal = { x: 0, z: 0 }; this.stuckT = 0; this.stuck = false; this.lastX = pos.x; this.lastZ = pos.z; this.chkT = 0.5;
@@ -392,6 +406,12 @@ export class Enemy {
     this.cmCd = rand(0.4, 1.2); this.cmWind = 0; this.cmSwing = 0; this.cmHit = false;
     this.fuse = -1; this.detonated = false; this.hop = null; this.stuckN = 0;
     this.faction = faction;
+    // U13b: grenades, Cabal jetpacks, Ogre enrage, suicide escort, boss push and hold
+    this.grenT = grenadeThrower(faction, typeId) ? rand(4, 9) : Infinity; this.throwT = 0;
+    this.jet = this.prof.jet && JET.who.includes(typeId) ? { s: 'ground', t: 0, cd: rand(4, 9), y: 0, y0: 0, sq: 0 } : null;
+    this.enraged = false; this.rushing = false;
+    this.escort = false; this.escortT = SUICIDE_BLAST.escortHold; this.allyT = 0;
+    this.bossPhase = 'hold'; this.bossPhaseT = this.isBoss ? bossPhaseTime('hold', 0) : 0;
     this.model = buildModel(this, M.loc.colors, faction);
     this.height = this.model.height * this.scale;
     this.hitMeshes = this.model.hit;
@@ -414,11 +434,24 @@ export class Enemy {
     if (torso?.userData.rx !== undefined) torso.rotation.x = torso.userData.rx;
   }
 
-  breakShield(matched) {
+  /** `burst`: broken by its own element, so it explodes and hurts neighbours (Destiny 2). Only the leader applies the damage. */
+  breakShield(matched, burst = false) {
     if (this.model.shield) this.model.shield.visible = false;
     sfx.shieldBreak(this.pos);
     const c = this.center(_v);
     sparks(c, ELEMENTS[this.shieldEl].hex, 16, 7, 0.1, 0.5);
+    if (!burst) return;
+    const hex = ELEMENTS[this.shieldEl].hex, at = c.clone();
+    explosionFx(at, 2.5, hex);
+    ringFx(this.pos, 5, hex, 0.5);
+    sfx.explosion(3, at);
+    if (this.remote) return;
+    for (const o of G.enemies.slice()) {
+      if (o === this || !o.alive || o.remote) continue;
+      const d = o.center(new THREE.Vector3()).distanceTo(at);
+      const dmg = shieldBurstDamage(this.maxShield, d);
+      if (dmg > 0) dealDamage(o, dmg, { raw: true, source: 'burst', pos: o.headPos(new THREE.Vector3()), jolted: true });
+    }
   }
 
   onDeath() {
@@ -458,10 +491,14 @@ export class Enemy {
     const dist = Math.hypot(dx, dz) || 0.001;
     const nx = dx / dist, nz = dz / dist;
     const def = this.def;
+    this.enrageStep();
+    this.escortStep(dt);
+    this.jetStep(dt, P, dist);
 
     this.flash = Math.max(0, this.flash - dt);
     const f = Math.min(1, this.flash * 8);
-    m.bodyMat.emissive.setRGB(f, f, f);
+    if (this.enraged) m.bodyMat.emissive.setRGB(Math.max(f, 0.4 + 0.15 * Math.sin(G.time * 11)), Math.max(f, 0.04), Math.max(f, 0.02));
+    else m.bodyMat.emissive.setRGB(f, f, f);
     if (m.shield) {
       m.shield.visible = this.shield > 0;
       if (m.shield.visible) { m.shield.material.opacity = 0.14 + 0.08 * Math.sin(G.time * 6 + this.seed); m.shield.rotation.y += dt; }
@@ -496,11 +533,27 @@ export class Enemy {
     const rooted = this.cmWind > 0 || this.cmSwing > 0;
     let mx = 0, mz = 0;
     if (!P.dead) {
-      if (def.melee || def.suicide) {
+      if (this.jet && this.jet.s !== 'ground') {
+        // airborne Centurion: the jet state machine owns height and leaps; while hovering it drifts and holds range
+        if (this.jet.s === 'hover') {
+          this.strafeT -= dt;
+          if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(1.5, 3); }
+          mx = -nz * this.strafe * 0.6; mz = nx * this.strafe * 0.6;
+          if (dist < def.prefer - 4) { mx -= nx * 0.6; mz -= nz * 0.6; } else if (dist > def.prefer + 6) { mx += nx * 0.7; mz += nz * 0.7; }
+        }
+      } else if (this.rushing) {
+        // enraged Ogre: rush the target and hit it
+        if (!rooted && dist > closeMeleeReach(this.typeId, this.radius) * 0.8) { const sd = this.steer(lt.x, lt.z, dt); mx = sd.x; mz = sd.z; }
+      } else if (def.melee || def.suicide) {
         if (this.windup > 0 || this.lunge > 0) { /* rooted while winding up; lunge moves below */ }
-        else if (dist > 1.5 || lt.held) {
+        else if (this.escort && dist < SUICIDE_BLAST.escortDist) {
+          // a Cursed Thrall with company keeps its distance and weaves until it is alone (or the escort timer ends)
+          mx = -nz * this.strafe * 0.7; mz = nx * this.strafe * 0.7;
+          this.strafeT -= dt;
+          if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(0.8, 1.6); }
+        } else if (dist > 1.5 || lt.held) {
           const sd = this.steer(lt.x, lt.z, dt);
-          const zig = Math.sin(G.time * 3 + this.seed) * (dist > 6 ? 0.6 : 0);
+          const zig = (this.escort || !(def.suicide && this.prof.rushAlone) ? Math.sin(G.time * 3 + this.seed) : 0) * (dist > 6 ? 0.6 : 0);
           mx = sd.x - sd.z * zig; mz = sd.z + sd.x * zig;
         }
       } else if (rooted) {
@@ -511,7 +564,8 @@ export class Enemy {
       } else {
         if (this.usesCover && this.ai.state !== 'advance') this.ai.state = 'advance'; // pushed out of cover (numbers, a heavy nearby, or flushed)
         // pushing: close in to ~60% of preferred range and keep shooting
-        const want = pushing ? def.prefer * 0.6 : def.prefer;
+        const bossPush = this.isBoss && this.bossPhase === 'push';
+        const want = bossPush ? 5 : this.isBoss ? def.prefer + 4 : pushing ? def.prefer * 0.6 : def.prefer;
         const reach = def.closeMelee ? closeMeleeReach(this.typeId, this.radius) : 0;
         this.updatePost(dt, P, dist, want);
         if (this.post) {
@@ -527,7 +581,7 @@ export class Enemy {
         } else if (dist < want - 6 && !(reach && dist < reach + 1.5 && this.cmCd <= 0)) { mx = -nx; mz = -nz; }
         this.strafeT -= dt;
         if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(2, 4); }
-        const sf = pushing ? 0.25 : 0.35;
+        const sf = (pushing ? 0.25 : 0.35) * this.prof.strafe;
         if (!this.post) { mx += -nz * this.strafe * sf; mz += nx * this.strafe * sf; }
         if (this.usesCover && coverOn) {
           this.ai.t -= dt;
@@ -545,7 +599,11 @@ export class Enemy {
     if (this.status.has('weaken') && Math.random() < 0.15) sparks(this.center(_v), 0x7a4ab0, 1, 1, 0.08, 0.4);
     if (this.status.has('jolt') && Math.random() < 0.2) sparks(this.center(_v), 0x5fd3ff, 1, 2, 0.05, 0.25);
     if (suppressed && this.usesCover && this.ai.state !== 'advance') this.flush(); // suppression drives a hidden unit out of cover
-    const speed = def.speed * (this.burstLeft > 0 && !this.isBoss ? 0.4 : 1) * (this.status.has('slow') ? SLOW_MULT : 1) * (this.fuse > 0 ? 0.5 : 1);
+    const modeMul = this.enraged ? ENRAGE.speed
+      : this.isBoss && this.bossPhase === 'push' ? BOSS_PHASE.pushSpeed
+      : def.suicide && this.prof.rushAlone ? (this.escort ? SUICIDE_BLAST.escortMul : SUICIDE_BLAST.rushMul)
+      : this.jet?.s === 'hover' ? 0.6 : 1;
+    const speed = def.speed * modeMul * (this.burstLeft > 0 && !this.isBoss && !this.rushing ? 0.4 : 1) * (this.status.has('slow') ? SLOW_MULT : 1) * (this.fuse > 0 ? 0.5 : 1);
     if (ml > 0) { mx /= ml; mz /= ml; }
     this.pos.x += (mx * speed + this.knock.x) * dt;
     this.pos.z += (mz * speed + this.knock.z) * dt;
@@ -571,6 +629,7 @@ export class Enemy {
       this.pos.y = h.y0 + (h.y1 - h.y0) * k + Math.sin(Math.PI * k) * 0.6;
       if (k >= 1) { this.pos.y = h.y1; this.hop = null; } else hopping = true;
     }
+    if (this.jet && this.jet.s !== 'ground') { this.pos.y = this.jet.y; hopping = true; } // jet flight owns height
     const nav = G.nav;
     if (nav && !hopping) {
       const hh = heightAt(nav, this.pos.x, this.pos.z);
@@ -579,7 +638,7 @@ export class Enemy {
         else this.pos.y = Math.max(hh, this.pos.y - 14 * dt);
       }
     }
-    if (!hopping) pushOutCircle(this.pos, this.radius, this.height);
+    if (!hopping || this.jet?.s === 'hover') pushOutCircle(this.pos, this.radius, this.height);
     const b = G.level.bounds;
     this.pos.x = clamp(this.pos.x, b.minX + 1, b.maxX - 1);
     this.pos.z = clamp(this.pos.z, b.minZ + 1, b.maxZ - 1);
@@ -608,6 +667,7 @@ export class Enemy {
     this.walk += dt * speed * (ml > 0 ? 2.2 : 0);
     const sw = Math.sin(this.walk) * (ml > 0 ? 0.6 : 0);
     m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
+    if (this.jet) this.jetPose(this.jet.s, dt);
 
     // ---- attacks ---- (suppressed enemies cannot attack)
     if (!P.dead && !suppressed && !staggered) {
@@ -646,13 +706,18 @@ export class Enemy {
           sfx.enemyShot(this.pos, this.faction);
         }
         if (this.windup <= 0 && this.lunge <= 0) m.arms.forEach((a) => (a.rotation.x += (-1.3 - a.rotation.x) * Math.min(1, dt * 6)));
+      } else if (this.rushing) {
+        this.burstLeft = 0;
+        this.closeMeleeStep(dt, dist, P); // an enraged Ogre only fights in melee
       } else {
         const swinging = def.closeMelee ? this.closeMeleeStep(dt, dist, P) : false;
         if (swinging) this.burstLeft = 0;
+        else this.grenadeStep(dt, dist, P);
         this.fireT -= dt;
-        const mayFire = !swinging && (!this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance');
+        const jetBusy = this.jet && this.jet.s !== 'ground' && this.jet.s !== 'hover';
+        const mayFire = !swinging && !jetBusy && this.throwT <= 0 && (!this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance');
         if (mayFire && this.fireT <= 0 && this.los && dist < def.range) {
-          this.burstLeft = def.burst; this.burstT = 0;
+          this.burstLeft = Math.max(1, Math.round(def.burst * this.prof.burstMul)); this.burstT = 0;
           this.fireT = rand(def.fireCd[0], def.fireCd[1]) + def.burst * def.burstGap;
         }
         if (this.burstLeft > 0) {
@@ -682,6 +747,154 @@ export class Enemy {
     // stagger: a quick backward jolt that settles
     m.group.rotation.x = staggered ? -0.28 * Math.sin(Math.PI * (1 - this.staggerT / this.staggerMax)) : 0;
     return true;
+  }
+
+
+  /** Hive Ogre below 30% health goes into a rage: it stops shooting, runs at its target and hits harder and faster. */
+  enrageStep() {
+    if (this.enraged || !isEnraged(this.hp, this.maxHp, this.faction, this.typeId)) return;
+    this.enraged = true; this.rushing = true;
+    this.ai.state = 'advance'; this.post = null; this.burstLeft = 0; this.cmCd = 0.3; this.throwT = 0;
+    ringFx(this.pos, 4 * this.scale, 0xff3a1a, 0.7);
+    sparks(this.center(_v), 0xff3a1a, 24, 8, 0.12, 0.6);
+    sfx.alert();
+  }
+
+  /** A Cursed Thrall with other Hive around it keeps pace and weaves; alone, or after the escort timer, it rushes. */
+  escortStep(dt) {
+    if (!this.def.suicide || !this.prof.rushAlone) return;
+    this.allyT -= dt;
+    if (this.allyT <= 0) {
+      this.allyT = 0.5;
+      let allies = 0;
+      for (const o of this.zone?.enemies || []) {
+        if (o === this || !o.alive || o.def.suicide) continue;
+        if (Math.hypot(o.pos.x - this.pos.x, o.pos.z - this.pos.z) < SUICIDE_BLAST.ally) allies++;
+      }
+      this.escort = allies > 0 && this.escortT > 0;
+    }
+    if (this.escort) this.escortT -= dt;
+  }
+
+  // ---- Cabal jetpacks (U13b) ----
+  // ground -> crouch -> rise -> hover (5 to 10 s, shooting) -> land -> ground, or a rocket leap across ground it cannot walk.
+  jetStep(dt, P, dist) {
+    const j = this.jet;
+    if (!j) return;
+    j.t -= dt;
+    const gy = () => { const h = G.nav ? heightAt(G.nav, this.pos.x, this.pos.z) : -1; return h >= 0 ? h : j.y0; };
+    if (j.s === 'ground') {
+      j.y = this.pos.y; j.cd -= dt;
+      if (j.cd > 0 || P.dead || this.staggerT > 0 || this.cmWind > 0 || this.cmSwing > 0 || this.hop || this.throwT > 0 || this.status.has('suppress')) return;
+      const blocked = this.stuck || (!this.los && dist > JET.leapMin + 3);
+      if (blocked && dist > JET.leapMin && this.startLeap(P, dist)) return;
+      if (this.los && dist > 10 && dist < this.def.range - 4 && Math.random() < JET.hoverChance) {
+        j.s = 'crouch'; j.t = JET.crouch; j.y0 = this.pos.y;
+        this.ai.state = 'advance'; this.post = null; this.burstLeft = 0;
+      } else j.cd = rand(2, 4);
+      return;
+    }
+    if (j.s === 'crouch') { if (j.t <= 0) { j.s = 'rise'; j.t = JET.rise; sfx.alert(); sparks(_v.copy(this.pos).setY(this.pos.y + 0.2), 0xffa030, 14, 6, 0.1, 0.5); } return; }
+    if (j.s === 'rise') {
+      const k = Math.min(1, 1 - j.t / JET.rise), e = 1 - (1 - k) * (1 - k);
+      j.y = j.y0 + JET.hoverH * e;
+      if (j.t <= 0) { j.s = 'hover'; j.t = rand(JET.hover[0], JET.hover[1]); }
+      return;
+    }
+    if (j.s === 'hover') {
+      j.y = j.y0 + JET.hoverH + 0.25 * Math.sin(G.time * 2.2 + this.seed);
+      if (j.t <= 0 || P.dead || this.status.has('suppress')) { j.s = 'land'; j.t = JET.land; j.yFrom = j.y; j.yTo = gy(); }
+      return;
+    }
+    if (j.s === 'land') {
+      const k = Math.min(1, 1 - j.t / JET.land);
+      j.y = j.yFrom + (j.yTo - j.yFrom) * k * k;
+      if (j.t <= 0) {
+        j.s = 'ground'; j.y = j.yTo; this.pos.y = j.yTo; j.cd = rand(JET.cd[0], JET.cd[1]); j.sq = 1;
+        ringFx(this.pos, 3, 0xffa030, 0.4); sparks(_v.copy(this.pos).setY(this.pos.y + 0.1), 0xffa030, 16, 6, 0.1, 0.5); sfx.explosion(2, this.pos);
+      }
+      return;
+    }
+    if (j.s === 'leap') {
+      const k = Math.min(1, 1 - j.t / JET.leapTime);
+      this.pos.x = j.x0 + (j.x1 - j.x0) * k; this.pos.z = j.z0 + (j.z1 - j.z0) * k;
+      j.y = j.y0 + (j.y1 - j.y0) * k + 4 * JET.leapArc * k * (1 - k);
+      if (j.t <= 0) { j.s = 'land'; j.t = 0.3; j.yFrom = j.y1; j.yTo = j.y1; this.path = null; this.pathT = 0; }
+    }
+  }
+
+  /** Rocket leap: jump toward the target over ground it can't walk. Returns false when there is no safe landing. */
+  startLeap(P, dist) {
+    const j = this.jet, nav = G.nav;
+    const d = clamp(dist * 0.6, JET.leapMin, JET.leapMax);
+    const nx = (P.pos.x - this.pos.x) / (dist || 1), nz = (P.pos.z - this.pos.z) / (dist || 1);
+    let tx = this.pos.x + nx * d, tz = this.pos.z + nz * d;
+    if (this.zone?.center) { const q = insideLeash(this.zone, tx, tz); tx = q.x; tz = q.z; }
+    let ty = 0;
+    if (nav) {
+      const w = nearestWalkable(nav, tx, tz, 3);
+      if (!w) { j.cd = rand(3, 5); return false; }
+      tx = w.x; tz = w.z; ty = nav.hgt[w.idx];
+    }
+    if (Math.hypot(tx - this.pos.x, tz - this.pos.z) < JET.leapMin * 0.6) { j.cd = rand(3, 5); return false; }
+    j.s = 'leap'; j.t = JET.leapTime; j.x0 = this.pos.x; j.z0 = this.pos.z; j.y0 = this.pos.y; j.x1 = tx; j.z1 = tz; j.y1 = ty;
+    this.ai.state = 'advance'; this.post = null; this.burstLeft = 0; this.path = null;
+    sfx.alert(); sparks(_v.copy(this.pos).setY(this.pos.y + 0.2), 0xffa030, 14, 6, 0.1, 0.5);
+    return true;
+  }
+
+  /** Thruster flames, tucked legs, a crouch and a landing squash. Works for the leader's unit and for members' copies (state by name). */
+  jetPose(state, dt) {
+    const m = this.model, j = this.jet;
+    const up = state === 'rise' || state === 'hover' || state === 'leap' || state === 'airborne';
+    const burn = state === 'rise' ? 1.7 : state === 'leap' ? 1.9 : state === 'hover' || state === 'airborne' ? 1 : state === 'land' ? 0.8 : 0;
+    if (m.flames) for (const fl of m.flames) {
+      fl.visible = burn > 0;
+      if (burn > 0) fl.scale.set(1, burn * (0.85 + 0.3 * Math.sin(G.time * 40 + this.seed)), 1);
+    }
+    if (burn > 0 && Math.random() < 0.5) sparks(_v.copy(this.pos).setY(this.pos.y + 0.8), 0xffa030, 1, 2, 0.06, 0.3);
+    if (up) m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? 0.55 : 0.35) + 0.08 * Math.sin(G.time * 3 + i); });
+    if (state === 'crouch') m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -0.9 : 0.9) * 0.5; });
+    if (up && state !== 'hover' && state !== 'airborne') m.arms.forEach((a) => { a.userData.rx0 ??= a.rotation.x; a.rotation.x += (0.5 - a.rotation.x) * Math.min(1, dt * 10); });
+    if (m.torso) {
+      m.torso.userData.rx ??= m.torso.rotation.x;
+      if (state === 'leap') m.torso.rotation.x = m.torso.userData.rx + 0.45;
+      else if (state === 'crouch') m.torso.rotation.x = m.torso.userData.rx + 0.3;
+      else if (state === 'ground' && !(this.cmWind > 0 || this.cmSwing > 0 || this.windup > 0 || this.lunge > 0)) m.torso.rotation.x = m.torso.userData.rx;
+    }
+    // squash on take-off and landing
+    let sq = 0;
+    if (state === 'crouch') sq = 1;
+    else if (j && j.sq > 0) { j.sq = Math.max(0, j.sq - dt * 4); sq = j.sq; }
+    const sy = this.scale * (1 - 0.14 * sq), sxz = this.scale * (1 + 0.06 * sq);
+    if (m.group.scale.y !== sy) m.group.scale.set(sxz, sy, sxz);
+  }
+
+  // ---- grenades (U13b) ----
+  grenadeStep(dt, dist, P) {
+    if (this.grenT === Infinity) return;
+    if (this.throwT > 0) {
+      this.throwT -= dt;
+      const a = this.model.arms[0];
+      if (a) { a.userData.rx0 ??= a.rotation.x; a.rotation.x = -2.7 + (this.throwT < 0.15 ? 1.6 * (1 - this.throwT / 0.15) : 0); }
+      if (this.throwT <= 0) this.throwGrenade(P);
+      return;
+    }
+    this.grenT -= dt;
+    if (this.grenT > 0 || !this.los || P.dead || dist < GRENADE.minRange || dist > GRENADE.maxRange) return;
+    if (this.usesCover && this.ai.state !== 'advance' && this.ai.state !== 'peek') return;
+    this.throwT = 0.5; this.burstLeft = 0;
+    this.grenT = rand(GRENADE.cd[0], GRENADE.cd[1]);
+    sfx.alert();
+  }
+
+  throwGrenade(P) {
+    const from = this.model.muzzle.getWorldPosition(new THREE.Vector3());
+    from.y += 0.3;
+    const lead = 0.4;
+    const L = lobVelocity(P.pos.x + (P.vel?.x ?? 0) * lead - from.x, P.pos.y + 0.4 - from.y, P.pos.z + (P.vel?.z ?? 0) * lead - from.z);
+    const vel = new THREE.Vector3(L.vx, L.vy, L.vz);
+    spawnEnemyGrenade(from, vel, GRENADE.dmg * this.dmgMult, GRENADE[this.faction].color);
   }
 
   /** Leave cover and don't look for more for a while: splash, suppression and flanking all drive a unit out. */
@@ -772,7 +985,7 @@ export class Enemy {
       if (!this.cmHit && dist < reach + 0.6 && vdy < 2.2) {
         this.cmHit = true;
         sfx.melee();
-        const dmg = cm.dmg * this.dmgMult;
+        const dmg = cm.dmg * this.dmgMult * (this.enraged ? ENRAGE.meleeMul : 1);
         if (P.remote) damageRemote(P, dmg, this.pos);
         else {
           damagePlayer(dmg, this.pos, 'melee');
@@ -787,7 +1000,7 @@ export class Enemy {
     // idle: arms ease back to their rest pose
     m.arms.forEach((a) => { if (a.userData.rx0 !== undefined) a.rotation.x += (a.userData.rx0 - a.rotation.x) * Math.min(1, dt * 8); });
     if (dist < reach && vdy < 2.2 && this.cmCd <= 0 && this.los) {
-      this.cmWind = CLOSE_MELEE.windup; this.cmCd = CLOSE_MELEE.cooldown;
+      this.cmWind = CLOSE_MELEE.windup; this.cmCd = this.enraged ? ENRAGE.cd : CLOSE_MELEE.cooldown;
       sfx.enemyShot(this.pos, this.faction);
       return true;
     }
@@ -821,7 +1034,10 @@ export class Enemy {
     for (const Pl of allPlayers()) {
       if (Pl.dead) continue;
       const d = Math.hypot(Pl.pos.x - c.x, Pl.pos.y + 1 - c.y, Pl.pos.z - c.z);
-      const dmg = blastDamage(SUICIDE.dmg * this.dmgMult, d);
+      // dangerous: most of a Guardian's health and shield at the core, never a clean one-shot (tiers.js suicideCore)
+      const total = (Pl.maxHealth ?? G.player.maxHealth) + (Pl.maxShield ?? G.player.maxShield ?? 0);
+      const intake = Math.max(1, (G.mission.incomingMult ?? 1) * (Pl.splashMult ?? 1)); // damagePlayer scales by this afterwards; divide it out so the cap holds
+      const dmg = blastDamage(suicideCore(total, this.dmgMult), d) / intake;
       if (dmg <= 0) continue;
       if (Pl.remote) { damageRemote(Pl, dmg, this.pos); continue; }
       damagePlayer(dmg, this.pos, 'splash');
@@ -845,6 +1061,8 @@ export class Enemy {
     const fl = this.netFl ?? 0;
     m.arms.forEach((a) => { a.userData.rx0 ??= a.rotation.x; a.rotation.x += (((fl & 1) ? -1.6 : a.userData.rx0) - a.rotation.x) * k; });
     if (fl & 2) this.flash = Math.sin(G.time * 45) > 0 ? 0.12 : 0;
+    if ((fl & 4) && !this.enraged) { this.enraged = true; ringFx(this.pos, 4 * this.scale, 0xff3a1a, 0.7); sfx.alert(); }
+    if (this.jet) this.jetPose(fl & 8 ? 'airborne' : 'ground', dt);
     let dy = this.netYaw - this.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
@@ -858,7 +1076,8 @@ export class Enemy {
     m.legs.forEach((l, i) => { l.rotation.x = (i % 2 ? -sw : sw) * (i >= 2 ? -1 : 1); });
     this.flash = Math.max(0, this.flash - dt);
     const f = Math.min(1, this.flash * 8);
-    m.bodyMat.emissive.setRGB(f, f, f);
+    if (this.enraged) m.bodyMat.emissive.setRGB(Math.max(f, 0.4 + 0.15 * Math.sin(G.time * 11)), Math.max(f, 0.04), Math.max(f, 0.02));
+    else m.bodyMat.emissive.setRGB(f, f, f);
     if (m.shield) m.shield.visible = this.shield > 0;
     m.group.position.copy(this.pos);
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
@@ -924,16 +1143,26 @@ export class Enemy {
   }
 
   bossUpdate(dt, dist) {
+    const flipTo = (ph) => {
+      this.bossPhase = ph;
+      this.bossPhaseT = bossPhaseTime(ph, 2 - this.thresholds.length);
+      this.specialT = Math.min(this.specialT, 1);
+      if (ph === 'push') { ringFx(this.pos, 8, G.mission.loc.colors.eye, 0.5); sfx.alert(); }
+    };
     if (this.thresholds.length && this.hp / this.maxHp < this.thresholds[0]) {
       this.thresholds.shift();
       this.shield = this.maxShield * 0.6;
       if (this.model.shield) this.model.shield.visible = true;
       spawnBossAdds(this);
+      flipTo('push'); // each third of health opens with a push
     }
+    // hold (range, volleys) and push (close, slams) alternate; later thirds hold less and push more
+    this.bossPhaseT -= dt;
+    if (this.bossPhaseT <= 0) flipTo(this.bossPhase === 'hold' ? 'push' : 'hold');
     this.specialT -= dt;
     if (this.specialT > 0) return;
-    this.specialT = rand(5, 8);
-    if (dist < 10) {
+    this.specialT = this.bossPhase === 'push' ? rand(3, 4.5) : rand(3, 5);
+    if (this.bossPhase === 'push' && dist < 10) {
       // ground slam
       ringFx(this.pos, 10, G.mission.loc.colors.eye, 0.6);
       explosionFx(_v.copy(this.pos).setY(0.5), 3, G.mission.loc.colors.eye);
@@ -947,7 +1176,7 @@ export class Enemy {
         P.vel.z += (P.pos.z - this.pos.z) / d * 12;
         P.vel.y = 6;
       }
-    } else if (this.los) {
+    } else if (this.los && !(this.bossPhase === 'push' && dist < 10)) {
       // fan volley
       const P = this.tgt || G.player;
       this.model.group.updateMatrixWorld(true);
@@ -1072,5 +1301,62 @@ export function updateEnemyShots(dt) {
       continue;
     }
     s.mesh.position.copy(s.pos);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Enemy grenades (U13b): lobbed, land, show a ring, explode. They hurt Guardians only.
+// Every fireteam member simulates its own copy and damages itself, like enemy shots.
+// ---------------------------------------------------------------------------
+export function spawnEnemyGrenade(from, vel, dmg, color, fromNet = false) {
+  if (!fromNet) announceGrenade(from, vel, dmg, color);
+  const mesh = new THREE.Mesh(shotGeo, basicMat(color));
+  mesh.scale.setScalar(0.22);
+  mesh.position.copy(from);
+  G.scene.add(mesh);
+  (G.enemyGrenades ||= []).push({ pos: from.clone(), vel: vel.clone(), dmg, color, mesh, fuse: -1, life: 8 });
+}
+
+export function updateEnemyGrenades(dt) {
+  const list = G.enemyGrenades;
+  if (!list?.length) return;
+  const P = G.player;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const g = list[i];
+    g.life -= dt;
+    let boom = g.life <= 0;
+    if (g.fuse < 0) {
+      g.vel.y -= GRENADE.gravity * dt;
+      const nx = g.pos.x + g.vel.x * dt, ny = g.pos.y + g.vel.y * dt, nz = g.pos.z + g.vel.z * dt;
+      if (pointInColliders(_v.set(nx, g.pos.y, nz))) { g.vel.x *= -0.3; g.vel.z *= -0.3; }
+      else { g.pos.x = nx; g.pos.z = nz; }
+      g.pos.y = ny;
+      if (g.pos.y <= 0.15) {
+        g.pos.y = 0.15; g.vel.set(0, 0, 0); g.fuse = 0.6;
+        ringFx(_v.copy(g.pos).setY(0.05), GRENADE.radius, g.color, 0.6); // the warning ring
+        sfx.alert();
+      } else if (!P.dead && g.pos.distanceTo(_v2.set(P.pos.x, P.pos.y + 1, P.pos.z)) < 0.7) boom = true;
+    } else {
+      g.fuse -= dt;
+      g.mesh.visible = Math.sin(G.time * 30) > -0.3;
+      if (g.fuse <= 0) boom = true;
+    }
+    g.mesh.position.copy(g.pos);
+    if (!boom) continue;
+    explosionFx(g.pos, GRENADE.radius * 0.5, g.color);
+    flashLight(g.pos, g.color, 30, GRENADE.radius * 3, 0.2);
+    sfx.explosion(GRENADE.radius, g.pos);
+    if (!P.dead) {
+      const d = Math.hypot(P.pos.x - g.pos.x, P.pos.y + 1 - g.pos.y, P.pos.z - g.pos.z);
+      const dm = blastDamage(g.dmg, d, GRENADE.radius);
+      if (dm > 0) {
+        damagePlayer(dm, g.pos, 'splash');
+        const k = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) || 1;
+        P.vel.x += (P.pos.x - g.pos.x) / k * 5; P.vel.z += (P.pos.z - g.pos.z) / k * 5; P.vel.y = Math.max(P.vel.y, 2.5);
+        P.shake = Math.max(P.shake, 0.4);
+      }
+    }
+    G.scene.remove(g.mesh);
+    list.splice(i, 1);
   }
 }

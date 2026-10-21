@@ -18,6 +18,7 @@ import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
 import { weaponHandling } from './frames.js';
+import { brickScale } from './tiers.js';
 import { DEV } from './devcommands.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops } from './combat.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
@@ -1915,7 +1916,7 @@ export class Player {
     if (w.has('overflow')) w.ammo = Math.max(w.ammo, w.mag * 2);
     const scav = 1 + MODS_TUNE.scav * (this.ap[slot === 'special' ? 'scavs' : 'scavh'] || 0);
     if (w.A.sword) { w.ammo = Math.min(w.mag, w.ammo + Math.round(w.brick * scav)); return; }
-    w.reserve = Math.min(w.maxReserve, w.reserve + Math.round(w.brick * scav));
+    w.reserve = Math.min(w.maxReserve, w.reserve + Math.round(w.brick * scav * brickScale(w.reserve / w.maxReserve))); // U13b: bigger when the reserve is empty
   }
 
   takeDamage(amount, from) {

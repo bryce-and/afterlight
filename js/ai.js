@@ -68,6 +68,7 @@ export function closeMeleeReach(typeId, radius) {
 }
 
 // ---- suicide units (V22) ----
+// U13b: the blast's core damage now comes from tiers.js suicideCore (a share of the Guardian's health and shield); `dmg` is kept for reference.
 export const SUICIDE = {
   trigger: 3.2,   // starts the fuse inside this distance
   fuse: 0.55,     // seconds from trigger to blast

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { G, unlockPointer } from './state.js';
-import { LOCATIONS, ELEMENTS, SHIELD_ELEMENTS, RARITIES, rarityIndex, ACTIVITIES } from './data.js';
+import { LOCATIONS, ELEMENTS, RARITIES, rarityIndex, ACTIVITIES } from './data.js';
 import { buildLevel, mat } from './world.js';
-import { Enemy, updateEnemyShots } from './enemies.js';
+import { Enemy, updateEnemyShots, updateEnemyGrenades } from './enemies.js';
 import { Player } from './player.js';
 import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
@@ -19,7 +19,8 @@ import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
-import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, AMMO_DROP } from './combat.js';
+import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE } from './combat.js';
+import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from './tiers.js';
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
@@ -43,7 +44,7 @@ export function startMission(li, mi) {
   G.hitDirty = true;
   G.scene.add(G.camera);
   initEffects(G.scene);
-  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
+  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const pp = playerPower(G.save);
   const delta = clamp(pp - def.power, -40, 10);
   onMissionStart();
@@ -90,7 +91,7 @@ function cleanupMission() {
   clearEffects();
   G.scene = null; G.level = null; G.player = null; G.mission = null;
   G.colliders = []; G.staticMeshes = []; G.hitTargets = []; G.nav = null;
-  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
+  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
 }
 
 export function missionFailed() {
@@ -110,8 +111,8 @@ function finishMission() {
 // ---------------------------------------------------------------------------
 function makeWaves(zi, isBoss, g, def, fireteam = 1, loc = null) {
   // each extra fireteam member adds ~50% more enemies
-  const more = 1 + 0.5 * (fireteam - 1);
-  const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type, element: type === 'captain' ? pick(SHIELD_ELEMENTS) : undefined }));
+  const more = fireteamScale(fireteam).count;
+  const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type })); // the shield element comes from the faction (tiers.js SHIELD)
   if (isBoss) {
     return [[{ type: 'boss', name: def.boss.name, element: def.boss.element, model: def.boss.model }, ...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4))]];
   }
@@ -143,12 +144,13 @@ export function findSpawn(center, angle, spread, rMin, rMax) {
 }
 
 function spawnWave(z, idx) {
-  const M = G.mission, P = G.player;
+  const M = G.mission, P = G.player, FT = fireteamScale(M.fireteam);
   const away = Math.atan2(P.pos.x - z.center.x, P.pos.z - z.center.z) + Math.PI;
   for (const sp of z.waves[idx]) {
     const pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
     const e = new Enemy(sp.type, pos, {
-      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? (1 + M.g * 0.08) * (1 + 0.6 * (M.fireteam - 1)) : 1), dmgMult: M.dmgMult, element: sp.element, name: sp.name, model: sp.model,
+      zone: z, hpMult: M.hpMult * (sp.type === 'boss' ? (1 + M.g * 0.08) * FT.boss : FT.hp), dmgMult: M.dmgMult * (sp.type === 'boss' ? 1 : FT.dmg),
+      element: sp.element, name: sp.name, model: sp.model, tier: rollTier(sp.type, M.g),
     });
     G.enemies.push(e);
     z.enemies.push(e);
@@ -163,11 +165,11 @@ export function spawnBossAdds(boss) {
   const M = G.mission;
   const z = boss.zone;
   const specs = [];
-  const more = 1 + 0.5 * (M.fireteam - 1);
+  const FT = fireteamScale(M.fireteam), more = FT.count;
   for (const [t, n] of [['grunt', 3], ['rusher', 2], ['captain', M.g >= 2 ? 1 : 0]]) for (let i = 0; i < Math.round(n * more); i++) specs.push(t);
   for (const type of specs) {
     const pos = findSpawn(boss.pos, rand(0, Math.PI * 2), Math.PI, 5, 14);
-    const e = new Enemy(type, pos, { zone: z, hpMult: M.hpMult, dmgMult: M.dmgMult, element: type === 'captain' ? pick(SHIELD_ELEMENTS) : undefined });
+    const e = new Enemy(type, pos, { zone: z, hpMult: M.hpMult * FT.hp, dmgMult: M.dmgMult * FT.dmg, tier: rollTier(type, M.g) });
     G.enemies.push(e);
     z.enemies.push(e);
     registerEnemy(e);
@@ -190,6 +192,7 @@ export function updateGame(dt) {
   }
   updateNavDebug(dt);
   updateEnemyShots(dt);
+  updateEnemyGrenades(dt);
   updateProjectiles(dt);
   updateTickers(dt);
   updatePickups(dt);
@@ -284,9 +287,6 @@ function zoneCleared(z) {
     M.current++;
     M.checkpoint = z.center.clone();
     M.phase = 'travel';
-    const drop = P.pos.clone().add(new THREE.Vector3(0, 1, 0));
-    spawnPickup('special', drop);
-    if (Math.random() < 0.6) spawnPickup('heavy', drop);
   }
 }
 
@@ -459,7 +459,7 @@ export function dealDamage(e, amount, o = {}) {
       dealt += e.shield;
       dmg = (sd - e.shield) / mult;
       e.shield = 0;
-      e.breakShield(mult > 1);
+      e.breakShield(mult > 1, !!o.element && o.element === e.shieldEl);
       if (!o.remoteHit) G.player?.onShieldBreak?.(e);
     } else {
       e.shield -= sd; dealt += sd; dmg = 0;
@@ -516,7 +516,7 @@ export function killEnemy(e, o = {}) {
     if (o.crit) M.crits++;
     G.player.onKill(e, o);
   }
-  gainXp(XP.kill[e.typeId] ?? 0); // the whole fireteam shares kill XP
+  gainXp(Math.round((XP.kill[e.typeId] ?? 0) * (TIERS[e.tier]?.xp ?? 1))); // the whole fireteam shares kill XP; majors are worth more
   sfx.kill();
   sfx.enemyDie(e.pos, e.faction);
   rollDrops(e);
@@ -527,15 +527,16 @@ export function killEnemy(e, o = {}) {
   }
 }
 
-/** Ammo and engram drops. Every fireteam member rolls their own from each kill. */
+/** Ammo and engram drops. Every fireteam member rolls their own from each kill. Ammo is a hidden meter (tiers.js AMMO_METER): kills fill it, a full meter drops a brick on the next kill. */
 export function rollDrops(e) {
   const pos = e.pos.clone().setY(0.8);
-  const r = Math.random();
-  const heavy = e.typeId === 'heavy';
-  const fs = G.player?.finderS ?? 0, fh = G.player?.finderH ?? 0; // Ammo Finder mods
-  const pSpecial = AMMO_DROP.special[heavy ? 1 : 0], pHeavy = AMMO_DROP.heavy[heavy ? 1 : 0];
-  if (r < pSpecial + fs) spawnPickup('special', pos);
-  else if (r < pSpecial + pHeavy + fs + fh) spawnPickup('heavy', pos);
+  const P = G.player;
+  if (P) {
+    const M = AMMO_METER.size;
+    P.ammoMeter ??= { special: Math.random() * M.special * 0.5, heavy: Math.random() * M.heavy * 0.5 }; // start part-filled so the first brick isn't fixed
+    const brick = meterKill(P.ammoMeter, killValue(e.tier, e.isBoss), 1 + (P.finderS ?? 0) * 4, 1 + (P.finderH ?? 0) * 4); // Ammo Finder mods fill it faster
+    if (brick) spawnPickup(brick, pos);
+  }
   if (Math.random() < (ENGRAM_CHANCE[e.typeId] ?? 0)) dropEngram(pos);
   if (e.isBoss) {
     dropEngram(pos); dropEngram(pos);
@@ -856,7 +857,7 @@ function loadArena(i, first = false) {
   G.hitDirty = true;
   G.scene.add(G.camera);
   initEffects(G.scene);
-  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.pickups = []; G.tickers = [];
+  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const arena = level.zones[level.zones.length - 1];
   const prev = level.zones.length > 1 ? level.zones[level.zones.length - 2].center : level.spawn;
   const dir = prev.clone().sub(arena.center).setY(0);
@@ -875,8 +876,8 @@ function loadArena(i, first = false) {
 /** Wave n's enemies in two pushes; every arenaEvery-th wave is the arena's boss. Each new arena is denser. */
 function activityWave(n) {
   const M = G.mission;
-  const more = (1 + 0.5 * (M.fireteam - 1)) * (1 + 0.3 * M.arenaIdx);
-  const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type, element: type === 'captain' ? pick(SHIELD_ELEMENTS) : undefined }));
+  const more = fireteamScale(M.fireteam).count * (1 + 0.3 * M.arenaIdx);
+  const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type }));
   const k = Math.min(n, 20);
   if (n % M.act.arenaEvery === 0) {
     const b = M.arenaDef.boss;
@@ -956,9 +957,6 @@ function activityWaveCleared() {
     G.save.records = G.save.records || {};
     if (n > (G.save.records.endless || 0)) { G.save.records.endless = n; writeSave(G.save); }
   }
-  const drop = P.pos.clone().add(new THREE.Vector3(0, 1, 0));
-  spawnPickup('special', drop);
-  if (Math.random() < 0.6 || n % 5 === 0) spawnPickup('heavy', drop);
   if (n % act.chestEvery === 0 || final) {
     const c = M.zones[0].center;
     const dir = P.pos.clone().sub(c).setY(0);

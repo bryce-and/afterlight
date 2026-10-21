@@ -6,7 +6,7 @@ export const G = {
   renderer: null, camera: null, scene: null, level: null, menu: null,
   nav: null, navBudget: 0,
   colliders: [], staticMeshes: [], hitTargets: [], hitDirty: true,
-  enemies: [], projectiles: [], enemyShots: [], pickups: [], tickers: [],
+  enemies: [], projectiles: [], enemyShots: [], enemyGrenades: [], pickups: [], tickers: [],
   player: null, mission: null,
   input: {
     keys: {}, pressed: {},

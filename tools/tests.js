@@ -25,6 +25,7 @@ import { G } from '../js/state.js';
 import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody } from '../js/colliders.js';
 import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV } from '../js/nav.js';
 import * as AI from '../js/ai.js';
+import * as TR from '../js/tiers.js';
 import { ENEMY_TYPES } from '../js/data.js';
 
 const tests = [];
@@ -1188,11 +1189,10 @@ test('U11: re-slotted weapons are not double-adjusted (Acrius keeps the heavy ve
   const bb = makeExoticT('Buried Bloodline', 50);
   eq(bb.slot, 'special'); eq(weaponHandling(bb).pellets, 2, 'two bolts');
 });
-test('U11: heavy ammo: reserves down, damage up, bricks a little more common (Bryce, 2026-10-19)', () => {
+test('U11: heavy ammo: reserves down, damage up (Bryce, 2026-10-19); U13b: drops come from the hidden meter', () => {
   eq([ARCHETYPES.rocket.reserve, ARCHETYPES.linear.reserve, ARCHETYPES.glauncher.reserve, ARCHETYPES.mg.reserve], [8, 14, 16, 210]);
   eq([HEAVY_VERSION.dmg, HEAVY_VERSION.reserve], [1.7, 7]);
-  eq(C.AMMO_DROP, { special: [0.10, 0.50], heavy: [0.07, 0.35] });
-  ok(C.AMMO_DROP.heavy[0] > 0.05 && C.AMMO_DROP.heavy[1] > 0.30, 'heavy bricks come up from 5% and 30%');
+  ok(C.AMMO_DROP === undefined, 'U13b: random ammo drops are gone; the hidden meter replaced them');
 });
 test('U11: the 14 new exotics are real Destiny 2 exotics with a signature perk each, in the Exotic Collection', () => {
   const real = {
@@ -1469,6 +1469,83 @@ test('U13a: the blast hurts most at the centre, half at the edge, nothing beyond
   ok(AI.SUICIDE.fuse >= 0.4 && AI.SUICIDE.trigger > AI.SUICIDE.radius * 0.5, 'a fair warning before the blast');
 });
 
+test('v2.2.3: Rocket-Assisted rounds are fast projectiles; the Pulse Rifle has a 6-shot magazine of 3-round bursts, the Sidearm stays single-fire', () => {
+  const pr = weaponHandling({ arch: 'pulse', frame: 'rocket' }), sr = weaponHandling({ arch: 'sidearm', frame: 'rocket' });
+  ok(pr.rocketRound.speed >= 60 && sr.rocketRound.speed >= 60, 'fast rounds');
+  eq([pr.mode, pr.burst, pr.shotMag], ['burst', 3, true], 'pulse: three-round shot');
+  eq(weaponStats({ arch: 'pulse', frame: 'rocket', rarity: 'legendary' }).mag, 6, 'pulse mag counts shots');
+  eq([sr.mode, sr.burst ?? 0, sr.shotMag ?? false], ['semi', 0, false], 'sidearm single fire');
+});
+
+// ---------- U13b Hostile Intent II ----------
+test('U13b: every non-boss unit is a minor or a major; majors are tougher and bosses have no tier', () => {
+  eq(Object.keys(TR.TIERS), ['minor', 'major']);
+  ok(TR.TIERS.major.hp > TR.TIERS.minor.hp && TR.TIERS.major.size > TR.TIERS.minor.size, 'major is tougher and bigger');
+  eq(TR.rollTier('boss', 5), null, 'boss has no tier');
+  for (const t of ['grunt', 'rusher', 'suicide', 'captain', 'heavy']) ok(['minor', 'major'].includes(TR.rollTier(t, 0, 0.5)), t);
+});
+test('U13b: captains and heavies are mostly majors at low power, and every type gains majors with power', () => {
+  ok(TR.majorChance('captain', 0) > 0.5 && TR.majorChance('heavy', 0) > 0.5, 'mostly majors at low power');
+  ok(TR.majorChance('grunt', 0) < 0.1, 'grunts rarely');
+  ok(TR.majorChance('grunt', 8) > TR.majorChance('grunt', 0) && TR.majorChance('rusher', 8) > TR.majorChance('rusher', 0), 'more of every unit at high power');
+  eq(TR.rollTier('captain', 0, 0.0), 'major'); eq(TR.rollTier('captain', 0, 0.99), 'minor');
+});
+test('U13b: fireteam table: solo is unchanged, three players get more enemies, health, damage and boss health', () => {
+  eq(TR.fireteamScale(1), { count: 1, hp: 1, dmg: 1, boss: 1 });
+  const a = TR.fireteamScale(2), b = TR.fireteamScale(3);
+  ok(b.count > a.count && a.count > 1 && b.hp > a.hp && a.hp > 1 && b.dmg > a.dmg && b.boss > a.boss, 'monotonic');
+  eq([a.count, b.count, a.boss, b.boss], [1.5, 2, 1.6, 2.2], 'the v2.3 counts are kept');
+});
+test('U13b: shields are elemental per faction; a matching break bursts and hurts only nearby, less far out', () => {
+  ok(TR.shieldFor('legion', 'heavy') && !TR.shieldFor('scrappers', 'heavy') && !TR.shieldFor('hollow', 'heavy'), 'Colossus has one, Brig and Ogre do not');
+  for (const f of ['scrappers', 'hollow', 'legion']) ok(TR.shieldFor(f, 'captain').every((e) => SHIELD_ELEMENTS.includes(e)), f);
+  ok(TR.shieldBurstDamage(180, 1) > TR.shieldBurstDamage(180, 4) && TR.shieldBurstDamage(180, 4) > 0, 'falls off');
+  eq(TR.shieldBurstDamage(180, TR.SHIELD_BURST.radius), 0, 'none outside the radius');
+});
+test('U13b: the faction that throws grenades does it with its grunts; Cabal alone has jetpacks; only Hive Ogres enrage', () => {
+  for (const f of ['scrappers', 'hollow', 'legion']) ok(TR.grenadeThrower(f, 'grunt') && !TR.grenadeThrower(f, 'heavy'), f);
+  eq(Object.entries(TR.FACTION_PROFILES).filter(([, p]) => p.jet).map(([k]) => k), ['legion']);
+  ok(TR.JET.hover[0] === 5 && TR.JET.hover[1] === 10, 'hover 5 to 10 s');
+  ok(TR.isEnraged(29, 100, 'hollow', 'heavy') && !TR.isEnraged(31, 100, 'hollow', 'heavy') && !TR.isEnraged(10, 100, 'legion', 'heavy') && !TR.isEnraged(10, 100, 'hollow', 'captain') && !TR.isEnraged(0, 100, 'hollow', 'heavy'), 'below 30%, hollow heavy only, alive');
+});
+test('U13b: a lobbed grenade lands where it is aimed', () => {
+  const L = TR.lobVelocity(12, -1, 5);
+  const x = L.vx * L.t, z = L.vz * L.t, y = L.vy * L.t - 0.5 * TR.GRENADE.gravity * L.t * L.t;
+  ok(Math.abs(x - 12) < 1e-6 && Math.abs(z - 5) < 1e-6 && Math.abs(y + 1) < 1e-6, 'lands on target');
+  ok(L.t >= 0.6, 'at least 0.6 s of flight');
+});
+test('U13b: a suicide blast takes most of a Guardian but never all of it, at any enemy damage multiplier', () => {
+  const total = 100 + 70;
+  const lo = TR.suicideCore(total, 1), hi = TR.suicideCore(total, 3);
+  ok(lo >= total * 0.7 && lo < total, 'most of it');
+  ok(hi < total && hi <= total * TR.SUICIDE_BLAST.cap + 1e-9, 'capped below a one-shot');
+  ok(AI.blastDamage(lo, AI.SUICIDE.radius) === 0 && AI.blastDamage(lo, 0) === lo, 'blast radius unchanged');
+});
+test('U13b: boss phases alternate hold and push, and later thirds push longer and hold less', () => {
+  ok(TR.bossPhaseTime('hold', 0, 0.5) >= 8 && TR.bossPhaseTime('hold', 0, 0.5) <= 12, 'hold 8 to 12 s');
+  ok(TR.bossPhaseTime('hold', 2, 0.5) < TR.bossPhaseTime('hold', 0, 0.5), 'holds less');
+  ok(TR.bossPhaseTime('push', 2, 0.5) > TR.bossPhaseTime('push', 0, 0.5), 'pushes longer');
+});
+test('U13b: the hidden ammo meter drops one brick when full, resets, and scales with kills', () => {
+  const m = { special: 0, heavy: 0 };
+  let n = 0, sp = 0, hv = 0;
+  for (let i = 0; i < 400; i++) { const b = TR.meterKill(m, TR.killValue('minor', false)); if (b) n++; if (b === 'special') sp++; if (b === 'heavy') hv++; }
+  ok(n > 0 && sp > hv && hv > 0, 'special comes more often than heavy');
+  ok(sp <= Math.ceil(400 / TR.AMMO_METER.size.special) + 1, 'special is paced by the meter, not by chance');
+  const m2 = { special: 0, heavy: 0 }; let k = 0;
+  while (!TR.meterKill(m2, TR.killValue('minor', false))) k++;
+  const m3 = { special: 0, heavy: 0 }; let k3 = 0;
+  while (!TR.meterKill(m3, TR.killValue('major', false))) k3++;
+  ok(k3 < k, 'majors fill it faster');
+  ok(TR.killValue(null, true) > TR.killValue('major', false), 'a boss is worth more than a major');
+  const m5 = { special: 15.5, heavy: 0 };
+  eq(TR.meterKill(m5, 1), 'special'); ok(m5.special < 1, 'the meter resets after a drop');
+});
+test('U13b: bricks are bigger when the reserve is empty and smaller when full', () => {
+  ok(TR.brickScale(0) > 1 && TR.brickScale(1) < 1 && TR.brickScale(0.5) > TR.brickScale(0.9), 'scales with emptiness');
+  ok(TR.brickScale(-1) === TR.brickScale(0) && TR.brickScale(2) === TR.brickScale(1), 'clamped');
+});
+
 // ---------- runner ----------
 const out = document.getElementById('out');
 let pass = 0, fail = 0;
@@ -1483,12 +1560,3 @@ const sum = document.getElementById('summary');
 sum.textContent = `${pass} passed, ${fail} failed`;
 sum.className = fail ? 'fail' : 'pass';
 window.TEST_RESULTS = { pass, fail };
-
-
-test('v2.2.3: Rocket-Assisted rounds are fast projectiles; the Pulse Rifle has a 6-shot magazine of 3-round bursts, the Sidearm stays single-fire', () => {
-  const pr = weaponHandling({ arch: 'pulse', frame: 'rocket' }), sr = weaponHandling({ arch: 'sidearm', frame: 'rocket' });
-  ok(pr.rocketRound.speed >= 60 && sr.rocketRound.speed >= 60, 'fast rounds');
-  eq([pr.mode, pr.burst, pr.shotMag], ['burst', 3, true], 'pulse: three-round shot');
-  eq(weaponStats({ arch: 'pulse', frame: 'rocket', rarity: 'legendary' }).mag, 6, 'pulse mag counts shots');
-  eq([sr.mode, sr.burst ?? 0, sr.shotMag ?? false], ['semi', 0, false], 'sidearm single fire');
-});

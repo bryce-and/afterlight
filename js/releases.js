@@ -5,6 +5,24 @@
 
 export const RELEASES = [
   {
+    version: '2.4', name: 'Hostile Intent II', date: '2026-10-20', accent: '#ff9a2e', glyph: '☄',
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="hiBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0a0a"/><stop offset="0.6" stop-color="#3a1510"/><stop offset="1" stop-color="#5a2314"/></linearGradient><radialGradient id="hiGlow" cx="0.5" cy="0.4" r="0.5"><stop offset="0" stop-color="#ff9a2e" stop-opacity="0.55"/><stop offset="1" stop-color="#ff9a2e" stop-opacity="0"/></radialGradient><linearGradient id="hiFlame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1c0"/><stop offset="0.5" stop-color="#ffa030"/><stop offset="1" stop-color="#ff4a1a" stop-opacity="0"/></linearGradient></defs><rect width="320" height="180" fill="url(#hiBg)"/><rect width="320" height="180" fill="url(#hiGlow)"/><path d="M0 150 50 132 100 142 160 126 220 140 270 128 320 138V180H0z" fill="#2a0e0a"/><ellipse cx="160" cy="150" rx="46" ry="5" fill="#ff9a2e" fill-opacity="0.22"/><g fill="none" stroke="#ff9a2e"><circle cx="160" cy="66" r="44" stroke-opacity="0.8" stroke-width="2.5"/><circle cx="160" cy="66" r="52" stroke-opacity="0.3" stroke-width="1.5" stroke-dasharray="3 6"/></g><g fill="url(#hiFlame)"><path d="M146 90 138 132 152 92z"/><path d="M174 90 182 132 168 92z"/></g><g stroke="#0a0505" stroke-width="1.5"><path d="M146 52h28l4 36h-36z" fill="#6a4a38"/><path d="M151 34h18v18h-18z" fill="#8a5c40"/><path d="M130 58l16 6-2 16-14-6zM190 58l-16 6 2 16 14-6z" fill="#5a3a2c"/><path d="M148 88l-4 14h10l2-12zM172 88l4 14h-10l-2-12z" fill="#4a2e22"/></g><path d="M155 42h10" stroke="#ff9a2e" stroke-width="2.5"/><g fill="#ff9a2e" fill-opacity="0.85"><circle cx="108" cy="40" r="2.2"/><circle cx="216" cy="34" r="1.8"/><circle cx="238" cy="78" r="2"/><circle cx="90" cy="84" r="1.6"/></g><g><rect x="104" y="158" width="52" height="7" fill="#000" fill-opacity="0.55" stroke="#fff" stroke-opacity="0.25"/><rect x="105" y="159" width="50" height="5" fill="#e8584a"/><rect x="164" y="158" width="52" height="7" fill="#000" fill-opacity="0.55" stroke="#fff" stroke-opacity="0.25"/><rect x="165" y="159" width="50" height="5" fill="#ff9a2e"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+    summary: 'Every enemy now comes as a minor or a major, each faction fights its own way, shields break with a bang and enemies throw grenades. Cabal Centurions take to the air, enraged Ogres charge, and ammo drops the way Destiny makes it drop.',
+    notes: [
+      'Minors and majors: every unit comes in two strengths. Minors have a red health bar. Majors have an orange bar, more health, a larger frame and the same moves. Early on, most Captains and Heavies are majors, and later more of every unit is',
+      'Shields: Captains carry elemental shields, and so do Cabal Colossi. Break one with its own element and it explodes, hurting enemies around it. Anything else still works, just slower',
+      'Grenades: Acolytes, Vandals and Legionaries now lob grenades. A ring shows where it lands, so get out of it',
+      'Cabal Centurions: with a jetpack they rocket into the air, hover for 5 to 10 seconds shooting down at you, then land. They also leap across ground they cannot walk',
+      'Hive: Ogres below 30% health fly into a rage, drop their guns, and run at you for heavy melee hits. Cursed Thralls hang back with their pack and charge once they are alone',
+      'Fallen strafe and fire short bursts. Hive close in and rarely take cover. Cabal advance steadily and fire long volleys',
+      'Suicide units hit hard: standing in the blast takes most of your health and shield, never all of it in one go',
+      'Bosses alternate between holding at range and pushing in close. Each third of their health pushes harder',
+      'Ammo: special and heavy ammo no longer drop by chance. A hidden meter fills as you kill, and when it is full your next kill drops a brick. Majors fill it faster. Bricks are bigger when your reserve is low. Area and wave clears no longer hand out free ammo, and bosses still drop theirs',
+      'Fireteams: two and three Guardians now face tougher enemies, with more health and damage, as well as more of them. Playing alone is unchanged',
+      'No save changes',
+    ],
+  },
+  {
     version: '2.3', name: 'Hostile Intent', date: '2026-10-20', accent: '#ff6a4a', glyph: '⚠', artPending: true, // chained with U13b: the title artwork comes with the last update of the chain
     summary: 'Enemies find their way around walls, hop up onto crates to shoot down at you, stay near their own area instead of chasing you across the map, and fight dirty at close range. Hive and Fallen now send suicide units.',
     notes: [

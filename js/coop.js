@@ -3,7 +3,8 @@ import { G } from './state.js';
 import { net, send, broadcast, sendTo } from './net.js';
 import { buildCharacter, ghost } from './characters.js';
 import { decodeAppearance } from './style.js';
-import { Enemy, fireEnemyShot } from './enemies.js';
+import { Enemy, fireEnemyShot, spawnEnemyGrenade } from './enemies.js';
+import { TIERS } from './tiers.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
@@ -155,7 +156,7 @@ export function onAbandon() {
 export function registerEnemy(e) {
   if (!net.isHost) return;
   e.netId = nextId++;
-  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined });
+  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined, tr: e.tier || undefined });
 }
 
 export function announceKill(e, o) {
@@ -167,6 +168,10 @@ export function announceBanner(ti, su, du, so) { if (net.isHost) broadcast({ t: 
 
 export function announceLoot(pos) {
   if (net.isHost) broadcast({ t: 'loot', x: r2(pos.x), z: r2(pos.z) });
+}
+
+export function announceGrenade(from, vel, dmg, color) {
+  if (net.isHost) broadcast({ t: 'gr', f: [r2(from.x), r2(from.y), r2(from.z)], v: [r2(vel.x), r2(vel.y), r2(vel.z)], m: dmg, c: color });
 }
 
 export function announceShot(from, dir, speed, dmg, color, size, splash) {
@@ -214,7 +219,7 @@ export function netTick(dt) {
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
-    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0)]);
+    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0)]);
     const M = G.mission;
     const z = M.zones[M.current];
     const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0 };
@@ -352,7 +357,7 @@ function updateAvatars(dt) {
 // ---------------------------------------------------------------------------
 function proxy(id, type, x, z, info = {}) {
   const M = G.mission;
-  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm });
+  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm, tier: info.tr });
   e.remote = true;
   e.netId = id;
   if (info.mh) { e.maxHp = info.mh; e.hp = info.mh; }
@@ -419,7 +424,7 @@ net.on('s', (m) => {
     const e = netEnemies.get(id) || proxy(id, TYPES[ti], x, z);
     if (!e.alive) continue;
     e.netPos.set(x, y, z);
-    e.netFl = fl; // bit 1: swinging at someone in reach, bit 2: suicide fuse lit
+    e.netFl = fl; // bit 1: swinging at someone in reach, bit 2: suicide fuse lit, bit 4: enraged, bit 8: Centurion in the air
     e.netYaw = yaw;
     e.hp = (hp / 1000) * e.maxHp;
     e.shield = (sh / 1000) * e.maxShield;
@@ -452,7 +457,7 @@ net.on('kill', (m) => {
   e.onDeath();
   sfx.kill();
   rollDrops(e); // every player rolls their own loot
-  gainXp(XP.kill[e.typeId] ?? 0); // the whole fireteam shares kill XP
+  gainXp(Math.round((XP.kill[e.typeId] ?? 0) * (TIERS[e.tier]?.xp ?? 1))); // the whole fireteam shares kill XP
   if (m.by === net.myId) {
     G.mission.kills++;
     if (m.c) G.mission.crits++;
@@ -464,6 +469,7 @@ net.on('kill', (m) => {
 });
 net.on('bn', (m) => { if (inMission()) { ui.centerMessage(m.ti, m.su, m.du); sfx[m.so]?.(); } });
 net.on('es', (m) => { if (inMission()) fireEnemyShot(new THREE.Vector3(...m.f), new THREE.Vector3(...m.d), m.v, m.m, m.c, m.s, m.sp, true); });
+net.on('gr', (m) => { if (inMission()) spawnEnemyGrenade(new THREE.Vector3(...m.f), new THREE.Vector3(...m.v), m.m, m.c, true); });
 net.on('dmg', (m) => { if (inMission() && !G.player.dead) damagePlayer(m.m, new THREE.Vector3(m.x, 0, m.z)); });
 net.on('loot', (m) => {
   const M = G.mission;

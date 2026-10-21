@@ -1358,7 +1358,7 @@ function updateEnemyPlate(dt) {
     if (e !== plateE) {
       plateE = e; setText(hud.plateName, 'epn', e.name);
       if (cache.get('epf') !== e.faction) { cache.set('epf', e.faction); hud.plateIco.innerHTML = factionIcon(e.faction); hud.plateIco.title = FACTION_NAMES[e.faction]; }
-      setClass(hud.plate, 'epm', 'major', e.typeId === 'captain' || e.typeId === 'heavy');
+      setClass(hud.plate, 'epm', 'major', e.tier === 'major'); // orange bar for majors, red for minors (U13b)
     }
     plateHold = PLATE_HOLD;
   } else plateHold = Math.max(0, plateHold - dt);
