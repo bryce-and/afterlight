@@ -5,6 +5,14 @@
 
 export const RELEASES = [
   {
+    version: '3.0.2', name: 'Hotfix', date: '2026-10-21',
+    summary: 'The Tower\'s concrete walls no longer have blue lines running through them.',
+    notes: [
+      'Tower: the ribs on every wall now take a darker shade of that wall\'s own colour, so grey concrete has grey ribs and blue steel keeps blue ones. The Hangar\'s south wall no longer pokes through the corridor wall (it showed as a blue slab), and the Hangar\'s west door wall is concrete like the corridor',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.0.1', name: 'Hotfix', date: '2026-10-21',
     summary: 'Flickering surfaces in the Tower are fixed: places where two walls, trims or props shared the same flat face.',
     notes: [

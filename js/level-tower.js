@@ -122,7 +122,7 @@ function symbol(K, x, y, z, kind, size = 1.7) {
 // distances along the wall; each becomes a doorway with a lintel above doorH. Ends reach t/2 past the points so corners close.
 function owall(K, x1, z1, x2, z2, h, o = {}) {
   const dx = x2 - x1, dz = z2 - z1, len = Math.hypot(dx, dz), ux = dx / len, uz = dz / len, ry = -Math.atan2(dz, dx);
-  const t = o.t ?? 1, color = o.color ?? STEEL, dh = o.doorH ?? 5.4, ribs = o.ribs ?? h > 3, Y = o.y ?? 0;
+  const t = o.t ?? 1, color = o.color ?? STEEL, ribCol = color === STEEL ? STEEL2 : new THREE.Color(color).multiplyScalar(0.8).getHex(), dh = o.doorH ?? 5.4, ribs = o.ribs ?? h > 3, Y = o.y ?? 0;
   const gaps = (o.gaps || []).slice().sort((a, b) => a[0] - b[0]);
   const at = (a) => [x1 + ux * a, z1 + uz * a];
   const eA = o.extA === false ? 0 : 1, eB = o.extB === false ? 0 : 1;
@@ -145,7 +145,7 @@ function owall(K, x1, z1, x2, z2, h, o = {}) {
     piece(a, b, h, Y, color, t, t / 2);
     vis(a, b, Y + h + 0.15, 0.3, t + 0.4, CON, t / 2 + 0.12);       // cap
     vis(a, b, Y + 0.35, 0.7, t + 0.35, CON2, t / 2 + 0.12);         // footing
-    if (ribs) for (let d = Math.ceil(a / 4) * 4 + 2; d < b - 1; d += 4) { const [rx, rz] = at(d); vbox(K, rx, Y + h / 2, rz, 0.4, h, t + 0.3, STEEL2, { ry }); }
+    if (ribs) for (let d = Math.ceil(a / 4) * 4 + 2; d < b - 1; d += 4) { const [rx, rz] = at(d); vbox(K, rx, Y + h / 2, rz, 0.4, h, t + 0.3, ribCol, { ry }); }
   }
   for (const [a, b, bare] of gaps) { // a third entry `true` marks a gap that is only a break between runs: no lintel, no jambs
     if (bare) continue;
@@ -372,7 +372,8 @@ export const TOWER = {
       });
       wallsAround(K, HANGAR, { h: 12, t: 1.4 }, {
         1: { skip: true },                      // east: open to the sky, no barrier: step off the edge and you fall
-        5: { gaps: [[0, 10]] },                 // the corridor wall already stands at the door
+        4: { extB: false },                     // this wall ends at the corridor wall, not through it
+        5: { gaps: [[0, 10]], color: CON2 },    // the corridor wall already stands at the door; concrete, so the corridor reads as one wall
       });
       wallsAround(K, RANGE, { h: 4.6, t: 1, color: CON2, ribs: false }, { 0: { skip: true } });
       // passage side walls into the chamber
