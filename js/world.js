@@ -3,6 +3,7 @@ import { mulberry32, hashStr } from './util.js';
 import { buildCharacter } from './characters.js';
 import { orientedCollider } from './colliders.js';
 import { buildTerrain } from './terrain.js';
+import { skyFor, buildSky } from './sky.js';
 import EARTH from './level-earth.js';
 import MOON from './level-moon.js';
 import MARS from './level-mars.js';
@@ -70,15 +71,23 @@ export function buildLevel(loc, def) {
   scene.add(sun, sun.target);
   const sunOffset = new THREE.Vector3(...loc.sunDir).normalize().multiplyScalar(90);
 
-  // sky body (planet / moon hanging in the sky)
-  const sb = new THREE.Mesh(new THREE.IcosahedronGeometry(loc.skyBody.size, 2), new THREE.MeshBasicMaterial({ color: loc.skyBody.color, fog: false }));
-  sb.position.set(...loc.skyBody.pos);
-  scene.add(sb);
-  if (loc.skyBody.ring) {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(loc.skyBody.size * 1.35, loc.skyBody.size * 2.1, 48), new THREE.MeshBasicMaterial({ color: 0xd8c49a, fog: false, transparent: true, opacity: 0.75, side: THREE.DoubleSide }));
-    ring.position.copy(sb.position);
-    ring.rotation.set(1.2, 0.3, 0.2);
-    scene.add(ring);
+  // U16e sky: a data-driven dome, stars, bodies and silhouettes (js/sky.js); a destination without a spec keeps the plain sky body
+  const skySpec = skyFor(loc, def);
+  let sky = null;
+  if (skySpec) {
+    const spec = { ...skySpec, horizon: skySpec.horizon ?? C.fog };
+    if (spec.fog != null) { scene.fog.color.setHex(spec.fog); scene.background = new THREE.Color(spec.fog); }
+    sky = buildSky(scene, spec, def.id);
+  } else {
+    const sb = new THREE.Mesh(new THREE.IcosahedronGeometry(loc.skyBody.size, 2), new THREE.MeshBasicMaterial({ color: loc.skyBody.color, fog: false }));
+    sb.position.set(...loc.skyBody.pos);
+    scene.add(sb);
+    if (loc.skyBody.ring) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(loc.skyBody.size * 1.35, loc.skyBody.size * 2.1, 48), new THREE.MeshBasicMaterial({ color: 0xd8c49a, fog: false, transparent: true, opacity: 0.75, side: THREE.DoubleSide }));
+      ring.position.copy(sb.position);
+      ring.rotation.set(1.2, 0.3, 0.2);
+      scene.add(ring);
+    }
   }
 
   // ---- zones ----
@@ -94,18 +103,19 @@ export function buildLevel(loc, def) {
 
   // ---- ground ----
   const s1 = rng() * 100;
+  const rimK = sky && !loc.sea ? (set.rim ?? 0.45) : 1; // the bowl of hills round the play area is lower under a real sky, so its horizon shows
   const heightAt = (x, z) => {
     const n = Math.sin(x * 0.11 + s1) * Math.cos(z * 0.09 - s1) + 0.6 * Math.sin((x + z) * 0.23 + s1 * 2) + 0.3 * Math.cos(x * 0.41 - z * 0.37);
     const out = Math.max(0, bounds.minX - x, x - bounds.maxX, bounds.minZ - z, z - bounds.maxZ);
     if (gAt) { // the play area is the terrain; past its edge the slopes rise from wherever the terrain ends
       const base = gAt(Math.min(bounds.maxX, Math.max(bounds.minX, x)), Math.min(bounds.maxZ, Math.max(bounds.minZ, z)));
       if (out <= 0) return base - 0.03;
-      return base + n * 0.12 + Math.min(out, 90) * 0.7 * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
+      return base + n * 0.12 + Math.min(out, 90) * 0.7 * rimK * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
     }
     if (out <= 0) return loc.vista ? -0.08 : n * 0.12; // the Tower's paving sits above flat ground (no terrain bumps poking through, no z-fighting)
     if (loc.vista) return n * 0.12 - 1.2 - Math.min(out * out * 0.04, 139); // the Tower stands on a cliff above the Last City
     if (loc.sea) return n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // the play area is a deck above the sea
-    return n * 0.12 + Math.min(out, 90) * 0.7 * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
+    return n * 0.12 + Math.min(out, 90) * 0.7 * rimK * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
   };
   scene.add(buildGround(bounds, C, heightAt, rng, gAt ? 2 : 5));
   if (loc.vista) loc.vista(scene, C);
@@ -533,6 +543,7 @@ export function buildLevel(loc, def) {
     });
   };
   updateLights(spawn);
+  const updateAll = (p) => { sky?.update(p, performance.now() / 1000); updateLights(p); };
 
   /** Opens every closed door tied to a cleared zone (or a named door). Returns true if any opened. */
   const openDoors = (zoneIdx, id = null) => {
@@ -592,7 +603,7 @@ export function buildLevel(loc, def) {
   const bossIdx = zones.findIndex((z) => z.isBoss);
   if (bossIdx > 0 && set.lockIn !== false) for (const d of doors) if (d.zone === bossIdx - 1) d.lock = bossIdx;
 
-  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights, openDoors, updateDoors, syncLocks, voidAt, groundAt: gAt, terrain };
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights: updateAll, openDoors, updateDoors, syncLocks, voidAt, groundAt: gAt, terrain };
 }
 
 /**
