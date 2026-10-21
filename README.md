@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v3.0 "Deep Halls"**: the Tower rebuilt from the Destiny 1 map (Watch, vaulted Hall of Guardians with the sunken war table, Tower North with the Speaker's orrery, a Hangar with a workshop and faction bays), symbols above the Tower's people instead of text labels, flickering textures fixed, a white and gold Leviathan, boss rooms that lock behind you, and levels in the Moon's Hive caverns.
 - **v2.9 "The Vex"**: a new faction, the Vex, with Goblins, Harpies, Minotaurs, Hydras, Cyclops and more, filling the Pyramidion on Io; Destiny 2 units added to the older factions; and rebuilt Taken Phalanx and Scorn Lurker guards.
 - **v2.7 "The Last City"**: the Tower, a walkable hub reached from Orbit, with the Vanguard debriefing you between acts; a Quests tab that tracks the campaign for each Guardian; a Postmaster that takes overflow gear; an Exotic Kiosk; and a shooting range.
 - **v2.6 "The Ghost's Story"**: a campaign of 22 missions across 8 destinations, narrated by your Ghost with a subtitle bar; objectives in missions (hold, activate, retrieve, destroy, survive); the Dreaming City, and a Leviathan finale where Calus is revealed as a robot copy; closed boss rooms, interiors, stairs and platforms; unlimited lights; new bosses Morgeth, Veshra and a Taken champion; two new armor sets; campaign progress per Guardian; middle-click item lock.
