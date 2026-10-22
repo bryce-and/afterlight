@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v3.1 "High Ground"**: terrain height, so the ground rises and falls under enemies, projectiles, pickups and the player (ramps, plateaus, mounds and basins); a data-driven sky for each destination and mission; and rebuilt levels on the Moon, the Dreaming City, Earth and Mars with climbs and high ground.
 - **v3.0 "Deep Halls"**: the Tower rebuilt from the Destiny 1 map (Watch, vaulted Hall of Guardians with the sunken war table, Tower North with the Speaker's orrery, a Hangar with a workshop and faction bays), symbols above the Tower's people instead of text labels, flickering textures fixed, a white and gold Leviathan, boss rooms that lock behind you, and levels in the Moon's Hive caverns.
 - **v2.9 "The Vex"**: a new faction, the Vex, with Goblins, Harpies, Minotaurs, Hydras, Cyclops and more, filling the Pyramidion on Io; Destiny 2 units added to the older factions; and rebuilt Taken Phalanx and Scorn Lurker guards.
 - **v2.7 "The Last City"**: the Tower, a walkable hub reached from Orbit, with the Vanguard debriefing you between acts; a Quests tab that tracks the campaign for each Guardian; a Postmaster that takes overflow gear; an Exotic Kiosk; and a shooting range.
@@ -66,6 +67,8 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/colliders.js`, `js/physics.js` | Collider math (including yawed boxes) and line of sight |
 | `js/nav.js`, `js/ai.js`, `js/navdebug.js` | Enemy navigation grid and A*, leash, cover and melee rules, nav debug overlay |
 | `js/world.js` | Procedural level generation and the orbit planet |
+| `js/terrain.js` | Terrain height per map (plateau, ramp, mound, basin) and `groundAt`, used by physics, nav, enemies, projectiles and spawns |
+| `js/sky.js` | Data-driven skies per destination, with per-mission overrides |
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |
 | `js/armor.js` | Armor 2.0: six stats and tiers, mods (57), energy, sockets, orbs of power and armor charge tuning, v4 to v5 stat migration |
