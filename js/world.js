@@ -110,6 +110,7 @@ export function buildLevel(loc, def) {
     if (gAt) { // the play area is the terrain; past its edge the slopes rise from wherever the terrain ends
       const base = gAt(Math.min(bounds.maxX, Math.max(bounds.minX, x)), Math.min(bounds.maxZ, Math.max(bounds.minZ, z)));
       if (out <= 0) return base - 0.03;
+      if (loc.sea) return base + n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // a deck over the sea: past the edge the ground falls away into the water
       return base + n * 0.12 + Math.min(out, 90) * 0.7 * rimK * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
     }
     if (out <= 0) return loc.vista ? -0.08 : n * 0.12; // the Tower's paving sits above flat ground (no terrain bumps poking through, no z-fighting)
