@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '3.2.1', name: 'Hotfix', date: '2026-10-22',
+    summary: 'Mission caches no longer spawn inside ships, and an unclaimed cache now opens itself after 30 seconds.',
+    notes: [
+      'Mission cache: it spawns on open floor you can walk to. In Dust Palace it was landing inside the parked dropship in the hangar',
+      'Mission End timer: once the boss is down, a countdown shows "Returning to orbit in 30 seconds". If you do not open the cache, it opens itself and the rewards wait for you at the Postmaster',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.2', name: 'High Ground II', date: '2026-10-22', accent: '#d8a0c8', glyph: '▲',
     art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="h2Bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#120e24"/><stop offset="0.6" stop-color="#4a3a62"/><stop offset="1" stop-color="#d89a78"/></linearGradient><radialGradient id="h2Pl" cx="0.4" cy="0.35" r="0.8"><stop offset="0" stop-color="#f4e4c0"/><stop offset="1" stop-color="#c8a070"/></radialGradient></defs><rect width="320" height="180" fill="url(#h2Bg)"/><g fill="#ffffff" fill-opacity="0.8"><circle cx="24" cy="20" r="1.2"/><circle cx="110" cy="12" r="1"/><circle cx="200" cy="22" r="1.2"/><circle cx="300" cy="14" r="1"/><circle cx="60" cy="52" r="1"/></g><circle cx="230" cy="70" r="30" fill="url(#h2Pl)"/><ellipse cx="230" cy="70" rx="56" ry="11" fill="none" stroke="#e8d4b0" stroke-width="5" stroke-opacity="0.75" transform="rotate(-16 230 70)"/><g fill="#2a2034"><path d="M60 62 h38 l-8 16 h-22z"/><path d="M130 40 h26 l-6 12 h-14z"/><path d="M20 96 h28 l-6 12 h-16z"/></g><g fill="#5a4a6c"><path d="M60 62 h38 v-3 h-38z"/><path d="M130 40 h26 v-3 h-26z"/><path d="M20 96 h28 v-3 h-28z"/></g><path d="M78 78 L84 110 M143 52 L150 100" stroke="#8a7a9a" stroke-width="1" stroke-dasharray="2 3"/><path d="M0 150 L50 138 L110 146 L170 128 L240 142 L320 126 V180 H0z" fill="#2a2034"/><path d="M0 164 L70 154 L150 160 L230 150 L320 156 V180 H0z" fill="#1a1424"/><path d="M110 164 Q150 120 214 132" fill="none" stroke="#ffd88a" stroke-width="2" stroke-dasharray="4 4" stroke-opacity="0.7"/><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
     summary: 'Io, Titan, the Tangled Shore and the Leviathan get the same treatment as the first four worlds: ground that rises and falls, a sky of their own, and missions rebuilt around climbs, descents and a real up and down.',

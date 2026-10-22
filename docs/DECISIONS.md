@@ -179,3 +179,4 @@
 | 2026-10-22 | U16e: in a map's terrain list, plateaus must come before the ramps that join them. | Claude |
 | 2026-10-22 | U16e: findSpawn does not check slope. | Claude |
 | 2026-10-22 | U16e: skies for Io, Titan, Tangled Shore and Leviathan exist as destination defaults only (`js/sky.js`) and are rebuilt in v3.2. | Claude |
+| 2026-10-22 | v3.2.1: a boss-room cache is placed by `chestSpot` (clear of colliders, on cells reachable from the player) instead of a fixed offset from the zone center. An unclaimed mission cache opens itself after 30 s and sends every reward to the Postmaster. Horde and Endless final chests are unchanged. | Claude |
