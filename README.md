@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v3.2 "High Ground II"**: the same terrain and sky treatment for Io, Titan, the Tangled Shore and the Leviathan, with every mission rebuilt around climbs, descents and a real up and down.
 - **v3.1 "High Ground"**: terrain height, so the ground rises and falls under enemies, projectiles, pickups and the player (ramps, plateaus, mounds and basins); a data-driven sky for each destination and mission; and rebuilt levels on the Moon, the Dreaming City, Earth and Mars with climbs and high ground.
 - **v3.0 "Deep Halls"**: the Tower rebuilt from the Destiny 1 map (Watch, vaulted Hall of Guardians with the sunken war table, Tower North with the Speaker's orrery, a Hangar with a workshop and faction bays), symbols above the Tower's people instead of text labels, flickering textures fixed, a white and gold Leviathan, boss rooms that lock behind you, and levels in the Moon's Hive caverns.
 - **v2.9 "The Vex"**: a new faction, the Vex, with Goblins, Harpies, Minotaurs, Hydras, Cyclops and more, filling the Pyramidion on Io; Destiny 2 units added to the older factions; and rebuilt Taken Phalanx and Scorn Lurker guards.
