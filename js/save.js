@@ -454,6 +454,11 @@ export function toggleLock(s, id) {
 export function addItem(s, it) {
   noteExotic(s, it);
   if (s.inventory.length < INVENTORY_CAP) { s.inventory.push(it); return null; }
+  return sendToPostmaster(s, it);
+}
+
+/** Puts an item straight into this Guardian's Postmaster (an unclaimed mission cache, or a full inventory). Returns { sent, dismantled }. */
+export function sendToPostmaster(s, it) {
   s.postmaster = s.postmaster || [];
   let dismantled = null;
   if (s.postmaster.length >= POSTMASTER_CAP) {

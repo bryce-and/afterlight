@@ -6,12 +6,12 @@ import { Enemy, updateEnemyShots, updateEnemyGrenades } from './enemies.js';
 import { Player } from './player.js';
 import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
-import { pointInColliders, groundAt } from './physics.js';
-import { buildNav, NAV } from './nav.js';
+import { pointInColliders, groundAt, footprintHit } from './physics.js';
+import { buildNav, NAV, floodReach, cellIndex } from './nav.js';
 import { updateNavDebug } from './navdebug.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
-import { addItem, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
+import { addItem, sendToPostmaster, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP, capRarity, maxRarityIndex } from './progression.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection, getSection, musicSectionFor, stinger } from './music.js';
@@ -107,6 +107,7 @@ export function abandonMission(silent = false) {
 }
 
 export function cleanupMission() {
+  ui.endTimer(null);
   if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
   clearEffects();
@@ -334,10 +335,14 @@ function updateMission(dt) {
   } else if (M.phase === 'loot') {
     M.objective = 'Open the cache';
     M.waypoint = M.chest.pos;
+    M.lootT = (M.lootT ?? LOOT_WINDOW) - dt;
+    ui.endTimer(M.lootT);
     const near = P.pos.distanceTo(M.chest.pos) < 3.2;
     ui.prompt(near ? '[E]  Open Cache' : null);
     if (near && G.input.pressed.KeyE) openChest();
+    else if (M.lootT <= 0) openChest(true); // unclaimed: it opens itself and the rewards wait at the Postmaster
   } else if (M.phase === 'done') {
+    ui.endTimer(null);
     ui.prompt(null);
     M.chest.lid.rotation.x = Math.max(-1.9, M.chest.lid.rotation.x - dt * 4);
     M.doneT -= dt;
@@ -374,7 +379,8 @@ function zoneCleared(z) {
   if (z.isBoss) {
     M.phase = 'loot';
     const dir = P.pos.clone().sub(z.center).setY(0);
-    const pos = z.center.clone().add(dir.lengthSq() > 1 ? dir.normalize().multiplyScalar(3) : new THREE.Vector3(0, 0, 3));
+    const want = z.center.clone().add(dir.lengthSq() > 1 ? dir.normalize().multiplyScalar(3) : new THREE.Vector3(0, 0, 3));
+    const pos = chestSpot(want, P.pos);
     M.chest = spawnChest(pos);
     announceLoot(pos);
     reviveForCompletion();
@@ -542,6 +548,33 @@ function tickZoneObjective(z, dt, alive) {
   }
 }
 
+/** How long a mission cache waits before it opens itself, in seconds. */
+const LOOT_WINDOW = 30;
+
+/**
+ * The open floor nearest `want` that the player can walk to: clear of every collider (a parked ship, crates, a platform)
+ * and on the nav grid's reachable cells. Falls back to `want` if the map offers nothing.
+ */
+function chestSpot(want, from) {
+  const nav = G.nav;
+  const reach = nav ? floodReach(nav, from.x, from.z) : null;
+  const free = (x, z) => {
+    const y = groundAt(x, z);
+    for (const c of G.colliders) if (c.max.y > y + 0.2 && c.min.y < y + 2 && footprintHit(c, x, z, 1.3)) return false;
+    if (!reach) return true;
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const i = cellIndex(nav, x + dx, z + dz); if (i < 0 || !reach[i]) return false; }
+    return true;
+  };
+  if (free(want.x, want.z)) return want;
+  for (let r = 1.5; r <= 20; r += 1.5) {
+    for (let k = 0, n = Math.ceil(r * 5); k < n; k++) {
+      const a = (k / n) * Math.PI * 2, x = want.x + Math.cos(a) * r, z = want.z + Math.sin(a) * r;
+      if (free(x, z)) return new THREE.Vector3(x, 0, z);
+    }
+  }
+  return want;
+}
+
 export function spawnChest(pos) {
   const g = new THREE.Group();
   const gold = 0xf4c542;
@@ -565,9 +598,10 @@ export function spawnChest(pos) {
   return { group: g, lid, beam, pos: g.position.clone(), opened: false };
 }
 
-function openChest() {
+function openChest(auto = false) {
   const M = G.mission;
   M.chest.opened = true;
+  ui.endTimer(null);
   M.chest.beam.visible = false;
   sfx.chest();
   sparks(M.chest.pos.clone().setY(1), 0xf4c542, 30, 8, 0.1, 0.8);
@@ -582,7 +616,7 @@ function openChest() {
     if (first && M.mi === M.loc.missions.length - 1 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
     rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
   }
-  rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
+  rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it, auto); }, 300 + i * 450));
   // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
   const shader = rollShader(G.save.shaders.owned, first && M.mi === M.loc.missions.length - 1);
   if (shader) {
@@ -604,7 +638,8 @@ function openChest() {
   if (M.mi === M.loc.missions.length - 1) for (const [who, text] of UNLOCKS[M.loc.id] || []) { ui.say(who, text); announceSay(who, text); }
 }
 
-export function grantItem(item) {
+/** `toPostmaster`: the mission cache opened itself, so the item skips the inventory and waits at the Postmaster. */
+export function grantItem(item, toPostmaster = false) {
   if (G.save.settings.autoDismantle?.[item.rarity]) { // weapons and armor alike
     const v = dismantleValue(item);
     G.save.glimmer += v;
@@ -613,11 +648,13 @@ export function grantItem(item) {
     ui.feed(`Auto-dismantled ${item.name}  ·  +${v} glimmer`, RARITIES[rarityIndex(item.rarity)].color);
     return;
   }
-  const auto = addItem(G.save, item);
+  if (toPostmaster) noteExotic(G.save, item);
+  const auto = toPostmaster ? sendToPostmaster(G.save, item) : addItem(G.save, item);
   if (G.mission && !G.mission.loot.includes(item)) G.mission.loot.push(item);
   ui.lootToast(item);
   sfx.engram(rarityIndex(item.rarity));
-  if (auto) ui.feed(auto.dismantled ? `Inventory full: ${auto.sent.name} sent to the Postmaster (${auto.dismantled.name} dismantled)` : `Inventory full: ${auto.sent.name} sent to the Postmaster`, '#aaa');
+  if (toPostmaster) ui.feed(auto.dismantled ? `Cache opened automatically: ${item.name} sent to the Postmaster (${auto.dismantled.name} dismantled)` : `Cache opened automatically: ${item.name} sent to the Postmaster`, '#aaa');
+  else if (auto) ui.feed(auto.dismantled ? `Inventory full: ${auto.sent.name} sent to the Postmaster (${auto.dismantled.name} dismantled)` : `Inventory full: ${auto.sent.name} sent to the Postmaster`, '#aaa');
   writeSave(G.save);
 }
 

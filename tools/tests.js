@@ -1142,6 +1142,13 @@ test('U16d Tower: every empty NPC post is inside the map and names a symbol', ()
   }
   eq(Object.keys(TOWER_FUTURE_POSTS).length, 10);
 });
+test('Unclaimed mission cache: sendToPostmaster skips a roomy inventory', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  const base = s.inventory.find((i) => i.kind === 'weapon' && !S.isEquipped(s, i));
+  const n = s.inventory.length, r = S.sendToPostmaster(s, { ...base, id: 'auto1', locked: false });
+  eq(s.inventory.length, n); eq(s.postmaster.length, 1); eq(r.dismantled, null);
+});
 test('U16 Exotic Kiosk: priced at 7777 glimmer', () => { eq(S.KIOSK_PRICE, 7777); eq(S.POSTMASTER_CAP, 21); });
 test('U16 Postmaster: overflow goes to the Postmaster, it caps at 21, exotics are never lost, items can be collected', () => {
   fresh();

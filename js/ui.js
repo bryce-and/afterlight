@@ -1389,6 +1389,15 @@ export function lootToast(it) {
   setTimeout(() => el.remove(), 5600);
 }
 
+/** The mission-end countdown (seconds left), or null to hide it. */
+export function endTimer(sec) {
+  const el = $('#end-timer');
+  if (sec == null) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+  const t = `Mission End: Returning to orbit in ${Math.max(0, Math.ceil(sec))} seconds`;
+  if (el.textContent !== t) el.textContent = t;
+  el.classList.remove('hidden');
+}
+
 export function prompt(text) {
   const el = $('#prompt');
   if (!text) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
