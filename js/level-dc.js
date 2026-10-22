@@ -1,7 +1,7 @@
-// Hand-built Dreaming City mission maps (see makeKit in world.js).
-// dc1 The Divalian Mists: fog-bound ruins and rope bridges -> Rheasilvia and the sealed Blind Well door -> the Strand plaza -> the Gate of the Mists.
-// dc2 The Spine of Keres: the Strand's hill and cave mouth -> overgrown terraces of Esila -> crystal tunnels of the Spine -> Morgeth's roofed Oracle temple.
-// dc3 The Wishing Chamber: Harbinger's Seclude cloister -> hedge-lane Gardens -> the Blight Hollow crater -> the vast roofed nest of the Ahamkara brood.
+// Hand-built Dreaming City mission maps (see makeKit in world.js), on the U16e terrain engine.
+// dc1 The Divalian Mists: a low fog shore climbing in terraces. Ledge -> mist plain -> gully climb to the Rheasilvia mesa and the Blind Well wall -> gully down to the sloping Strand shoreline -> long climb to the Gate of the Mists.
+// dc2 The Spine of Keres: a ridge climb. Foot of the ridge -> zig-zag Gardens of Esila terraces -> a ribbed viaduct over the abyss -> the crest hall of ribs -> Morgeth's Oracle temple.
+// dc3 The Wishing Chamber: a descent. Harbinger's Seclude court on the heights -> stair viaduct to the Gardens of Esila -> a gorge into the Taken Blight Hollow -> up into the Ahamkara's nest.
 // Awoken ivory and lavender stone, crystal and gold, with Taken blight (black growths, orange veins) and torn banners spreading over it.
 import * as THREE from 'three';
 
@@ -115,38 +115,86 @@ function brazier(K, x, z, color = VIOLET, s = 1) {
   K.light(x, 2.6 * s, z, color, 7, 22);
 }
 
-// pavilion-less rope bridge over a mist stream: planked deck, posts and two rails (decor; the ground is the walkway)
-function bridge(K, x, z, len, w, axis = 'z') {
-  const al = axis === 'z';
-  K.box(x, z, al ? w : len, 0.1, al ? len : w, IVORY2, { y: 0.28, collide: false });
+
+// ---- U16e helpers (every y is measured from the ground under the point, so these work on slopes) ----
+
+// a low wall run chopped into 5 m pieces so it follows a slope (each piece sits on the ground at its own centre)
+function run(K, x0, z0, x1, z1, h, o = {}) {
+  const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(L / 5)), alongX = Math.abs(x1 - x0) >= Math.abs(z1 - z0), t = o.t ?? 1;
+  for (let i = 0; i < n; i++) {
+    const f = (i + 0.5) / n, x = x0 + (x1 - x0) * f, z = z0 + (z1 - z0) * f, l = L / n + 0.05;
+    K.box(x, z, alongX ? l : t, h, alongX ? t : l, o.color ?? IVORY2, { collide: o.collide ?? true });
+  }
+  if (o.cap) K.box((x0 + x1) / 2, (z0 + z1) / 2, alongX ? Math.abs(x1 - x0) : t + 0.3, 0.25, alongX ? t + 0.3 : Math.abs(z1 - z0), o.cap, { y: h, collide: false, glow: 0.5 });
+}
+
+// a door set in a lane with a pylon on either side. The lane is a gully, so the cliffs close the rest of the gap.
+function gatehouse(K, x, z, w, h, o = {}) {
+  const trim = o.trim ?? GOLD, gz = K.ground(x, z);
+  K.door(x, z, w, h, 'x', { zone: o.zone, color: o.doorColor ?? LAV2, trim });
   for (const s of [-1, 1]) {
-    const px = al ? x + s * w / 2 : x, pz = al ? z : z + s * w / 2;
-    K.box(px, pz, al ? 0.12 : len, 0.12, al ? len : 0.12, DUSK, { y: 1.0, collide: false });
-    for (const t of [-0.5, 0, 0.5]) K.box(al ? px : x + t * len, al ? z + t * len : pz, 0.22, 1.3, 0.22, LAV2, { y: 0.2, collide: false });
+    const px = x + s * (w / 2 + 1.1), off = gz - K.ground(px, z);
+    K.box(px, z, 2.6, h + 3.5, 2.6, o.pillar ?? IVORY, { abs: true, y: gz - 0.4 });
+    K.box(px, z, 3.4, 0.5, 3.4, trim, { y: off + h + 1.8, collide: false, glow: 0.6 });
+    K.mesh(g().octa, o.tip ?? ICE, px, off + h + 5, z, { scale: [0.7, 1.4, 0.7], glow: 1.3 });
+    K.light(px, off + h + 1, z + 2.5, o.lamp ?? trim, 7, 24);
+  }
+  if (o.banners !== false) { banner(K, x - w / 2 - 3.2, z + 2, 6.5); banner(K, x + w / 2 + 3.2, z + 2, 6.5); }
+}
+
+// a ruined room corner: a wall with a return, a fallen block and a crumbled top, turned by ry
+function ruin(K, x, z, ry = 0, s = 1, col = IVORY2) {
+  const c = Math.cos(ry), sn = Math.sin(ry), at = (dx, dz) => [x + dx * c + dz * sn, z - dx * sn + dz * c];
+  let p = at(0, 0);
+  K.obox(p[0], p[1], 7 * s, 2.2 * s, 0.9, ry, col);
+  p = at(-3.1 * s, 3.4 * s);
+  K.obox(p[0], p[1], 0.9, 1.5 * s, 5.6 * s, ry, col);
+  p = at(1.4 * s, 0);
+  K.box(p[0], p[1], 3 * s, 0.5, 0.8, col, { y: 2.2 * s, collide: false }).rotation.y = ry;
+  p = at(2.2 * s, 2.4 * s);
+  K.obox(p[0], p[1], 1.6 * s, 0.9 * s, 1.1 * s, ry + 0.7, col);
+}
+
+// a curved run of cover (oriented blocks along an arc) from angle a0 to a1, facing out from (cx, cz)
+function arcWall(K, cx, cz, r, a0, a1, n, h, o = {}) {
+  const seg = r * Math.abs(a1 - a0) / n;
+  for (let i = 0; i < n; i++) {
+    if (o.skip && o.skip.includes(i)) continue;
+    const a = a0 + (a1 - a0) * (i + 0.5) / n;
+    K.obox(cx + Math.cos(a) * r, cz + Math.sin(a) * r, seg * 0.92, h * (o.vary ? 0.7 + 0.5 * ((i * 7) % 5) / 4 : 1), o.t ?? 1.2, Math.atan2(-Math.cos(a), -Math.sin(a)), o.color ?? IVORY2);
   }
 }
 
-// shallow glowing stream strip under a bridge
-function stream(K, x, z, w, d, op = 0.5) {
-  return ghost(K.box(x, z, w, 0.1, d, ICE, { y: 0.22, collide: false, glow: 0.35 }), op);
+// a tall gold-crowned obelisk (a landmark seen across the map)
+function obelisk(K, x, z, h, r = 2.4, col = IVORY) {
+  K.cyl(x, z, r * 1.5, 1.4, IVORY2, { sides: 4 });
+  K.cyl(x, z, r, h, col, { r2: r * 0.45, sides: 4, y: 1.4 });
+  K.mesh(g().cyl6, GOLD, x, h * 0.55, z, { scale: [r * 0.8, 0.5, r * 0.8], glow: 0.7 });
+  K.mesh(g().octa, ICE, x, h + 3, z, { scale: [r * 0.5, r * 1.5, r * 0.5], glow: 1.4 });
+  K.light(x, h + 3, z, ICE, 9, 36);
 }
 
-// full-width wall across the map with one gap, optionally closed by a zone-clear door; flanking pillars, trim and lights
-function gateWall(K, z, gx, gapW, h, o = {}) {
-  const b = K.bounds, c = gx - b.minX, col = o.color ?? IVORY2, trim = o.trim ?? GOLD, len = b.maxX - b.minX;
-  K.wall(b.minX, z, b.maxX, z, h, { t: o.t ?? 1.8, color: col, gaps: [[c - gapW / 2, c + gapW / 2]] });
-  K.box((b.minX + b.maxX) / 2, z, len, 0.3, (o.t ?? 1.8) + 0.3, trim, { y: h, collide: false, glow: 0.7 });
-  for (const s of [-1, 1]) {
-    const px = gx + s * (gapW / 2 + 1.4);
-    K.box(px, z, 2.6, h + 3, 2.6, o.pillar ?? IVORY);
-    K.mesh(g().octa, o.tip ?? ICE, px, h + 4, z, { scale: [0.7, 1.4, 0.7], glow: 1.3 });
-    K.light(px, h + 1, z + 2.5, o.lamp ?? trim, 7, 24);
+// a rib of the Spine: two pillars and a lintel that follows the lane (pillars stand on their own ground)
+function rib(K, x, z, span, h, o = {}) {
+  const col = o.color ?? IVORY, gz = K.ground(x, z);
+  for (const s of [-1, 1]) K.box(x + s * span / 2, z, 1.4, h, 1.4, col, { collide: o.collide ?? true });
+  K.box(x, z, span + 1.4, 0.9, 1.2, col, { abs: true, y: gz + h - 0.4, collide: false });
+  if (o.glow !== false) for (const s of [-1, 1]) K.box(x + s * (span / 2 - 0.5), z, 0.14, h * 0.55, 0.3, ICE, { y: 1.0, collide: false, glow: 1.2 });
+  if (o.light) K.light(x, h - 1.2, z, ICE, 7, 22);
+}
+
+// the facing of a terrace cliff running along x at z: its top stands 0.5 m above the upper terrace (hi); gaps are x ranges left open for lanes
+function faceWall(K, x0, x1, z, hi, gaps = [], o = {}) {
+  const t = o.t ?? 1.1;
+  for (let x = x0; x < x1 - 0.1; x += 5) {
+    const xc = Math.min(x + 2.5, x1 - 0.5);
+    if (gaps.some(([a, b]) => xc + 2.5 > a && xc - 2.5 < b)) continue;
+    K.box(xc, z, 5.02, hi + 0.5 - K.ground(xc, z), t, o.color ?? IVORY2);
+    if (o.cap) K.box(xc, z, 5.02, 0.25, t + 0.4, o.cap, { abs: true, y: hi + 0.5, collide: false });
   }
-  if (o.zone != null) K.door(gx, z, gapW, h, 'x', { zone: o.zone, color: o.doorColor ?? LAV2, trim });
-  if (o.banners !== false) { banner(K, gx - gapW / 2 - 3.4, z + 2, 6.5); banner(K, gx + gapW / 2 + 3.4, z + 2, 6.5); }
 }
 
-// roofed tunnel running along z from za to zb: side walls, roof, glowing ribs and lights
+// roofed tunnel running along z from za to zb on flat ground: side walls, roof, glowing ribs and lights
 function tunnel(K, x, za, zb, o = {}) {
   const w = o.w ?? 8, h = o.h ?? 10, col = o.color ?? LAV2, gl = o.glow ?? ICE;
   const z1 = Math.max(za, zb), z2 = Math.min(za, zb), zm = (z1 + z2) / 2, L = z1 - z2;
@@ -158,24 +206,6 @@ function tunnel(K, x, za, zb, o = {}) {
     for (const s of [-1, 1]) K.box(x + s * (w / 2 - 0.55), z, 0.14, 4.5, 0.4, gl, { y: 1.2, collide: false, glow: 1.3 });
   }
   for (let z = z1 - 4; z > z2; z -= 8) K.light(x, h - 1.5, z, gl, 6, 18);
-}
-
-// ragged rock crest and cave-mouth wall across the map with one gap (dc2 and dc3); door optional
-function cliffWall(K, z, gx, gapW, h, o = {}) {
-  const b = K.bounds, c = gx - b.minX, t = o.t ?? 4;
-  K.wall(b.minX, z, b.maxX, z, h, { t, color: K.C.rock2, gaps: [[c - gapW / 2, c + gapW / 2]] });
-  for (let x = b.minX + 6; x < b.maxX; x += 11) {
-    if (Math.abs(x - gx) < gapW / 2 + 2) continue;
-    K.mesh(g().rock, K.RP([K.C.rock, K.C.rock2]), x + K.R(-2, 2), h + 0.5, z + K.R(-0.6, 0.6), { scale: [K.R(4, 6.5), K.R(2, 5), t * 0.6], ry: K.R(-0.2, 0.2), collide: false });
-  }
-  for (const s of [-1, 1]) {
-    const px = gx + s * (gapW / 2 + 1.6);
-    K.mesh(g().rock, K.C.rock, px, h * 0.55, z, { scale: [2.6, h * 0.7, t * 0.6], collide: false });
-    crystal(K, px + s * 3, z + 3.2, 1.3);
-  }
-  K.mesh(g().rock, K.C.rock, gx, h + 1.4, z, { scale: [gapW * 0.7, 3, t * 0.55], collide: false });
-  if (o.zone != null) K.door(gx, z, gapW, h, 'x', { zone: o.zone, color: o.doorColor ?? K.C.rock2, trim: o.trim ?? ICE });
-  K.light(gx, h - 1, z + 3, o.lamp ?? ICE, 8, 26);
 }
 
 // hedge row (collides, climbable-height cover)
@@ -205,121 +235,178 @@ function stub(K, x, z, w, d, h, col = IVORY2) {
 
 export default {
   // ===========================================================================
-  // The Divalian Mists: Petra's gate at the end of a fog-bound approach.
+  // The Divalian Mists: a low fog shore that climbs, terrace by terrace, to Petra's gate.
   // ===========================================================================
   dc1: {
     spawn: [0, 18],
     bounds: [-72, 72, -292, 30],
     zones: [
-      { name: 'Divalian Mists', x: 0, z: -42 },
-      { name: 'Rheasilvia', x: -14, z: -110 },
-      { name: 'The Strand', x: 10, z: -176 },
+      { name: 'Divalian Mists', x: 12, z: -50 },
+      { name: 'Rheasilvia', x: -14, z: -130 },
+      { name: 'The Strand', x: 6, z: -194 },
       { name: 'Gate of the Mists', x: 0, z: -242, boss: true, room: { minX: -29, maxX: 29, minZ: -268, maxZ: -216 } },
+    ],
+    // dusk over a pale sea: a low violet moon, drifting mist banks, fogged ridges and a green sheet of aurora
+    sky: {
+      zenith: 0x2a2250, mid: 0x6c5696, horizon: 0xd2aacb, fog: 0xa898c8,
+      stars: { n: 150, color: 0xf2e8ff, size: 2, min: 0.35 },
+      bodies: [{ color: 0xe6def4, size: 52, pos: [-330, 80, -500], glow: 0xb8a8e8 }],
+      ridges: [{ r: 640, h: [30, 90], color: 0x54467a, haze: 0.55, steps: 60 }, { r: 560, h: [14, 40], color: 0x6a5a90, haze: 0.5, steps: 80 }],
+      haze: [{ color: 0xe0d0ee, opacity: 0.6, r: 470, h: 130, y: -10 }, { color: 0xc8b8e0, opacity: 0.4, r: 520, h: 60, y: 30 }],
+      aurora: [{ color: 0x5cffb8, y: 150, r: 560, h: 120, arc: [0.3, 2.3], opacity: 0.4, waves: 3 }],
+      clouds: { n: 10, color: 0xe4d0ec, opacity: 0.55, y: [70, 130], size: 22 },
+      floaters: [{ kind: 'island', n: 6, r: [380, 640], y: [40, 150], size: [24, 56], color: 0x6a5a90, top: 0xcfc7e0, haze: 0.45 }, { kind: 'spire', n: 7, r: [420, 640], y: [50, 170], size: [14, 28], color: 0xe4dcf0, glow: 0x9fe8ff, haze: 0.4 }],
+    },
+    // U16e: the shore ledge, a mist plain of dunes, the Rheasilvia mesa (9 m) cut by two gullies, the Strand's long slope up to the Gate plateau
+    terrain: [
+      { type: 'plateau', x: 0, z: 12, w: 190, d: 38, h: 2.4, edge: 3 },                                  // the landing ledge
+      { type: 'ramp', x0: 0, z0: -6, x1: 0, z1: -28, width: 18, h0: 2.4, h1: 0, edge: 5 },              // down into the mist
+      { type: 'mound', x: -44, z: -60, r: 22, h: 3.4 },                                                  // the hill of the broken ring
+      { type: 'mound', x: 44, z: -34, r: 14, h: 1.6 },
+      { type: 'mound', x: 40, z: -76, r: 16, h: 2.0 },
+      { type: 'mound', x: -20, z: -34, r: 12, h: 1.1 },
+      { type: 'plateau', x: 0, z: -128, w: 200, d: 64, h: 9, edge: 3 },                                  // Rheasilvia mesa
+      { type: 'plateau', x: 58, z: -128, w: 30, d: 32, h: 14, edge: 3 },                                 // the overlook on the east
+      { type: 'ramp', x0: 28, z0: -114, x1: 52, z1: -114, width: 9, h0: 9, h1: 14, edge: 2 },
+      { type: 'ramp', x0: -30, z0: -84, x1: -30, z1: -97, width: 10, h0: 0, h1: 0, edge: 2 },            // flat run-in, so the mesa's foot skirt leaves no bump
+      { type: 'ramp', x0: -30, z0: -96, x1: -30, z1: -136, width: 10, h0: 0, h1: 9, edge: 2 },          // gully up out of the mist
+      { type: 'ramp', x0: 24, z0: -132, x1: 24, z1: -164, width: 10, h0: 9, h1: 0, edge: 2 },           // gully down to the shore
+      { type: 'ramp', x0: 0, z0: -170, x1: 0, z1: -212, width: 190, h0: 0, h1: 6, edge: 6 },            // the Strand's slope
+      { type: 'plateau', x: 0, z: -252, w: 200, d: 80, h: 6, edge: 3 },                                  // the high ground behind the Gate courtyard (no pit round it)
     ],
     build(K) {
       const { R } = K;
 
-      // ---- Divalian Mists: fog-swallowed ruins, mist streams, rope bridges ----
-      for (const [x, z, r, y] of [[-30, -20, 15, 0.5], [28, -34, 16, 0.8], [-8, -58, 14, 0.6], [34, -66, 13, 0.9], [-44, -48, 12, 0.7], [6, -6, 12, 0.5], [-22, -72, 10, 0.8], [8, -44, 13, 0.7]]) {
+      // ---- the landing ledge: a parapet with ruined gaps, an arch over the way down ----
+      for (const [x, w] of [[-52, 26], [-27, 11], [29, 12], [51, 24]]) stub(K, x, -4.6, w, 1.0, 1.3);
+      arch(K, 0, -16, 16, 10, 'x', { light: GOLD });
+      for (const [x, z] of [[-14, -2], [14, -4], [-40, 12], [38, 14]]) lamp(K, x, z, 3.6, ICE);
+      for (const [x, z] of [[-24, 6], [24, -1], [-50, 16], [50, 18]]) banner(K, x, z, R(5.5, 7));
+      crystal(K, -58, 20, 1.5); crystal(K, 60, 10, 1.3);
+      mist(K, -30, 6, 16, 3.0, 0.22); mist(K, 32, 4, 14, 3.0, 0.2);
+
+      // ---- Divalian Mists: a fog-swallowed plain of dunes, ruin rooms and broken arches ----
+      for (const [x, z, r, y] of [[-30, -22, 15, 0.5], [26, -30, 16, 0.8], [-6, -62, 14, 0.6], [34, -62, 13, 0.9], [-52, -44, 12, 0.7], [0, -12, 12, 0.5], [-24, -78, 10, 0.8], [10, -46, 13, 0.7]]) {
         mist(K, x, z, r, y, 0.34); mist(K, x + 3, z - 2, r * 0.7, y + 0.55, 0.22);
       }
-      stream(K, 0, -12, 144, 7);
-      bridge(K, 0, -12, 11, 5); bridge(K, -40, -12, 11, 4); bridge(K, 42, -12, 11, 4);
-      arch(K, 0, -62, 12, 11, 'x', { light: GOLD });
-      arch(K, -26, -30, 9, 9, 'x', { broken: true });
-      arch(K, 26, -50, 10, 10, 'x', { light: ICE });
-      arch(K, 40, -20, 8, 8, 'z', { broken: true });
-      for (const [x, z, w, d, h] of [[-14, -22, 6, 0.9, 2.2], [16, -24, 0.9, 6, 1.8], [-38, -52, 7, 0.9, 2.6], [12, -60, 5, 0.9, 2.0], [-14, -34, 0.9, 5, 1.4], [16, -48, 5, 0.9, 1.6], [-30, -66, 6, 0.9, 2.4]]) stub(K, x, z, w, d, h);
-      fallen(K, -22, -44, 7, 0.3); fallen(K, 24, -66, 6, -0.5); fallen(K, 10, -30, 5, 1.2);
-      // the great broken ring, half lost in the fog
-      K.mesh(new THREE.TorusGeometry(11, 1.3, 5, 14, 4.2), IVORY, -52, 10, -62, { ry: 0.3 });
-      K.box(-58, -60, 4, 3, 3, IVORY2); K.box(-47, -66, 4, 2, 3, IVORY2);
-      for (const [x, z] of [[-48, -22], [46, -44], [42, -72]]) blight(K, x, z, R(2.4, 3.2), { light: true });
-      for (const [x, z] of [[-10, -14], [14, -36], [-6, -66], [30, -8]]) banner(K, x, z, R(5.5, 7));
-      for (const [x, z] of [[-6, 6], [8, -28], [-18, -50], [20, -42]]) lamp(K, x, z, 3.6, ICE);
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), 0, -42, 8, 19, 5, 2.4);
-      crystal(K, -56, -30, 1.6); crystal(K, 56, -26, 1.4); crystal(K, 52, -64, 1.2);
-      for (const [x, z] of [[-50, 4], [50, 6], [-60, -34], [60, -50], [-58, -76], [56, -78]]) spire(K, x, z, R(16, 26), 2.2);
+      // the great broken ring, standing on its hill and half lost in the fog
+      K.mesh(new THREE.TorusGeometry(11, 1.3, 5, 14, 4.2), IVORY, -44, 10, -60, { ry: 0.3 });
+      K.box(-52, -58, 4, 3, 3, IVORY2); K.box(-38, -64, 4, 2, 3, IVORY2);
+      K.light(-44, 10, -56, GOLD, 8, 30);
+      // ruin rooms scatter the plain into lanes
+      ruin(K, -14, -46, 0.4, 1.1); ruin(K, 36, -58, -0.6, 1.0); ruin(K, -18, -72, 2.2, 1.2); ruin(K, 24, -26, 1.2, 0.8);
+      arch(K, -30, -88, 12, 9, 'x', { light: ICE });
+      arch(K, 14, -74, 10, 10, 'x', { broken: true });
+      arch(K, -4, -30, 9, 9, 'x', { light: GOLD });
+      arch(K, 32, -46, 8, 8, 'z', { broken: true });
+      fallen(K, 0, -58, 6, 0.3); fallen(K, 28, -40, 5, -0.5);
+      for (const [x, z] of [[-50, -22], [46, -44], [44, -88]]) blight(K, x, z, R(2.4, 3.2), { light: true });
+      for (const [x, z] of [[-10, -14], [14, -36], [-8, -64], [30, -10]]) banner(K, x, z, R(5.5, 7));
+      for (const [x, z] of [[-6, 8], [8, -24], [-22, -54], [22, -52]]) lamp(K, x, z, 3.6, ICE);
+      K.scatter((x, z) => K.rock(x, z, R(1, 2)), 12, -50, 8, 19, 5, 2.4);
+      crystal(K, -60, -26, 1.6); crystal(K, 58, -22, 1.4); crystal(K, 56, -60, 1.2);
+      for (const [x, z] of [[-62, 6], [60, 2], [-66, -30], [64, -58], [-62, -88], [58, -90]]) spire(K, x, z, R(16, 26), 2.2);
 
-      // ---- veil wall and gate (opens when the Mists are cleared) ----
-      gateWall(K, -80, 0, 8, 8, { zone: 0 });
+      // ---- the gully mouth: the first gate, at the foot of the mesa ----
+      gatehouse(K, -30, -98, 10, 8, { zone: 0 });
+      for (let z = -102; z > -134; z -= 6) K.box(-30, z, 8.4, 0.1, 0.5, GOLD, { y: 0.22, collide: false, glow: 0.4 });
+      for (const z of [-104, -120]) for (const s of [-1, 1]) lamp(K, -30 + s * 5.6, z, 3.2, ICE);
 
-      // ---- Rheasilvia: the mountain approach, tiered cliffs and the sealed Blind Well door ----
-      // east: three stepped terraces of high ground
-      K.platform(52, -102, 22, 30, 1.2, { stairs: ['w'], color: LAV, stairColor: IVORY2, stairW: 6 });
-      K.platform(56, -102, 14, 20, 1.2, { y: 1.2, stairs: ['w'], color: LAV2, stairColor: IVORY2, stairW: 5 });
-      K.platform(60, -102, 7, 10, 1.2, { y: 2.4, stairs: ['w'], color: DUSK, stairColor: IVORY2, stairW: 4 });
-      for (const [x, z, h] of [[50, -116, 2.4], [58, -92, 3.2]]) stub(K, x, z, 5, 1, h, IVORY2);
-      K.platform(52, -134, 16, 14, 0.8, { stairs: ['w'], color: LAV, stairColor: IVORY2, stairW: 4 });
-      spire(K, 66, -80, 22, 2.6); spire(K, 66, -126, 18, 2.4);
+      // ---- Rheasilvia: the mesa. The way in climbs a gully; the Blind Well wall closes the west ----
       // west: sheer wall with the Blind Well door, a sealed gold-ringed slab
-      K.wall(-64, -82, -64, -142, 14, { t: 3, color: LAV2, gaps: [[28, 40]] });
-      K.door(-64, -108, 12, 14, 'z', { zone: null, id: 'blindwell', color: IVORY2, trim: GOLD });
-      for (const z of [-115.8, -100.2]) { K.box(-64, z, 3.2, 17, 2.6, IVORY); K.mesh(g().octa, GOLD, -64, 18, z, { scale: [0.7, 1.4, 0.7], glow: 1.4 }); }
-      K.mesh(new THREE.TorusGeometry(4.4, 0.3, 5, 28), GOLD, -62.2, 7, -108, { ry: Math.PI / 2, glow: 1.2 });
-      K.mesh(new THREE.TorusGeometry(2.4, 0.25, 5, 20), GOLD, -62.2, 7, -108, { ry: Math.PI / 2, glow: 1.2 });
-      K.platform(-58, -108, 5, 18, 0.8, { stairs: ['e'], color: IVORY2, stairColor: LAV, stairW: 6 });
-      K.light(-60, 6, -108, GOLD, 10, 30);
-      for (let z = -88; z > -140; z -= 12) { if (Math.abs(z + 108) < 12) continue; K.mesh(g().rock, K.C.rock2, -64, 14.5, z, { scale: [3, 3, 5], collide: false }); }
-      // the path up: waystones and broken stairs, rubble and blight creeping in
-      for (const [x, z] of [[-30, -92], [0, -126], [28, -88], [-40, -128]]) K.rock(x, z, R(2, 3.2));
-      for (const [x, z] of [[-34, -100], [26, -130], [36, -108]]) blight(K, x, z, R(2, 3), { light: true });
-      for (const [x, z, w, d, h] of [[-26, -106, 5, 0.9, 2.2], [4, -98, 0.9, 5, 1.8], [-34, -122, 6, 0.9, 2.5], [14, -122, 0.9, 5, 1.6]]) stub(K, x, z, w, d, h, LAV);
-      for (let i = 0; i < 5; i++) banner(K, -44 + i * 5, -84 - i * 11, R(5.5, 7));
-      for (const [x, z] of [[-34, -110], [34, -92], [20, -112]]) lamp(K, x, z, 4, GOLD);
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), -14, -110, 8, 19, 5, 2.6);
-      mist(K, -20, -100, 16, 0.6, 0.3); mist(K, 12, -126, 14, 0.7, 0.28);
-      crystal(K, -50, -92, 1.5); crystal(K, -48, -134, 1.3);
-      gateWall(K, -142, 8, 8, 8, { zone: 1, color: LAV });
+      K.wall(-64, -98, -64, -160, 14, { t: 3, color: LAV2, gaps: [[26, 38]] });
+      K.door(-64, -128, 12, 14, 'z', { zone: null, id: 'blindwell', color: IVORY2, trim: GOLD });
+      for (const z of [-135.8, -120.2]) { K.box(-64, z, 3.2, 17, 2.6, IVORY); K.mesh(g().octa, GOLD, -64, 18, z, { scale: [0.7, 1.4, 0.7], glow: 1.4 }); }
+      K.mesh(new THREE.TorusGeometry(4.4, 0.3, 5, 28), GOLD, -62.2, 7, -128, { ry: Math.PI / 2, glow: 1.2 });
+      K.mesh(new THREE.TorusGeometry(2.4, 0.25, 5, 20), GOLD, -62.2, 7, -128, { ry: Math.PI / 2, glow: 1.2 });
+      K.platform(-58, -128, 5, 18, 0.8, { stairs: ['e'], color: IVORY2, stairColor: LAV, stairW: 6 });
+      K.light(-60, 6, -128, GOLD, 10, 30);
+      for (let z = -102; z > -158; z -= 12) { if (Math.abs(z + 128) < 12) continue; K.mesh(g().rock, K.C.rock2, -64, 14.5, z, { scale: [3, 3, 5], collide: false }); }
+      // broken cover facing the door, in two arcs
+      arcWall(K, -44, -128, 15, 2.5, 3.9, 4, 1.7, { vary: true, skip: [2] });
+      arcWall(K, -36, -128, 25, -0.75, 0.75, 5, 1.5, { vary: true, skip: [1, 3] });
+      ruin(K, 2, -112, 0.2, 1.1, LAV); ruin(K, 6, -148, 2.9, 1.0, LAV);
+      for (const [x, z] of [[-6, -102], [18, -142]]) K.rock(x, z, R(2, 3));
+      for (const [x, z] of [[-12, -150], [12, -126], [-44, -104]]) blight(K, x, z, R(2, 3), { light: true });
+      for (const [x, z] of [[-22, -108], [0, -138], [30, -150]]) lamp(K, x, z, 4, GOLD);
+      for (const [x, z] of [[-50, -150], [10, -102], [38, -104]]) banner(K, x, z, R(5.5, 7));
+      K.scatter((x, z) => K.rock(x, z, R(1, 2)), -14, -130, 8, 19, 4, 2.6);
+      crystal(K, -54, -106, 1.5); crystal(K, -54, -152, 1.3);
+      mist(K, -20, -112, 14, 0.7, 0.26); mist(K, 14, -146, 12, 0.7, 0.24);
+      // the north lip: a parapet, open where the second gully drops away
+      K.wall(-72, -158.4, 12, -158.4, 2.4, { t: 1.2, color: IVORY2 });
+      K.wall(36, -158.4, 72, -158.4, 2.4, { t: 1.2, color: IVORY2 });
+      K.box(-30, -158.4, 84, 0.3, 1.5, GOLD, { y: 2.4, collide: false, glow: 0.5 });
+      // the overlook on the east: a shrine of four columns, a spire and a watch deck
+      for (const [x, z] of [[52, -136], [64, -136], [52, -120], [64, -120]]) K.box(x, z, 1.1, 5, 1.1, IVORY);
+      spire(K, 58, -128, 11, 1.2, { color: IVORY2 });
+      K.platform(70, -128, 4, 10, 1.6, { stairs: ['w'], stairW: 4, color: LAV, stairColor: IVORY2 });
+      K.light(58, 7, -128, GOLD, 9, 30);
+      for (const z of [-114]) for (const s of [-1, 1]) lamp(K, 40 + s * 2, z + 5.2, 3.2, GOLD);
+      spire(K, 66, -156, 22, 2.4); spire(K, 4, -158, 18, 2.0);
 
-      // ---- The Strand: the wide valley, a ruined plaza ringed by broken columns ----
-      pad(K, 10, -176, 24, LAV);
-      pad(K, 10, -176, 22.4, IVORY2);
-      K.mesh(new THREE.TorusGeometry(15, 0.3, 4, 40), GOLD, 10, 0.36, -176, { rx: Math.PI / 2, glow: 0.8 });
-      pad(K, 10, -176, 4, GOLD, { glow: 0.5 });
-      for (let i = 0; i < 9; i++) {
-        const a = (i / 9) * Math.PI * 2 + 0.2, x = 10 + Math.cos(a) * 23, z = -176 + Math.sin(a) * 23, h = i % 3 === 0 ? 3 : R(6, 10);
-        K.cyl(x, z, 1.2, h, IVORY, { r2: 1, sides: 6 });
-        if (h > 5) K.box(x, z, 2.6, 0.6, 2.6, IVORY2, { y: h, collide: false });
-      }
-      for (const [x, z, w, d, h] of [[-4, -166, 5, 0.9, 1.4], [24, -168, 0.9, 5, 1.4], [20, -186, 5, 0.9, 1.4], [-2, -186, 0.9, 5, 1.4], [10, -160, 4, 0.9, 1.2]]) stub(K, x, z, w, d, h);
-      // a toppled giant statue across the north west
-      K.box(-30, -190, 14, 3, 4.4, IVORY2, { collide: false }).rotation.y = 0.5;
-      K.collider(-37, 0, -194, -23, 3, -186, null);
-      K.mesh(g().ico, IVORY, -22, 2.4, -194, { scale: [3, 3.2, 3], collide: 0.7 });
-      K.box(-44, -183, 2.2, 8, 2.2, IVORY2);
-      fallen(K, 44, -166, 8, 0.2);
-      // far valley towers
-      for (const [x, z, h] of [[-62, -160, 30], [64, -150, 36], [62, -200, 26]]) { K.box(x, z, 7, h, 7, IVORY); K.box(x, z, 5, 4, 5, GOLD, { y: h, collide: false, glow: 0.5 }); K.mesh(g().octa, ICE, x, h + 6, z, { scale: [1.4, 3, 1.4], glow: 1.2 }); }
-      for (const [x, z] of [[-26, -158], [44, -200], [-40, -204]]) blight(K, x, z, R(2.6, 3.4), { light: true });
-      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; lamp(K, 10 + Math.cos(a) * 26, -176 + Math.sin(a) * 26, 4.2, i % 2 ? GOLD : VIOLET); }
-      for (const [x, z] of [[-14, -156], [34, -154], [34, -198]]) banner(K, x, z, R(6, 8));
-      mist(K, -30, -170, 18, 0.5, 0.22); mist(K, 50, -180, 16, 0.5, 0.22);
-      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), 10, -176, 11, 19, 3, 2.4);
-      crystal(K, 58, -176, 1.6); crystal(K, -54, -176, 1.5);
+      // ---- the second gully: down to the shore, with its gate ----
+      gatehouse(K, 24, -150, 10, 7.5, { zone: 1, color: LAV });
+      for (let z = -138; z > -148; z -= 5) K.box(24, z, 8.4, 0.1, 0.5, GOLD, { y: 0.22, collide: false, glow: 0.4 });
 
-      // ---- Gate of the Mists: walled courtyard, ringed dais, the great sealed gate ----
+      // ---- The Strand: the long shoreline slope. Tide pools, a toppled giant, a sea wall and a lighthouse ----
+      for (const [x, z, r] of [[-34, -166, 7], [10, -168, 9], [48, -167, 6]]) ghost(K.mesh(g().cyl28, ICE, x, 0.12, z, { scale: [r, 0.08, r * 0.7], glow: 0.35, collide: false }), 0.5);
+      // the toppled giant lies across the slope: torso, head, a snapped arm and its broken plinth
+      K.obox(-8, -190, 16, 3.4, 4.6, 0.35, IVORY2);
+      K.mesh(g().ico, IVORY, 1.5, 2.2, -192.5, { scale: [3, 3.2, 3], collide: 0.7 });
+      K.obox(-19, -186, 7, 1.6, 1.8, 1.0, IVORY2);
+      K.box(-30, -192, 6, 2.2, 6, IVORY2); K.cyl(-30, -192, 1.1, 7, IVORY, { y: 2.2, sides: 6, r2: 0.9 });
+      // the broken sea wall, in three runs
+      K.obox(22, -178, 14, 1.5, 1.4, -0.45, IVORY2); K.obox(38, -187, 12, 1.5, 1.4, -0.7, IVORY2); K.obox(51, -199, 10, 1.5, 1.4, -1.05, IVORY2);
+      for (const [x, z] of [[22, -178], [38, -187], [51, -199]]) K.box(x, z, 4, 0.4, 1.6, GOLD, { y: 1.5, collide: false, glow: 0.4 });
+      // the lighthouse on the north east spur
+      K.platform(52, -214, 12, 12, 3.2, { stairs: ['w'], stairW: 5, color: LAV, stairColor: IVORY2 });
+      K.box(52, -214, 5, 26, 5, IVORY, { y: 3.2 });
+      K.box(52, -214, 6.4, 1, 6.4, GOLD, { y: 20, collide: false, glow: 0.6 });
+      K.mesh(g().octa, ICE, 52, 33, -214, { scale: [2, 4, 2], glow: 1.5 });
+      K.light(52, 32, -214, ICE, 14, 60);
+      // broken arches line the causeway toward it, stub rooms cover the slope
+      arch(K, 28, -200, 8, 7, 'z', { broken: true }); arch(K, 40, -208, 8, 8, 'z', { light: ICE });
+      ruin(K, -26, -176, 0.9, 1.1); ruin(K, 14, -206, 3.3, 1.0); ruin(K, -40, -204, 1.7, 1.2); ruin(K, 30, -166, 0.2, 0.8);
+      fallen(K, 44, -178, 8, 0.2); fallen(K, -12, -206, 6, -0.4);
+      for (const [x, z, h] of [[-62, -198, 30], [-60, -176, 22], [64, -176, 34]]) { K.box(x, z, 7, h, 7, IVORY); K.box(x, z, 5, 4, 5, GOLD, { y: h, collide: false, glow: 0.5 }); K.mesh(g().octa, ICE, x, h + 6, z, { scale: [1.4, 3, 1.4], glow: 1.2 }); }
+      for (const [x, z] of [[-26, -202], [48, -172], [4, -178]]) blight(K, x, z, R(2.6, 3.4), { light: true });
+      for (const [x, z] of [[-14, -176], [34, -194], [-48, -190], [18, -186]]) banner(K, x, z, R(6, 8));
+      for (const [x, z] of [[-4, -184], [-34, -184], [26, -204], [8, -196]]) lamp(K, x, z, 4.2, ICE);
+      mist(K, -30, -172, 18, 0.5, 0.22); mist(K, 40, -180, 14, 0.5, 0.2);
+      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), 6, -194, 11, 19, 3, 2.4);
+      crystal(K, 62, -196, 1.6); crystal(K, -56, -214, 1.5);
+
+      // ---- Gate of the Mists: a walled courtyard on the high plateau, a raised dais before the sealed gate ----
       K.room(0, -242, 58, 52, 11, { t: 1.6, color: IVORY2, doors: { s: 8 } });
       K.door(0, -216, 8, 11, 'x', { zone: 2, color: LAV2, trim: GOLD });
-      pad(K, 0, -242, 18, LAV);
-      pad(K, 0, -242, 16.8, IVORY2);
-      K.mesh(new THREE.TorusGeometry(16.5, 0.22, 4, 44), GOLD, 0, 0.38, -242, { rx: Math.PI / 2, glow: 1 });
-      pad(K, 0, -242, 9.4, LAV2);
-      pad(K, 0, -242, 3.2, GOLD, { glow: 0.7 });
-      for (const [x, z] of [[-21, -230], [21, -230], [-21, -254], [21, -254]]) {
-        K.box(x, z, 3.2, 13, 3.2, IVORY);
-        K.box(x, z, 4.2, 0.9, 4.2, GOLD, { y: 13, collide: false, glow: 0.5 });
-        K.mesh(g().octa, ICE, x, 15, z, { scale: [0.8, 1.6, 0.8], glow: 1.3 });
+      // the courtyard's wings run out to the map edge, so nothing can walk round the back
+      K.wall(-72, -216, -29.8, -216, 11, { t: 1.6, color: IVORY2 }); K.wall(29.8, -216, 72, -216, 11, { t: 1.6, color: IVORY2 });
+      K.box(-51, -216, 42, 0.5, 2.2, GOLD, { y: 11, collide: false, glow: 0.5 }); K.box(51, -216, 42, 0.5, 2.2, GOLD, { y: 11, collide: false, glow: 0.5 });
+      // a broken half-ring of gold on the floor, an aisle of pale paving down to the dais
+      K.mesh(new THREE.TorusGeometry(14, 0.22, 4, 30, 3.8), GOLD, 0, 0.38, -250, { rx: Math.PI / 2, glow: 1 });
+      K.box(0, -236, 6, 0.1, 40, LAV2, { y: 0.12, collide: false });
+      pad(K, 0, -226, 3.2, GOLD, { glow: 0.5 });
+      K.platform(0, -259, 24, 10, 1.3, { stairs: ['s'], color: LAV2, stairColor: IVORY2, stairW: 8 });
+      K.box(0, -259, 22.8, 0.1, 9, GOLD, { y: 1.3, collide: false, glow: 0.3 });
+      for (const [x, z, h] of [[-21, -230, 13], [21, -230, 10], [-21, -254, 8], [22, -255, 13]]) {
+        K.box(x, z, 3.2, h, 3.2, IVORY);
+        K.box(x, z, 4.2, 0.9, 4.2, GOLD, { y: h, collide: false, glow: 0.5 });
+        K.mesh(g().octa, ICE, x, h + 2, z, { scale: [0.8, 1.6, 0.8], glow: 1.3 });
       }
       // the sealed gate in the north wall
       for (const s of [-1, 1]) { K.box(s * 8, -266.6, 2.6, 15, 2.6, IVORY); K.mesh(g().octa, GOLD, s * 8, 16.5, -266.6, { scale: [0.8, 1.6, 0.8], glow: 1.4 }); }
       K.box(0, -266.6, 20, 2.0, 2.4, IVORY, { y: 11, collide: false });
       ghost(K.box(0, -266.7, 13.4, 11, 0.3, VIOLET, { collide: false, glow: 1.1 }), 0.7);
       K.mesh(new THREE.TorusGeometry(4.6, 0.3, 5, 28), GOLD, 0, 6.5, -266.4, { glow: 1.2 });
-      for (const [x, z, c] of [[-26, -222, VIOLET], [26, -222, VIOLET], [-26, -242, GOLD], [26, -242, GOLD], [-26, -262, VIOLET], [26, -262, VIOLET]]) brazier(K, x, z, c, 1.1);
-      for (const [x, z] of [[-26.6, -236], [26.6, -236], [-26.6, -250], [26.6, -250]]) banner(K, x, z, 8.5);
+      // wave-arena cover: two broken arcs facing the gate and scattered ruin blocks
+      arcWall(K, 0, -262, 17, -2.9, -0.25, 5, 1.8, { vary: true, skip: [2] });
+      arcWall(K, 0, -270, 28, -2.7, -0.45, 4, 1.4, { vary: true });
+      for (const [x, z, w, d, h] of [[-13, -229, 4, 1.2, 1.5], [10, -236, 1.2, 4, 1.2], [-6, -244, 3, 1.2, 2.2], [15, -224, 4, 1.2, 1.6], [-19, -243, 1.2, 4, 1.4]]) stub(K, x, z, w, d, h);
+      K.cyl(7, -241, 1.2, 5.5, IVORY2, { sides: 6, r2: 0.9 }); K.cyl(-12, -238, 1.1, 3.4, IVORY2, { sides: 6, r2: 0.8 });
+      for (const [x, z, c] of [[-26, -224, VIOLET], [26, -229, VIOLET], [-26, -244, GOLD], [26, -246, GOLD], [-10, -265, VIOLET]]) brazier(K, x, z, c, 1.1);
+      for (const [x, z] of [[-26.6, -236], [26.6, -238], [-26.6, -252]]) banner(K, x, z, 8.5);
       for (const [x, z] of [[-24, -264], [25, -220], [-25, -219], [24, -264]]) blight(K, x, z, R(2, 2.8), { light: true });
-      for (const [x, z, w, d] of [[-13, -258, 5, 1], [13, -226, 5, 1], [-14, -226, 1, 5], [14, -258, 1, 5]]) stub(K, x, z, w, d, 1.5);
       mist(K, -18, -236, 9, 0.5, 0.25); mist(K, 18, -250, 9, 0.5, 0.25);
       K.light(0, 9, -242, VIOLET, 12, 40);
 
@@ -328,262 +415,345 @@ export default {
   },
 
   // ===========================================================================
-  // The Spine of Keres: the Queen's road to the Oracle, ending in Morgeth's temple.
+  // The Spine of Keres: the Queen's road to the Oracle, a climb up a ridge to Morgeth's temple.
   // ===========================================================================
   dc2: {
     spawn: [0, 18],
-    bounds: [-72, 72, -316, 30],
+    bounds: [-72, 72, -346, 30],
     zones: [
-      { name: 'The Strand', x: 0, z: -46 },
-      { name: 'Gardens of Esila', x: -10, z: -122 },
-      { name: 'Spine of Keres', x: 0, z: -200 },
-      { name: 'Oracle Temple', x: 0, z: -276, boss: true, room: { minX: -31, maxX: 31, minZ: -308, maxZ: -244 } },
+      { name: 'The Strand', x: 6, z: -48 },
+      { name: 'Gardens of Esila', x: -6, z: -134 },
+      { name: 'Spine of Keres', x: 0, z: -234 },
+      { name: 'Oracle Temple', x: 0, z: -310, boss: true, room: { minX: -31, maxX: 31, minZ: -342, maxZ: -278 } },
+    ],
+    // a clear noon on the heights: bright blue, tall white cloud, drifting Awoken islands and spires, a faint green ribbon over the Reef
+    sky: {
+      stars: null,
+      zenith: 0x2a74c0, mid: 0x86c8e8, horizon: 0xeaf4f4,
+      bodies: [{ color: 0xfff6d8, size: 18, pos: [-300, 170, -540], glow: 0xffe9a8 }],
+      ridges: [{ r: 640, h: [60, 140], color: 0x8aa0c0, haze: 0.5, steps: 64 }, { r: 560, h: [24, 70], color: 0x7a98a8, haze: 0.4, steps: 80 }],
+      skyline: [{ kind: 'spire', n: 14, r: [470, 640], h: [70, 170], w: [10, 20], color: 0xd8d4e8, haze: 0.45 }],
+      clouds: { n: 16, color: 0xffffff, opacity: 0.8, y: [100, 210], size: 22 },
+      aurora: [{ color: 0x7affd0, y: 230, r: 600, h: 120, arc: [0.5, 2.3], opacity: 0.22, waves: 3 }],
+      floaters: [{ kind: 'island', n: 8, r: [360, 640], y: [50, 200], size: [26, 62], color: 0xa8b0c8, top: 0x7aa080, haze: 0.3 }, { kind: 'spire', n: 8, r: [380, 640], y: [70, 230], size: [16, 34], color: 0xf0ecf8, glow: 0x9fe8ff, haze: 0.3 }],
+    },
+    // U16e: a flat foot with a hill, three Gardens terraces cut by zig-zag ramps (5, 8.4, 11.8 m), a viaduct over the abyss to the crest hall and temple (15 m)
+    terrain: [
+      { type: 'mound', x: 52, z: -40, r: 24, h: 4.2 },                                                     // the grassy hill with the shrine
+      { type: 'mound', x: -52, z: -26, r: 16, h: 2.4 },
+      { type: 'mound', x: -40, z: -70, r: 13, h: 1.8 },
+      { type: 'plateau', x: 0, z: -100, w: 200, d: 28, h: 5, edge: 1.6 },                                    // terrace 1
+      { type: 'plateau', x: 0, z: -132, w: 200, d: 36, h: 8.4, edge: 1.6 },                                  // terrace 2
+      { type: 'plateau', x: 0, z: -190, w: 200, d: 24, h: 7, edge: 2 },                                      // the lower shelf under the viaduct (a fall lands here, not in a pit)
+      { type: 'plateau', x: 0, z: -164, w: 200, d: 28, h: 11.8, edge: 1.6 },                                 // terrace 3
+      { type: 'ramp', x0: 30, z0: -72, x1: 30, z1: -87, width: 10, h0: 0, h1: 0, edge: 2 },                // flat run-in to the gully
+      { type: 'ramp', x0: 30, z0: -86, x1: 30, z1: -106, width: 10, h0: 0, h1: 5, edge: 2 },               // gully up to terrace 1
+      { type: 'ramp', x0: -46, z0: -100, x1: -46, z1: -115, width: 9, h0: 5, h1: 5, edge: 2 },
+      { type: 'ramp', x0: -46, z0: -114, x1: -46, z1: -136, width: 9, h0: 5, h1: 8.4, edge: 2 },           // west ramp up to terrace 2
+      { type: 'ramp', x0: 44, z0: -132, x1: 44, z1: -151, width: 9, h0: 8.4, h1: 8.4, edge: 2 },
+      { type: 'ramp', x0: 44, z0: -150, x1: 44, z1: -172, width: 9, h0: 8.4, h1: 11.8, edge: 2 },          // east ramp up to terrace 3
+      { type: 'ramp', x0: -60, z0: -200, x1: -60, z1: -178, width: 9, h0: 7, h1: 11.8, edge: 2 },           // goat paths from the shelf back up to terrace 3
+      { type: 'ramp', x0: 60, z0: -200, x1: 60, z1: -178, width: 9, h0: 7, h1: 11.8, edge: 2 },
+      { type: 'ramp', x0: 0, z0: -172, x1: 0, z1: -206, width: 14, h0: 11.8, h1: 15, edge: 6 },            // the viaduct over the shelf
+      { type: 'plateau', x: 0, z: -282, w: 200, d: 160, h: 15, edge: 3 },                                   // the crest: hall, tunnel and temple (full width, so no edge to fall off inside the map)
     ],
     build(K) {
       const { R, C } = K;
 
-      // ---- The Strand: a grassy hill on the east, ruins below it, the cave mouth ahead ----
-      K.platform(50, -44, 22, 36, 1.2, { stairs: ['w'], color: MOSS, stairColor: IVORY2, stairW: 6 });
-      K.platform(54, -44, 14, 24, 1.2, { y: 1.2, stairs: ['w'], color: MOSS2, stairColor: IVORY2, stairW: 5 });
-      K.platform(58, -44, 7, 12, 1.2, { y: 2.4, stairs: ['w'], color: IVORY2, stairColor: IVORY2, stairW: 4 });
-      // a hilltop shrine: four columns and a small spire
-      for (const [x, z] of [[56, -50], [60, -50], [56, -38], [60, -38]]) K.box(x, z, 1.1, 5, 1.1, IVORY, { y: 3.6 });
-      spire(K, 58, -44, 9, 1.0, { color: IVORY2 });
-      K.light(58, 10, -44, GOLD, 8, 26);
-      crystal(K, 40, -70, 1.4); crystal(K, 66, -66, 1.6); crystal(K, 40, -14, 1.2);
-      arch(K, -20, -30, 10, 9, 'x', { light: ICE });
-      arch(K, 18, -66, 9, 8, 'x', { broken: true });
-      arch(K, -34, -60, 8, 8, 'z', { broken: true });
-      for (const [x, z, w, d, h] of [[-12, -22, 6, 0.9, 2.0], [20, -22, 0.9, 6, 1.6], [-30, -44, 0.9, 6, 2.2], [14, -58, 5, 0.9, 1.5], [-16, -58, 5, 0.9, 1.7]]) stub(K, x, z, w, d, h);
-      fallen(K, -8, -64, 7, 0.4); fallen(K, 26, -30, 5, 1.1);
-      for (const [x, z] of [[-48, -20], [-50, -62], [30, -14]]) {
-        K.mesh(g().rock, C.rock2, x, 2.2, z, { scale: [R(4, 6), R(3, 4.5), R(4, 6)], collide: 0.75 });
-      }
-      for (const [x, z] of [[-40, -30], [6, -10]]) blight(K, x, z, R(2, 2.8), { light: true });
-      for (const [x, z] of [[-8, -8], [10, -36], [-26, -50]]) banner(K, x, z, R(5.5, 7));
-      for (const [x, z] of [[-4, 8], [12, -18], [-12, -40]]) lamp(K, x, z, 3.6, GOLD);
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), 0, -46, 8, 19, 5, 2.4);
+      // ---- The Strand: the foot of the ridge. An obelisk, a hill shrine, ruin rooms, crystals leaning up the Spine ----
+      obelisk(K, -16, -58, 26, 2.6);
+      for (const [x, z] of [[46, -50], [58, -50], [46, -30], [58, -30]]) K.box(x, z, 1.1, 5, 1.1, IVORY, { y: 0 });
+      spire(K, 52, -40, 9, 1.0, { color: IVORY2 });
+      K.light(52, 10, -40, GOLD, 8, 26);
+      for (const [x, z, s] of [[40, -70, 1.4], [66, -66, 1.6], [38, -12, 1.2], [-58, -50, 1.3], [-6, -76, 1.1]]) crystal(K, x, z, s);
+      for (const [x, z, ry, s] of [[-12, -38, 0.5, 1.1], [24, -64, -0.7, 1.0], [-34, -66, 2.0, 1.1], [22, -24, 1.3, 0.9]]) ruin(K, x, z, ry, s);
+      arch(K, -20, -26, 10, 9, 'x', { light: ICE });
+      arch(K, 10, -78, 9, 8, 'x', { broken: true });
+      arch(K, -48, -52, 8, 8, 'z', { broken: true });
+      fallen(K, -4, -62, 7, 0.4); fallen(K, 30, -30, 5, 1.1);
+      for (const [x, z] of [[-60, -14], [-62, -86], [38, -22]]) K.mesh(g().rock, C.rock2, x, 2.2, z, { scale: [R(4, 6), R(3, 4.5), R(4, 6)], collide: 0.75 });
+      for (const [x, z] of [[-40, -30], [14, -10]]) blight(K, x, z, R(2, 2.8), { light: true });
+      for (const [x, z] of [[-8, -8], [24, -44], [-30, -44]]) banner(K, x, z, R(5.5, 7));
+      for (const [x, z] of [[-4, 8], [14, -16], [-8, -44]]) lamp(K, x, z, 3.6, GOLD);
+      K.scatter((x, z) => K.rock(x, z, R(1, 2)), 6, -48, 8, 19, 5, 2.4);
       flowers(K, -20, -20, 14, 14);
-      for (const [x, z] of [[-60, -6], [64, 8], [-62, -76]]) spire(K, x, z, R(18, 26), 2.2);
-      // the cave mouth: ragged rock wall, door opens on the clear
-      cliffWall(K, -82, 0, 10, 10, { zone: 0 });
+      for (const [x, z] of [[-62, 8], [64, 12], [64, -76]]) spire(K, x, z, R(18, 26), 2.2);
+      // the ridge face rises across the map: crystals and rock teeth, and the gully gate
+      faceWall(K, -72, 72, -85.2, 5, [[24, 36]], { color: DUSK, cap: LAV2 });
+      for (const x of [-60, -38, -14, 8, 50, 62]) crystal(K, x, -83, R(1.1, 1.7));
+      gatehouse(K, 30, -89, 10, 8, { zone: 0, trim: ICE, color: IVORY2 });
+      for (let z = -92; z > -104; z -= 5) K.box(30, z, 8.4, 0.1, 0.5, ICE, { y: 0.22, collide: false, glow: 0.5 });
 
-      // ---- Gardens of Esila: overgrown ivory terraces, hedge rows, arbors, a fountain ----
-      pad(K, -10, -122, 15, MOSS);
-      // west terraces climbing the slope, green-topped
-      K.platform(-54, -118, 18, 40, 0.8, { stairs: ['e'], color: IVORY2, stairColor: LAV, stairW: 6 });
-      K.platform(-58, -118, 10, 30, 0.8, { y: 0.8, stairs: ['e'], color: IVORY, stairColor: LAV, stairW: 5 });
-      K.box(-54, -118, 17.4, 0.3, 39.4, MOSS, { y: 0.8, collide: false });
-      K.box(-58, -118, 9.4, 0.3, 29.4, MOSS2, { y: 1.6, collide: false });
-      hedge(K, -48, -100, 0.9, 10); hedge(K, -48, -136, 0.9, 10);
-      // hedge rows and arbors
-      hedge(K, 14, -102, 14, 1.1); hedge(K, 22, -140, 12, 1.1); hedge(K, -30, -100, 10, 1.1); hedge(K, -28, -142, 9, 1.1);
-      hedge(K, 32, -118, 1.1, 12); hedge(K, -34, -122, 1.1, 8);
-      for (const [x, z, ax] of [[0, -98, 'x'], [-22, -134, 'x'], [28, -128, 'z']]) {
-        arch(K, x, z, 6, 5, ax, { color: IVORY });
-        K.box(x, z, ax === 'x' ? 7 : 1.1, 0.8, ax === 'x' ? 1.1 : 7, MOSS2, { y: 4.7, collide: false });
-      }
-      // ruined fountain with a crystal heart
-      K.cyl(30, -104, 3.2, 1.0, IVORY2, { sides: 10 });
-      K.mesh(g().cyl28, ICE, 30, 1.0, -104, { scale: [2.7, 0.15, 2.7], glow: 0.5, collide: false });
-      crystal(K, 30, -104, 1.0);
-      // an ivory pavilion with a green roof
-      for (const [x, z] of [[-30, -148], [-22, -148], [-30, -140], [-22, -140]]) K.box(x, z, 1.1, 5, 1.1, IVORY);
-      K.box(-26, -144, 10, 0.6, 10, MOSS, { y: 5, collide: false });
-      K.mesh(g().cone5, MOSS2, -26, 6.4, -144, { scale: [6, 2.6, 6], ry: 0.8, collide: false });
-      // ivy-wrapped spires along the north
-      for (const [x, z] of [[-62, -92], [60, -96], [58, -146], [-64, -150]]) { spire(K, x, z, R(14, 20), 2.0); K.mesh(g().cone5, MOSS, x, 4, z, { scale: [3, 8, 3], collide: false }); }
-      for (const [x, z] of [[36, -150], [-38, -90]]) blight(K, x, z, R(2.2, 3), { light: true });
-      flowers(K, -10, -122, 22, 26); flowers(K, 24, -116, 8, 10);
-      for (const [x, z] of [[-16, -98], [8, -150], [-44, -112]]) banner(K, x, z, R(5.5, 7));
-      for (const [x, z] of [[-4, -110], [18, -126], [-28, -118]]) lamp(K, x, z, 3.8, PINK);
-      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), -10, -122, 8, 19, 4, 2.4);
-      gateWall(K, -158, 0, 8, 8, { color: IVORY2, trim: MOSS2, pillar: IVORY, tip: MOSS2, lamp: GOLD });
+      // ---- Gardens of Esila: three terraces, zig-zagged by ramps. Lower lawn, a fountain plaza, an ivy pavilion on the crown ----
+      // the terrace faces, with the lanes left open
+      faceWall(K, -72, 72, -113.2, 8.4, [[-51, -41]], { color: IVORY2, cap: MOSS2 });
+      faceWall(K, -72, 72, -149.2, 11.8, [[39, 49]], { color: IVORY, cap: MOSS2 });
+      // terrace 1: curved lawn lanes, hedges and a trellis walk toward the west ramp
+      hedge(K, 6, -96, 22, 1.1); hedge(K, -20, -104, 22, 1.1); hedge(K, -44, -94, 14, 1.1); hedge(K, 56, -104, 1.1, 14);
+      for (const [x, z] of [[-30, -98], [-10, -92]]) { arch(K, x, z, 6, 5, 'x', { color: IVORY }); K.box(x, z, 7, 0.8, 1.1, MOSS2, { y: 4.7, collide: false }); }
+      flowers(K, 8, -104, 12, 12); flowers(K, -34, -106, 8, 8);
+      for (const [x, z] of [[18, -92], [-4, -108], [-40, -108]]) lamp(K, x, z, 3.6, PINK);
+      blight(K, 62, -96, 2.4, { light: true });
+      // terrace 2: the fountain plaza, four paved lanes and corner planters
+      pad(K, -6, -132, 12, IVORY2); pad(K, -6, -132, 10.8, LAV2);
+      K.box(-6, -132, 3.0, 0.12, 34, IVORY2, { y: 0.12, collide: false }); K.box(-6, -132, 64, 0.12, 3.0, IVORY2, { y: 0.12, collide: false });
+      K.cyl(-6, -132, 3.4, 1.0, IVORY2, { sides: 10 });
+      K.mesh(g().cyl28, ICE, -6, 1.0, -132, { scale: [2.9, 0.15, 2.9], glow: 0.5, collide: false });
+      crystal(K, -6, -132, 1.0);
+      for (const [x, z] of [[-20, -120], [8, -120], [-20, -144], [8, -144]]) { K.box(x, z, 5, 0.9, 2.2, IVORY2); K.box(x, z, 4.6, 0.4, 1.8, MOSS2, { y: 0.9, collide: false }); }
+      hedge(K, -40, -126, 1.1, 10); hedge(K, 28, -140, 1.1, 10); hedge(K, 34, -122, 12, 1.1);
+      for (const [x, z] of [[-2, -116], [-18, -140], [20, -132]]) banner(K, x, z, R(5.5, 7));
+      for (const [x, z] of [[-6, -120], [-6, -144], [-20, -132], [8, -132]]) lamp(K, x, z, 3.8, PINK);
+      for (const [x, z] of [[40, -122], [-50, -146]]) blight(K, x, z, R(2.2, 3), { light: true });
+      flowers(K, -6, -132, 22, 26);
+      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), -6, -132, 12, 19, 3, 2.4);
+      // terrace 3: the crown. An ivy pavilion with a deck above the lawn, ivy-wrapped spires
+      K.platform(-36, -164, 12, 10, 3.2, { stairs: ['e'], stairW: 4, color: IVORY2, stairColor: LAV });
+      for (const [x, z] of [[-40, -168], [-32, -168], [-40, -160], [-32, -160]]) K.box(x, z, 1.1, 4.2, 1.1, IVORY, { y: 3.2 });
+      K.box(-36, -164, 11, 0.6, 9, MOSS, { y: 7.4, collide: false });
+      K.mesh(g().cone5, MOSS2, -36, 9.2, -164, { scale: [6, 2.6, 5], ry: 0.8, collide: false });
+      for (const [x, z] of [[-62, -156], [60, -168], [-58, -172]]) { spire(K, x, z, R(14, 20), 2.0); K.mesh(g().cone5, MOSS, x, 4, z, { scale: [3, 8, 3], collide: false }); }
+      for (const [x, z] of [[30, -160], [-10, -158]]) blight(K, x, z, R(2, 2.6), { light: true });
+      for (const [x, z] of [[8, -158], [24, -172]]) lamp(K, x, z, 3.8, PINK);
+      flowers(K, 10, -164, 14, 14);
+      hedge(K, 16, -172, 14, 1.1);
+      // the lower shelf: ruined garden terraces seen from the viaduct, with goat paths up at both ends
+      for (const [x, z, s] of [[-30, -190, 1.5], [34, -186, 1.7], [-8, -198, 1.1], [14, -182, 1.2]]) crystal(K, x, z, s);
+      for (const [x, z] of [[-40, -196], [24, -196], [-20, -184]]) blight(K, x, z, R(2, 2.8), { light: true });
+      ruin(K, -34, -190, 0.3, 1.0); ruin(K, 40, -192, 2.6, 1.1);
+      mist(K, 0, -190, 22, 7.6, 0.2); mist(K, -40, -192, 14, 7.6, 0.18); mist(K, 44, -190, 14, 7.6, 0.18);
+      for (const x of [-60, 60]) for (let z = -196; z < -180; z += 5) K.box(x, z, 7.4, 0.1, 0.5, ICE, { y: 0.22, collide: false, glow: 0.45 });
+      // the viaduct: a spine of ribs over the drop, rails and crystals on the rails
+      run(K, -7, -178, -7, -205, 1.3, { t: 0.8, color: IVORY, cap: GOLD });
+      run(K, 7, -178, 7, -205, 1.3, { t: 0.8, color: IVORY, cap: GOLD });
+      for (let z = -184; z > -204; z -= 6) rib(K, 0, z, 12.6, 7 + (z % 12 ? 0 : 1), { light: z % 12 === 0 });
+      crystal(K, -8.6, -192, 1.2); crystal(K, 8.6, -198, 1.2); crystal(K, -8.6, -202, 1.0);
+      K.light(0, 6, -180, ICE, 8, 28); K.light(0, 6, -198, ICE, 8, 28);
 
-      // ---- Spine of Keres: tunnel in, crystal-blue hall of ribs and balconies, tunnel on ----
-      tunnel(K, 0, -158, -172, { color: LAV2, glow: ICE });
-      K.room(0, -200, 52, 56, 12, { t: 1.4, color: LAV2, roofColor: LAV, doors: { s: 8, n: 8 }, roof: true });
-      K.door(0, -172, 8, 12, 'x', { zone: 1, color: IVORY2, trim: ICE });
-      // rib arches of a great spine overhead, with pale glow strips
-      for (let z = -176; z > -226; z -= 7) {
+      // ---- Spine of Keres: the crest hall of ribs, with balconies along both flanks ----
+      const zh = -234;
+      // the crest's front: a wall out to either edge, so the only way on is the door
+      K.wall(-72, -203.2, -8.6, -203.2, 6, { t: 1.2, color: IVORY2 }); K.wall(8.6, -203.2, 72, -203.2, 6, { t: 1.2, color: IVORY2 });
+      K.box(-40, -203.2, 63, 0.3, 1.6, GOLD, { y: 6, collide: false, glow: 0.5 }); K.box(40, -203.2, 63, 0.3, 1.6, GOLD, { y: 6, collide: false, glow: 0.5 });
+      K.room(0, zh, 52, 56, 12, { t: 1.4, color: LAV2, roofColor: LAV, doors: { s: 8, n: 8 }, roof: true });
+      K.door(0, zh + 28, 8, 12, 'x', { zone: 1, color: IVORY2, trim: ICE });
+      for (let z = zh + 24; z > zh - 26; z -= 7) {
         K.box(0, z, 50, 0.9, 1.0, IVORY, { y: 10.6, collide: false });
         for (const s of [-1, 1]) { K.box(s * 24.6, z, 1.2, 10.6, 1.0, IVORY, { collide: false }); K.box(s * 24.0, z, 0.2, 6, 0.5, ICE, { y: 2.4, collide: false, glow: 1.2 }); }
       }
-      // balconies with stairs along both flanks: optional high ground
       for (const s of [-1, 1]) {
-        K.platform(s * 20, -200, 8, 30, 2.4, { stairs: [s < 0 ? 'e' : 'w'], color: LAV, stairColor: IVORY2, stairW: 5 });
-        K.box(s * 20, -200, 7.4, 0.4, 29.4, ICE, { y: 2.4, collide: false, glow: 0.35 });
-        for (const dz of [-12, 0, 12]) crystal(K, s * 22, -200 + dz, 1.4);
+        K.platform(s * 20, zh, 8, 30, 2.4, { stairs: [s < 0 ? 'e' : 'w'], color: LAV, stairColor: IVORY2, stairW: 5 });
+        K.box(s * 20, zh, 7.4, 0.4, 29.4, ICE, { y: 2.4, collide: false, glow: 0.35 });
       }
-      for (const [x, z] of [[-10, -182], [10, -182], [-10, -220], [10, -220]]) { K.box(x, z, 2.4, 12, 2.4, IVORY); K.box(x, z, 3.2, 0.7, 3.2, GOLD, { y: 11, collide: false, glow: 0.6 }); }
-      for (const [x, z] of [[-7, -204], [8, -194], [-6, -192], [7, -212]]) K.rock(x, z, R(0.9, 1.4));
-      pad(K, 0, -200, 6, ICE, { glow: 0.45 });
-      K.box(0, -200, 1.0, 0.1, 50, ICE, { y: 0.34, collide: false, glow: 1.2 });
-      for (const [x, z] of [[-24, -176], [24, -176], [-24, -224], [24, -224]]) crystal(K, x, z, 1.6);
-      for (const [x, z] of [[0, -178], [-14, -200], [14, -200], [0, -224], [-14, -186], [14, -214]]) K.light(x, 9, z, ICE, 7, 24);
-      blight(K, 15, -222, 2.4, { light: true }); blight(K, -16, -180, 2.2, { light: true });
-      tunnel(K, 0, -228, -246, { color: LAV2, glow: ICE });
+      for (const [x, z, c] of [[-22, zh + 11, 1.4], [-21, zh - 3, 1.1], [-23, zh - 14, 1.5], [22, zh + 5, 1.2], [21, zh - 9, 1.5], [23, zh + 14, 1.0]]) crystal(K, x, z, c);
+      for (const [x, z, h] of [[-10, zh + 17, 12], [10, zh + 16, 9], [-11, zh - 19, 12], [9, zh - 20, 12]]) { K.box(x, z, 2.4, h, 2.4, IVORY); K.box(x, z, 3.2, 0.7, 3.2, GOLD, { y: h - 1, collide: false, glow: 0.6 }); }
+      // cover for a big room: toppled ribs and fallen stone across the nave
+      K.obox(-4, zh + 4, 11, 1.8, 1.5, 0.5, IVORY2); K.obox(7, zh - 6, 9, 1.4, 1.4, -0.4, IVORY2); K.obox(-6, zh - 13, 7, 2.2, 1.4, 1.2, IVORY2);
+      for (const [x, z] of [[-7, zh - 2], [8, zh + 8], [-3, zh + 12], [5, zh - 16]]) K.rock(x, z, R(1, 1.5));
+      pad(K, 0, zh, 6, ICE, { glow: 0.45 });
+      K.box(0, zh, 1.0, 0.1, 50, ICE, { y: 0.34, collide: false, glow: 1.2 });
+      for (const [x, z] of [[-24, zh + 24], [24, zh + 24], [-24, zh - 24]]) crystal(K, x, z, 1.6);
+      for (const [x, z] of [[0, zh + 22], [-14, zh], [14, zh], [0, zh - 22], [-14, zh + 12], [14, zh - 12]]) K.light(x, 9, z, ICE, 7, 24);
+      blight(K, 15, zh - 20, 2.4, { light: true }); blight(K, -16, zh + 18, 2.2, { light: true });
+      tunnel(K, 0, zh - 28, zh - 44, { color: LAV2, glow: ICE });
 
-      // ---- Oracle Temple: Morgeth's roofed hall, colonnades, the stepped Oracle dais ----
-      K.room(0, -276, 62, 64, 14, { t: 1.6, color: IVORY2, roofColor: IVORY, doors: { s: 8 }, roof: true });
-      K.door(0, -244, 8, 14, 'x', { zone: 2, color: LAV2, trim: GOLD });
-      pad(K, 0, -276, 17, LAV);
-      pad(K, 0, -276, 15.8, IVORY2);
-      K.mesh(new THREE.TorusGeometry(15.4, 0.22, 4, 44), GOLD, 0, 0.38, -276, { rx: Math.PI / 2, glow: 1 });
-      pad(K, 0, -276, 3.4, GOLD, { glow: 0.7 });
-      for (const z of [-258, -268, -278, -288, -298]) for (const s of [-1, 1]) {
-        K.box(s * 22, z, 2.2, 14, 2.2, IVORY);
-        K.box(s * 22, z, 3.2, 0.9, 3.2, GOLD, { y: 12.6, collide: false, glow: 0.5 });
-        K.box(s * 22, z, 3.0, 0.8, 3.0, IVORY2, { collide: false });
+      // ---- Oracle Temple: Morgeth's roofed hall, a broken colonnade, the stepped Oracle dais ----
+      const zt = -310;
+      K.room(0, zt, 62, 64, 14, { t: 1.6, color: IVORY2, roofColor: IVORY, doors: { s: 8 }, roof: true });
+      K.door(0, zt + 32, 8, 14, 'x', { zone: 2, color: LAV2, trim: GOLD });
+      K.box(0, zt - 2, 8, 0.1, 52, LAV, { y: 0.12, collide: false });                       // a plain carpet aisle to the dais
+      K.box(0, zt - 2, 8.6, 0.1, 52.6, GOLD, { y: 0.08, collide: false, glow: 0.3 });
+      for (const [dz, s, h] of [[-24, -1, 14], [-18, 1, 14], [-12, -1, 8], [-8, 1, 14], [-2, -1, 14], [6, 1, 9], [8, -1, 14], [16, 1, 14], [22, -1, 14], [-30, 1, 14]]) {
+        const x = s * 22 + (dz % 4 ? 0 : -s * 1.5), z = zt + dz;
+        K.box(x, z, 2.2, h, 2.2, IVORY);
+        if (h > 12) K.box(x, z, 3.2, 0.9, 3.2, GOLD, { y: 12.6, collide: false, glow: 0.5 }); else K.box(x + 0.4, z, 3.0, 0.8, 3.0, IVORY2, { y: h, collide: false }).rotation.y = 0.5;
       }
-      for (let z = -250; z > -306; z -= 8) K.box(0, z, 60, 0.9, 0.9, IVORY, { y: 13, collide: false });
-      for (const z of [-262, -280, -296]) for (const s of [-1, 1]) K.box(s * 30.5, z, 0.3, 7, 3, ICE, { y: 4, collide: false, glow: 1.2 });
+      for (let z = zt + 26; z > zt - 30; z -= 8) K.box(0, z, 60, 0.9, 0.9, IVORY, { y: 13, collide: false });
+      for (const dz of [14, -4, -20]) for (const s of [-1, 1]) K.box(s * 30.5, zt + dz, 0.3, 7, 3, ICE, { y: 4, collide: false, glow: 1.2 });
       // the Oracle: a gold ring and a bright core, on a stepped dais at the north
-      K.platform(0, -300, 26, 10, 1.2, { stairs: ['s'], color: IVORY2, stairColor: LAV, stairW: 9 });
-      K.platform(0, -302, 12, 5, 1.2, { y: 1.2, stairs: ['s'], color: IVORY, stairColor: IVORY2, stairW: 5 });
-      K.mesh(new THREE.TorusGeometry(6, 0.55, 6, 32), GOLD, 0, 9, -304.4, { glow: 1.0 });
-      K.mesh(new THREE.TorusGeometry(3.6, 0.4, 6, 28), GOLD, 0, 9, -304.2, { glow: 1.0 });
-      K.mesh(g().ico, 0xfff0c0, 0, 9, -304.2, { scale: 1.8, glow: 1.6, collide: false });
-      K.light(0, 9, -300, GOLD, 14, 44);
-      for (const [x, z, c] of [[-14, -252, 0xff9a3c], [14, -252, 0xff9a3c], [-14, -296, 0xff9a3c], [14, -296, 0xff9a3c]]) brazier(K, x, z, c, 1.2);
-      for (const [x, z] of [[-28, -250], [28, -250], [-28, -304], [28, -304]]) crystal(K, x, z, 1.6);
-      for (const [x, z] of [[-30.4, -272], [30.4, -272], [-30.4, -286], [30.4, -286]]) banner(K, x, z, 10);
-      for (const [x, z] of [[-27, -296], [27, -298]]) blight(K, x, z, 2.6, { light: true });
-      for (const [x, z, w, d] of [[-12, -262, 4, 1], [12, -262, 4, 1], [-12, -290, 4, 1], [12, -290, 4, 1]]) stub(K, x, z, w, d, 1.4);
-      for (const [x, z] of [[-8, -250], [8, -250], [0, -270]]) K.light(x, 11, z, ICE, 7, 26);
+      K.platform(0, zt - 24, 26, 10, 1.2, { stairs: ['s'], color: IVORY2, stairColor: LAV, stairW: 9 });
+      K.platform(0, zt - 26, 12, 5, 1.2, { y: 1.2, stairs: ['s'], color: IVORY, stairColor: IVORY2, stairW: 5 });
+      K.mesh(new THREE.TorusGeometry(6, 0.55, 6, 32), GOLD, 0, 9, zt - 28.4, { glow: 1.0 });
+      K.mesh(new THREE.TorusGeometry(3.6, 0.4, 6, 28), GOLD, 0, 9, zt - 28.2, { glow: 1.0 });
+      K.mesh(g().ico, 0xfff0c0, 0, 9, zt - 28.2, { scale: 1.8, glow: 1.6, collide: false });
+      K.light(0, 9, zt - 24, GOLD, 14, 44);
+      // wave-arena cover: broken pillar clusters and low walls on both sides of the aisle
+      for (const [x, z, w, d, h] of [[-12, zt + 18, 4, 1.2, 1.6], [13, zt + 12, 1.2, 4, 1.8], [-14, zt - 6, 1.2, 5, 2.0], [11, zt - 10, 4, 1.2, 1.4], [-8, zt - 14, 3, 1.2, 1.2], [16, zt + 24, 1.2, 4, 1.4]]) stub(K, x, z, w, d, h);
+      K.cyl(-10, zt + 4, 1.2, 5, IVORY2, { sides: 6, r2: 0.9 }); K.cyl(8, zt - 2, 1.1, 3.2, IVORY2, { sides: 6, r2: 0.8 });
+      for (const [x, z, c] of [[-14, zt + 24, 0xff9a3c], [15, zt + 26, 0xff9a3c], [-12, zt - 20, 0xff9a3c], [10, zt - 20, 0xff9a3c]]) brazier(K, x, z, c, 1.2);
+      for (const [x, z] of [[-28, zt + 26], [28, zt + 24], [-28, zt - 26], [28, zt - 26]]) crystal(K, x, z, 1.6);
+      for (const [x, z] of [[-30.4, zt + 8], [30.4, zt - 4], [-30.4, zt - 10], [30.4, zt + 14]]) banner(K, x, z, 10);
+      for (const [x, z] of [[-27, zt - 22], [27, zt - 20]]) blight(K, x, z, 2.6, { light: true });
+      for (const [x, z] of [[-8, zt + 26], [8, zt + 26], [0, zt + 6]]) K.light(x, 11, z, ICE, 7, 26);
 
       K.edge((x, z, y) => farSpire(K, x, z, y), 26, 6, 40);
     },
   },
 
   // ===========================================================================
-  // The Wishing Chamber: Riven's brood, deep in the Taken-infested north of the city.
+  // The Wishing Chamber: Riven's brood, deep in the Taken-infested north of the city. A descent into the dark.
   // ===========================================================================
   dc3: {
     spawn: [0, 18],
     bounds: [-80, 80, -324, 30],
     zones: [
       { name: "Harbinger's Seclude", x: 0, z: -44 },
-      { name: 'Gardens of Esila', x: -4, z: -118 },
-      { name: 'Blight Hollow', x: 6, z: -192 },
+      { name: 'Gardens of Esila', x: -8, z: -124 },
+      { name: 'Blight Hollow', x: -1, z: -192 },
       { name: 'The Wishing Chamber', x: 0, z: -268, boss: true, room: { minX: -44, maxX: 44, minZ: -310, maxZ: -226 } },
+    ],
+    // a storm over the Reef: bruised violet, red-lit horizon, dark cloud, purple lightning ribbons, spires of the dead city
+    sky: {
+      zenith: 0x0e0a20, mid: 0x30224e, horizon: 0x7a4a78, floor: 0x1a1226,
+      stars: { n: 40, color: 0xe8d8ff, size: 2, min: 0.6 },
+      bodies: [{ color: 0xff9a68, size: 26, pos: [320, 46, -520], glow: 0xff6a30 }],
+      ridges: [{ r: 640, h: [60, 150], color: 0x2a1e3c, haze: 0.45, steps: 60 }, { r: 560, h: [24, 70], color: 0x20162e, haze: 0.3, steps: 80 }],
+      haze: [{ color: 0xa04a70, opacity: 0.5, r: 470, h: 90, y: -10 }],
+      clouds: { n: 18, color: 0x3a2a54, opacity: 0.85, y: [60, 160], size: 28 },
+      aurora: [{ color: 0xa05aff, y: 160, r: 540, h: 200, arc: [0, 6.283], opacity: 0.5, waves: 6 }, { color: 0xff5a30, y: 90, r: 520, h: 100, arc: [1, 2.5], opacity: 0.3, waves: 4 }],
+      floaters: [{ kind: 'spire', n: 16, r: [340, 620], y: [50, 260], size: [18, 44], color: 0x8a7caa, glow: 0xb08cff, haze: 0.25 }, { kind: 'rock', n: 10, r: [360, 640], y: [30, 200], size: [10, 28], color: 0x3a2e50, haze: 0.3 }],
+    },
+    // U16e: a descent. The Seclude court on the heights (15 m), a stair viaduct down to the Gardens (7 m), a gorge cut through a ridge down to the Hollow floor (0), a ramp up into the nest (3 m)
+    terrain: [
+      { type: 'plateau', x: 0, z: -20, w: 200, d: 140, h: 15, edge: 3 },                                   // the Seclude court
+      { type: 'plateau', x: 0, z: -120, w: 200, d: 60, h: 7, edge: 3 },                                    // the Gardens
+      { type: 'ramp', x0: 0, z0: -84, x1: 0, z1: -116, width: 16, h0: 15, h1: 7, edge: 3 },               // the stair viaduct
+      { type: 'plateau', x: 0, z: -158, w: 200, d: 16, h: 10, edge: 3 },                                   // the rock ridge before the Hollow
+      { type: 'plateau', x: -53, z: -193.5, w: 54, d: 57, h: 9, edge: 2 },                                 // gorge wall, west
+      { type: 'plateau', x: 52, z: -193.5, w: 56, d: 57, h: 10, edge: 2 },                                 // gorge wall, east
+      { type: 'plateau', x: 36, z: -198, w: 20, d: 16, h: 4, edge: 2 },                                    // the sniper shelf in the east wall
+      { type: 'ramp', x0: 14, z0: -198, x1: 30, z1: -198, width: 7, h0: 0, h1: 4, edge: 2 },              // up to the shelf
+      { type: 'ramp', x0: -6, z0: -144, x1: -6, z1: -172, width: 10, h0: 7, h1: 0, edge: 2 },             // the gorge down through the ridge
+      { type: 'plateau', x: -16, z: -215, w: 20, d: 6, h: 8, edge: 2 },                                    // the choke, west jaw
+      { type: 'plateau', x: 15, z: -215, w: 18, d: 6, h: 9, edge: 2 },                                     // the choke, east jaw
+      { type: 'plateau', x: 0, z: -280, w: 200, d: 116, h: 3, edge: 3 },                                   // the nest (full width, so nothing drops into a pit beside it)
+      { type: 'ramp', x0: 0, z0: -207, x1: 0, z1: -224, width: 12, h0: 0, h1: 3, edge: 2 },               // up through the choke into the nest
     ],
     build(K) {
       const { R, C } = K;
 
-      // ---- Harbinger's Seclude: a cloistered retreat, colonnades, reflecting pool, the Harbinger's tower ----
-      pad(K, 0, -44, 9, LAV); // processional paving
-      K.box(0, -40, 5, 0.22, 100, IVORY2, { y: 0.1, collide: false });
-      // colonnade rows down both sides of the avenue
-      for (const sx of [-1, 1]) for (let z = 0; z > -78; z -= 9) {
-        const x = sx * 34;
-        K.box(x, z, 1.7, 8, 1.7, IVORY);
-        K.box(x, z, 2.4, 0.7, 2.4, GOLD, { y: 8, collide: false, glow: 0.4 });
-        if (z < 0) K.box(sx * 38.5, z - 4.5, 7, 0.7, 1.2, IVORY2, { y: 8.3, collide: false });
-        if (z === -27 || z === -63) lamp(K, sx * 28, z, 3.8, GOLD);
+      // ---- Harbinger's Seclude: a cloister court on the heights, a pool and statues, the ring tower ----
+      K.box(0, -30, 5, 0.12, 110, IVORY2, { y: 0.1, collide: false });                      // the processional strip
+      // a colonnade that has lost some of its pillars
+      for (const z of [-4, -14, -23, -41, -50, -59, -77]) {
+        K.box(-34, z, 1.7, 8, 1.7, IVORY); K.box(-34, z, 2.4, 0.7, 2.4, GOLD, { y: 8, collide: false, glow: 0.4 });
       }
-      for (const sx of [-1, 1]) K.wall(sx * 42, 0, sx * 42, -78, 6, { t: 1.2, color: IVORY2, gaps: [[14, 24], [50, 60]] });
-      // reflecting pool east, with a statue on a plinth
+      for (const z of [-8, -17, -32, -50, -62, -72]) {
+        const h = z === -32 ? 4.6 : 8;
+        K.box(34, z, 1.7, h, 1.7, IVORY); if (h > 6) K.box(34, z, 2.4, 0.7, 2.4, GOLD, { y: 8, collide: false, glow: 0.4 });
+      }
+      K.box(-38.5, -10, 7, 0.7, 1.2, IVORY2, { y: 8.3, collide: false }); K.box(-38.5, -55, 7, 0.7, 1.2, IVORY2, { y: 8.3, collide: false });
+      lamp(K, -28, -27, 3.8, GOLD); lamp(K, 28, -63, 3.8, GOLD);
+      for (const sx of [-1, 1]) K.wall(sx * 42, 0, sx * 42, -78, 6, { t: 1.2, color: IVORY2, gaps: sx < 0 ? [[14, 24], [50, 60]] : [[8, 18], [38, 46]] });
+      // the reflecting pool with a stepped rim (low cover) and a statue on a plinth; statues gather round it
       pad(K, 22, -50, 12, IVORY2);
       ghost(K.mesh(g().cyl28, ICE, 22, 0.4, -50, { scale: [10.6, 0.1, 10.6], glow: 0.4, collide: false }), 0.6);
-      {
-        K.box(22, -50, 2.4, 1.6, 2.4, IVORY2);
-        K.box(22, -50, 0.9, 3.4, 0.7, IVORY, { y: 1.6 });
-        K.mesh(g().ico, IVORY, 22, 5.7, -50, { scale: [0.7, 0.9, 0.6], collide: false });
-        K.mesh(g().octa, ICE, 22, 7.1, -50, { scale: [0.3, 0.5, 0.3], glow: 1.6 });
+      for (const a of [0.4, 1.5, 2.6, 3.7, 4.9]) K.obox(22 + Math.cos(a) * 11.6, -50 + Math.sin(a) * 11.6, 5.6, 0.9, 1.1, Math.atan2(-Math.cos(a), -Math.sin(a)), IVORY2);
+      K.box(22, -50, 2.4, 1.6, 2.4, IVORY2); K.box(22, -50, 0.9, 3.4, 0.7, IVORY, { y: 1.6 });
+      K.mesh(g().ico, IVORY, 22, 5.7, -50, { scale: [0.7, 0.9, 0.6], collide: false });
+      K.mesh(g().octa, ICE, 22, 7.1, -50, { scale: [0.3, 0.5, 0.3], glow: 1.6 });
+      for (const [x, z] of [[8, -40], [10, -62], [36, -38]]) {
+        K.box(x, z, 2, 1.3, 2, IVORY2); K.box(x, z, 0.9, 3, 0.7, IVORY, { y: 1.3 });
+        K.mesh(g().ico, IVORY, x, 5.3, z, { scale: [0.65, 0.8, 0.55], collide: false }); K.mesh(g().octa, ICE, x, 6.5, z, { scale: 0.22, glow: 1.4 });
       }
       // the Harbinger's tower, a tall ivory shaft with floating gold rings
-      K.box(-50, -62, 8, 38, 8, IVORY);
-      K.box(-50, -62, 9.5, 1.2, 9.5, GOLD, { y: 14, collide: false, glow: 0.5 });
-      K.box(-50, -62, 6, 3, 6, IVORY2, { y: 38, collide: false });
-      for (const [r, y] of [[8, 30], [6, 36], [4.4, 42]]) K.mesh(new THREE.TorusGeometry(r, 0.3, 4, 28), GOLD, -50, y, -62, { rx: Math.PI / 2, glow: 1 });
-      K.mesh(g().octa, ICE, -50, 47, -62, { scale: [1.8, 3.4, 1.8], glow: 1.4 });
-      K.light(-50, 14, -54, GOLD, 8, 28);
-      // Awoken statues on plinths along the cloister, and a stone bench or two
-      for (const [x, z] of [[-24, -20], [26, -22], [-22, -70], [18, -72]]) {
-        K.box(x, z, 2, 1.3, 2, IVORY2);
-        K.box(x, z, 0.9, 3, 0.7, IVORY, { y: 1.3 });
-        K.mesh(g().ico, IVORY, x, 5.3, z, { scale: [0.65, 0.8, 0.55], collide: false });
-        K.mesh(g().octa, ICE, x, 6.5, z, { scale: 0.22, glow: 1.4 });
-      }
-      for (const [x, z] of [[-12, -26], [14, -64]]) K.box(x, z, 4, 0.8, 0.9, IVORY2);
+      K.box(-52, -62, 8, 38, 8, IVORY);
+      K.box(-52, -62, 9.5, 1.2, 9.5, GOLD, { y: 14, collide: false, glow: 0.5 });
+      K.box(-52, -62, 6, 3, 6, IVORY2, { y: 38, collide: false });
+      for (const [r, y] of [[8, 30], [6, 36], [4.4, 42]]) K.mesh(new THREE.TorusGeometry(r, 0.3, 4, 28), GOLD, -52, y, -62, { rx: Math.PI / 2, glow: 1 });
+      K.mesh(g().octa, ICE, -52, 47, -62, { scale: [1.8, 3.4, 1.8], glow: 1.4 });
+      K.light(-52, 14, -54, GOLD, 8, 28);
+      for (const [x, z] of [[-12, -26], [-20, -70]]) K.box(x, z, 4, 0.8, 0.9, IVORY2);
+      for (const [x, z, ry] of [[-26, -34, 0.3], [18, -22, 1.2], [4, -74, 0.1]]) ruin(K, x, z, ry, 0.9);
       for (const [x, z] of [[-30, -36], [30, -34], [-14, -8], [14, -76]]) blight(K, x, z, R(2.4, 3.2), { light: true });
       for (const [x, z] of [[-10, -64], [12, -16], [-30, -8], [30, -60]]) banner(K, x, z, R(6, 8));
       for (const [x, z] of [[-6, -30], [8, -58], [-20, -52]]) crystal(K, x, z, 1.2);
       K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), 0, -44, 9, 19, 3, 2.4);
       mist(K, -16, -30, 12, 0.5, 0.2);
-      for (const [x, z] of [[-60, 6], [62, 4], [-62, -20], [60, -24]]) spire(K, x, z, R(16, 24), 2.2);
-      gateWall(K, -84, 0, 8, 8, { zone: 0, color: IVORY2, pillar: IVORY });
+      for (const [x, z] of [[-64, 6], [64, 4], [-66, -24], [66, -28], [-68, -82], [70, -80]]) spire(K, x, z, R(16, 24), 2.2);
+      // the north lip: a balustrade above the drop, the gate where the stairs leave
+      K.wall(-80, -85.5, -8.6, -85.5, 2.4, { t: 1.2, color: IVORY2 });
+      K.wall(8.6, -85.5, 80, -85.5, 2.4, { t: 1.2, color: IVORY2 });
+      K.box(-44, -85.5, 71, 0.3, 1.5, GOLD, { y: 2.4, collide: false, glow: 0.5 }); K.box(44, -85.5, 71, 0.3, 1.5, GOLD, { y: 2.4, collide: false, glow: 0.5 });
+      gatehouse(K, 0, -86.4, 16, 3.4, { zone: 0, color: IVORY2, pillar: IVORY });
 
-      // ---- Gardens of Esila (the northern side): lanes of hedge and trellis arches, a greenhouse frame, a raised terrace ----
-      // three lanes: hedge walls run north-south with openings between them
-      for (const x of [-26, 22]) for (const [a, b] of [[-90, -104], [-112, -126], [-134, -144]]) hedge(K, x, (a + b) / 2, 1.2, Math.abs(b - a), 1.6);
-      for (let z = -92; z > -146; z -= 9) {
-        if (Math.abs(z + 118) < 10) continue; // keep the middle clear
-        arch(K, -4, z, 7, 5.2, 'x', { color: IVORY });
-        K.box(-4, z, 8, 0.8, 1.1, MOSS2, { y: 5.0, collide: false });
+      // ---- the stair viaduct: a long way down, a colonnade of broken pillars either side ----
+      run(K, -8.4, -88, -8.4, -115, 1.3, { t: 0.8, color: IVORY, cap: GOLD });
+      run(K, 8.4, -88, 8.4, -115, 1.3, { t: 0.8, color: IVORY, cap: GOLD });
+      for (const [x, z, h] of [[-9.4, -92, 9], [9.4, -92, 9], [-9.4, -101, 6], [9.4, -101, 9], [-9.4, -110, 9]]) {
+        K.box(x, z, 1.5, h, 1.5, IVORY); if (h > 7) K.box(x, z, 2.2, 0.6, 2.2, GOLD, { y: h, collide: false, glow: 0.4 });
       }
-      // the greenhouse frame on the east: ivory ribs and translucent ice panes
-      for (let z = -100; z > -140; z -= 8) K.box(44, z, 0.8, 7, 0.8, IVORY);
-      K.box(44, -120, 0.8, 0.8, 40, IVORY, { y: 7, collide: false });
-      for (let z = -104; z > -136; z -= 8) ghost(K.box(44.2, z, 0.2, 6.2, 7.4, ICE, { collide: false, glow: 0.2 }), 0.32);
-      K.box(52, -120, 0.8, 7, 40, IVORY2);
+      for (let z = -90; z > -114; z -= 4) K.box(0, z, 14.4, 0.1, 0.4, GOLD, { y: 0.16, collide: false, glow: 0.35 });
+      K.light(0, 5, -96, VIOLET, 8, 28); K.light(0, 5, -110, VIOLET, 8, 28);
+
+      // ---- Gardens of Esila (the northern side): hedge lanes, trellis clusters, a greenhouse, a raised terrace ----
+      // lanes of hedge, with breaks of different lengths
+      for (const x of [-30, 26]) for (const [a, b] of x < 0 ? [[-96, -106], [-112, -120], [-130, -142]] : [[-98, -104], [-110, -122], [-128, -138]]) hedge(K, x, (a + b) / 2, 1.2, Math.abs(b - a), 1.6);
+      // trellis arches in two clusters, not one long row
+      for (const [x, z] of [[-14, -128], [-14, -135], [-14, -141], [14, -100], [14, -107]]) { arch(K, x, z, 7, 5.2, 'x', { color: IVORY }); K.box(x, z, 8, 0.8, 1.1, MOSS2, { y: 5.0, collide: false }); }
+      // the greenhouse on the east: ivory ribs and translucent ice panes
+      for (let z = -102; z > -144; z -= 8) K.box(46, z, 0.8, 7, 0.8, IVORY);
+      K.box(46, -122, 0.8, 0.8, 42, IVORY, { y: 7, collide: false });
+      for (let z = -106; z > -140; z -= 8) ghost(K.box(46.2, z, 0.2, 6.2, 7.4, ICE, { collide: false, glow: 0.2 }), 0.32);
+      K.box(54, -122, 0.8, 7, 42, IVORY2);
       // raised west terrace, stairs up, a low colonnade
-      K.platform(-50, -118, 16, 34, 2.4, { stairs: ['e'], color: IVORY2, stairColor: LAV, stairW: 7 });
-      for (const z of [-104, -112, -120, -128, -136]) K.box(-56, z, 1.2, 5, 1.2, IVORY, { y: 2.4 });
-      K.box(-56, -120, 1.2, 0.8, 34, IVORY, { y: 7.4, collide: false });
-      K.light(-50, 6, -118, GOLD, 7, 24);
+      K.platform(-52, -122, 16, 34, 2.4, { stairs: ['e'], color: IVORY2, stairColor: LAV, stairW: 7 });
+      for (const z of [-108, -116, -124, -132, -138]) K.box(-58, z, 1.2, 5, 1.2, IVORY, { y: 2.4 });
+      K.box(-58, -123, 1.2, 0.8, 32, IVORY, { y: 7.4, collide: false });
+      K.light(-52, 6, -122, GOLD, 7, 24);
       // blight has taken the old fountain
       K.cyl(12, -138, 3.0, 1.0, IVORY2, { sides: 10 });
       blight(K, 12, -138, 2.2, { light: true });
-      for (const [x, z] of [[-34, -96], [34, -100], [-34, -140]]) blight(K, x, z, R(2.2, 3), { light: true });
-      flowers(K, -4, -118, 22, 18);
-      for (const [x, z] of [[-18, -90], [10, -146], [34, -130]]) banner(K, x, z, R(6, 8));
-      for (const [x, z] of [[-14, -108], [16, -128]]) lamp(K, x, z, 4, VIOLET);
-      for (const [x, z] of [[-60, -90], [62, -92], [-60, -150], [62, -150]]) spire(K, x, z, R(16, 22), 2.0);
-      mist(K, 0, -120, 20, 0.5, 0.18);
-      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), -4, -118, 8, 19, 3, 2.4);
-      // a rock-ribbed gate into the Hollow (opens when the Court is cleared)
-      cliffWall(K, -154, 6, 10, 9, { zone: 1, trim: VEIN, lamp: VEIN });
+      for (const [x, z] of [[-34, -100], [36, -108], [-34, -142]]) blight(K, x, z, R(2.2, 3), { light: true });
+      ruin(K, 6, -112, 2.6, 1.0); ruin(K, -20, -112, 0.4, 0.9);
+      flowers(K, -4, -124, 22, 18);
+      for (const [x, z] of [[-18, -96], [10, -144], [38, -134]]) banner(K, x, z, R(6, 8));
+      for (const [x, z] of [[-14, -112], [16, -130]]) lamp(K, x, z, 4, VIOLET);
+      for (const [x, z] of [[-66, -96], [68, -98], [-66, -142], [68, -140]]) spire(K, x, z, R(16, 22), 2.0);
+      mist(K, 0, -126, 20, 0.5, 0.18);
+      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), -4, -122, 8, 19, 3, 2.4);
+      // the ridge's face, vein-lit, and the gate where the gorge begins
+      faceWall(K, -80, 80, -148.5, 10, [[-12, 0]], { color: BLIGHT2, cap: VEIN });
+      for (const x of [-60, -40, -22, 12, 30, 50, 66]) blight(K, x, -146.4, R(1.6, 2.4), { light: true });
+      gatehouse(K, -6, -153, 10, 8, { zone: 1, trim: VEIN, lamp: VEIN, color: BLIGHT2, doorColor: BLIGHT2, pillar: BLIGHT2, tip: VEIN });
 
-      // ---- Blight Hollow: a crater of black growths, orange-veined, rimmed with rock ----
-      pad(K, 6, -192, 28, BLIGHT);
-      for (let i = 0; i < 9; i++) {
-        const a = (i / 9) * Math.PI * 2 + 0.3, d = R(14, 24);
-        K.box(6 + Math.cos(a) * d, -192 + Math.sin(a) * d, R(0.3, 0.5), 0.1, R(8, 14), VEIN, { y: 0.34, collide: false, glow: 1.4 }).rotation.y = a;
-      }
-      // the rim: tall rocks, with gaps at the south and north
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2;
-        if (Math.abs(Math.cos(a)) < 0.3) continue; // south and north openings
-        const x = 6 + Math.cos(a) * 36, z = -192 + Math.sin(a) * 30, s = R(5, 8);
-        K.rock(x, z, s);
-        K.mesh(g().cone5, BLIGHT2, x, s * 2.2, z, { scale: [s * 0.5, s * 2, s * 0.5], collide: false });
-      }
-      // large pulsing growths on the rim and hanging stalactites
-      for (const [x, z, s] of [[-26, -176, 4], [34, -172, 4.4], [-22, -212, 4.8], [38, -208, 3.6], [8, -222, 4]]) blight(K, x, z, s, { light: true });
-      for (let i = 0; i < 8; i++) K.mesh(g().cone5, BLIGHT2, R(-30, 42), R(14, 20), R(-218, -166), { rx: Math.PI, scale: [R(1, 2), R(5, 9), R(1, 2)], collide: false });
-      for (const [x, z] of [[-6, -172], [20, -178], [-8, -210], [24, -206]]) blight(K, x, z, R(1.4, 2), { light: true });
-      for (const [x, z] of [[-30, -190], [40, -192]]) crystal(K, x, z, 1.3, VEIN);
-      for (const [x, z] of [[-18, -170], [28, -214], [-12, -216]]) banner(K, x, z, R(5, 6.5));
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), 6, -192, 8, 19, 5, 2.6);
-      for (const [x, z] of [[6, -192], [-14, -192], [26, -192], [6, -176], [6, -210]]) K.light(x, 8, z, VEIN, 8, 26);
-      mist(K, 6, -192, 22, 0.5, 0.1);
+      // ---- Blight Hollow: the gorge floor. Walls close in to a choke; a rock shelf for snipers; veins follow the path ----
+      for (const [x, z, a, l] of [[-5, -178, 0.25, 14], [-2, -188, -0.1, 14], [2, -199, 0.2, 14], [0, -209, 0, 10]]) K.box(x, z, R(0.3, 0.5), 0.1, l, VEIN, { y: 0.1, collide: false, glow: 1.4 }).rotation.y = a;
+      pad(K, -1, -192, 13, BLIGHT);
+      // the walls: black rock and growths, the Taken spire on the west rim
+      for (const [x, z] of [[-30, -178], [-34, -194], [-30, -208], [30, -176], [30, -212], [-44, -216]]) K.rock(x, z, R(4, 6));
+      for (const [x, z, s] of [[-28, -186, 4.2], [28, -184, 3.8], [-28, -214, 4.6], [28, -208, 3.6], [-17, -197, 2.2], [14, -178, 2.4]]) blight(K, x, z, s, { light: true });
+      K.cone(-44, -196, 4.6, 34, BLIGHT, { sides: 5 });
+      for (const a of [0, 2.1, 4.2]) K.mesh(g().octa, VEIN, -44 + Math.cos(a) * 3.4, 12 + a * 3, -196 + Math.sin(a) * 3.4, { scale: [0.5, 2.6, 0.5], glow: 1.9, collide: false });
+      K.light(-44, 14, -196, VEIN, 12, 44);
+      // cover on the floor, alternating sides of the path
+      for (const [x, z, w, d, h] of [[-14, -184, 5, 1.6, 2.0], [12, -176, 1.6, 5, 1.7], [-8, -200, 4, 1.6, 1.4], [14, -203, 1.6, 4, 1.8]]) stub(K, x, z, w, d, h, BLIGHT2);
+      // the shelf: a low rail, growths and a crystal
+      K.box(36, -205.6, 18, 1.0, 0.8, BLIGHT2); crystal(K, 41, -195, 1.3, VEIN); blight(K, 41, -202, 2.2, { light: true });
+      for (const [x, z] of [[-18, -176], [20, -190], [-16, -202]]) banner(K, x, z, R(5, 6.5));
+      for (const x of [-34, 36]) for (const z of [-188, -204]) crystal(K, x + R(-2, 2), z, 1.2, VEIN);
+      for (const [x, z] of [[-6, -180], [10, -194], [-12, -206]]) K.light(x, 7, z, VEIN, 8, 26);
+      K.scatter((x, z) => K.rock(x, z, R(1, 2)), -1, -192, 8, 16, 4, 2.6);
+      mist(K, -1, -192, 18, 0.5, 0.1);
+      // the choke: two jaws of rock either side of the ramp up
+      for (const [x, z, s] of [[-10, -212, 3.4], [10, -212, 3.2]]) blight(K, x, z, s, { light: true, collide: false });
+      for (const s of [-1, 1]) K.light(s * 7, 5, -206, VEIN, 8, 24);
 
-      // ---- The Wishing Chamber: the Ahamkara's nest, a vast roofed hall ----
+      // ---- The Wishing Chamber: the Ahamkara's nest, a vast roofed hall, up from the dark ----
       K.room(0, -268, 88, 84, 20, { t: 2, color: DUSK, roofColor: LAV2, doors: { s: 10 }, roof: true });
       K.door(0, -226, 10, 20, 'x', { zone: 2, color: LAV2, trim: VEIN });
-      pad(K, 0, -268, 24, BLIGHT);
-      pad(K, 0, -268, 22.6, DUSK);
-      K.mesh(new THREE.TorusGeometry(22, 0.3, 4, 56), VEIN, 0, 0.38, -268, { rx: Math.PI / 2, glow: 1.2 });
-      K.mesh(new THREE.TorusGeometry(12, 0.25, 4, 40), GOLD, 0, 0.38, -268, { rx: Math.PI / 2, glow: 1 });
-      pad(K, 0, -268, 4, VEIN, { glow: 0.8 });
-      // pillar ring, with broken ones
-      for (const [x, z] of [[-32, -246], [32, -246], [-36, -268], [36, -268], [-32, -290], [32, -290], [-16, -240], [16, -240]]) {
-        K.box(x, z, 3.4, 20, 3.4, IVORY2);
-        K.box(x, z, 4.6, 1.3, 4.6, GOLD, { y: 14, collide: false, glow: 0.4 });
-        K.box(x, z, 4.2, 1.2, 4.2, LAV2, { collide: false });
+      // wings close the strip in front of the hall, so the only way on is the door
+      K.wall(-80, -222.6, -8.6, -222.6, 8, { t: 1.4, color: DUSK }); K.wall(8.6, -222.6, 80, -222.6, 8, { t: 1.4, color: DUSK });
+      K.box(-44, -222.6, 71, 0.3, 1.6, VEIN, { y: 8, collide: false, glow: 0.8 }); K.box(44, -222.6, 71, 0.3, 1.6, VEIN, { y: 8, collide: false, glow: 0.8 });
+      // wish-light veins run from the nest to the door, branching: no ringed floor
+      for (const [x, z, a, l, w] of [[0, -262, 0, 70, 1.1], [-12, -258, 0.55, 22, 0.6], [11, -262, -0.5, 24, 0.6], [-20, -276, 0.9, 16, 0.5], [18, -278, -0.8, 18, 0.5]]) K.box(x, z, w, 0.1, l, VEIN, { y: 0.1, collide: false, glow: 1.3 }).rotation.y = a;
+      pad(K, 0, -300, 7, BLIGHT);
+      // broken pillars: tall ones and snapped stumps for cover
+      for (const [x, z, h] of [[-32, -246, 20], [32, -248, 12], [-36, -268, 20], [36, -270, 6], [-30, -290, 9], [30, -290, 20], [-14, -240, 20], [14, -241, 5]]) {
+        K.box(x, z, 3.4, h, 3.4, IVORY2);
+        if (h > 12) { K.box(x, z, 4.6, 1.3, 4.6, GOLD, { y: 14, collide: false, glow: 0.4 }); K.box(x, z, 4.2, 1.2, 4.2, LAV2, { collide: false }); }
       }
+      for (const [x, z, ry] of [[-16, -262, 0.3], [20, -256, -0.5], [-6, -274, 1.0], [10, -282, 0.2], [-24, -280, -0.9], [26, -270, 0.7]]) K.obox(x, z, R(5, 7), R(1.4, 2.4), 1.6, ry, LAV2);
       for (let z = -232; z > -306; z -= 9) K.box(0, z, 86, 1.1, 1.1, LAV, { y: 18.6, collide: false });
       for (let x = -36; x <= 36; x += 18) K.box(x, -268, 1.1, 1.1, 82, LAV, { y: 18.6, collide: false });
       // the dais: a stepped nest, eggs and wish-light
@@ -608,7 +778,6 @@ export default {
         K.light(x, 3, z, VEIN, 8, 26);
       }
       for (const [x, z] of [[-40, -240], [40, -240], [-40, -296], [40, -296], [-24, -302], [24, -302]]) blight(K, x, z, R(2.6, 3.6), { light: true });
-      for (const [x, z, w, d] of [[-18, -252, 5, 1.2], [18, -252, 5, 1.2], [-20, -284, 1.2, 5], [20, -284, 1.2, 5]]) stub(K, x, z, w, d, 1.5, LAV);
       for (const [x, z] of [[-43, -250], [43, -250], [-43, -286], [43, -286]]) banner(K, x, z, 14);
       for (const [x, z] of [[0, -240], [-24, -268], [24, -268], [0, -262], [-30, -240], [30, -240], [-40, -266], [40, -268]]) K.light(x, 12, z, x === 0 ? GOLD : VEIN, 9, 34);
       K.light(0, 7, -300, VEIN, 16, 46);
