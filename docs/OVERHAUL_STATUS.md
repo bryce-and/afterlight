@@ -56,8 +56,8 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F03 | Legendary: a random exotic after the final mission's boss | U19 | Planned |
 | F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U19 | Planned |
 | F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U19 | Planned |
-| F06 | Light rework: enemies up to 60 above you are beatable but extremely hard; 61 or more above, attacks kill almost instantly (today the delta is clamped to -40..+10, `game.js`) | U18 | Planned |
-| F07 | 61 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U18 | Planned |
+| F06 | Light rework: enemies up to 50 above you are beatable but extremely hard; 51 or more above, attacks kill almost instantly (today the delta is clamped to -40..+10, `game.js`) | U18 | Planned |
+| F07 | 51 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U18 | Planned |
 | F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U19 | Planned |
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
 | F14 | A patrol zone on every destination | U17 | Planned |
