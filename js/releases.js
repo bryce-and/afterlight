@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '3.2.2', name: 'Hotfix', date: '2026-10-24',
+    summary: 'The campaign script is rewritten so the story holds together from the Cosmodrome to the Leviathan.',
+    notes: [
+      'Campaign dialogue: every mission, Act transition, Tower conversation and idle line is rewritten into one connected story, with Rasputin and Cayde now translating the Russian transmissions',
+      'Mission objectives: the labels now match the new script (for example "Hold the terminal while Ghost translates")',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.2.1', name: 'Hotfix', date: '2026-10-22',
     summary: 'Mission caches no longer spawn inside ships, and an unclaimed cache now opens itself after 30 seconds.',
     notes: [

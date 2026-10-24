@@ -1,0 +1,300 @@
+AFTERLIGHT: CAMPAIGN DIALOGUE
+============================================================
+Source: js/story.js (all lines), Tower prompts in js/tower.js.
+The Guardian never speaks. Lines show as subtitles in the order listed.
+Format:  [WHEN]  SPEAKER: "line"
+To edit: change the text here, then tell me and I will port it back into the code. Keep the speaker and the WHEN tag on each line.
+
+
+############################################################
+# ACT I: REBORN  (The Cosmodrome)
+############################################################
+
+--- Mission e1: A Guardian Rises  (boss: Riksis, Devil Archon) ---
+[Mission start]  GHOST: "I'm your Ghost. I know this must be confusing - but trust me, we need to move."
+[Mission start]  GHOST: "This is the Cosmodrome. There's Fallen everywhere, stay low."
+[Zone 1 begins]  GHOST: "The House of Devils! Watch out!""
+[Zone 1 cleared]  ZAVALA: "Unknown Guardian, this is Zavala. Your Ghost sent a distress signal. Get to the wall and we will transmat you out."
+[Boss zone activates]  GHOST: "Uh oh... this isn't good."
+[Mission end (cache opened)]  GHOST: "That was enough action for today. Let's go home."
+
+--- Mission e2: The Last Array  (boss: Sepiks Prime) ---
+[Mission start]  GHOST: "Rasputin's old array. This will help boost our communications with other planets."
+[Zone 2 begins]  GHOST: "Three relay consoles. Get me close and I can get them online."
+[Zone 2 cleared]  RASPUTIN: "Обнаружен Страж. Предупреждение: флот Кабал стягивается к Марсу."
+[Boss zone activates]  GHOST: "It's a servitor! And a big one too. It must be jamming the array. We need to take it down!"
+[Mission end (cache opened)]  CAYDE-6: "I brushed up on my Russian and it sounds like we need to see what the Cabal are up to on Mars. See you there kid."
+
+--- Mission e3: The Devils' Lair  (boss: Draksis, Winter Kell) ---
+[Mission start]  CAYDE-6: "We need to break the House of Devil's hold on the Cosmodrome. Their Kell falls today. You got this."
+[Zone 2 begins]  GHOST: "The Glimmer they're dropping, it has a data signatue. I'm looking into this now."
+[Zone 2 cleared]  GHOST: "It's Cabal in origin. I don't know what's going on, but I don't like it."
+[Boss zone activates]  GHOST: "This is their Kell! It's time for him to fall."
+[Mission end (cache opened)]  GHOST: "Great job Guardian. Cabal and Fallen working together cannot be good news. We need to tell the Vanguard."
+
+############################################################
+# ACT II: THE DARK BELOW  (The Hellmouth)
+############################################################
+
+--- Mission m1: The Dark Beyond  (boss: Sardok, Eye of Oryx) ---
+[Mission start]  ERIS MORN: "A great darkness is stirring on the moon. A Guardian recently went dark closeby. Investigate it."
+[Zone 2 begins]  GHOST: "A Ghost shell. it's... broken. We need to pick it up."
+[Zone 2 cleared]  ERIS MORN: "Eriana. She fought well. Bring her Ghost back to me."
+[Boss zone activates]  GHOST: "These Hive are not normal. They have royal crests in their Chitin."
+[Mission end (cache opened)]  ERIS MORN: "Thank you Guardian. We honor the lost today through combat."
+
+--- Mission m2: Chamber of Night  (boss: Omnigul, Will of Crota) ---
+[Mission start]  ERIS MORN: "The Chamber of Night. This is where my fireteam fell."
+[Zone 2 begins]  GHOST: "Rite totems. They are feeding Omnigul. Break them."
+[Zone 2 cleared]  ERIS MORN: "The wailing of a Deathsinger. Silencing her will break their ranks."
+[Boss zone activates]  GHOST: It's Omnigul. She must fall Guardian!"
+[Mission end (cache opened)]  ERIS MORN: "This ritual nears it's end. But there's a greater evil than Omnigul."
+
+--- Mission m3: Crota's End  (boss: Crota, Son of Oryx) ---
+[Mission start]  ERIS MORN: "The Hellmouth. Descend and bring light to the darkness."
+[Zone 2 begins]  GHOST: "They know we are coming. We killed their commander. I don't think they're happy about that."
+[Boss zone activates]  GHOST: "That's a big sword. Don't let him get close!"
+[Mission end (cache opened)]  GHOST: "I think he said "my father will hear of this". I don't know who his father is, but that cannot be good."
+
+############################################################
+# ACT III: THE RED WAR  (Meridian Bay)
+############################################################
+
+--- Mission r1: The Buried City  (boss: Valus Ta'aurc) ---
+[Mission start]  RASPUTIN: "Наконец-то ты прибыл. Красный Легион должен быть остановлен."
+[Zone 2 begins]  GHOST: "We need to translate what he said. Stand by that terminal while I figure out what's going on."
+[Zone 2 cleared]  GHOST: "The Red Legion are sieging one of Rasputin's bunkers. He asked us to wipe them out."
+[Boss zone activates]  GHOST: "Valus Ta'aurc. Maybe he's connected to the Fallen we faced."
+[Mission end (cache opened)]  IKORA REY: "The Red Legion are not a raiding party. It's a full blown invasion of Mars."
+
+--- Mission r2: Dust Palace  (boss: Bracus Zahn) ---
+[Mission start]  IKORA REY: "This command post is key to their weapons distribution. We need to take it out."
+[Zone 3 begins]  GHOST: "Two consoles control the inner doors. Defend me while I get them open!"
+[Boss zone activates]  GHOST: "Bracus Zahn, the Arms Dealer! Show him your power, Guardian!"
+[Mission end (cache opened)]  CAYDE-6: "The Red Legion is losing this war on Mars. We go for their leader next."
+
+--- Mission r3: The Red War  (boss: Dominus Ghaul) ---
+[Mission start]  ZAVALA: "The Primus of the Red Legion is here on Mars. His name is Ghaul, take him out."
+[Zone 2 begins]  GHOST: "Siege emitters. If those fire, Rasputin's bunker is compromised."
+[Boss zone activates]  GHOST: "Ghaul. The Primus of the Red Legion."
+[Mission end (cache opened)]  GHOST: "Hopefully that's the last of our Cabal troubles."
+
+############################################################
+# ACT IV: LAST TOUCH  (Io)
+############################################################
+
+--- Mission io2: Echo Mesa  (boss: The Psion Flayers) ---
+[Mission start]  IKORA REY: "Red Legion survivors fled to Io. But who's command do they listen to now?"
+[Zone 2 begins]  GHOST: "Drill supports. Take them out and the whole thing comes down."
+[Boss zone activates]  GHOST: "Psion Flayers! Three of them. You got this Guardian!"
+[Mission end (cache opened)]  GHOST: "That's the end of the Red Legion. Let's follow up with Asher Mir."
+
+--- Mission io1: Sacred Ground  (boss: Malok-Ra, Taken Captain) ---
+[Mission start]  ASHER MIR: "Assistant! This is where the Traveler last touched. Do not let them taint the data I need."
+[Zone 2 begins]  GHOST: "The Taken? No! That can't be..."
+[Boss zone activates]  GHOST: "That's a big captain. Watch out!"
+[Mission end (cache opened)]  ASHER MIR: "The Rupture holds. Thank you, my assistant."
+
+--- Mission io3: The Pyramidion  (boss: Protheon, Modular Mind) ---
+[Mission start]  GHOST: "The Pyramidion. The Vex have a strong presence here."
+[Mission start]  GHOST: "Their Mind controls the local forces on IO. We need to find it."
+[Zone 2 begins]  GHOST: "That data carries valuable information. We need to take it to the City."
+[Boss zone activates]  GHOST: "It's the Vex mind! Take it out!"
+[Mission end (cache opened)]  GHOST: "Great work. We're a good team me and you!"
+
+############################################################
+# TITAN  (New Pacific Arcology)
+############################################################
+
+--- Mission t1: Hope  (boss: Kathok, Swordbearer) ---
+[Mission start]  ZAVALA: "Titan was my home. The Hive are tearing through our Rigs."
+[Zone 2 begins]  GHOST: "Hold the gate. The survivors are coming through."
+[Boss zone activates]  GHOST: "Kathok. Swordbearer. His blade is faster than it looks."
+[Mission end (cache opened)]  ZAVALA: "Thank you. Titan will not fall."
+
+--- Mission t2: The Sunken Labs  (boss: Ir Halak, Brood Wizard) ---
+[Mission start]  GHOST: "The Hive aren't destroying these labs like the others... but why?"
+[Zone 2 begins]  GHOST: "Brood sacs. Three of them. They're growing an army!"
+[Boss zone activates]  GHOST: "That has to be the Brood Mother. Take her down!"
+[Mission end (cache opened)]  ZAVALA: "The labs are clear. You prevented another war today. Thank you."
+
+--- Mission t3: Savathûn's Song  (boss: Sedrak, Song of Savathûn) ---
+[Mission start]  GHOST: "The Hive here are being strengthened by a ritual. Let's stop it."
+[Zone 3 begins]  GHOST: "The ritual is being Amplified by these totems. Break them all!"
+[Boss zone activates]  GHOST: "This death-song sings of one name: Savathun. We need to silence her."
+[Mission end (cache opened)]  GHOST: "Great work. I'm sure Zavala will be happy."
+
+############################################################
+# ACT VI: THIEVES AND SCORN  (The Tangled Shore)
+############################################################
+
+--- Mission ts1: The Trickster  (boss: Araskes, the Trickster) ---
+[Mission start]  THE SPIDER: "A little favor, Guardian. A Baron called Araskes has been bleeding my market. Mind the mines."
+[Zone 2 begins]  GHOST: "I need to locate this Baron. Defend me while I track down his signal."
+[Boss zone activates]  GHOST: "Araskes. The Trickster. That's him!"
+[Mission end (cache opened)]  THE SPIDER: "Lovely. One down. Two to go."
+
+--- Mission ts2: The Mindbender  (boss: Reksis Vahn, the Mindbender) ---
+[Mission start]  PETRA VENJ: "Guardian, my name is Petra. My Queen has tasked me with taking down Reksis Vahn, the Mindbender. Help me track him down."
+[Zone 2 begins]  GHOST: "Chains bind the ritual. Cut all three."
+[Boss zone activates]  GHOST: "There he is, the Mindbender. Take him down!"
+[Mission end (cache opened)]  PETRA VENJ: "The Queen watches. She is pleased."
+
+--- Mission ts3: Scorned  (boss: Fikrul, the Fanatic) ---
+[Mission start]  PETRA VENJ: "Fikrul is the leader of them all. If he falls, his army goes with him."
+[Zone 2 begins]  GHOST: "A salvage beacon. Hold it while the camp gathers."
+[Zone 3 begins]  GHOST: "Ether totems. Break them and the Scorn stop rising."
+[Boss zone activates]  GHOST: "There's so many of them, be careful Guardian!"
+[Mission end (cache opened)]  PETRA VENJ: "I owe you, Guardian. Thank you for assisting the Awoken of the Reef. The Queen requests your presence."
+
+############################################################
+# ACT VII: THE DREAMING CITY  (The Dreaming City)
+############################################################
+
+--- Mission dc1: The Divalian Mists  (boss: The Corrupted Champion) ---
+[Mission start]  PETRA VENJ: "Here we are, home. To reach the Queen we must fight through the Taken."
+[Zone 1 begins]  GHOST: "The Divalian Mists... the stories are true. You really can't see much here."
+[Zone 2 begins]  PETRA VENJ: "Three beacons light the way. Wake each, then hold the line!"
+[Boss zone activates]  GHOST: "Was that one of the Queen's people? It looks like an Awoken."
+[Mission end (cache opened)]  PETRA VENJ: "The Mists are held. The Queen is on the Spine, we must go there at once."
+
+--- Mission dc2: The Spine of Keres  (boss: Morgeth, the Spirekeeper) ---
+[Mission start]  MARA SOV: "Climb the Spine, Guardian. Meet me at the top."
+[Zone 2 begins]  GHOST: "I don't know what will be waiting for us up there... keep an eye out."
+[Zone 2 cleared]  MARA SOV: "An Emperor awaits you. He's a formidable foe. Or ally perhaps?"
+[Boss zone activates]  GHOST: "I knew this was a test. She wants us to prove ourselves."
+[Mission end (cache opened)]  MARA SOV: "Thank you for playing my little game. The answers you need lie in the wish-magic of an Ahamkara."
+
+--- Mission dc3: The Wishing Chamber  (boss: Veshra, Riven's Brood) ---
+[Mission start]  RIVEN: "Welcome, little light. I have many voices. Which one do you want?"
+[Zone 2 begins]  RIVEN: "(in Ikora's voice) Knowledge perhaps?"
+[Zone 3 begins]  GHOST: "Blight growths. It seems to be an energy source for something."
+[Boss zone activates]  GHOST: "That's a real Ahamkara! We need to kill it, it's too dangerous to be left alive!"
+[Mission end (cache opened)]  RIVEN: "A throne that cannot be defeated. This wish was granted... you'll find out how."
+[Mission end (cache opened)]  GHOST: "A throne that cannot be defeated. The Emperor?"
+
+############################################################
+# LEVIATHAN  (The Leviathan)
+############################################################
+
+--- Mission lev1: The Emperor's Throne  (boss: Emperor Calus) ---
+[Mission start]  EMPEROR CALUS: "Welcome, Guardian. I am Calus. I have been waiting for you."
+[Mission start]  GHOST: "I have a bad feeling about this."
+[Zone 2 begins]  EMPEROR CALUS: "The gardens are lovely this time of year. Pity about the beasts running amuck."
+[Zone 3 begins]  GHOST: "Break those seals, it'll seal the doors behind us."
+[Zone 4 begins]  GHOST: "Rip through them Guardian!"
+[Boss zone activates]  EMPEROR CALUS: "Join me Guardian. The end awaits us all!"
+[Boss defeated]  GHOST: "Wires? Servos? He wasn't real... just a robot?"
+[Mission end (cache opened)]  EMPEROR CALUS: "Well played, my Shadow. Seek me further. You've proven yourself worthy."
+[Mission end (cache opened)]  GHOST: "Let's get out of here."
+
+############################################################
+# ACT TRANSITIONS (said when a destination's last boss falls)
+############################################################
+
+After finishing earth (The Cosmodrome):
+  ERIS MORN: "Guardian, I request your presence on the moon. Come to me and we will speak."
+
+After finishing moon (The Hellmouth):
+  RASPUTIN: "Внимание! На поверхности Марса зафиксирована активность 9-го класса. Сигнал бедствия 322. Призываем на помощь Стражей со всей Солнечной системы."
+
+After finishing mars (Meridian Bay):
+  PSION HERALD: "The Emperor in Exile salutes the one who ended Ghaul. Come and worship the God-Emperor and you will be at his right hand."
+  IKORA REY: "Do not answer this invitation. We have to get the whole picture."
+
+After finishing io (Io):
+  ZAVALA: "Titan is under siege. My home. I need you there."
+  GHOST: "You can count on us commander!"
+
+After finishing titan (New Pacific Arcology):
+  THE SPIDER: "Fallen Barons are strangling my trade on the Reef. Do a Spider a favor, Guardian."
+
+After finishing tangled (The Tangled Shore):
+  CAYDE-6: "The Awoken Queen requested you? They typically aren't the friendliest people."
+
+After finishing dc (The Dreaming City):
+  GHOST: "Enough waiting. It's time to find this Emperor."
+
+After finishing leviathan (The Leviathan):
+  (none)
+
+############################################################
+# THE TOWER (visited between destinations; unlocked after each Act)
+############################################################
+
+-- After earth (The Cosmodrome) --
+  Talk to Zavala:
+    ZAVALA: "A Guardian, walking out of the Cosmodrome. It has been ages. We are happy you found your way home."
+    ZAVALA: "This is the Last City. It holds, but we need help securing our place in the solar system."
+    GHOST: "You can count on us, commander."
+  Talk to Ikora Rey:
+    IKORA REY: "Your Ghost told us the glimmer found in the Devil's Lair had a Cabal data signature. Peculiar."
+    IKORA REY: "Somebody is paying them. I would like to know who is paying the Fallen, and why."
+  Talk to Cayde-6:
+    CAYDE-6: "Fresh Guardian! Let me guess: the Ghost does all the talking. They always do."
+    CAYDE-6: "Rule one: never trust anyone who says "trust me." Except me. I am extremely trustworthy."
+    GHOST: "He is not."
+
+-- After moon (The Hellmouth) --
+  Talk to Ikora Rey:
+    IKORA REY: "Eris Morn is a powerful ally. Thank you for securing the Hellmouth, it's where she lost her Fireteam."
+    IKORA REY: "Today we remember the Guardians that fell on the moon. You did well avenging them, Guardian."
+    IKORA REY: "Back in the Cosmodrome, Rasputin warned about the Cabal on Mars. When you're ready, go investigate the distress call."
+
+-- After mars (Meridian Bay) --
+  Talk to Zavala:
+    ZAVALA: "Ghaul is dead. The Red Legion has lost its head, but it isn't gone yet."
+    ZAVALA: "Rest now, but IO awaits. The rest of the Red Legion is gathering there now, although we don't know by who's authority."
+  Talk to Ikora Rey:
+    IKORA REY: "This Emperor seems to be watching you closely."
+    IKORA REY: "Remember what you're fighting for. The Light, the hope of humanity. Don't answer this invitation unless it is with a fight."
+
+-- After io (Io) --
+  Talk to Zavala:
+    ZAVALA: "Titan. My home. The Hive have climbed out of the methane, and the arcology is the next to fall."
+    ZAVALA: "I cannot leave the City. You can. Go, and tell them the Vanguard has not forgotten Titan."
+
+-- After titan (New Pacific Arcology) --
+  Talk to Cayde-6:
+    CAYDE-6: "The Spider says the Fallen Barons are strangling his trade on the Reef. Barons! Loud, greedy, and very very dangerous."
+    CAYDE-6: "I would go myself, but somebody has to stay here and look important. Hit them hard, Guardian."
+    GHOST: "He has never once looked important."
+
+-- After tangled (The Tangled Shore) --
+  Talk to Ikora Rey:
+    IKORA REY: "A second invitation. The Awoken Queen does nothing without a reason, and she does nothing for free."
+    IKORA REY: "The Dreaming City has been closed for a very long time. If they open it to you, you should proceed carefully."
+
+-- After dc (The Dreaming City) --
+  Talk to Zavala:
+    ZAVALA: "Guardian, you've stabilized the system. But you're not done yet."
+    ZAVALA: "This God-Emperor waits at the end of this. He must fall."
+  Talk to Ikora Rey:
+    IKORA REY: "Whatever this Emperor has to offer or say, don't trust him."
+  Talk to Cayde-6:
+    CAYDE-6: "Big ship, fancy throne, a God Emperor. Classic. Shoot first, questions later."
+    CAYDE-6: "Come back in one piece. I have a bet on you."
+
+-- Idle chatter (random, when they have nothing new) --
+  Zavala:
+    "The City is safe tonight because of Guardians like you."
+    "Keep your Light bright, Guardian."
+    "Stay vigilant. The Darkness does not rest."
+  Ikora Rey:
+    "Hone your abilities. You must stay sharp."
+    "Knowledge is a weapon. Use it."
+    "I hope your mind is as sharp as your light is."
+  Cayde-6:
+    "Got any spare glimmer? Asking for a friend. The friend is me."
+    "I would tell you a joke, but not with Ikora present."
+    "Nice gear. Really nice gear..."
+  Kadi 55-30:
+    "Mail for you? Always!"
+    "Plenty more next time!"
+
+-- Postmaster (first meeting) --
+  KADI 55-30: "Hello Guardian! Missing your engrams?"
+
+-- Tower system lines (js/tower.js) --
+  GHOST (entering Tower with a pending visit): "<quest text>. The Vanguard is waiting."
+  GHOST (all visits done): "It's time to go."

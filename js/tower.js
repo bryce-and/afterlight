@@ -55,7 +55,7 @@ export function startTower() {
   ui.clearSubtitles();
   ui.centerMessage('The Tower', 'The Last City', 3);
   const due = dueStop(G.save);
-  if (due) ui.say('ghost', `${due.text}. They are waiting.`);
+  if (due) ui.say('ghost', `${due.text}. The Vanguard is waiting.`);
 }
 
 /** Leaves the Tower for Orbit. */
@@ -120,7 +120,7 @@ function talk(n) {
     for (const [who, text] of lines) ui.say(who, text);
     writeSave(G.save);
     if (r.finished) {
-      ui.say('ghost', 'That is everyone. The Director is open again.');
+      ui.say('ghost', "It's time to go.");
       ui.centerMessage('Quest Updated', 'The Vanguard have your report', 4);
       sfx.areaClear();
     }
