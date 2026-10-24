@@ -10,11 +10,11 @@ export const TIERS = {
 };
 export const BOSS_BAR = '#f0c040'; // yellow: bosses (and later minibosses)
 
-/** Chance a spawned unit is a major. Captains and heavies are mostly majors at low power; every type gains with power g. */
+/** Chance a spawned unit is a major. Normal campaign: only the larger units (captains, heavies) roll majors, a minority early and more with power g. U19 adds majors across the board for Legendary and Ultimate. */
 export function majorChance(typeId, g) {
   if (typeId === 'boss') return 0;
-  if (typeId === 'captain' || typeId === 'heavy') return Math.min(0.9, 0.62 + 0.03 * g);
-  return Math.min(0.4, 0.04 + 0.04 * g);
+  if (typeId === 'captain' || typeId === 'heavy') return Math.min(0.5, 0.15 + 0.02 * g);
+  return 0;
 }
 
 /** Pick a tier for a spawn; `r` is a 0..1 roll (injectable for tests). */

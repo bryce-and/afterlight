@@ -1675,9 +1675,9 @@ test('U13b: every non-boss unit is a minor or a major; majors are tougher and bo
   for (const t of ['grunt', 'rusher', 'suicide', 'captain', 'heavy']) ok(['minor', 'major'].includes(TR.rollTier(t, 0, 0.5)), t);
 });
 test('U13b: captains and heavies are mostly majors at low power, and every type gains majors with power', () => {
-  ok(TR.majorChance('captain', 0) > 0.5 && TR.majorChance('heavy', 0) > 0.5, 'mostly majors at low power');
-  ok(TR.majorChance('grunt', 0) < 0.1, 'grunts rarely');
-  ok(TR.majorChance('grunt', 8) > TR.majorChance('grunt', 0) && TR.majorChance('rusher', 8) > TR.majorChance('rusher', 0), 'more of every unit at high power');
+  ok(TR.majorChance('captain', 0) > 0 && TR.majorChance('captain', 0) < 0.3 && TR.majorChance('heavy', 0) < 0.3, 'some large units are majors at low power');
+  ok(['grunt', 'rusher', 'suicide'].every((t) => TR.majorChance(t, 8) === 0), 'small units are never majors in the normal campaign');
+  ok(TR.majorChance('captain', 8) > TR.majorChance('captain', 0) && TR.majorChance('heavy', 8) > TR.majorChance('heavy', 0), 'more large majors at high power');
   eq(TR.rollTier('captain', 0, 0.0), 'major'); eq(TR.rollTier('captain', 0, 0.99), 'minor');
 });
 test('U13b: fireteam table: solo is unchanged, three players get more enemies, health, damage and boss health', () => {

@@ -5,6 +5,14 @@
 
 export const RELEASES = [
   {
+    version: '3.2.4', name: 'Hotfix', date: '2026-10-24', accent: '#ffb547', glyph: '✚',
+    summary: 'Far fewer orange-bar majors in the campaign.',
+    notes: [
+      'Majors: only the larger units (Captains and Heavies) can spawn as majors now, and only some of them. Grunts, Rushers and suicide units are always regular units. Majors still get a little more common the further you go',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.2.3', name: 'Hotfix', date: '2026-10-24', accent: '#ffb547', glyph: '✚',
     summary: 'Fixes the word "undefined" showing in the Update Log.',
     notes: [
