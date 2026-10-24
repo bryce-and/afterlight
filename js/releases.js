@@ -5,7 +5,15 @@
 
 export const RELEASES = [
   {
-    version: '3.2.2', name: 'Hotfix', date: '2026-10-24',
+    version: '3.2.3', name: 'Hotfix', date: '2026-10-24', accent: '#ffb547', glyph: '✚',
+    summary: 'Fixes the word "undefined" showing in the Update Log.',
+    notes: [
+      'Update Log: the Hotfix entries from 3.0.1 to 3.2.2 were missing their icon and color, which printed "undefined" above each one. They now match the other hotfixes',
+      'No save changes',
+    ],
+  },
+  {
+    version: '3.2.2', name: 'Hotfix', date: '2026-10-24', accent: '#ffb547', glyph: '✚',
     summary: 'The campaign script is rewritten so the story holds together from the Cosmodrome to the Leviathan.',
     notes: [
       'Campaign dialogue: every mission, Act transition, Tower conversation and idle line is rewritten into one connected story, with Rasputin and Cayde now translating the Russian transmissions',
@@ -14,7 +22,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '3.2.1', name: 'Hotfix', date: '2026-10-22',
+    version: '3.2.1', name: 'Hotfix', date: '2026-10-22', accent: '#ffb547', glyph: '✚',
     summary: 'Mission caches no longer spawn inside ships, and an unclaimed cache now opens itself after 30 seconds.',
     notes: [
       'Mission cache: it spawns on open floor you can walk to. In Dust Palace it was landing inside the parked dropship in the hangar',
@@ -50,7 +58,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '3.0.3', name: 'Hotfix', date: '2026-10-21',
+    version: '3.0.3', name: 'Hotfix', date: '2026-10-21', accent: '#ffb547', glyph: '✚',
     summary: 'The Hive Shrieker has a new, much bigger model, and Fallen send Explosive Shanks in packs.',
     notes: [
       'Fallen: ordinary Shanks join the waves, floating drones that fire short bolt bursts. They come in groups of three and arrive together at one spot. The Explosive Shank is unchanged',
@@ -59,7 +67,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '3.0.2', name: 'Hotfix', date: '2026-10-21',
+    version: '3.0.2', name: 'Hotfix', date: '2026-10-21', accent: '#ffb547', glyph: '✚',
     summary: 'The Tower\'s concrete walls no longer have blue lines running through them.',
     notes: [
       'Tower: the ribs on every wall now take a darker shade of that wall\'s own colour, so grey concrete has grey ribs and blue steel keeps blue ones. The Hangar\'s south wall no longer pokes through the corridor wall (it showed as a blue slab), and the Hangar\'s west door wall is concrete like the corridor',
@@ -67,7 +75,7 @@ export const RELEASES = [
     ],
   },
   {
-    version: '3.0.1', name: 'Hotfix', date: '2026-10-21',
+    version: '3.0.1', name: 'Hotfix', date: '2026-10-21', accent: '#ffb547', glyph: '✚',
     summary: 'Flickering surfaces in the Tower are fixed: places where two walls, trims or props shared the same flat face.',
     notes: [
       'Tower: wall junctions, doorway frames, wall footings, the Hangar bays, the Speaker\'s chamber ring, the Hall\'s great window, stall awnings and the Range gate no longer have two surfaces fighting over the same pixels. About 1,200 overlapping faces were found with a new dev check and the visible ones were fixed',
