@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v3.3 "Open Frontier"**: the Cosmodrome opens up as a patrol zone with no timer and no end. Beacons pay engrams and XP (Bounties and Clear missions), public events turn Heroic when you kill the marked targets in time, camps wake as you near them, Tab pulls out your Ghost, and holding E summons a Sparrow. Patrol is on Earth for now; the Sparrow is off in campaign missions.
 - **v3.2 "High Ground II"**: the same terrain and sky treatment for Io, Titan, the Tangled Shore and the Leviathan, with every mission rebuilt around climbs, descents and a real up and down.
 - **v3.1 "High Ground"**: terrain height, so the ground rises and falls under enemies, projectiles, pickups and the player (ramps, plateaus, mounds and basins); a data-driven sky for each destination and mission; and rebuilt levels on the Moon, the Dreaming City, Earth and Mars with climbs and high ground.
 - **v3.0 "Deep Halls"**: the Tower rebuilt from the Destiny 1 map (Watch, vaulted Hall of Guardians with the sunken war table, Tower North with the Speaker's orrery, a Hangar with a workshop and faction bays), symbols above the Tower's people instead of text labels, flickering textures fixed, a white and gold Leviathan, boss rooms that lock behind you, and levels in the Moon's Hive caverns.
@@ -70,6 +71,10 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/world.js` | Procedural level generation and the orbit planet |
 | `js/terrain.js` | Terrain height per map (plateau, ramp, mound, basin) and `groundAt`, used by physics, nav, enemies, projectiles and spawns |
 | `js/sky.js` | Data-driven skies per destination, with per-mission overrides |
+| `js/patrol.js` | Patrol zones: beacons, public events, ambient camps, NPC meetings, fireteam snapshot |
+| `js/patrol-data.js` | Patrol tuning and data per map (pure data, testable without THREE) |
+| `js/patrol-earth.js` | The Earth (Cosmodrome) patrol map |
+| `js/sparrow.js` | Ghost view, Sparrow controller and models |
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |
 | `js/armor.js` | Armor 2.0: six stats and tiers, mods (57), energy, sockets, orbs of power and armor charge tuning, v4 to v5 stat migration |

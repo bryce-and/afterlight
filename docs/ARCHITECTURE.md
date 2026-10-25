@@ -154,6 +154,15 @@ The module map is in the README. These notes cover systems added during the over
 - Depth: the renderer uses `logarithmicDepthBuffer` (main.js), because near 0.04 and far 900 leave a 24-bit buffer too little precision for coplanar faces at range. The sun's shadow box moves in whole shadow texels (`snapSun` in game.js).
 - Boss locks: `makeKit` gives each door whose `zone` is `bossIdx - 1` a `lock = bossIdx`. `syncBossLocks` (game.js, every frame in a mission) asks `level.syncLocks(want, points)` to seal those doors while the boss zone is `active` and every living player is inside its `room`, and to open them when that stops being true; a door never closes on someone standing in it. `openDoors` skips a held door. It runs from zone state, so fireteam members need no extra message. A level can opt out with `lockIn: false`.
 
+## Open Frontier: patrol zones, beacons, Sparrow (v3.3, `js/patrol.js`, `js/patrol-data.js`, `js/patrol-earth.js`, `js/sparrow.js`)
+- `patrol-data.js` is pure data, testable without THREE: `PATROL_TUNE`, `SPARROW`, `BEACON_TEXT`, `EVENT_SPECS` and `PATROL_DATA` per map (beacons, events, camps, NPC meetings).
+- A patrol runs as a mission-shaped shell (`G.mission.patrol`), like the Tower. It has no timer, no end and cannot fail. `updateMission` (game.js) routes `M.patrol` to `updatePatrol`; `cleanupMission` calls `leavePatrol`.
+- `patrol-earth.js` builds the Earth map from the `level-earth.js` helpers, now exported for reuse. `world.js` map overrides: `colors`, `fog`, `merge` (`mergeDecor` folds decor into chunked meshes, only for maps that set `merge`) and `level.patrol`.
+- `sparrow.js` holds the Ghost view, the Sparrow controller and models. `player.js` hooks: Tab ghost view, riding, a patrol death wakes the Guardian at the landing, revive text. `characters.js` has a `ride` pose. The Director's Patrol button (`ui.js`) launches for the fireteam when the host presses it.
+- Quests: `quests.js` `PATROL_MEETINGS`, `offerPatrolQuests`, `patrolMeetingsFor`, `metPatrolMeeting`, the `place: 'patrol:<dest>'` hook; talk lines in `story.js` `PATROL_TALKS`. No save change (existing quest state, SAVE_VERSION stays 10).
+- Co-op: `launchPatrol` (`coop.js`), a `ptr` reward message, snapshot field `ms.pt` (beacon states, event marker), mount state in player state (`mt`, `mh`, `gm`); remote avatars ride a Sparrow. Not yet play-tested with two clients.
+- Dev helper: `tools/patrolboot.js` (`boot(li)`, `check()` for reachability, `__go`, `__quiet`).
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
