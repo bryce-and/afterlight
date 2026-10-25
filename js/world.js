@@ -5,6 +5,7 @@ import { orientedCollider } from './colliders.js';
 import { buildTerrain } from './terrain.js';
 import { skyFor, buildSky } from './sky.js';
 import EARTH from './level-earth.js';
+import EARTH_PATROL from './patrol-earth.js';
 import MOON from './level-moon.js';
 import MARS from './level-mars.js';
 import TITAN from './level-titan.js';
@@ -15,7 +16,7 @@ import LEVIATHAN from './level-leviathan.js';
 import { TOWER } from './level-tower.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
+const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
 
 const matCache = new Map();
 export function mat(color, o = {}) {
@@ -55,12 +56,14 @@ export function buildLevel(loc, def) {
   const rng = mulberry32(hashStr(def.id));
   const R = (a, b) => a + rng() * (b - a);
   const RP = (arr) => arr[Math.floor(rng() * arr.length)];
-  const mood = withMood(loc.colors, def.mood);
+  const over = LEVEL_SETS[def.id] || {}; // a map may recolour its destination (`colors`) and set its own fog (`fog`): the Earth patrol is a cool, clear day
+  const mood = withMood({ ...loc.colors, ...(over.colors || {}) }, def.mood);
+  const fogR = over.fog || loc.fog;
   const C = mood.C;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(C.sky);
-  scene.fog = new THREE.Fog(C.fog, loc.fog[0] * mood.fog, loc.fog[1] * mood.fog);
+  scene.fog = new THREE.Fog(C.fog, fogR[0] * mood.fog, fogR[1] * mood.fog);
   scene.add(new THREE.HemisphereLight(C.hemiTop, C.hemiBot, loc.light.hemi * (0.5 + 0.5 * mood.light)));
   const sun = new THREE.DirectionalLight(C.sun, loc.light.sun * mood.light);
   sun.castShadow = true;
@@ -367,6 +370,7 @@ export function buildLevel(loc, def) {
   };
 
   const lamps = [], doors = [];
+  const buildFrom = scene.children.length;
   set.build(makeKit());
   if (loc.vista) separateCoplanar(scene);
 
@@ -463,10 +467,11 @@ export function buildLevel(loc, def) {
       },
       // U15: any number of lights per map. Each gets a small glow bulb, and updateLights() lends the 6 nearest the player a real PointLight (point lights are expensive)
       light(x, y, z, color = C.accent, intensity = 8, dist = 22) {
+        lamps.push({ x, y: y + gy(x, z), z, color, intensity, dist, d2: 0 });
+        if (set.hideBulbs) return null; // a map whose lights sit in visible fixtures (the patrol zones) shows no glow dot of its own
         const bulb = new THREE.Mesh(BULB, new THREE.MeshBasicMaterial({ color, fog: false }));
         bulb.position.set(x, y + gy(x, z), z);
         scene.add(bulb);
-        lamps.push({ x, y: y + gy(x, z), z, color, intensity, dist, d2: 0 });
         return bulb;
       },
       // U15: a door that is a solid block until a zone clear (zone: index), a story beat (open it by id) or never (zone: null) opens it
@@ -530,9 +535,12 @@ export function buildLevel(loc, def) {
   if (!open.s) rawCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
   const voidAt = Object.keys(open).length ? (x, z) => (open.w && x < bounds.minX) || (open.e && x > bounds.maxX) || (open.n && z < bounds.minZ) || (open.s && z > bounds.maxZ) : null;
 
+  if (set.merge) mergeDecor(scene, buildFrom, new Set(staticMeshes)); // U17a: a packed map folds its scenery into few draw calls
+
   // ---- light pool: the 6 nearest lamps get a real light, so a map can hold dozens (U15) ----
   const pool = [];
-  for (let i = 0; i < Math.min(6, lamps.length); i++) { const l = new THREE.PointLight(0xffffff, 0, 1, 1.6); scene.add(l); pool.push(l); }
+  const POOL = set.lightPool ?? 6; // real lights lent to the nearest lamps (point lights are costly; a fixture-lit map asks for a few more)
+  for (let i = 0; i < Math.min(POOL, lamps.length); i++) { const l = new THREE.PointLight(0xffffff, 0, 1, 1.6); scene.add(l); pool.push(l); }
   const updateLights = (p) => {
     if (!pool.length) return;
     for (const l of lamps) l.d2 = (l.x - p.x) ** 2 + (l.z - p.z) ** 2;
@@ -604,7 +612,7 @@ export function buildLevel(loc, def) {
   const bossIdx = zones.findIndex((z) => z.isBoss);
   if (bossIdx > 0 && set.lockIn !== false) for (const d of doors) if (d.zone === bossIdx - 1) d.lock = bossIdx;
 
-  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights: updateAll, openDoors, updateDoors, syncLocks, voidAt, groundAt: gAt, terrain };
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights: updateAll, openDoors, updateDoors, syncLocks, voidAt, groundAt: gAt, terrain, patrol: set.patrol };
 }
 
 /**
@@ -621,6 +629,43 @@ function separateCoplanar(scene) {
     m.polygonOffsetFactor = 1;
     m.polygonOffsetUnits = 1 + (m.color.getHex() % 7);
   });
+}
+
+/**
+ * U17a: folds scenery into one mesh per material. Packed maps (the patrol zones) have thousands of small boxes; merged, they cost a few
+ * hundred draw calls instead. Only plain lit meshes added by the map's build are merged; anything that collides, moves or is looked through
+ * (staticMeshes, doors, lamps, sky) stays as it is.
+ */
+function mergeDecor(scene, from, keep) {
+  scene.updateMatrixWorld(true);
+  const groups = new Map();
+  for (const o of scene.children.slice(from)) {
+    const m = o.material;
+    if (!o.isMesh || o.isInstancedMesh || o.children.length || keep.has(o) || o.userData.noMerge || Array.isArray(m) || !m.isMeshStandardMaterial || m.transparent || m.vertexColors) continue;
+    const cell = `${Math.floor(o.matrixWorld.elements[12] / 64)},${Math.floor(o.matrixWorld.elements[14] / 64)}`; // chunks keep frustum culling working
+    const key = `${m.uuid}|${o.castShadow ? 1 : 0}${o.receiveShadow ? 1 : 0}|${cell}`;
+    (groups.get(key) || groups.set(key, []).get(key)).push(o);
+  }
+  for (const list of groups.values()) {
+    if (list.length < 3) continue;
+    const parts = list.map((o) => {
+      const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+      return g;
+    });
+    let n = 0;
+    for (const g of parts) n += g.attributes.position.count;
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+    let at = 0;
+    for (const g of parts) { pos.set(g.attributes.position.array, at * 3); nor.set(g.attributes.normal.array, at * 3); at += g.attributes.position.count; g.dispose(); }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    geo.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geo, list[0].material);
+    mesh.castShadow = list[0].castShadow; mesh.receiveShadow = list[0].receiveShadow;
+    scene.add(mesh);
+    for (const o of list) scene.remove(o);
+  }
 }
 
 function buildGround(bounds, C, heightAt, rng, cellSize = 5) {

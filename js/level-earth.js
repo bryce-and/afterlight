@@ -4,9 +4,9 @@
 // e3: Mothyards (airliner hulks, hangar shells) -> Lunar Complex ruins -> roofed Fallen halls -> the Devils' Lair chamber.
 import * as THREE from 'three';
 
-const ROAD = 0x3b3835, PAINT = 0xd8cfae, CONC = 0x9d978c, CONC2 = 0x7c776e, RUST = 0x8e4a2a;
-const WHITE = 0xd9d5cb, DARK = 0x25272b, YELLOW = 0xc9a23a, GANTRY = 0x9a3a28, HULLW = 0xbdb6a8;
-const F_BLUE = 0x6fd0ff, F_RED = 0xff5a3c, CLOTH_B = 0x2c4a73, CLOTH_R = 0x7e2626, FALLEN = 0x343f52, ROOF = 0x3a3c42;
+export const ROAD = 0x3b3835, PAINT = 0xd8cfae, CONC = 0x9d978c, CONC2 = 0x7c776e, RUST = 0x8e4a2a;
+export const WHITE = 0xd9d5cb, DARK = 0x25272b, YELLOW = 0xc9a23a, GANTRY = 0x9a3a28, HULLW = 0xbdb6a8;
+export const F_BLUE = 0x6fd0ff, F_RED = 0xff5a3c, CLOTH_B = 0x2c4a73, CLOTH_R = 0x7e2626, FALLEN = 0x343f52, ROOF = 0x3a3c42;
 
 // shared unit geometries, created lazily (THREE is only needed once build() runs)
 const GEO = {};
@@ -17,7 +17,7 @@ const hemi = () => geo('hemi', () => new THREE.SphereGeometry(1, 10, 5, 0, Math.
 
 // double-sided meshes (dish bowls, hangar shells) added straight to the scene
 const dsMats = new Map();
-function dsMesh(K, g, color, x, y, z, rx = 0, ry = 0, rz = 0, order = 'XYZ') {
+export function dsMesh(K, g, color, x, y, z, rx = 0, ry = 0, rz = 0, order = 'XYZ') {
   let m = dsMats.get(color);
   if (!m) { m = new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide }); dsMats.set(color, m); }
   const mesh = new THREE.Mesh(g, m);
@@ -30,7 +30,7 @@ function dsMesh(K, g, color, x, y, z, rx = 0, ry = 0, rz = 0, order = 'XYZ') {
 
 // ---------------------------------------------------------------- props
 
-function car(K, x, z, alongZ = true, color) {
+export function car(K, x, z, alongZ = true, color) {
   const c = color ?? K.RP([K.C.accent, RUST, 0x6b5a4a, 0x56656a, 0x7a7458, 0x5b4f45]);
   const w = alongZ ? 1.9 : 4.2, d = alongZ ? 4.2 : 1.9;
   const body = K.box(x, z, w, 0.95, d, c, { y: 0.3, collide: false });
@@ -39,7 +39,7 @@ function car(K, x, z, alongZ = true, color) {
   K.collider(x - w / 2, 0, z - d / 2, x + w / 2, 2.0, z + d / 2, body);
 }
 
-function pine(K, x, z, h = K.R(5, 8.5)) {
+export function pine(K, x, z, h = K.R(5, 8.5)) {
   K.mesh(geo('trunk', () => new THREE.CylinderGeometry(0.6, 1, 1, 5)), 0x4a3a2a, x, h * 0.25, z, { scale: [0.3, h * 0.5, 0.3] });
   for (let k = 0; k < 3; k++) {
     const r = (2.0 - k * 0.55) * (h / 7);
@@ -49,7 +49,7 @@ function pine(K, x, z, h = K.R(5, 8.5)) {
 }
 
 // steel power pylon (line runs along z, arms along x)
-function pylon(K, x, z, h = 24) {
+export function pylon(K, x, z, h = 24) {
   const M = 0x5c6168;
   K.mesh(geo('pyl', () => new THREE.CylinderGeometry(0.3, 1, 1, 4)), M, x, h / 2, z, { scale: [2.8, h, 2.8], ry: Math.PI / 4 });
   K.box(x, z, 13, 0.5, 0.6, M, { y: h * 0.84, collide: false });
@@ -57,21 +57,21 @@ function pylon(K, x, z, h = 24) {
   K.box(x, z, 0.35, 3.5, 0.35, M, { y: h, collide: false });
   K.collider(x - 1.6, 0, z - 1.6, x + 1.6, h, z + 1.6, null);
 }
-function wires(K, x, z1, z2, h = 24) {
+export function wires(K, x, z1, z2, h = 24) {
   const L = Math.abs(z2 - z1), zc = (z1 + z2) / 2;
   for (const [dx, yy] of [[-6, h * 0.84], [6, h * 0.84], [-4, h * 0.68], [4, h * 0.68]]) K.box(x + dx, zc, 0.07, 0.07, L, DARK, { y: yy - 1.4, collide: false });
 }
 
-function container(K, x, z, alongZ = false, y = 0, color) {
+export function container(K, x, z, alongZ = false, y = 0, color) {
   const c = color ?? K.RP([0x7a4a32, 0x4f6a5a, 0x5a6478, 0x8a7a4a, 0x9a5a3a]);
   const w = alongZ ? 2.5 : 6.1, d = alongZ ? 6.1 : 2.5;
   K.box(x, z, w, 2.6, d, c, { y });
   K.box(x, z, w + 0.1, 0.16, d + 0.1, DARK, { y: y + 2.45, collide: false });
 }
 
-const barrier = (K, x, z, alongX = true) => K.box(x, z, alongX ? 3.2 : 0.8, 1.1, alongX ? 0.8 : 3.2, CONC);
+export const barrier = (K, x, z, alongX = true) => K.box(x, z, alongX ? 3.2 : 0.8, 1.1, alongX ? 0.8 : 3.2, CONC);
 
-function banner(K, x, z, color = CLOTH_B, h = 5.5) {
+export function banner(K, x, z, color = CLOTH_B, h = 5.5) {
   K.box(x, z, 0.25, h, 0.25, 0x4a4f58);
   K.box(x + 0.5, z, 1.8, 0.16, 0.16, 0x4a4f58, { y: h - 0.4, collide: false });
   K.box(x + 0.9, z, 1.2, 2.6, 0.06, color, { y: h - 3.0, collide: false });
@@ -79,23 +79,23 @@ function banner(K, x, z, color = CLOTH_B, h = 5.5) {
 }
 
 // Fallen energy shield barricade and supply crate
-function shield(K, x, z, alongX = true) {
+export function shield(K, x, z, alongX = true) {
   K.box(x, z, alongX ? 3.4 : 0.5, 1.4, alongX ? 0.5 : 3.4, FALLEN);
   K.box(x, z, alongX ? 3.4 : 0.56, 0.14, alongX ? 0.56 : 3.4, F_BLUE, { y: 1.4, collide: false, glow: 1.6 });
 }
-function fcrate(K, x, z, s = 1.5) {
+export function fcrate(K, x, z, s = 1.5) {
   K.box(x, z, s, s, s, FALLEN);
   K.box(x, z, s + 0.06, 0.12, s + 0.06, K.chance(0.5) ? F_BLUE : F_RED, { y: s * 0.55, collide: false, glow: 1.5 });
 }
 
 // hanging cloth banner with a glowing emblem (alongX = cloth plane runs along x)
-function cloth(K, x, z, y, w, h, alongX, color, emblem = F_BLUE) {
+export function cloth(K, x, z, y, w, h, alongX, color, emblem = F_BLUE) {
   K.box(x, z, alongX ? w : 0.08, h, alongX ? 0.08 : w, color, { y, collide: false });
   K.box(x, z, alongX ? w * 0.3 : 0.14, w * 0.3, alongX ? 0.14 : w * 0.3, emblem, { y: y + h * 0.62, collide: false, glow: 1.6 });
 }
 
 // radar dish: pedestal, bowl tilted by `tilt` and turned by `yaw`, feed horn on a pole; `up` lifts the whole dish onto a deck
-function dish(K, x, z, r, standH, tilt = 0.5, yaw = 0, pad = true, up = 0) {
+export function dish(K, x, z, r, standH, tilt = 0.5, yaw = 0, pad = true, up = 0) {
   if (pad) K.box(x, z, r * 1.7, 0.25, r * 1.7, CONC2, { collide: false, y: up });
   K.cyl(x, z, Math.max(0.6, r * 0.13), standH, K.C.metal, { sides: 8, y: up });
   K.box(x, z, r * 0.4, r * 0.25, r * 0.4, CONC, { y: up + standH - r * 0.2, collide: false });
@@ -110,7 +110,7 @@ function dish(K, x, z, r, standH, tilt = 0.5, yaw = 0, pad = true, up = 0) {
 }
 
 // crashed Fallen skiff, nose buried toward -x
-function skiff(K, x, z) {
+export function skiff(K, x, z) {
   const H = 0x3a4658, T = 0x262c36;
   K.mesh(new THREE.BoxGeometry(17, 2.6, 5), H, x, 2.0, z, { rz: 0.14 });
   K.mesh(new THREE.BoxGeometry(9, 1.6, 3.4), T, x + 1.5, 3.7, z, { rz: 0.14 });
@@ -125,7 +125,7 @@ function skiff(K, x, z) {
 }
 
 // airliner fuselage hulk lying along z, nose toward -z
-function fuselage(K, x, z, L, o = {}) {
+export function fuselage(K, x, z, L, o = {}) {
   const r = 2.4, col = o.color ?? HULLW, y = r + 0.15;
   K.mesh(cyl10(), col, x, y, z, { rx: Math.PI / 2, scale: [r, L, r], collide: true });
   if (o.nose !== false) K.mesh(hemi(), col, x, y, z - L / 2, { rx: -Math.PI / 2, scale: [r, r * 1.6, r] });
@@ -144,7 +144,7 @@ function fuselage(K, x, z, L, o = {}) {
 }
 
 // airliner fuselage hulk lying along x, nose toward -x
-function fuselageX(K, x, z, L, o = {}) {
+export function fuselageX(K, x, z, L, o = {}) {
   const r = 2.4, col = o.color ?? HULLW, y = r + 0.15;
   K.mesh(cyl10(), col, x, y, z, { rz: Math.PI / 2, scale: [r, L, r], collide: true });
   if (o.nose !== false) K.mesh(hemi(), col, x - L / 2, y, z, { rz: Math.PI / 2, scale: [r, r * 1.6, r] });
@@ -163,7 +163,7 @@ function fuselageX(K, x, z, L, o = {}) {
 }
 
 // Quonset hangar shell along z (open both ends); full = clad, else bare ribs with a scrap of cladding
-function hangar(K, x, z, r, L, full = true, color = 0x858a8e) {
+export function hangar(K, x, z, r, L, full = true, color = 0x858a8e) {
   const rib = geo('rib' + r, () => new THREE.TorusGeometry(r, 0.35, 4, 14, Math.PI));
   if (full) {
     const shell = dsMesh(K, new THREE.CylinderGeometry(r, r, L, 14, 1, true, Math.PI / 2, Math.PI), color, x, 0, z, Math.PI / 2, 0, 0);
@@ -179,7 +179,7 @@ function hangar(K, x, z, r, L, full = true, color = 0x858a8e) {
   }
 }
 
-function rocket(K, x, z) {
+export function rocket(K, x, z) {
   K.cyl(x, z, 3.2, 36, WHITE, { sides: 12 });
   K.cyl(x, z, 3.28, 1.4, K.C.accent, { y: 12, sides: 12, collide: false });
   K.cyl(x, z, 3.28, 1.4, DARK, { y: 26, sides: 12, collide: false });
@@ -194,7 +194,7 @@ function rocket(K, x, z) {
 }
 
 // launch gantry tower: open frame of decks, elevator core, service arms toward armDir
-function gantry(K, x, z, w, h, armDir, armLen) {
+export function gantry(K, x, z, w, h, armDir, armLen) {
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * w / 2, z + sz * w / 2, 0.7, h, 0.7, GANTRY, { collide: false });
   for (let y = 5; y < h; y += 5) K.box(x, z, w + 0.95, 0.35, w + 0.95, K.C.metal, { y, collide: false });
   K.box(x, z, w * 0.45, h, w * 0.45, K.C.metal);
@@ -204,7 +204,7 @@ function gantry(K, x, z, w, h, armDir, armLen) {
   K.collider(x - w / 2 - 0.4, 0, z - w / 2 - 0.4, x + w / 2 + 0.4, h, z + w / 2 + 0.4, null);
 }
 
-function crane(K, x, z, h, jib, dir = 1) {
+export function crane(K, x, z, h, jib, dir = 1) {
   K.box(x, z, 1.8, h, 1.8, YELLOW);
   K.box(x + dir * (jib / 2 - 4), z, jib, 1.3, 1.3, YELLOW, { y: h + 1.5, collide: false });
   K.box(x - dir * 4.5, z, 3.5, 2.2, 2.6, CONC2, { y: h + 0.4, collide: false });
@@ -215,14 +215,14 @@ function crane(K, x, z, h, jib, dir = 1) {
   K.box(hx, z, 0.9, 1.0, 0.9, DARK, { y: h - 8.5, collide: false });
 }
 
-function sphereTank(K, x, z, r) {
+export function sphereTank(K, x, z, r) {
   const legH = r * 0.7;
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * r * 0.6, z + sz * r * 0.6, 0.5, legH + r * 0.3, 0.5, K.C.metal, { collide: false });
   K.mesh(geo('sph', () => new THREE.SphereGeometry(1, 12, 8)), WHITE, x, legH + r, z, { scale: r, collide: 0.75 });
   K.collider(x - r * 0.7, 0, z - r * 0.7, x + r * 0.7, legH, z + r * 0.7, null);
 }
 
-function hTank(K, x, z, r, L) {
+export function hTank(K, x, z, r, L) {
   K.mesh(cyl10(), WHITE, x, r + 0.7, z, { rx: Math.PI / 2, scale: [r, L, r], collide: true });
   for (const s of [-1, 1]) {
     K.mesh(hemi(), WHITE, x, r + 0.7, z + s * L / 2, { rx: s * Math.PI / 2, scale: [r, r * 0.5, r] });
@@ -231,27 +231,27 @@ function hTank(K, x, z, r, L) {
   K.box(x, z, r * 2.06, r * 2.06, 0.8, K.C.accent, { y: 0.7, collide: false });
 }
 
-function bunker(K, x, z, w, d, h, glowC) {
+export function bunker(K, x, z, w, d, h, glowC) {
   K.box(x, z, w, h, d, CONC);
   K.box(x, z, w + 0.7, 0.5, d + 0.7, CONC2, { y: h, collide: false });
   K.box(x, z, w + 0.06, 0.6, d + 0.06, glowC ?? DARK, { y: h * 0.58, collide: false, glow: glowC ? 1.0 : undefined });
   K.box(x + w * 0.2, z, 1.6, 1.0, 1.6, K.C.metal, { y: h + 0.5, collide: false });
 }
 
-function valve(K, x, z) {
+export function valve(K, x, z) {
   K.cyl(x, z, 1.2, 2.6, K.C.metal, { sides: 8 });
   K.cyl(x, z, 0.35, 1.2, RUST, { y: 2.6, collide: false });
   K.box(x, z, 1.8, 0.22, 0.22, 0xb03a2a, { y: 3.5, collide: false });
 }
 
-function mast(K, x, z, h, up = 0) {
+export function mast(K, x, z, h, up = 0) {
   K.box(x, z, 0.5, h, 0.5, K.C.metal, { y: up });
   K.box(x, z, 3, 0.2, 0.2, K.C.metal, { y: up + h * 0.75, collide: false });
   K.box(x, z, 0.6, 0.6, 0.6, F_RED, { y: up + h, collide: false, glow: 2 });
 }
 
 // compound floodlight: pole, glowing lamp head and a lamp for the light pool
-function flood(K, x, z, h = 9, color = 0xffe3b0, power = 7) {
+export function flood(K, x, z, h = 9, color = 0xffe3b0, power = 7) {
   K.box(x, z, 0.4, h, 0.4, K.C.metal);
   K.box(x, z, 1.6, 0.5, 0.9, DARK, { y: h, collide: false });
   K.box(x, z, 1.3, 0.2, 0.6, color, { y: h - 0.05, collide: false, glow: 1.8 });
@@ -260,7 +260,7 @@ function flood(K, x, z, h = 9, color = 0xffe3b0, power = 7) {
 
 // see-through chain-link fence with posts; gaps are [from, to] metres from the min end (sorted)
 let FENCE_MAT = null, UNIT = null;
-function fence(K, x1, z1, x2, z2, h = 2.6, gaps = []) {
+export function fence(K, x1, z1, x2, z2, h = 2.6, gaps = []) {
   if (!FENCE_MAT) {
     FENCE_MAT = new THREE.MeshStandardMaterial({ color: 0xa0a6aa, transparent: true, opacity: 0.32, roughness: 0.7, metalness: 0.3, depthWrite: false, side: THREE.DoubleSide });
     UNIT = new THREE.BoxGeometry(1, 1, 1);
@@ -291,7 +291,7 @@ function fence(K, x1, z1, x2, z2, h = 2.6, gaps = []) {
 }
 
 // ruined wall of uneven 3 m chunks; chunks touching a gap are left out
-function ruinWall(K, x1, z1, x2, z2, hMin, hMax, gaps = [], t = 0.9, color) {
+export function ruinWall(K, x1, z1, x2, z2, hMin, hMax, gaps = [], t = 0.9, color) {
   const horiz = Math.abs(z2 - z1) < Math.abs(x2 - x1);
   const len = horiz ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
   const start = horiz ? Math.min(x1, x2) : Math.min(z1, z2);
@@ -306,19 +306,19 @@ function ruinWall(K, x1, z1, x2, z2, hMin, hMax, gaps = [], t = 0.9, color) {
 // ---------------------------------------------------------------- terrain helpers (U16e)
 
 // stairs whose foot stands at (x, z) and climb toward dir up to the world height `top`
-function stairUp(K, x, z, dir, w, top, color = CONC2) {
+export function stairUp(K, x, z, dir, w, top, color = CONC2) {
   const foot = K.ground(x, z), rise = top - foot;
   if (rise > 0.2) K.stairs(x, z, dir, w, rise, { y: foot, abs: true, color });
 }
 
 // stairs that end exactly at the top edge point (ex, ez) on a deck at world height `top`, coming up from the side opposite `dir`
-function stairTo(K, ex, ez, dir, w, top, color = CONC2) {
+export function stairTo(K, ex, ez, dir, w, top, color = CONC2) {
   const [dx, dz] = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[dir], rise = top - K.ground(ex, ez), n = Math.max(1, Math.ceil(rise / 0.4));
   if (rise > 0.2) K.stairs(ex - dx * n * 0.6, ez - dz * n * 0.6, dir, w, rise, { y: K.ground(ex, ez), abs: true, color });
 }
 
 // thin painted or paved strip laid on the ground between two points, tilted to follow a ramp
-function strip(K, x0, z0, x1, z1, w, color, lift = 0.07) {
+export function strip(K, x0, z0, x1, z1, w, color, lift = 0.07) {
   const ya = K.ground(x0, z0), yb = K.ground(x1, z1), len = Math.hypot(x1 - x0, z1 - z0), mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
   const m = K.mesh(new THREE.BoxGeometry(w, 0.1, len), color, mx, (ya + yb) / 2 + lift - K.ground(mx, mz), mz);
   m.rotation.order = 'YXZ';
@@ -327,10 +327,10 @@ function strip(K, x0, z0, x1, z1, w, color, lift = 0.07) {
 }
 
 // a pier from the ground up to the world height `top`
-const pier = (K, x, z, w, d, top, color = CONC2) => K.box(x, z, w, Math.max(0.5, top - K.ground(x, z)), d, color);
+export const pier = (K, x, z, w, d, top, color = CONC2) => K.box(x, z, w, Math.max(0.5, top - K.ground(x, z)), d, color);
 
 // guard rail along x at z, world height y, with gaps [from, to] in world x
-function rail(K, x0, x1, z, y, gaps = [], h = 1.1) {
+export function rail(K, x0, x1, z, y, gaps = [], h = 1.1) {
   let a = Math.min(x0, x1);
   const end = Math.max(x0, x1);
   for (const [g0, g1] of [...gaps, [end, end]]) {
@@ -340,7 +340,7 @@ function rail(K, x0, x1, z, y, gaps = [], h = 1.1) {
 }
 
 // sandbag arc (yawed bags) around (cx, cz), radius r, from angle a0 to a1
-function sandbags(K, cx, cz, r, a0, a1) {
+export function sandbags(K, cx, cz, r, a0, a1) {
   const n = Math.max(2, Math.round(Math.abs(a1 - a0) * r / 1.9));
   for (let i = 0; i < n; i++) {
     const a = a0 + (a1 - a0) * (i + 0.5) / n, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
@@ -350,7 +350,7 @@ function sandbags(K, cx, cz, r, a0, a1) {
 }
 
 // a jumble of cars, none overlapping (cars share heights, so overlaps would z-fight)
-function carPile(K, cx, cz, n, spread) {
+export function carPile(K, cx, cz, n, spread) {
   const placed = [];
   for (let i = 0; i < n * 6 && placed.length < n; i++) {
     const x = cx + K.R(-spread, spread), z = cz + K.R(-spread * 0.8, spread * 0.8), alongZ = K.chance(0.55);
@@ -362,7 +362,7 @@ function carPile(K, cx, cz, n, spread) {
 }
 
 // open steel lattice tower: four tapering legs, braced bays, a beacon on top (unique to Skywatch)
-function latticeTower(K, x, z, h, w0 = 7) {
+export function latticeTower(K, x, z, h, w0 = 7) {
   const M = 0x6c727a, bays = Math.round(h / 6), bh = h / bays;
   for (let b = 0; b < bays; b++) {
     const wa = w0 * (1 - 0.7 * b / bays), wb = w0 * (1 - 0.7 * (b + 1) / bays), y0 = b * bh;

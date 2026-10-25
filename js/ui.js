@@ -21,10 +21,11 @@ import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
-import { profile, launchFireteam, launchActivity } from './coop.js';
+import { profile, launchFireteam, launchActivity, launchPatrol } from './coop.js';
 import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
 import { startTower } from './tower.js';
 import { TOWER_LOC } from './level-tower.js';
+import { startPatrol } from './patrol.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -317,7 +318,7 @@ function renderDirector(main) {
         </div>
         <div class="launch-row">
           <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
-          ${net.active ? readyBarHTML() : `<button id="launch" class="btn primary" ${m ? '' : 'disabled'}>Launch</button>`}
+          ${net.active ? `${net.isHost && loc.patrol ? '<button id="launch-patrol" class="btn" title="Take the fireteam on patrol">Patrol</button>' : ''}${readyBarHTML()}` : `${loc.patrol ? '<button id="launch-patrol" class="btn" title="Roam the destination: beacons, public events, a Sparrow">Patrol</button>' : ''}<button id="launch" class="btn primary" ${m ? '' : 'disabled'}>Launch</button>`}
         </div>
       </section>`;
   }
@@ -353,6 +354,7 @@ function renderDirector(main) {
     lockPointer();
     if (dirFocus === 'tower') startTower(); else startMission(selLoc, selMission);
   });
+  $('#launch-patrol', main)?.addEventListener('click', () => { initAudio(); lockPointer(); if (net.active) launchPatrol(selLoc); else startPatrol(selLoc); });
   $('#due-tower', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
   wireFireteam(main);
 }
@@ -1230,7 +1232,7 @@ export function updateHUD(dt) {
   setStyle(hud.health, 'hp', 'width', `${(P.health / P.maxHealth) * 100}%`);
   setStyle(hud.over, 'ov', 'width', `${Math.round((P.over / 60) * 100)}%`);
   setClass(hud.health.parentElement, 'hpbar', 'low', P.health < 40);
-  setText(hud.revives, 'rev', M.coop ? `Lives ${Math.max(0, M.lives)}` : `Revives ${Math.max(0, M.revives)}`);
+  setText(hud.revives, 'rev', M.patrol ? '' : M.coop ? `Lives ${Math.max(0, M.lives)}` : `Revives ${Math.max(0, M.revives)}`);
   setText(hud.objText, 'obj', M.objective);
   updateCharge(P);
   // vignette

@@ -32,6 +32,7 @@ import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
 import { linesFor, objectiveFor, UNLOCKS } from './story.js';
 import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
+import { updatePatrol, leavePatrol } from './patrol.js';
 
 const _c = new THREE.Vector3();
 const _sr = new THREE.Vector3(), _su = new THREE.Vector3(), _sd = new THREE.Vector3();
@@ -108,6 +109,7 @@ export function abandonMission(silent = false) {
 
 export function cleanupMission() {
   ui.endTimer(null);
+  if (G.mission?.patrol) leavePatrol();
   if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
   clearEffects();
@@ -290,6 +292,7 @@ function syncBossLocks() {
 function updateMission(dt) {
   const M = G.mission, P = G.player;
   if (M.tower) { updateTower(dt); return; } // U16: the Tower has no zones
+  if (M.patrol) { updatePatrol(dt); return; } // U17a: patrol zones have no zones to clear either
   syncBossLocks();
   if (M.act) { updateActivity(dt); return; }
   // fireteam members get zones/objectives from the leader; only the cache is local
@@ -841,7 +844,7 @@ export function getEnemyByNetId(id) {
   return G.enemies.find((e) => e.netId === id);
 }
 
-function dropEngram(pos) {
+export function dropEngram(pos) {
   const M = G.mission;
   const pp = playerPower(G.save);
   const rIdx = rollRarity(playerLevel(G.save));

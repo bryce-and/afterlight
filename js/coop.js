@@ -15,6 +15,8 @@ import { barrierStops } from './combat.js';
 import { playerPower } from './save.js';
 import { sfx } from './audio.js';
 import { stinger } from './music.js';
+import { buildSparrowModel } from './sparrow.js';
+import { startPatrol, patrolSnapshot, applyPatrolSnapshot, receivePatrolReward } from './patrol.js';
 import * as ui from './ui.js';
 
 // Glue between the network layer and the game.
@@ -72,6 +74,15 @@ export function launchFireteam(li, mi) {
   startMission(li, mi);
 }
 
+/** Host: launch the patrol zone of destination li for the whole fireteam. */
+export function launchPatrol(li) {
+  if (net.isHost) broadcast({ t: 'start', li, mi: -1 });
+  startPatrol(li);
+}
+
+/** Host: a patrol reward (engrams and XP) is rolled by every member on their own machine. */
+export function announcePatrolReward(pos, n, xp) { if (net.isHost) broadcast({ t: 'ptr', x: r2(pos.x), y: r2(pos.y), z: r2(pos.z), n, xp }); }
+
 /** Host: launch an activity (Horde / Endless) for the whole fireteam on a shared arena seed. */
 export function launchActivity(actId) {
   const seed = newSeed();
@@ -116,7 +127,7 @@ function revivePlayer(id, inPlace) {
 function updateRevives(dt) {
   const P = G.player, M = G.mission;
   // a wipe with no lives left ends the activity, unless it is already complete (boss cache, final cache)
-  const complete = ['loot', 'done', 'final'].includes(M.phase);
+  const complete = ['loot', 'done', 'final'].includes(M.phase) || !!M.patrol; // a patrol never ends in a wipe: lives are pooled without end and you wake at the landing
   if (net.isHost && G.state === 'playing' && !complete && M.lives <= 0 && allPlayers().every((p) => p.dead)) {
     broadcast({ t: 'wipe' });
     missionFailed();
@@ -208,7 +219,7 @@ function myState() {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, lk: P.lookCode,
     x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0,
     // animation: sprinting, airborne, firing, and the gun in hand
-    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, w: (P.superActive && !P.keepsGuns) || P.holdingAxe ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
+    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, mt: P.mount ? 1 : 0, mh: P.mount ? r2(P.mount.heading) : 0, gm: P.ghostOut || P.mount ? 1 : 0, w: (P.superActive && !P.keepsGuns) || P.holdingAxe || P.ghostOut || P.mount ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
   };
 }
 
@@ -226,7 +237,7 @@ export function netTick(dt) {
     for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0)]);
     const M = G.mission;
     const z = M.zones[M.current];
-    const ms = { cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0, ob: objSnapshot() };
+    const ms = { pt: M.patrol ? patrolSnapshot() : 0, cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0, ob: objSnapshot() };
     const ps = [myState()];
     for (const r of remotes.values()) if (r.inMission && r.state) ps.push(r.state);
     broadcast({ t: 's', e, ms, ps });
@@ -290,6 +301,7 @@ export function remoteBarrierBlocks(p) {
 
 function removeAvatar(r) {
   setReviveGhost(r, false);
+  if (r.sparrow) { r.sparrow.removeFromParent(); r.sparrow = null; }
   if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; r.gunKey = undefined; r.prop = undefined; r.wasInv = false; }
   r.plate?.remove(); r.plate = null;
 }
@@ -308,8 +320,21 @@ function updateAvatars(dt) {
     r.yaw = (r.yaw ?? 0) + dy * k;
     r.eye.set(r.pos.x, r.pos.y + 1.62, r.pos.z);
     const g = r.avatar.group;
-    g.position.copy(r.pos);
-    g.rotation.y = r.yaw + Math.PI;
+    const mounted = !!r.state?.mt && !r.dead; // U17a: a teammate on a Sparrow
+    if (mounted) {
+      if (!r.sparrow && G.scene) { r.sparrow = buildSparrowModel(); G.scene.add(r.sparrow); r.mh = r.state.mh; }
+      let dh = r.state.mh - (r.mh ?? 0);
+      dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+      r.mh = (r.mh ?? 0) + dh * k;
+      r.sparrow.position.copy(r.pos).y += 0.55;
+      r.sparrow.rotation.set(0, r.mh, 0, 'YXZ');
+      g.position.set(r.pos.x + Math.sin(r.mh) * 0.45, r.pos.y + 0.97, r.pos.z + Math.cos(r.mh) * 0.45);
+      g.rotation.y = r.mh + Math.PI;
+    } else {
+      if (r.sparrow) { r.sparrow.removeFromParent(); r.sparrow = null; }
+      g.position.copy(r.pos);
+      g.rotation.y = r.yaw + Math.PI;
+    }
     g.rotation.x = r.dead ? -1.4 : 0;
     setReviveGhost(r, r.dead);
     if (r.reviveGhost) {
@@ -338,7 +363,7 @@ function updateAvatars(dt) {
     r.avatar.setShield(st.gv || 0); // a raised Glaive shield, in the glaive's element colour
     if (st.gh > r.guardHits) r.avatar.blockHit();
     r.guardHits = st.gh || 0;
-    r.avatar.update(dt, { speed: Math.hypot(r.vel.x, r.vel.z), sprint: !!st.s, air: !!st.a, pitch: st.pt || 0, firing: !!st.f, armsLow: prop === 'fists' && !st.pu, punch: st.pu || 0, guard: prop === 'sentinel' && !!st.gd, superPose: st.po || null, hover: !!st.hv });
+    r.avatar.update(dt, { ride: mounted, speed: mounted ? 0 : Math.hypot(r.vel.x, r.vel.z), sprint: !!st.s, air: !!st.a, pitch: st.pt || 0, firing: !!st.f, armsLow: prop === 'fists' && !st.pu, punch: st.pu || 0, guard: prop === 'sentinel' && !!st.gd, superPose: st.po || null, hover: !!st.hv });
     // Vanishing Step: barely visible to teammates too
     if (r.wasInv !== r.inv) {
       r.wasInv = r.inv;
@@ -382,7 +407,7 @@ const inMission = () => G.mission && ['playing', 'paused'].includes(G.state);
 net.on('start', (m) => {
   if (G.mission) abandonMission(true);
   ui.hideOverlays();
-  if (m.act) startActivity(m.act, m.seed); else startMission(m.li, m.mi);
+  if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi);
   ui.feed('Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
 });
 net.on('end', () => { if (inMission()) { abandonMission(true); ui.orbitNotice('The fireteam leader ended the mission.'); } });
@@ -448,6 +473,7 @@ net.on('s', (m) => {
     syncObjMarkers(ms.ob);
   }
   M.lives = ms.lv;
+  if (M.patrol && ms.pt) applyPatrolSnapshot(ms.pt);
   if (M.act && ms.w > (M.wave ?? 0)) {
     M.wave = ms.w;
     ui.centerMessage(ms.w % M.act.arenaEvery === 0 ? M.arenaDef.boss.name : `Wave ${ms.w}`, M.act.waves === Infinity ? '' : `of ${M.act.waves}`, 2);
@@ -494,6 +520,7 @@ net.on('loot', (m) => {
 
 // activities
 net.on('arena', (m) => { if (inMission() && G.mission.act) moveArena(m.i); });
+net.on('ptr', (m) => { if (inMission() && G.mission.patrol) receivePatrolReward(new THREE.Vector3(m.x, m.y, m.z), m.n, m.xp); });
 net.on('ach', (m) => { if (inMission() && G.mission.act) placeActChest(new THREE.Vector3(m.x, 0, m.z), m.n, !!m.f); });
 
 // revives

@@ -412,6 +412,8 @@ export const LOCATIONS = [
       { id: 'e2', mood: 'day', name: 'The Last Array', power: 19, zones: 3, boss: { name: 'Sepiks Prime', element: 'solar' , model: 'servitor' }, desc: 'Restore the old Rasputin array and reach out to the stars.' },
       { id: 'e3', mood: 'dusk', name: "The Devils' Lair", power: 28, zones: 4, boss: { name: 'Draksis, Winter Kell', element: 'void' , model: 'kell' }, desc: 'Strike at the heart of the House of Devils and bring down their Kell.' },
     ],
+    // U17a: the free-roam patrol zone (js/patrol-earth.js, js/patrol.js). Not a mission: no zones to clear, no timer, no end.
+    patrol: { id: 'e_patrol', mood: 'day', name: 'Cosmodrome Patrol', power: 10, zones: 0, boss: { name: '', element: 'solar', model: 'archon' }, desc: 'Roam the Cosmodrome. Activate beacons, join public events, and ride a Sparrow across the yard.' },
   },
   {
     id: 'moon', name: 'The Hellmouth', planetName: 'Moon', faction: 'Hive',

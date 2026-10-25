@@ -299,6 +299,16 @@ export function lineDuration(text) {
 // U16 "The Last City": what the Vanguard say in the Tower. Keyed by Tower stop (quests.js TOWER_STOPS), then NPC.
 // Each entry is a list of [speaker, text]. The Guardian never speaks; the Ghost may answer.
 // ---------------------------------------------------------------------------
+/** U17a: talks held in patrol zones, by meeting id (quests.js PATROL_MEETINGS). */
+export const PATROL_TALKS = {
+  cayde_earth: [
+    ['cayde', 'There you are! Do not look at me. Look at the car. The very rusty car. Good.'],
+    ['cayde', 'Back when the Cosmodrome was a parking lot, I hid something here. A snack, or a weapon. Honestly, I forget which.'],
+    ['ghost', 'He forgets a lot.'],
+    ['cayde', 'Rude. Take this for the trouble, and if anyone asks, we never met. Rule two!'],
+  ],
+};
+
 export const TOWER_TALKS = {
   earth: {
     zavala: [

@@ -33,6 +33,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
+import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW } from '../js/patrol-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1913,6 +1914,80 @@ test('U16e: a crate on a plateau is a ledge measured from the plateau, not from 
   const nav = buildNav([{ min: { x: 4, y: 5, z: 4 }, max: { x: 6, y: 6.2, z: 6 } }], { minX: -30, maxX: 30, minZ: -30, maxZ: 30 }, { ground: t.at });
   ok(Math.abs(heightAt(nav, 5, 5) - 6.2) < 1e-6, 'the crate top is standable at 6.2');
   ok(heightAt(nav, -10, -10) > 4.9, 'plain plateau floor is walkable');
+});
+
+
+// ---------- U17a: patrol zones, beacons, public events, the Ghost and the Sparrow ----------
+const EP = PATROL_DATA.e_patrol, PS = EP.patrol;
+const sites = () => [...PS.beacons, ...PS.beacons.map((b) => b.site), ...PS.events, ...PS.camps, ...Object.values(PS.npcs)];
+test('U17a: Earth has a patrol zone, and every site in it is inside the map', () => {
+  eq(LOCATIONS[0].patrol.id, 'e_patrol');
+  const [minX, maxX, minZ, maxZ] = EP.bounds;
+  for (const p of sites()) ok(p.x > minX + 6 && p.x < maxX - 6 && p.z > minZ + 6 && p.z < maxZ - 6, `site (${p.x}, ${p.z}) is inside the bounds`);
+  ok(PS.beacons.length >= 3 && PS.events.length >= 2 && PS.camps.length >= 8, 'the zone is populated');
+});
+test('U17a: no ambient camp wakes at the landing, and the landing is clear of every site', () => {
+  const [sx, sz] = EP.spawn;
+  for (const c of PS.camps) ok(Math.hypot(c.x - sx, c.z - sz) > PATROL_TUNE.wake + 10, `camp (${c.x}, ${c.z}) is far enough from the landing`);
+  for (const b of PS.beacons) ok(Math.hypot(b.site.x - sx, b.site.z - sz) > 40, `${b.id}'s site is away from the landing`);
+});
+test('U17a: the zones mirror the beacon and event sites, so props stay off them', () => {
+  for (const p of [...PS.beacons, ...PS.events]) ok(EP.zones.some((z) => Math.hypot(z.x - p.x, z.z - p.z) < 1), `a zone sits on (${p.x}, ${p.z})`);
+});
+test('U17a: the patrol terrain: the on-ramp is walkable and nothing at a site is a cliff', () => {
+  const t = buildTerrain(EP.terrain);
+  ok(routeSlope(t, [[-138, 96], [-138, 46]]) < MAX_SLOPE, 'the highway on-ramp is under the slope cap');
+  ok(Math.abs(t.at(-138, 28) - 7) < 0.05, 'the abutment is at deck height (7 m)');
+  const dock = steepest(t, { minX: 64, maxX: 136, minZ: 48, maxZ: 120 }, 1);
+  ok(dock.slope < MAX_SLOPE, `the dry dock basin is walkable (${dock.slope.toFixed(2)})`);
+  const rocks = steepest(t, { minX: 70, maxX: 130, minZ: -64, maxZ: -4 }, 1);
+  ok(rocks.slope < MAX_SLOPE, `the rocks under the spire are walkable (${rocks.slope.toFixed(2)})`);
+  for (const p of sites()) ok(steepest(t, { minX: p.x - 3, maxX: p.x + 3, minZ: p.z - 3, maxZ: p.z + 3 }, 1).slope < MAX_SLOPE, `(${p.x}, ${p.z}) is not on a cliff`);
+});
+test('U17a: every beacon and event has its script', () => {
+  const kinds = new Set(['grunt', 'rusher', 'captain', 'heavy', 'suicide']);
+  for (const b of PS.beacons) {
+    ok(BEACON_TEXT[b.type], `${b.id} has a card for ${b.type}`);
+    if (b.type === 'hunt') ok(b.target?.name && kinds.has(b.target.unit), `${b.id} names a target`);
+  }
+  for (const e of PS.events) {
+    const sp = EVENT_SPECS[e.id];
+    ok(sp, `${e.id} has a script`);
+    ok(sp.marked.n >= 1 && sp.marked.time >= 30 && kinds.has(sp.marked.unit), `${e.id}'s heroic mechanic is set`);
+    ok(sp.pushes.length >= 2 && sp.pushes.every((p) => p.every(([t, n]) => kinds.has(t) && n >= 1)), `${e.id}'s pushes are valid`);
+    ok(kinds.has(sp.finale.unit) && sp.finale.heroicN > sp.finale.n, `${e.id}'s heroic finale is bigger`);
+  }
+  ok(EVENT_SPECS.hive_ritual.faction === 'hollow' && EVENT_SPECS.salvage_defense.faction === null, 'one Hive event and one of the destination\'s own');
+});
+test('U17a: the Ghost holds: 1 second to summon a Sparrow, 5 to return to orbit', () => {
+  eq(SPARROW.summonHold, 1); eq(SPARROW.orbitHold, 5);
+  ok(SPARROW.boost > SPARROW.top && SPARROW.top > SPARROW.reverse, 'boost beats cruise beats reverse');
+});
+test('U17a: a patrol meeting is offered once, waits while its quest is active, and finishing it marks it done', () => {
+  const s = { cleared: {} };
+  eq(Q.patrolMeetingsFor(s, 'earth').length, 0, 'nothing waits before the patrol is entered');
+  Q.offerPatrolQuests(s, 'earth'); Q.offerPatrolQuests(s, 'earth');
+  eq(s.quests.active.filter((id) => id === 'cayde_earth').length, 1, 'offered once');
+  const m = Q.patrolMeetingsFor(s, 'earth');
+  eq(m.length, 1); eq(m[0].npc, 'cayde'); eq(m[0].place, 'patrol:earth');
+  const row = Q.questList(s).find((r) => r.quest.id === 'cayde_earth');
+  ok(row && row.place.includes('patrol zone') && row.state === 'active', 'the Quests tab shows where to go');
+  ok(Q.metPatrolMeeting(s, 'cayde_earth'), 'meeting finishes the quest');
+  ok(!Q.metPatrolMeeting(s, 'cayde_earth'), 'but only once');
+  eq(Q.patrolMeetingsFor(s, 'earth').length, 0);
+  ok(s.quests.done.includes('cayde_earth'));
+  Q.offerPatrolQuests(s, 'earth');
+  ok(!s.quests.active.includes('cayde_earth'), 'a finished meeting is not offered again');
+});
+test('U17a: a dropped patrol quest keeps its NPC away until it is picked up again', () => {
+  const s = { cleared: {} };
+  Q.offerPatrolQuests(s, 'earth');
+  eq(Q.abandonQuest(s, 'cayde_earth'), null);
+  eq(Q.patrolMeetingsFor(s, 'earth').length, 0);
+  Q.offerPatrolQuests(s, 'earth');
+  ok(!s.quests.active.includes('cayde_earth'), 'offering does not undo a drop');
+  eq(Q.pickUpQuest(s, 'cayde_earth'), null);
+  eq(Q.patrolMeetingsFor(s, 'earth').length, 1);
 });
 
 

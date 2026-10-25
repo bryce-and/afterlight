@@ -5,6 +5,22 @@
 
 export const RELEASES = [
   {
+    version: '3.3', name: 'Open Frontier', date: '2026-10-24', accent: '#7fe3ff', glyph: '◈',
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="ofBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f98d8"/><stop offset="0.55" stop-color="#b9d4ee"/><stop offset="1" stop-color="#efe0c0"/></linearGradient><linearGradient id="ofBay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc27a"/><stop offset="1" stop-color="#d97a3a"/></linearGradient></defs><rect width="320" height="180" fill="url(#ofBg)"/><circle cx="262" cy="34" r="22" fill="#fff6d8" fill-opacity="0.35"/><circle cx="262" cy="34" r="13" fill="#fff6d8"/><g fill="#ffffff" fill-opacity="0.75"><ellipse cx="60" cy="30" rx="30" ry="7"/><ellipse cx="190" cy="22" rx="24" ry="5"/><ellipse cx="300" cy="62" rx="22" ry="5"/></g><rect x="0" y="82" width="320" height="64" fill="#444d58"/><g fill="#56606c"><rect x="14" y="82" width="9" height="64"/><rect x="58" y="82" width="9" height="64"/><rect x="102" y="82" width="9" height="64"/><rect x="214" y="82" width="9" height="64"/><rect x="258" y="82" width="9" height="64"/><rect x="302" y="82" width="9" height="64"/></g><rect x="0" y="78" width="320" height="6" fill="#343b45"/><g fill="#5f8a86" fill-opacity="0.7"><rect x="26" y="96" width="28" height="32"/><rect x="70" y="96" width="28" height="32"/><rect x="226" y="96" width="28" height="32"/><rect x="270" y="96" width="28" height="32"/></g><rect x="146" y="92" width="52" height="54" fill="#2a3038"/><rect x="152" y="98" width="40" height="48" fill="url(#ofBay)"/><g fill="#2a3038"><rect x="164" y="98" width="2" height="48"/><rect x="178" y="98" width="2" height="48"/></g><g stroke="#a33a2a" stroke-width="2" fill="none"><path d="M118 82 V30 M134 82 V30 M118 40 H134 M118 56 H134 M118 70 H134 M118 40 L134 56 M134 40 L118 56"/></g><rect x="112" y="26" width="28" height="6" fill="#a33a2a"/><g fill="#e8ecf0"><path d="M44 82 V40" stroke="#8d939a" stroke-width="2"/><circle cx="44" cy="36" r="7"/><circle cx="44" cy="50" r="6"/><circle cx="44" cy="62" r="5"/></g><path d="M268 130 L274 44 L282 46 L280 130z" fill="#12161c"/><g fill="#4dff9a"><rect x="270" y="58" width="12" height="3" transform="rotate(4 276 59)"/><rect x="270" y="74" width="12" height="3" transform="rotate(4 276 75)"/><rect x="270" y="90" width="12" height="3" transform="rotate(4 276 91)"/><rect x="270" y="106" width="12" height="3" transform="rotate(4 276 107)"/></g><path d="M246 130 L254 98 L260 100 L258 130z" fill="#12161c"/><path d="M0 146 H320 V180 H0z" fill="#b8a888"/><path d="M130 146 L110 180 H210 L190 146z" fill="#3b3835"/><path d="M160 150 L158 180 M166 150 L170 180" stroke="#d8cfae" stroke-width="1.4" stroke-dasharray="4 5"/><g fill="#8e4a2a"><rect x="40" y="152" width="22" height="9" rx="2"/><rect x="236" y="156" width="26" height="9" rx="2"/><rect x="26" y="166" width="20" height="8" rx="2"/></g><g fill="#56656a"><rect x="76" y="158" width="20" height="8" rx="2"/><rect x="262" y="168" width="22" height="8" rx="2"/></g><g stroke="#2a3038" stroke-width="2"><path d="M100 146 V120 H108 M222 146 V120 H214"/></g><g fill="#ffe2b0"><rect x="106" y="119" width="6" height="3"/><rect x="210" y="119" width="6" height="3"/></g><path d="M60 168 Q120 126 196 132" fill="none" stroke="#7fe3ff" stroke-width="2" stroke-dasharray="4 4" stroke-opacity="0.8"/><g transform="translate(196 132) rotate(-8)"><path d="M0 0 L36 4 L2 8 L-12 5z" fill="#eef1f5"/><path d="M-6 3 L-14 -2 L-2 1z" fill="#ff9a3c"/><circle cx="-2" cy="-3" r="2.4" fill="#2a3038"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+    summary: 'The Cosmodrome opens up. Roam it on patrol: activate beacons, join public events and ride a Sparrow through a yard packed with ruins.',
+    notes: [
+      'Patrol: a new Patrol button in the Director (Earth for now) takes you into a free-roam Cosmodrome. No timer and no end: a launch road, a broken elevated highway, a shipyard dry dock with a hull on cradles, a tank farm and refinery, a rocket on its gantry, a Hive spire in the rocks, and the Wall with its bay and a catwalk hall. Customs house, warehouse, admin block, barracks, substation and pump house all have interiors you can walk into, lit by lamp posts, wall lamps and strip lights',
+      'Fallen camps and ambient packs wake as you near them and come back after a while. If you die on patrol, your Ghost brings you back at the landing',
+      'Beacons: waist-high pedestals. Walk up and a small card tells you what it is; press E. Bounties hunt a named champion, Clear missions wipe a camp. Each pays an engram and XP and re-arms after a while',
+      'Public events: a Hive Ritual at the spire and a Salvage Defense in the graveyard start on their own, with a countdown and a marker. Kill the marked targets in time and the event turns Heroic: a tougher finale and bigger rewards',
+      'Ghost view: Tab pulls out your Ghost and lowers your weapon, in every mission. Hold E for 1 second to summon a Sparrow (patrol zones only; in the campaign it says "Unable to summon."), hold O for 5 seconds to return to orbit',
+      'Sparrow: W throttle, S brake and reverse, Shift boost, Space hop, and the camera steers. Tab or E gets you off. Your Guardian crouches over it, and fireteam members see you riding',
+      'Quests: the first time you roam the Cosmodrome you pick up a side quest from Cayde-6, who is waiting near the landing. More meetings will move into patrol zones later',
+      'Fireteams: the leader can launch a patrol for everyone. Beacons, events, rewards and Sparrows are shared',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.2.4', name: 'Hotfix', date: '2026-10-24', accent: '#ffb547', glyph: '✚',
     summary: 'Far fewer orange-bar majors in the campaign.',
     notes: [
@@ -534,6 +550,11 @@ export const titleRelease = () => RELEASES.find((r) => r.version.split('.').leng
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
 export const ROADMAP = [
+  {
+    name: 'The Next Patrols', status: 'On the Horizon', accent: '#7fe3ff', glyph: '◈',
+    teaser: 'The Cosmodrome was only the first yard to open. Beacons, public events and a few familiar faces are waiting on the other worlds.',
+    themes: ['Patrol zones', 'Public events', 'Heroics'],
+  },
   {
     name: 'The Emperor\'s Shadow', status: 'Future Transmission', accent: '#c9a046', glyph: '♛',
     teaser: 'A golden vessel drifts at the edge of the system. Someone aboard has been watching you for a very long time.',

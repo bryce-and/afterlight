@@ -511,6 +511,25 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         if (SP.crouch) b.torso.position.y -= SP.crouch * poseT;
       }
       if (pose.hover) b.legs.forEach((leg, i) => { leg.rotation.x = towards(leg.rotation.x, i ? 0.15 : -0.25, k); knee(leg).rotation.x = towards(knee(leg).rotation.x, i ? 0.5 : 0.35, k); });
+      // U17a: riding a Sparrow, after the rider reference: hips on the saddle, torso leaning hard forward over the hull, head up, thighs forward and
+      // splayed around the hull with the shins tucked back along the pods, both hands reaching down to the handlebar.
+      if (pose.ride) {
+        const lean = 1.05 + Math.min(0.15, speed * 0.003);
+        b.torso.rotation.x = towards(b.torso.rotation.x, lean, k);
+        b.torso.rotation.y = towards(b.torso.rotation.y, 0, k);
+        b.torso.position.y = 0.98;
+        b.head.rotation.x = towards(b.head.rotation.x, -lean * 0.8, k);
+        b.legs.forEach((leg, i) => { // legs[0] is the figure's right (-x)
+          leg.rotation.x = towards(leg.rotation.x, -1.3, k);
+          leg.rotation.z = towards(leg.rotation.z, i ? 0.34 : -0.34, k);
+          knee(leg).rotation.x = towards(knee(leg).rotation.x, 1.85, k);
+        });
+        b.arms.forEach((arm, i) => {
+          arm.rotation.x = towards(arm.rotation.x, -1.95, k);
+          arm.rotation.z = towards(arm.rotation.z, i ? 0.16 : -0.16, k);
+          elbow(arm).rotation.x = towards(elbow(arm).rotation.x, -0.4, k);
+        });
+      } else b.legs.forEach((leg) => { leg.rotation.z = towards(leg.rotation.z, 0, k); });
       // punch / throw: the right arm swings out and back (third-person supers and melee)
       if (pose.punch) {
         const sw = Math.sin(pose.punch * Math.PI);

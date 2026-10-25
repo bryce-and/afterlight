@@ -26,6 +26,15 @@ export const QUESTS = {
   campaign: { id: 'campaign', name: 'The Ghost\'s Story', desc: 'Follow the Ghost from the Cosmodrome to the Emperor\'s Throne.', abandonable: false },
 };
 
+/**
+ * U17a: meetings in patrol zones. While the quest is active, the NPC stands in that destination's patrol zone (`place: 'patrol:<dest>'`,
+ * the spot is the map's patrol.npc) with a quest marker; speaking to them finishes the quest. Later zones add Eris Morn, Asher Mir and others here.
+ */
+export const PATROL_MEETINGS = [
+  { id: 'cayde_earth', dest: 'earth', npc: 'cayde', place: 'patrol:earth', text: 'Find Cayde-6 in the Cosmodrome patrol zone' },
+];
+QUESTS.cayde_earth = { id: 'cayde_earth', name: 'Stash and Dash', desc: 'Cayde-6 has hidden something in the Cosmodrome and needs a Guardian who will not ask questions.', abandonable: true, meeting: 'cayde_earth' };
+
 const locIndex = (id) => LOCATIONS.findIndex((l) => l.id === id);
 const lastMission = (li) => LOCATIONS[li].missions[LOCATIONS[li].missions.length - 1];
 
@@ -115,9 +124,36 @@ export function questList(s) {
     const def = QUESTS[id];
     if (!def) continue;
     const state = q.active.includes(id) ? 'active' : q.dropped.includes(id) ? 'dropped' : 'done';
-    rows.push({ quest: def, state, ...(id === 'campaign' ? campaignView(s) : { step: '', place: '', log: [] }) });
+    rows.push({ quest: def, state, ...(id === 'campaign' ? campaignView(s) : def.meeting ? meetingView(def, state) : { step: '', place: '', log: [] }) });
   }
   return rows;
+}
+
+function meetingView(def, state) {
+  const m = PATROL_MEETINGS.find((x) => x.id === def.meeting), loc = LOCATIONS[locIndex(m.dest)];
+  if (state === 'done') return { step: 'You met them.', place: '', log: [m.text.replace(/^Find/, 'Found')] };
+  return { step: m.text, place: `${loc.planetName}, patrol zone`, log: [] };
+}
+
+/** A destination's patrol quests are picked up the first time you roam it. */
+export function offerPatrolQuests(s, destId) {
+  const q = ensureQuests(s);
+  for (const m of PATROL_MEETINGS) if (m.dest === destId && ![...q.active, ...q.dropped, ...q.done].includes(m.id)) q.active.push(m.id);
+}
+
+/** Meetings waiting in a destination's patrol zone (their quest is active). */
+export function patrolMeetingsFor(s, destId) {
+  const q = ensureQuests(s);
+  return PATROL_MEETINGS.filter((m) => m.dest === destId && q.active.includes(m.id));
+}
+
+/** Finishes a patrol meeting's quest. Returns false when it was not active. */
+export function metPatrolMeeting(s, id) {
+  const q = ensureQuests(s);
+  if (!q.active.includes(id)) return false;
+  q.active = q.active.filter((x) => x !== id);
+  q.done.push(id);
+  return true;
 }
 
 function campaignView(s) {

@@ -6,7 +6,8 @@ import { moveBody, hasLOS, pointInColliders, rayGround, groundAt } from './physi
 import { buildGunModel, buildSuperModel } from './models.js';
 import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage, voidMote, VOID_FX } from './effects.js';
-import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh } from './game.js';
+import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh, abandonMission } from './game.js';
+import { initGhost, updateGhost, driveSparrow, riderPos, dismount } from './sparrow.js';
 import { getEquipped, activeKit, playerLevel, wornAppearance } from './save.js';
 import { activeSets, encodeAppearance, SET_TUNE } from './style.js';
 import { net } from './net.js';
@@ -124,6 +125,7 @@ export class Player {
     this.pos = new THREE.Vector3(); this.vel = new THREE.Vector3(); this.eye = new THREE.Vector3();
     this.yaw = 0; this.pitch = 0; this.recoilAcc = 0;
     this.onGround = true; this.radius = 0.4; this.height = 1.8; this.eyeH = 1.62;
+    initGhost(this); // U17a: Tab pulls out the Ghost; the Sparrow lives in sparrow.js
     const ab = this.cls.abilities;
     this.cd = { grenade: 0, melee: 0, class: 0 };
     this.icarus = { n: ASPECT_TUNE.icarus.charges, t: 0 }; // Icarus Dash charges
@@ -205,13 +207,15 @@ export class Player {
     if (this.cur === i) { this.switchT = this.switchMax; this.adsT = 0; }
     this.showModel();
   }
+  /** U17a: the Ghost view is out, or its animation is still running (the weapon is down or coming back up). */
+  get ghostBusy() { return this.ghostOut || this.ghostT > 0.001; }
   get holdingAxe() { return !this.superActive && !this.dead && this.status.has('voidaxe'); } // U9: a picked-up Twilight Arsenal axe
   get holdingSword() { return !this.superActive && !this.dead && !!this.weapon?.A?.sword; } // Swords are fought in third person
   /** U16: the Tower is third person with weapons holstered, until you walk into the Range. */
   get social() { const T = G.mission?.tower; return !!T && !T.inRange; }
-  get thirdPerson() { return !this.dead && (this.social || (!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe || this.holdingSword); }
+  get thirdPerson() { return !this.dead && (this.social || !!this.mount || (!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe || this.holdingSword); }
   /** The prop held in third person: the super's id, or 'twilight' for a picked-up axe. */
-  get tpsProp() { return !this.thirdPerson || this.social ? null : this.superActive ? this.superActive.type : this.holdingAxe ? 'twilight' : 'sword'; }
+  get tpsProp() { return !this.thirdPerson || this.social || this.mount ? null : this.superActive ? this.superActive.type : this.holdingAxe ? 'twilight' : 'sword'; }
 
   /** Aim direction from the eye. In third person: toward whatever is under the crosshair, so shots land where you aim. */
   aimForward(out) {
@@ -229,7 +233,7 @@ export class Player {
     const k = this.tpsT || 0;
     if (k <= 0.02) {
       if (this.body) this.body.group.visible = false;
-      this.viewmodel.visible = !this.dead;
+      this.viewmodel.visible = !this.dead && this.ghostLower < 1;
       return;
     }
     if (!this.body) {
@@ -251,20 +255,20 @@ export class Player {
         m.transparent = inv || m.userData.baseOp[0]; m.opacity = inv ? Math.min(m.userData.baseOp[1], 0.15) : m.userData.baseOp[1]; m.depthWrite = !inv;
       });
     }
-    this.viewmodel.visible = !this.dead && k < 0.3;
+    this.viewmodel.visible = !this.dead && k < 0.3 && this.ghostLower < 1;
     const prop = this.tpsProp;
     const swordHex = prop === 'sword' ? ELEMENTS[wEl(this.weapon)].hex : 0, propKey = prop === 'sword' ? `sword${swordHex}` : prop;
     if (this.bodyProp !== propKey) { this.bodyProp = propKey; this.body.setProp(prop, swordHex); }
     const swinging = this.swingT > 0 && prop === 'sword';
-    b.position.copy(this.pos);
-    b.rotation.y = this.yaw + Math.PI;
+    if (this.mount) riderPos(this, b.position); else b.position.copy(this.pos);
+    b.rotation.y = (this.mount ? this.mount.heading : this.yaw) + Math.PI;
     const fig = b.children[0];
     if (this.ragdoll) { // tumbling about the body's middle on the way down
       const r = this.ragdoll; r.t += dt;
       b.position.y += 0.9; if (fig) fig.position.y = -0.9;
       b.rotation.set(r.sx * r.t, b.rotation.y + r.sy * r.t, r.sz * r.t, 'YXZ');
     } else { if (fig) fig.position.y = 0; b.rotation.x = 0; b.rotation.z = 0; }
-    this.body.update(dt, { speed: Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, swing: swinging ? { k: 1 - this.swingT / this.swingMax, heavy: !!this.swingHeavy, kind: this.swingKind || 'cleave', dir: this.swingDir || 1 } : null, swordGuard: prop === 'sword' && !!this.wGuard, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
+    this.body.update(dt, { ride: !!this.mount, speed: this.mount ? 0 : Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, swing: swinging ? { k: 1 - this.swingT / this.swingMax, heavy: !!this.swingHeavy, kind: this.swingKind || 'cleave', dir: this.swingDir || 1 } : null, swordGuard: prop === 'sword' && !!this.wGuard, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
   }
 
   /** U9: the held pose of the active third-person super (characters.js SUPER_POSES), or null. Burst supers drop it once released. */
@@ -317,6 +321,7 @@ export class Player {
           this.respawn();
         }
       }
+      if (this.mount) dismount(this);
       // a body downed in the air drops to the ground (teammates see it land)
       if (!this.onGround) {
         this.vel.x = 0; this.vel.z = 0; this.vel.y -= 24 * dt;
@@ -337,8 +342,9 @@ export class Player {
       const rec = Math.min(this.recoilAcc, dt * 0.35);
       this.pitch -= rec; this.recoilAcc -= rec;
     }
+    if (updateGhost(this, dt, () => abandonMission())) return; // Tab, hold E for the Sparrow, hold O for orbit
     this.updateMovement(dt);
-    if (!this.social) { this.updateCombat(dt); this.updateAbilities(dt); }
+    if (!this.social && !this.ghostBusy && !this.mount) { this.updateCombat(dt); this.updateAbilities(dt); }
     this.updateRegen(dt);
     this.updateCamera(dt);
     this.updateViewmodel(dt);
@@ -352,6 +358,7 @@ export class Player {
 
   // -------------------------------------------------------------------------
   updateMovement(dt) {
+    if (this.mount) { driveSparrow(this, dt); return; }
     const k = G.input.keys;
     let ix = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0), iz = (k.KeyS ? 1 : 0) - (k.KeyW ? 1 : 0);
     const len = Math.hypot(ix, iz);
@@ -2021,6 +2028,9 @@ export class Player {
     if (M.coop) {
       this.downT = DOWN_TIME; this.lifeAsked = false;
       ui.showDeath('You Died', 'A teammate can revive you');
+    } else if (M.patrol) {
+      this.respawnT = 5; // U17a: a patrol has no revive count and cannot fail: you wake at the landing
+      ui.showDeath('You Died', 'Your Ghost brings you back to the landing');
     } else {
       M.revives--;
       if (M.revives < 0) { M.failing = true; this.respawnT = 2.5; }
@@ -2053,7 +2063,7 @@ export class Player {
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.patrol ? 'Back at the landing' : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   /** Invisibility (Nightstalker). Graviton Forfeit makes it last longer. */
@@ -3386,7 +3396,7 @@ export class Player {
       _f.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp);
       _r.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
       _pv.copy(this.eye).addScaledVector(_r, 0.45); // shoulder pivot
-      _cp.copy(_pv).addScaledVector(_r, 0.35).add({ x: 0, y: 0.3, z: 0 }).addScaledVector(_f, -3.4);
+      _cp.copy(_pv).addScaledVector(_r, 0.35).add({ x: 0, y: 0.3, z: 0 }).addScaledVector(_f, this.mount ? -6.2 : -3.4);
       // pull the camera in front of any wall between it and the shoulder
       const dir = _cp.clone().sub(_pv), len = dir.length();
       _ray.set(_pv, dir.normalize()); _ray.far = len;
@@ -3458,6 +3468,7 @@ export class Player {
       this.fist.position.set(0.2 - ext * 0.14, -0.24 + ext * (this.punchIsPunch ? 0.1 : 0.16), -0.3 - ext * 0.28);
       this.fist.rotation.set(this.punchIsPunch ? 0 : -ext * 0.8, 0, ext * 0.3);
     } else this.fist.visible = false;
+    vm.position.y -= this.ghostLower * 0.65; vm.position.z += this.ghostLower * 0.15; rx -= this.ghostLower * 0.8; // Tab: the weapon drops out of view
     vm.rotation.set(rx, ry, rz);
     const scoped = !this.superActive && w.A.zoom >= 3 && a > 0.85;
     model.visible = !scoped;
