@@ -433,7 +433,7 @@ function startEventAssault(Pt, E) {
   const m = E.spec.marked;
   for (let i = 0; i < m.n; i++) {
     const a = (i / m.n) * Math.PI * 2 + rand(-0.4, 0.4), pos = findSpawn(E.zone.center, a, 0.2, E.def.r * 0.45, E.def.r * 0.8);
-    E.marked.push(spawnUnit(E.zone, m.unit, pos, { tier: 'major', name: m.n > 1 ? `${m.name}` : m.name, faction: E.spec.faction ?? undefined }));
+    E.marked.push(spawnUnit(E.zone, m.unit, pos, { tier: 'major', name: m.n > 1 ? `${m.name}` : m.name, faction: E.spec.faction ?? undefined, pal: E.spec.palette }));
   }
   E.markedT = m.time;
   banner(E.spec.name, `${m.text} within ${m.time}s for Heroic`, 3, 'alert');
@@ -444,7 +444,7 @@ function spawnEventPush(E, i) {
   const push = E.spec.pushes[i];
   for (const [type, n] of push) for (let k = 0; k < n; k++) {
     const pos = findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, E.def.r * 0.4, E.def.r * 0.95);
-    spawnUnit(E.zone, type, pos, { faction: E.spec.faction ?? undefined, name: E.spec.names?.[type] });
+    spawnUnit(E.zone, type, pos, { faction: E.spec.faction ?? undefined, name: E.spec.names?.[type], pal: E.spec.palette });
   }
   G.hitDirty = true;
 }
@@ -472,7 +472,7 @@ function tickEventAssault(Pt, E, dt) {
   else if (!E.finale && E.push === 1 && alive <= 2) {
     E.finale = true;
     const f = E.spec.finale, n = E.heroic ? f.heroicN : f.n;
-    for (let i = 0; i < n; i++) spawnUnit(E.zone, f.unit, findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, 3, 9), { tier: 'major', name: f.name, faction: E.spec.faction ?? undefined });
+    for (let i = 0; i < n; i++) spawnUnit(E.zone, f.unit, findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, 3, 9), { tier: 'major', name: f.name, faction: E.spec.faction ?? undefined, pal: E.spec.palette });
     banner(f.name, 'Finish the event', 2.6, 'bossIntro');
     stinger('boss');
   } else if (E.finale && alive === 0) completeEvent(Pt, E);

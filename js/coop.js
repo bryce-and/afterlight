@@ -168,7 +168,7 @@ export function onAbandon() {
 export function registerEnemy(e) {
   if (!net.isHost) return;
   e.netId = nextId++;
-  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined, tr: e.tier || undefined, fc: e.isBoss && FACTIONS[e.faction] ? e.faction : undefined, nd: e.noDrops ? 1 : undefined });
+  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined, tr: e.tier || undefined, fc: e.isBoss && FACTIONS[e.faction] ? e.faction : undefined, nd: e.noDrops ? 1 : undefined, pl: e.pal || undefined });
 }
 
 export function announceKill(e, o) {
@@ -386,7 +386,7 @@ function updateAvatars(dt) {
 // ---------------------------------------------------------------------------
 function proxy(id, type, x, z, info = {}) {
   const M = G.mission;
-  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm, tier: info.tr, faction: info.fc, noDrops: !!info.nd });
+  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm, tier: info.tr, faction: info.fc, pal: info.pl, noDrops: !!info.nd });
   e.remote = true;
   e.netId = id;
   if (info.mh) { e.maxHp = info.mh; e.hp = info.mh; }

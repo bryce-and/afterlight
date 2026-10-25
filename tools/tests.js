@@ -1959,6 +1959,12 @@ test('U17a: every beacon and event has its script', () => {
   }
   ok(EVENT_SPECS.hive_ritual.faction === 'hollow' && EVENT_SPECS.salvage_defense.faction === null, 'one Hive event and one of the destination\'s own');
 });
+test('U17a: the Hive in the Earth patrol wear the Moon\'s colours', () => {
+  const pal = EVENT_SPECS.hive_ritual.palette;
+  eq(pal, 'moon');
+  ok(LOCATIONS.some((l) => l.id === pal && l.colors.eye !== undefined), 'the palette names a destination with colours');
+  eq(LOCATIONS.find((l) => l.id === pal).faction, 'Hive');
+});
 test('U17a: the Ghost holds: 1 second to summon a Sparrow, 5 to return to orbit', () => {
   eq(SPARROW.summonHold, 1); eq(SPARROW.orbitHold, 5);
   ok(SPARROW.boost > SPARROW.top && SPARROW.top > SPARROW.reverse, 'boost beats cruise beats reverse');

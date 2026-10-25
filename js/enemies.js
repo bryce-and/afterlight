@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G } from './state.js';
-import { ENEMY_TYPES, ELEMENTS } from './data.js';
+import { ENEMY_TYPES, ELEMENTS, LOCATIONS } from './data.js';
 import { STAGGER } from './combat.js';
 import { mat } from './world.js';
 import { rand, clamp, pick } from './util.js';
@@ -521,8 +521,10 @@ export class Enemy {
     this.escort = false; this.escortT = SUICIDE_BLAST.escortHold; this.allyT = 0;
     this.bossPhase = 'hold'; this.bossPhaseT = this.isBoss ? bossPhaseTime('hold', 0) : 0;
     this.noDrops = !!(def.noDrops || o.noDrops); this.revived = !!o.revived; this.owner = o.owner || null;
-    this.shotColor = def.shotColor || FACTIONS[faction]?.shot || M.loc.colors.eye;
-    this.model = buildModel(this, M.loc.colors, faction);
+    this.pal = o.pal || null; // a palette from another destination (the Hive in the Earth patrol wear the Moon's colours)
+    this.colors = o.pal ? LOCATIONS.find((l) => l.id === o.pal).colors : M.loc.colors;
+    this.shotColor = def.shotColor || FACTIONS[faction]?.shot || this.colors.eye;
+    this.model = buildModel(this, this.colors, faction);
     this.height = this.model.height * this.scale;
     this.hitMeshes = this.model.hit;
     this.model.group.position.copy(this.pos);
@@ -571,7 +573,7 @@ export class Enemy {
     if (this.def.suicide && !this.noBlast) this.detonate();
     if (this.model.shield) this.model.shield.visible = false;
     this.model.onDeath?.(); // boss models with a death reveal (Calus)
-    sparks(this.center(_v), G.mission.loc.colors.eye, this.isBoss ? 40 : 10, this.isBoss ? 10 : 5, 0.1, 0.6);
+    sparks(this.center(_v), this.colors.eye, this.isBoss ? 40 : 10, this.isBoss ? 10 : 5, 0.1, 0.6);
   }
 
   remove() { G.scene.remove(this.model.group); this.model.bodyMat.dispose(); }
@@ -1291,7 +1293,7 @@ export class Enemy {
       this.bossPhase = ph;
       this.bossPhaseT = bossPhaseTime(ph, 2 - this.thresholds.length);
       this.specialT = Math.min(this.specialT, 1);
-      if (ph === 'push') { ringFx(this.pos, 8, G.mission.loc.colors.eye, 0.5); sfx.alert(); }
+      if (ph === 'push') { ringFx(this.pos, 8, this.colors.eye, 0.5); sfx.alert(); }
     };
     if (this.thresholds.length && this.hp / this.maxHp < this.thresholds[0]) {
       this.thresholds.shift();
@@ -1308,8 +1310,8 @@ export class Enemy {
     this.specialT = this.bossPhase === 'push' ? rand(3, 4.5) : rand(3, 5);
     if (this.bossPhase === 'push' && dist < 10) {
       // ground slam
-      ringFx(this.pos, 10, G.mission.loc.colors.eye, 0.6);
-      explosionFx(_v.copy(this.pos).setY(0.5), 3, G.mission.loc.colors.eye);
+      ringFx(this.pos, 10, this.colors.eye, 0.6);
+      explosionFx(_v.copy(this.pos).setY(0.5), 3, this.colors.eye);
       sfx.explosion(8);
       for (const P of allPlayers()) {
         const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z) || 0.01;
@@ -1328,7 +1330,7 @@ export class Enemy {
       const base = _v.set(P.pos.x, P.pos.y + 1, P.pos.z).sub(from).normalize();
       for (let i = -3; i <= 3; i++) {
         const d = base.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), i * 0.09);
-        fireEnemyShot(from, d, this.def.projSpeed * 0.9, this.def.dmg * this.dmgMult, G.mission.loc.colors.eye, 0.26, 2);
+        fireEnemyShot(from, d, this.def.projSpeed * 0.9, this.def.dmg * this.dmgMult, this.colors.eye, 0.26, 2);
       }
       sfx.alert();
     }

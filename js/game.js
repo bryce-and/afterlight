@@ -196,7 +196,7 @@ export function spawnUnit(z, type, pos, o = {}) {
   const cls = classOf(type), def = UNITS[type];
   const e = new Enemy(type, pos, {
     zone: z, hpMult: M.hpMult * (type === 'boss' ? (1 + M.g * 0.08) * FT.boss : FT.hp) * (o.hpFrac ?? 1), dmgMult: M.dmgMult * (type === 'boss' ? 1 : FT.dmg),
-    element: o.element, name: o.name, model: o.model, faction: o.faction,
+    element: o.element, name: o.name, model: o.model, faction: o.faction, pal: o.pal,
     tier: o.tier || (def?.support || def?.life ? 'minor' : rollTier(cls, M.g)),
     noDrops: o.noDrops, revived: o.revived, owner: o.owner, life: o.life, totemKind: o.totemKind, isClone: o.isClone,
   });

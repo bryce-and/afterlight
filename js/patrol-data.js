@@ -25,7 +25,7 @@ export const BEACON_TEXT = {
 // `faction` null means the destination's own units; 'hollow' is the Hive.
 export const EVENT_SPECS = {
   hive_ritual: {
-    name: 'Hive Ritual', blurb: 'A Hive ritual is under way at the spire.', faction: 'hollow',
+    name: 'Hive Ritual', blurb: 'A Hive ritual is under way at the spire.', faction: 'hollow', palette: 'moon', // the Hive wear the Moon's colours wherever they are met
     names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' },
     marked: { n: 3, unit: 'captain', name: 'Ritualist', time: 60, text: 'Kill the Ritualists' },
     pushes: [[['rusher', 4], ['grunt', 3]], [['captain', 2], ['rusher', 3]]],
