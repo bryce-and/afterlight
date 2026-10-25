@@ -190,3 +190,10 @@
 | 2026-10-24 | No save bump for U17a: patrol quests reuse the existing quest state (`ensureQuests`); SAVE_VERSION stays 10. | Claude |
 | 2026-10-24 | `mergeDecor` (folds decor into chunked meshes; draw calls 1714 to 1014 on the Earth patrol) runs only for maps that set `merge`. | Claude |
 | 2026-10-24 | The Earth Hive Ritual uses faction `hollow` with Moon unit names. | Claude |
+| 2026-10-24 | Every patrol zone gets an intentional road or track network from the landing to every area (applies to U17c and U17d too). | Bryce |
+| 2026-10-24 | Per-faction lighting: lamp posts only along roads in human areas; fires, torches and lanterns in Fallen and Scorn camps; glowing crystals near the Hive; Cabal architecture carries its own light fixtures. | Bryce |
+| 2026-10-24 | Moon patrol: Fallen in the ruined Golden Age colony and spaceships, Hive in caves, caverns and fortresses. | Bryce |
+| 2026-10-24 | Mars patrol: a buried tall city (Halo Reach feel, fight through it), subway tunnels under it, a Cabal fortress outside, lots of verticality, and tracks for the Sparrow. | Bryce |
+| 2026-10-24 | NPC picks: Eris Morn (Moon) and Ana Bray (Mars), both maps shipped together. | Bryce |
+| 2026-10-24 | Terrain ground is clamped to 0 (nav reserves negative heights for blocked), so sunken areas are made by raising the surroundings; a ramp must end beyond where a carved plateau starts, or the plateau edge makes a step. | Claude |
+| 2026-10-24 | v3.4 uses `artPending` (title artwork comes with the last Open Frontier wave). | Claude |

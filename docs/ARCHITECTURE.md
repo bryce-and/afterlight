@@ -163,6 +163,15 @@ The module map is in the README. These notes cover systems added during the over
 - Co-op: `launchPatrol` (`coop.js`), a `ptr` reward message, snapshot field `ms.pt` (beacon states, event marker), mount state in player state (`mt`, `mh`, `gm`); remote avatars ride a Sparrow. Not yet play-tested with two clients.
 - Dev helper: `tools/patrolboot.js` (`boot(li)`, `check()` for reachability, `__go`, `__quiet`).
 
+## Patrol wave 2: Moon and Mars (v3.4, `js/patrol-kit.js`, `js/patrol-moon.js`, `js/patrol-mars.js`)
+- `patrol-kit.js` holds the shared patrol helpers (`road`, `torch`, `firePit`, `lantern`, `hall`, desks, consoles, shelves) that every patrol map uses.
+- `patrol-moon.js` and `patrol-mars.js` build their maps from `MOON_KIT` (`level-moon.js`) and `MARS_KIT` (`level-mars.js`). `world.js` `LEVEL_SETS` merges the patrol maps (`m_patrol`, `r_patrol`) with the destination sets, so `colors`, `fog`, `merge` and `patrol` overrides apply by map id.
+- `patrol-data.js` `FACTION_KITS` maps a faction to its camp kit (fallen = scrappers in Earth colours, hive = hollow in Moon colours). Camps and beacons take `f` to name one; a beacon target spawns with that faction.
+- Events: `station_defense` (Fallen, Moon), `cabal_drop` and `harvester_down` (Mars). Patrol objective text is per destination.
+- NPCs: Eris Morn (Moon, "What the Dark Gave") and Ana Bray (Mars, "Beneath the Sand"), box-built in `models-npc.js`; talks in `story.js` `PATROL_TALKS`, meetings in `quests.js` `PATROL_MEETINGS`. No save change.
+- Terrain rule (`terrain.js`): ground never dips below 0, because the nav grid reserves negative heights for blocked cells. Sunken areas are made by raising the surroundings. A ramp must end beyond where a carved plateau starts, or the plateau edge makes a step.
+- Lighting rule: lamp posts only along roads in human areas; fires, torches and lanterns in Fallen and Scorn camps; glowing crystals near the Hive; Cabal architecture carries its own fixtures.
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
