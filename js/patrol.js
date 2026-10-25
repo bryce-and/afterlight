@@ -14,7 +14,7 @@ import { playMusic, stinger } from './music.js';
 import { sfx } from './audio.js';
 import { cleanupMission, spawnUnit, findSpawn, banner, gainXp, dropEngram, livesFor } from './game.js';
 import { playerPower, writeSave } from './save.js';
-import { PATROL_TUNE, BEACON_TEXT, EVENT_SPECS } from './patrol-data.js';
+import { PATROL_TUNE, BEACON_TEXT, EVENT_SPECS, FACTION_KITS } from './patrol-data.js';
 import { buildNpc, NPC_INFO } from './models-npc.js';
 import { patrolMeetingsFor, metPatrolMeeting, offerPatrolQuests } from './quests.js';
 import { PATROL_TALKS } from './story.js';
@@ -29,6 +29,8 @@ export { PATROL_TUNE };
 // ---------------------------------------------------------------------------
 // Start and leave
 // ---------------------------------------------------------------------------
+const patrolObjective = (def) => def.objective || 'Patrol the Cosmodrome';
+
 export function startPatrol(li) {
   const loc = LOCATIONS[li], def = loc?.patrol;
   if (!def) throw new Error(`Destination ${loc?.id} has no patrol zone.`);
@@ -56,7 +58,7 @@ export function startPatrol(li) {
     fireteam, coop: net.active, remote: net.isClient, revives: 3, lives: net.active ? 99 : livesFor(fireteam), bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
-    checkpoint: level.spawn.clone(), objective: 'Patrol the Cosmodrome', waypoint: null, chest: null, failing: false, doneT: 0,
+    checkpoint: level.spawn.clone(), objective: patrolObjective(def), waypoint: null, chest: null, failing: false, doneT: 0,
   };
   G.time = 0;
   G.player = new Player(G.save);
@@ -130,10 +132,11 @@ function spawnPack(zone, n, o = {}) {
   const M = G.mission, c = zone.center;
   const kinds = [];
   for (let i = 0; i < n; i++) kinds.push(i === 0 && n >= 5 ? 'captain' : i === 1 && n >= 8 ? 'heavy' : i % 3 === 2 ? 'rusher' : 'grunt');
-  const names = o.names;
+  const kit = FACTION_KITS[o.f]; // U17b: a camp or beacon may name another faction (`f`), as on the Moon: Fallen in the colony, Hive in the caves
+  const names = kit?.names ?? o.names;
   kinds.forEach((type) => {
     const pos = findSpawn(c, rand(0, Math.PI * 2), Math.PI, 2, o.spread ?? 9);
-    spawnUnit(zone, type, pos, { faction: o.faction, name: names?.[type], tier: o.tier });
+    spawnUnit(zone, type, pos, { faction: kit?.faction ?? o.faction, pal: kit?.pal, name: names?.[type], tier: o.tier });
   });
   G.hitDirty = true;
   return kinds.length;
@@ -159,7 +162,7 @@ export function updatePatrol(dt) {
   if (E && E.state !== 'done') { M.objective = E.objective; M.waypoint = E.waypoint; }
   else if (act) { M.objective = act.objective; M.waypoint = act.waypoint; }
   else {
-    M.objective = Pt.events.nextT < PATROL_TUNE.eventWarn + 5 && Pt.events.cur == null ? 'A public event is about to begin' : 'Patrol the Cosmodrome';
+    M.objective = Pt.events.nextT < PATROL_TUNE.eventWarn + 5 && Pt.events.cur == null ? 'A public event is about to begin' : patrolObjective(M.def);
     M.waypoint = null;
   }
 }
@@ -170,7 +173,7 @@ function updateCamps(Pt, dt) {
   for (const c of Pt.camps) {
     const d = Math.hypot(P.pos.x - c.def.x, P.pos.z - c.def.z);
     if (c.state === 'idle') {
-      if (d < PATROL_TUNE.wake) { spawnPack(c.zone, c.def.n); c.state = 'live'; }
+      if (d < PATROL_TUNE.wake) { spawnPack(c.zone, c.def.n, { f: c.def.f }); c.state = 'live'; }
     } else if (c.state === 'live') {
       const alive = countAlive(c.zone);
       if (alive === 0) { c.state = 'cool'; c.t = PATROL_TUNE.campCooldown; c.zone.enemies = []; }
@@ -262,13 +265,13 @@ function startBeacon(Pt, b) {
   b.site = { center: site, name: b.def.name, isBoss: false, idx: 100 + b.zone.idx, state: 'active', waves: [], waveIdx: 0, enemies: [] };
   b.target = null;
   if (b.def.type === 'hunt') {
-    spawnPack(b.site, 4, { spread: 7 });
+    spawnPack(b.site, 4, { spread: 7, f: b.def.f });
     const pos = findSpawn(site, rand(0, Math.PI * 2), Math.PI, 1, 4);
-    b.target = spawnUnit(b.site, b.def.target.unit, pos, { tier: 'major', name: b.def.target.name });
+    b.target = spawnUnit(b.site, b.def.target.unit, pos, { tier: 'major', name: b.def.target.name, faction: FACTION_KITS[b.def.f]?.faction, pal: FACTION_KITS[b.def.f]?.pal });
     b.objective = `Hunt ${b.def.target.name}`;
     banner(b.def.name, `Marked: ${b.def.target.name}`, 2.6, 'alert');
   } else {
-    spawnPack(b.site, 7, { spread: 9 });
+    spawnPack(b.site, 7, { spread: 9, f: b.def.f });
     b.objective = `Clear ${b.def.name}`;
     banner(b.def.name, 'Wipe out the camp', 2.6, 'alert');
   }

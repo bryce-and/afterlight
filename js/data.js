@@ -429,6 +429,8 @@ export const LOCATIONS = [
       { id: 'm2', mood: 'night', name: 'Chamber of Night', power: 46, zones: 4, boss: { name: 'Omnigul, Will of Crota', element: 'arc' , model: 'wizard' }, desc: 'Silence the wizard whose screams carry Crota\'s will across the Moon.' },
       { id: 'm3', mood: 'storm', name: "Crota's End", power: 55, zones: 4, boss: { name: 'Crota, Son of Oryx', element: 'solar' , model: 'crota' }, desc: 'Descend into the Hellmouth and end the god-prince of the Hive.' },
     ],
+    // U17b: the free-roam patrol zone (js/patrol-moon.js, js/patrol.js)
+    patrol: { id: 'm_patrol', mood: 'day', name: 'Lunar Patrol', objective: 'Patrol the Moon', power: 37, zones: 0, boss: { name: '', element: 'void', model: 'knight' }, desc: 'Roam the Moon. Activate beacons, join public events, and ride a Sparrow across the craters.' },
   },
   {
     id: 'mars', name: 'Meridian Bay', planetName: 'Mars', faction: 'Cabal',
@@ -444,6 +446,8 @@ export const LOCATIONS = [
       { id: 'r2', mood: 'dusk', name: 'Dust Palace', power: 73, zones: 4, boss: { name: 'Bracus Zahn', element: 'void' , model: 'bracus' }, desc: 'Storm the Cabal command post and bring down the Bracus who holds it.' },
       { id: 'r3', mood: 'storm', name: 'The Red War', power: 82, zones: 5, boss: { name: 'Dominus Ghaul', element: 'arc' , model: 'ghaul' }, desc: 'The Red Legion\'s commander has come for the Light. Send him back to the dark.' },
     ],
+    // U17b: the free-roam patrol zone (js/patrol-mars.js, js/patrol.js)
+    patrol: { id: 'r_patrol', mood: 'day', name: 'Martian Patrol', objective: 'Patrol Mars', power: 64, zones: 0, boss: { name: '', element: 'solar', model: 'valus' }, desc: 'Roam the Red Legion\'s dunes. Activate beacons, join public events, and ride a Sparrow past the buried towers.' },
   },
   {
     id: 'io', name: 'Io', planetName: 'Io', faction: 'Cabal',

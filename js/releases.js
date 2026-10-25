@@ -5,6 +5,21 @@
 
 export const RELEASES = [
   {
+    version: '3.4', name: 'Open Frontier', date: '2026-10-24', accent: '#7fe3ff', glyph: '◈',
+    get art() { return RELEASES.find((r) => r.version === '3.3').art; }, // wave 2 of the Open Frontier chain: shares the 3.3 artwork until the last wave brings its own
+    summary: 'Patrol the Moon and Mars: ruined colonies, Hive catacombs, a buried city, a subway and a Cabal fortress, with roads and tracks to every area.',
+    notes: [
+      'Patrol: the Moon and Mars now have a Patrol button in the Director, with a free-roam zone each. Both are laid out around roads and dust tracks that lead from the landing to every area, so you can walk the near ones and Sparrow the far ones',
+      'The Moon: the Fallen hold the ruined Golden Age colony (a customs hall, the Archer\'s Line ridge, a rail bridge, the Anchor of Light station with rooms inside, an east outpost). The Hive hold the Hellmouth and its spires, an ossuary with catacomb tunnels, a silo cavern lit by green crystals, and a castle wall along the north. Cliff-walled mountains shape the canyons between them',
+      'Mars: a desert of dunes and cracked rock, a Cabal fortress on its mesa (walls, watchtowers, a command bunker and landing pads, with red light fixtures), and the Buried City, a dense grid of tall half-sunk towers to fight through, with an M-Line transit station and a Clovis Bray lobby you can walk into. A subway tunnel runs under the west side of the city, from ramp to ramp through a station chamber',
+      'Lighting: lamp posts line the roads in human areas only. Fallen and Scorn camps burn with fires, torches and lanterns, the Hive glow with crystals, and the Cabal carry their own light fixtures',
+      'Factions: the patrol zones can now mix factions. Camps and beacons name Fallen or Hive, and the Fallen and Hive wear the Earth and Moon colours wherever they appear',
+      'Beacons and events: four beacons (two Bounties, two Clears) and two public events on each map. Moon: Hive Ritual at the Hellmouth, Station Defense against the Fallen. Mars: Cabal Drop at the fortress, Harvester Down in the desert',
+      'Quests: Eris Morn waits at the mouth of the Moon\'s catacombs, and Ana Bray waits by the subway entrance at the edge of the Buried City. Each offers a side quest the first time you patrol there',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.3.1', name: 'Hotfix', date: '2026-10-24', accent: '#ffb547', glyph: '✚',
     summary: 'The Hive in the Earth patrol wear the Moon\'s colours.',
     notes: [
@@ -560,7 +575,7 @@ export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Tra
 export const ROADMAP = [
   {
     name: 'The Next Patrols', status: 'On the Horizon', accent: '#7fe3ff', glyph: '◈',
-    teaser: 'The Cosmodrome was only the first yard to open. Beacons, public events and a few familiar faces are waiting on the other worlds.',
+    teaser: 'The Cosmodrome, the Moon and Mars are open for patrol. Beacons, public events and a few familiar faces are waiting on the worlds further out.',
     themes: ['Patrol zones', 'Public events', 'Heroics'],
   },
   {

@@ -14,6 +14,7 @@ export const SPEAKERS = {
   spider:  { name: 'The Spider', color: '#d8a8ff' },
   petra:   { name: 'Petra Venj', color: '#a8ffe0' },
   kadi:    { name: 'Kadi 55-30', color: '#ffe08a' },
+  ana:     { name: 'Ana Bray', color: '#7fd0e8' },
   mara:    { name: 'Mara Sov', color: '#f4e3a8' },
   riven:   { name: 'Riven',    color: '#ff9a3c' },
   calus:   { name: 'Emperor Calus', color: '#ffd24d' },
@@ -301,6 +302,18 @@ export function lineDuration(text) {
 // ---------------------------------------------------------------------------
 /** U17a: talks held in patrol zones, by meeting id (quests.js PATROL_MEETINGS). */
 export const PATROL_TALKS = {
+  eris_moon: [
+    ['eris', 'You walk like someone who has not been here long. Good. The ones who know the Moon walk quietly.'],
+    ['eris', 'The Hive still sing in the dark below the Hellmouth. I listen, so that you do not have to.'],
+    ['ghost', 'She makes me nervous.'],
+    ['eris', 'It is a sensible reaction. Take this. It is what the dark gave me to share.'],
+  ],
+  ana_mars: [
+    ['ana', 'Careful where you point that. The Red Legion left more than wreckage out here, and the sand hides all of it.'],
+    ['ana', 'I come out to the Buried City to remember what we built before the Collapse. The towers outlasted the people who raised them.'],
+    ['ghost', 'Some of those people are still around.'],
+    ['ana', 'Some of us. Here, a little something for the road, Guardian.'],
+  ],
   cayde_earth: [
     ['cayde', 'There you are! Do not look at me. Look at the car. The very rusty car. Good.'],
     ['cayde', 'Back when the Cosmodrome was a parking lot, I hid something here. A snack, or a weapon. Honestly, I forget which.'],

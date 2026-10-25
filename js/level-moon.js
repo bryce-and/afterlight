@@ -256,6 +256,12 @@ function lander(K, x, z, ry) {
   K.mesh(new THREE.SphereGeometry(1.8, 8, 4, 0, TAU, 0, Math.PI * 0.4), PALE, x + 1 * c, 4.8, z - 1 * s, { rx: 0.5, glow: 0.5 });
 }
 
+/** U17b: the helpers and tones the Moon patrol zone (js/patrol-moon.js) builds with. */
+export const MOON_KIT = {
+  spire, hiveWall, brazier, boneSpike, crystals, pointedArch, broken, crater, dome, gaModule, tube, rover, antenna, fallenAntenna, hiveEdge, along, tunnelPath, lamp, lander,
+  C: { HR, HR2, BONE, CHIT, VOID, GA, GA2, ORANGE, GREEN, PALE, WARD },
+};
+
 // ======================================================================================
 export default {
   // ---------------- M1: a ravine, a Golden Age station, a Hive tunnel and the Gate of Oryx ----------------

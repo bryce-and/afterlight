@@ -33,7 +33,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
-import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW } from '../js/patrol-data.js';
+import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS } from '../js/patrol-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1994,6 +1994,59 @@ test('U17a: a dropped patrol quest keeps its NPC away until it is picked up agai
   ok(!s.quests.active.includes('cayde_earth'), 'offering does not undo a drop');
   eq(Q.pickUpQuest(s, 'cayde_earth'), null);
   eq(Q.patrolMeetingsFor(s, 'earth').length, 1);
+});
+
+// ---------- U17b: Moon and Mars patrol zones ----------
+const KINDS_B = new Set(['grunt', 'rusher', 'captain', 'heavy', 'suicide']);
+for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol']]) {
+  const D = PATROL_DATA[pid], P = D.patrol;
+  const all = () => [...P.beacons, ...P.beacons.map((b) => b.site), ...P.events, ...P.camps, ...Object.values(P.npcs)];
+  test(`U17b: ${dest} has a patrol zone wired to the Director, and every site is inside the map`, () => {
+    eq(LOCATIONS.find((l) => l.id === dest).patrol.id, pid);
+    const [minX, maxX, minZ, maxZ] = D.bounds;
+    for (const p of all()) ok(p.x > minX + 6 && p.x < maxX - 6 && p.z > minZ + 6 && p.z < maxZ - 6, `site (${p.x}, ${p.z}) is inside the bounds`);
+    ok(P.beacons.length >= 4 && P.events.length >= 2 && P.camps.length >= 10, 'the zone is populated');
+  });
+  test(`U17b: ${dest}: landing is clear, zones mirror sites, no cliff at a site`, () => {
+    const [sx, sz] = D.spawn;
+    for (const c of P.camps) ok(Math.hypot(c.x - sx, c.z - sz) > PATROL_TUNE.wake + 10, `camp (${c.x}, ${c.z}) is far from the landing`);
+    for (const b of P.beacons) ok(Math.hypot(b.site.x - sx, b.site.z - sz) > 40, `${b.id} is away from the landing`);
+    for (const p of [...P.beacons, ...P.events]) ok(D.zones.some((z) => Math.hypot(z.x - p.x, z.z - p.z) < 1), `a zone sits on (${p.x}, ${p.z})`);
+    const t = buildTerrain(D.terrain);
+    for (const p of all()) ok(steepest(t, { minX: p.x - 3, maxX: p.x + 3, minZ: p.z - 3, maxZ: p.z + 3 }, 1).slope < MAX_SLOPE, `(${p.x}, ${p.z}) is not on a cliff`);
+  });
+  test(`U17b: ${dest}: every beacon and event has its script and every faction kit is known`, () => {
+    for (const b of P.beacons) {
+      ok(BEACON_TEXT[b.type], `${b.id} has a card for ${b.type}`);
+      ok(!b.f || FACTION_KITS[b.f], `${b.id} names a known faction kit (none means the destination's own)`);
+      if (b.type === 'hunt') ok(b.target?.name && KINDS_B.has(b.target.unit), `${b.id} names a target`);
+    }
+    for (const c of P.camps) ok(!c.f || FACTION_KITS[c.f], `camp (${c.x}, ${c.z}) names a known faction kit`);
+    for (const e of P.events) {
+      const sp = EVENT_SPECS[e.id];
+      ok(sp && KINDS_B.has(sp.marked.unit) && sp.pushes.length >= 2 && sp.finale.heroicN > sp.finale.n, `${e.id} is scripted`);
+    }
+  });
+  test(`U17b: ${dest}'s patrol NPC is offered, once, at the patrol`, () => {
+    const s = { cleared: {} };
+    Q.offerPatrolQuests(s, dest); Q.offerPatrolQuests(s, dest);
+    const m = Q.patrolMeetingsFor(s, dest);
+    eq(m.length, 1); eq(m[0].place, `patrol:${dest}`);
+    ok(Q.metPatrolMeeting(s, m[0].quest || m[0].id), 'meeting finishes the quest');
+  });
+}
+test('U17b: Fallen and Hive kits borrow the Earth and Moon colours', () => {
+  eq(FACTION_KITS.fallen.faction, 'scrappers'); eq(FACTION_KITS.fallen.pal, 'earth');
+  eq(FACTION_KITS.hive.faction, 'hollow'); eq(FACTION_KITS.hive.pal, 'moon');
+  eq(EVENT_SPECS.station_defense.faction, 'scrappers');
+  eq(EVENT_SPECS.cabal_drop.faction, null);
+});
+test('U17b: the Mars subway ramps are under the slope cap and the trench floor is at ground 0', () => {
+  const t = buildTerrain(PATROL_DATA.r_patrol.terrain);
+  ok(routeSlope(t, [[-62, -62], [-62, -86]]) < MAX_SLOPE, 'the south portal ramp is walkable');
+  ok(routeSlope(t, [[-62, -148], [-62, -168]]) < MAX_SLOPE, 'the north portal ramp is walkable');
+  ok(Math.abs(t.at(-62, -120)) < 0.05, 'the tunnel floor is at 0');
+  ok(Math.abs(t.at(-20, -120) - 5) < 0.3, 'the city bed above it is at 5');
 });
 
 

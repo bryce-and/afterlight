@@ -32,8 +32,12 @@ export const QUESTS = {
  */
 export const PATROL_MEETINGS = [
   { id: 'cayde_earth', dest: 'earth', npc: 'cayde', place: 'patrol:earth', text: 'Find Cayde-6 in the Cosmodrome patrol zone' },
+  { id: 'eris_moon', dest: 'moon', npc: 'eris', place: 'patrol:moon', text: 'Find Eris Morn in the Moon patrol zone' },
+  { id: 'ana_mars', dest: 'mars', npc: 'ana', place: 'patrol:mars', text: 'Find Ana Bray in the Mars patrol zone' },
 ];
 QUESTS.cayde_earth = { id: 'cayde_earth', name: 'Stash and Dash', desc: 'Cayde-6 has hidden something in the Cosmodrome and needs a Guardian who will not ask questions.', abandonable: true, meeting: 'cayde_earth' };
+QUESTS.eris_moon = { id: 'eris_moon', name: 'What the Dark Gave', desc: 'Eris Morn keeps watch over the Moon, and has something to say to a Guardian who walks it.', abandonable: true, meeting: 'eris_moon' };
+QUESTS.ana_mars = { id: 'ana_mars', name: 'Beneath the Sand', desc: 'Ana Bray walks the Buried City, where the Golden Age still stands under the dunes.', abandonable: true, meeting: 'ana_mars' };
 
 const locIndex = (id) => LOCATIONS.findIndex((l) => l.id === id);
 const lastMission = (li) => LOCATIONS[li].missions[LOCATIONS[li].missions.length - 1];

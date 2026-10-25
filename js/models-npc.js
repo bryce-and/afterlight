@@ -11,6 +11,8 @@ export const NPC_INFO = {
   ikora: { name: 'Ikora Rey', title: 'Warlock Vanguard', color: '#c79bff' },
   cayde: { name: 'Cayde-6', title: 'Hunter Vanguard', color: '#ffb26b' },
   kadi: { name: 'Kadi 55-30', title: 'Postmaster', color: '#ffe08a' },
+  eris: { name: 'Eris Morn', title: 'Hunter', color: '#b5e6ff' }, // U17b: patrol-zone meetings
+  ana: { name: 'Ana Bray', title: 'Hunter', color: '#7fd0e8' },
 };
 
 const _mats = new Map();
@@ -394,7 +396,115 @@ function guardian() {
   };
 }
 
-const BUILDERS = { zavala, ikora, cayde, kadi, guardian };
+// ---------------------------------------------------------------------------
+/** U17b: Ana Bray after the Destiny 2 reference: white quilted jacket, grey panels, one steel pauldron with an orange stain, a teal cape and boots,
+ *  a brown thigh pouch with Hunter chevrons, short dark hair swept to one side. */
+function ana() {
+  const skin = M(0xb98a68), hair = M(0x17120f), white = M(0xe9e7e1), grey = M(0x6c6f73), dark = M(0x2b2a2c), teal = M(0x2a6a86), brown = M(0x8c5732), steel = metal(0xc2c6cc);
+  const f = figure({
+    hipW: 0.1, thigh: 0.14, pants: dark, boot: teal, chestW: 0.42, chestD: 0.24, shirt: white,
+    armT: 0.11, sleeve: grey, glove: grey, hand: brown, skin,
+  });
+  const { group, body, torso, head } = f;
+  humanHead(head, skin, 0.17, 0.22);
+  box(0.19, 0.07, 0.19, 0, 0.22, -0.005, hair, head);          // cap of hair
+  box(0.06, 0.2, 0.18, -0.1, 0.12, -0.02, hair, head);         // the side that falls past the ear
+  box(0.19, 0.2, 0.05, 0, 0.1, -0.1, hair, head);              // back
+  box(0.1, 0.05, 0.14, 0.04, 0.2, 0.06, hair, head, [0, 0, -0.35]); // swept fringe
+  // jacket: quilted white with a grey panel down the left, a V of ribbed white, a high collar
+  box(0.46, 0.4, 0.27, 0, 0.33, 0.01, white, torso);
+  box(0.12, 0.36, 0.04, -0.15, 0.36, 0.145, grey, torso);
+  box(0.2, 0.3, 0.04, 0.05, 0.3, 0.145, M(0xf4f2ee), torso, [0, 0, 0.0]);
+  box(0.46, 0.12, 0.28, 0, 0.04, 0.0, white, torso);           // skirt of the jacket
+  cyl(0.12, 0.14, 0.12, 8, 0, 0.66, 0, white, torso);          // collar
+  box(0.3, 0.05, 0.06, 0, 0.6, 0.12, white, torso);
+  // the steel pauldron on her left shoulder with its orange stain
+  const pad = pivot(0.32, 0.6, 0, torso, 'pauldron');
+  box(0.24, 0.16, 0.26, 0, 0, 0, steel, pad, [0, 0, -0.12]);
+  box(0.12, 0.03, 0.14, 0.02, 0.085, 0.02, M(0xd98a2a), pad, [0, 0, -0.12]);
+  // teal armband on the right arm
+  box(0.13, 0.07, 0.13, 0, -0.1, 0, teal, f.armR.arm);
+  // cape: long, teal, hanging from the shoulders
+  const cape = pivot(0, 0.62, -0.15, torso, 'cape');
+  box(0.5, 1.0, 0.03, 0, -0.52, 0, cloth(0x2a5d78), cape, [0.05, 0, 0]);
+  // belt and the brown leather thigh pouch on her right leg
+  box(0.4, 0.06, 0.27, 0, 0.0, 0, brown, torso);
+  box(0.09, 0.2, 0.12, -0.14, 0.78, 0.0, brown, body);
+  box(0.03, 0.05, 0.015, -0.14, 0.8, 0.065, glow(0x6fb8d8, 0.8), body);
+  // quilted white thigh pad on her left leg
+  box(0.1, 0.3, 0.16, 0.15, 0.62, 0.0, white, body);
+  // arms relaxed
+  for (const [side, a] of [[1, f.armL], [-1, f.armR]]) { a.arm.rotation.set(0.02, 0, side * 0.06); a.fore.rotation.set(-0.12, 0, 0); }
+  const base = torso.position.y;
+  return {
+    group, height: 1.75, update(dt, t) {
+      const b = breathe(t, 1.2);
+      torso.position.y = base + b * 0.004;
+      torso.scale.set(1, 1 + b * 0.012, 1 + b * 0.01);
+      head.rotation.y = Math.sin(t * 0.4) * 0.14;
+      cape.rotation.x = 0.04 + Math.sin(t * 1.0) * 0.02;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+/** U17b: Eris Morn after the Destiny 2 reference: a dark-skinned Guardian in an olive-brown hood and head wrap with three glowing Hive eyes on a band,
+ *  a studded bronze chest plate lit green, spiked pauldrons, a green sash, a long brown tunic and a ball of green Hive fire in one hand. */
+function eris() {
+  const skin = M(0x6a4a38), wrap = cloth(0x6b5a3c), wrapDk = cloth(0x4a3e2a), leather = M(0x5a4a32), plate = M(0x7a6840, { metalness: 0.4 });
+  const dark = M(0x2a2218), tunic = cloth(0x4a3a28), sash = glow(0x6ee05a, 0.8), fire = glow(0x7aff5a, 2.4);
+  const f = figure({
+    hipW: 0.1, thigh: 0.13, pants: M(0x3a2e20), boot: dark, chestW: 0.4, chestD: 0.23, shirt: leather,
+    armT: 0.11, sleeve: wrapDk, glove: dark, hand: dark, skin,
+  });
+  const { group, body, torso, head } = f;
+  humanHead(head, skin, 0.17, 0.22);
+  // the band across the eyes, with three glowing eyes
+  box(0.19, 0.05, 0.19, 0, 0.14, 0.0, dark, head);
+  for (const x of [-0.05, 0, 0.05]) box(0.03, 0.025, 0.01, x, x === 0 ? 0.165 : 0.145, 0.1, glow(0xd8f04a, 2.4), head);
+  // the hood and head wrap: wide over the crown, falling in a cowl on the chest
+  box(0.23, 0.12, 0.23, 0, 0.26, -0.01, wrap, head);
+  box(0.06, 0.34, 0.2, -0.1, 0.1, -0.02, wrap, head);
+  box(0.06, 0.34, 0.2, 0.1, 0.1, -0.02, wrap, head);
+  box(0.22, 0.34, 0.05, 0, 0.1, -0.11, wrapDk, head);
+  box(0.26, 0.2, 0.1, 0, 0.58, 0.09, wrap, torso, [0.12, 0, 0]); // the cowl over the chest
+  // studded chest plate with a green glow
+  box(0.4, 0.34, 0.26, 0, 0.34, 0.01, plate, torso);
+  for (let r = 0; r < 3; r++) for (let c = -2; c <= 2; c++) box(0.025, 0.025, 0.02, c * 0.07, 0.24 + r * 0.09, 0.14, M(0xa89460, { metalness: 0.6 }), torso);
+  box(0.16, 0.16, 0.02, 0, 0.33, 0.143, glow(0x4ac84a, 0.7), torso);
+  // spiked pauldrons
+  for (const s of [-1, 1]) {
+    const pad = pivot(s * 0.3, 0.6, 0, torso, 'pauldron');
+    box(0.26, 0.12, 0.28, 0, 0, 0, wrapDk, pad, [0, 0, s * -0.2]);
+    cone(0.07, 0.3, 4, s * 0.1, 0.17, 0, plate, pad, [0, 0, s * -0.5]);
+    cone(0.05, 0.2, 4, s * 0.02, 0.15, -0.1, plate, pad, [-0.4, 0, s * -0.2]);
+  }
+  // the sash at the waist, and the long tunic over the legs
+  box(0.44, 0.07, 0.27, 0, 0.0, 0, sash, torso);
+  box(0.1, 0.2, 0.03, 0.12, -0.1, 0.14, sash, torso, [0, 0, 0.2]);
+  const robe = pivot(0, 0.95, 0, body, 'robe');
+  cyl(0.22, 0.36, 0.95, 6, 0, -0.45, 0, tunic, robe);
+  box(0.4, 0.9, 0.03, 0, -0.46, 0.16, wrap, robe, [0.03, 0, 0]);
+  box(0.44, 1.0, 0.03, 0, -0.5, -0.17, tunic, robe, [-0.05, 0, 0]);
+  // her right hand holds a ball of Hive fire; the other arm hangs
+  f.armL.arm.rotation.set(-0.5, 0, 0.12); f.armL.fore.rotation.set(-1.0, -0.3, 0);
+  f.armR.arm.rotation.set(0.02, 0, -0.06); f.armR.fore.rotation.set(-0.1, 0, 0);
+  const orb = new THREE.Mesh(geo('ico', 0.1), fire);
+  orb.position.set(0, -0.3, 0.14); f.armL.fore.add(orb);
+  const base = torso.position.y;
+  return {
+    group, height: 1.8, update(dt, t) {
+      const b = breathe(t, 0.9);
+      torso.position.y = base + b * 0.004;
+      torso.scale.set(1, 1 + b * 0.012, 1 + b * 0.01);
+      robe.rotation.z = Math.sin(t * 0.5) * 0.015;
+      head.rotation.y = Math.sin(t * 0.28 + 2) * 0.12;
+      orb.scale.setScalar(1 + Math.sin(t * 5) * 0.08);
+    },
+  };
+}
+
+const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris };
 
 /** Build one Tower NPC. Returns { group, update(dt, t), height }. */
 export function buildNpc(id) {

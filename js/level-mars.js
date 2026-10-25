@@ -295,6 +295,12 @@ function berm(K, cx, cz, len, ry) {
   }
 }
 
+/** U17b: the helpers and tones the Mars patrol zone (js/patrol-mars.js) builds with. */
+export const MARS_KIT = {
+  vbox, group, bulwark, pylon, dropPod, landingPad, turret, mast, bunker, supply, tower, dune, harvester, thresher, fallenStatue, colossus, cliff, berm,
+  C: { CAB, CAB2, CAB3, DECK, DECK2, HAZ, HAZR, BANNER, GA, GLASS, STONE, STONE2, PAVE },
+};
+
 export default {
   // -------------------------------------------------------------------------
   // The Buried City (U16e High Ground). Rhythm:

@@ -16,6 +16,12 @@ export const SPARROW = {
   radius: 0.9, height: 0.9, stepUp: 0.9,
 };
 
+/** U17b: units of a faction met in another destination's patrol zone (`f` on a camp or beacon). Fallen wear Earth's colours, the Hive the Moon's. */
+export const FACTION_KITS = {
+  fallen: { faction: 'scrappers', pal: 'earth', names: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' } },
+  hive: { faction: 'hollow', pal: 'moon', names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' } },
+};
+
 export const BEACON_TEXT = {
   hunt: { label: 'Bounty', blurb: 'Hunt down the marked champion and the pack guarding it.', reward: 'Engram  ·  XP' },
   clear: { label: 'Clear', blurb: 'Wipe out the camp. Every hostile at the site must fall.', reward: 'Engram  ·  XP' },
@@ -25,7 +31,7 @@ export const BEACON_TEXT = {
 // `faction` null means the destination's own units; 'hollow' is the Hive.
 export const EVENT_SPECS = {
   hive_ritual: {
-    name: 'Hive Ritual', blurb: 'A Hive ritual is under way at the spire.', faction: 'hollow', palette: 'moon', // the Hive wear the Moon's colours wherever they are met
+    name: 'Hive Ritual', blurb: 'A Hive ritual is under way.', faction: 'hollow', palette: 'moon', // the Hive wear the Moon's colours wherever they are met
     names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' },
     marked: { n: 3, unit: 'captain', name: 'Ritualist', time: 60, text: 'Kill the Ritualists' },
     pushes: [[['rusher', 4], ['grunt', 3]], [['captain', 2], ['rusher', 3]]],
@@ -37,6 +43,28 @@ export const EVENT_SPECS = {
     marked: { n: 1, unit: 'captain', name: 'Salvage Boss', time: 50, text: 'Kill the Salvage Boss' },
     pushes: [[['grunt', 4], ['rusher', 3]], [['captain', 1], ['grunt', 3], ['rusher', 2]]],
     finale: { unit: 'heavy', name: 'Brig Hauler', n: 1, heroicN: 2 },
+  },
+  // U17b
+  station_defense: {
+    name: 'Station Defense', blurb: 'The House of Devils are stripping the Golden Age station.', faction: 'scrappers', palette: 'earth',
+    names: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' },
+    marked: { n: 2, unit: 'captain', name: 'Salvage Captain', time: 60, text: 'Kill the Salvage Captains' },
+    pushes: [[['rusher', 5], ['grunt', 3]], [['captain', 1], ['rusher', 4], ['grunt', 3]]],
+    finale: { unit: 'heavy', name: 'Brig Hauler', n: 1, heroicN: 2 },
+  },
+  cabal_drop: {
+    name: 'Cabal Drop', blurb: 'A Red Legion drop ship is landing troops on the mesa.', faction: null,
+    names: null,
+    marked: { n: 1, unit: 'captain', name: 'Drop Commander', time: 50, text: 'Kill the Drop Commander' },
+    pushes: [[['grunt', 5], ['rusher', 3]], [['captain', 1], ['grunt', 4], ['rusher', 2]]],
+    finale: { unit: 'heavy', name: 'Legion Colossus', n: 1, heroicN: 2 },
+  },
+  harvester_down: {
+    name: 'Harvester Down', blurb: 'A Cabal Harvester has come down in the dunes. Its crew are still alive.', faction: null,
+    names: null,
+    marked: { n: 2, unit: 'captain', name: 'Harvester Pilot', time: 55, text: 'Kill the Harvester Pilots' },
+    pushes: [[['rusher', 4], ['grunt', 4]], [['captain', 2], ['grunt', 3]]],
+    finale: { unit: 'heavy', name: 'Harvester Warden', n: 1, heroicN: 2 },
   },
 };
 
@@ -100,6 +128,124 @@ export const PATROL_DATA = {
         { x: 118, z: 20, n: 4 }, { x: -130, z: -100, n: 4 },
       ],
       npcs: { cayde: { x: 8, z: 146, yaw: 0 } }, // meetings stand here (quests.js PATROL_MEETINGS place: 'patrol:earth')
+    },
+  },
+  // U17b: the Moon. Fallen hold the ruined Golden Age colony (landing, Archer's Line ridge, the station, the east outpost); the Hive hold the caves, caverns and
+  // fortresses (the Hellmouth, the ossuary and its catacombs, the silo cavern, the castle wall). Roads lead from the landing to every area (see patrol-moon.js).
+  m_patrol: {
+    spawn: [0, 156],
+    bounds: [-150, 150, -190, 170],
+    zones: [
+      { name: 'Landing', x: 0, z: 156 },
+      { name: "Archer's Line Beacon", x: -24, z: 128 },
+      { name: 'Outpost Beacon', x: 58, z: 100 },
+      { name: 'Ossuary Beacon', x: -104, z: -8 },
+      { name: 'Rim Beacon', x: 46, z: -96 },
+      { name: 'Anchor of Light', x: -30, z: -40 },
+      { name: 'The Hellmouth', x: 100, z: -50 },
+    ],
+    noEdge: true,
+    hideBulbs: true,
+    lightPool: 8,
+    merge: true,
+    fog: [70, 330],
+    terrain: [
+      { type: 'mound', x: -120, z: 138, r: 24, h: 3 },
+      { type: 'mound', x: 110, z: 138, r: 22, h: 2.4 },
+      { type: 'mound', x: 30, z: 10, r: 20, h: 1.6 },
+      { type: 'mound', x: -40, z: -150, r: 26, h: 3 },
+      // the mountains: cliff-walled massifs that shape the canyons the roads run through
+      { type: 'plateau', x: -130, z: 40, w: 26, d: 130, h: 15, edge: 3 },                                          // the west wall
+      { type: 'plateau', x: 38, z: 62, w: 22, d: 44, h: 12, edge: 3 },                                             // beside the spine
+      { type: 'plateau', x: 130, z: 60, w: 22, d: 80, h: 14, edge: 3 },                                            // the east wall
+      { type: 'plateau', x: -92, z: -50, w: 22, d: 28, h: 11, edge: 3 },                                           // between the lane and the station
+      { type: 'plateau', x: -90, z: 62, w: 30, d: 70, h: 5, edge: 6 },                                             // the Archer's Line ridge
+      { type: 'ramp', x0: -50, z0: 104, x1: -76, z1: 90, width: 8, h0: 0, h1: 5, edge: 3 },                       // the road up it
+      { type: 'plateau', x: -30, z: -40, w: 70, d: 56, h: 2.5, edge: 14 },                                         // the station shelf
+      { type: 'plateau', x: 100, z: -50, w: 90, d: 84, h: 5, edge: 28 },                                           // the Hellmouth's raised ground (ground never dips below 0)
+      { type: 'basin', x: 100, z: -50, r: 40, flat: 0.3, depth: 5 },                                              // the pit sunk into it
+      { type: 'plateau', x: -60, z: -120, w: 50, d: 40, h: 1.5, edge: 14 },                                        // the ossuary yard
+    ],
+    patrol: {
+      beacons: [
+        { id: 'archer_hunt', x: -24, z: 128, type: 'hunt', f: 'fallen', name: "Archer's Line Bounty", site: { x: -90, z: 62 }, target: { name: 'Zorrik, Wreck Captain', unit: 'captain' } },
+        { id: 'outpost_clear', x: 58, z: 100, type: 'clear', f: 'fallen', name: 'Outpost Camp', site: { x: 104, z: 92 } },
+        { id: 'ossuary_hunt', x: -104, z: -8, type: 'hunt', f: 'hive', name: 'Ossuary Bounty', site: { x: -60, z: -120 }, target: { name: 'Ghulrak, Pit Ogre', unit: 'heavy' } },
+        { id: 'rim_clear', x: 46, z: -96, type: 'clear', f: 'hive', name: 'Rim Camp', site: { x: 12, z: -140 } },
+      ],
+      events: [
+        { id: 'hive_ritual', x: 100, z: -50, r: 24 },
+        { id: 'station_defense', x: -30, z: -40, r: 22 },
+      ],
+      camps: [
+        { x: -70, z: 126, n: 4, f: 'fallen' }, { x: 74, z: 128, n: 4, f: 'fallen' }, { x: -100, z: 116, n: 5, f: 'fallen' }, { x: 62, z: 66, n: 5, f: 'fallen' },
+        { x: -46, z: 36, n: 5, f: 'fallen' }, { x: 22, z: 8, n: 5, f: 'fallen' },
+        { x: 90, z: 20, n: 5, f: 'hive' }, { x: -110, z: -40, n: 5, f: 'hive' }, { x: -60, z: -84, n: 4, f: 'hive' }, { x: 0, z: -120, n: 6, f: 'hive' },
+        { x: 118, z: -126, n: 6, f: 'hive' }, { x: -44, z: -124, n: 5, f: 'hive' },
+      ],
+      npcs: { eris: { x: -110, z: -62, yaw: 0 } },
+    },
+  },
+  // U17b: Mars. A red desert of dunes and cracked rock in the south and west; a Cabal fortress on its mesa in the east; the Buried City in the north, a dense
+  // grid of tall half-sunk towers with enterable halls, and a subway tunnel under its west side. Wide dust tracks join the far areas (for the Sparrow), roads the near ones.
+  r_patrol: {
+    spawn: [0, 156],
+    bounds: [-150, 150, -190, 170],
+    zones: [
+      { name: 'Landing', x: 0, z: 156 },
+      { name: 'Barrens Beacon', x: -24, z: 126 },
+      { name: 'Landing Zone Beacon', x: 62, z: 100 },
+      { name: 'Scablands Beacon', x: -100, z: -48 },
+      { name: 'City Beacon', x: 50, z: -60 },
+      { name: 'The Fortress', x: 100, z: 60 },
+      { name: 'Harvester Crash', x: -30, z: -6 },
+    ],
+    noEdge: true,
+    hideBulbs: true,
+    lightPool: 8,
+    merge: true,
+    fog: [80, 360],
+    terrain: [
+      // the desert: high dunes
+      { type: 'mound', x: -100, z: 130, r: 30, h: 4 },
+      { type: 'mound', x: 120, z: 140, r: 28, h: 3.4 },
+      { type: 'mound', x: -30, z: 70, r: 20, h: 2.4 },
+      { type: 'mound', x: 60, z: 10, r: 24, h: 3 },
+      { type: 'mound', x: -120, z: -80, r: 26, h: 4.5 },
+      { type: 'mound', x: 120, z: -20, r: 26, h: 4 },
+      // the Cabal fortress mesa and its ramp
+      { type: 'plateau', x: 100, z: 60, w: 50, d: 60, h: 4.5, edge: 5 },
+      { type: 'ramp', x0: 60, z0: 100, x1: 84, z1: 84, width: 8, h0: 0, h1: 4.5, edge: 3 },
+      // the Scablands mesa and its ramp
+      { type: 'plateau', x: -96, z: -10, w: 44, d: 50, h: 3.4, edge: 4 },
+      { type: 'ramp', x0: -96, z0: 46, x1: -96, z1: 12, width: 7, h0: 0, h1: 3.4, edge: 3 },
+      // the city's podium (a fallen tower's foundation), and the sunken plaza
+      // the Buried City stands on a raised bed of old foundations (ground never dips below 0, so the city is raised and the subway is the floor)
+      { type: 'plateau', x: 0, z: -125, w: 230, d: 130, h: 5, edge: 24 },
+      { type: 'basin', x: 0, z: -184, r: 24, flat: 0.5, depth: 3 },                                                // the sunken plaza
+      // the subway: a ramp down at each end, a long tunnel and a station chamber at ground level
+      { type: 'ramp', x0: -62, z0: -62, x1: -62, z1: -86, width: 9, h0: 5, h1: 0, edge: 2 },
+      { type: 'plateau', x: -62, z: -117, w: 9, d: 62, h: 0, edge: 2 },
+      { type: 'plateau', x: -62, z: -115, w: 17, d: 22, h: 0, edge: 2 },
+      { type: 'ramp', x0: -62, z0: -148, x1: -62, z1: -168, width: 9, h0: 0, h1: 5, edge: 2 },
+    ],
+    patrol: {
+      beacons: [
+        { id: 'barrens_hunt', x: -24, z: 126, type: 'hunt', name: 'Barrens Bounty', site: { x: -96, z: 84 }, target: { name: 'Gorvath, Centurion Lord', unit: 'captain' } },
+        { id: 'landing_clear', x: 62, z: 100, type: 'clear', name: 'Beachhead Camp', site: { x: 112, z: 108 } },
+        { id: 'scablands_hunt', x: -100, z: -48, type: 'hunt', name: 'Scablands Bounty', site: { x: -40, z: -98 }, target: { name: 'Argo, Red Colossus', unit: 'heavy' } },
+        { id: 'city_clear', x: 50, z: -60, type: 'clear', name: 'Buried City Camp', site: { x: 30, z: -122 } },
+      ],
+      events: [
+        { id: 'cabal_drop', x: 100, z: 60, r: 24 },
+        { id: 'harvester_down', x: -30, z: -6, r: 20 },
+      ],
+      camps: [
+        { x: -70, z: 126, n: 4 }, { x: 126, z: 146, n: 4 }, { x: -110, z: 92, n: 5 }, { x: 30, z: 70, n: 5 }, { x: -50, z: 46, n: 5 },
+        { x: 60, z: 20, n: 5 }, { x: -30, z: -50, n: 5 }, { x: 60, z: -96, n: 5 }, { x: -84, z: -94, n: 4 }, { x: 0, z: -96, n: 6 },
+        { x: 112, z: -92, n: 4 }, { x: -62, z: -120, n: 5 },
+      ],
+      npcs: { ana: { x: -54, z: -58, yaw: 0 } },
     },
   },
 };
