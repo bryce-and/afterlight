@@ -2,6 +2,8 @@
 
 Status: revised 2026-10-29 with Bryce's Titan and Io references and briefs; waiting on his approval. Branch when approved: `update/17c-open-frontier-titan-io`.
 
+Scope change 2026-10-29 (Bryce): U17c shipped Titan only as v3.5; the Io half becomes U17d.
+
 ## Objective
 
 Add the Titan and Io patrol zones on the U17a framework. Each zone is a free-roam map with beacons, public events with a heroic mechanic, ambient camps, intentional paths from the landing to every area, Sparrow routes and one NPC meeting. Each must have its own recognisable architecture. After this wave, five of the seven patrol zones exist.

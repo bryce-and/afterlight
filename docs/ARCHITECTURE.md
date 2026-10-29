@@ -169,6 +169,13 @@ The module map is in the README. These notes cover systems added during the over
 - `patrol-data.js` `FACTION_KITS` maps a faction to its camp kit (fallen = scrappers in Earth colours, hive = hollow in Moon colours). Camps and beacons take `f` to name one; a beacon target spawns with that faction.
 - Events: `station_defense` (Fallen, Moon), `cabal_drop` and `harvester_down` (Mars). Patrol objective text is per destination.
 - NPCs: Eris Morn (Moon, "What the Dark Gave") and Ana Bray (Mars, "Beneath the Sand"), box-built in `models-npc.js`; talks in `story.js` `PATROL_TALKS`, meetings in `quests.js` `PATROL_MEETINGS`. No save change.
+
+## Patrol wave 3: Titan (v3.5, `js/patrol-titan.js`)
+- `patrol-titan.js` builds `t_patrol` from `TITAN_KIT` (`level-titan.js`). Deck rectangles and the descent ramp are data in `patrol-data.js` (`TITAN`, `TITAN_DECKS`, `TITAN_RAMP`): every deck is a plateau at `TITAN.deck` (20), the water line is `TITAN.sea` (9.2).
+- The sea: a tall invisible collider over every non-deck cell (nobody can fall in) and railings on deck edges. The world's ocean plane is moved to the water line by the map option `seaY` (`world.js`), so rig legs stand in it; there are no sea slabs and no distant skyline.
+- `hideCliffs` (`world.js` `buildGround`): faces steeper than the given level are not drawn, so decks hang on legs instead of sitting on terrain skirts.
+- The Sunken Gallery's floor is at ground 0, under the water line: an inside-out teal box (`water`) shows sea past the windows.
+- Events `rig_breach` and `brood_hatch` (Hive). NPC Sloane ("Arcology Watch"). No save change.
 - Terrain rule (`terrain.js`): ground never dips below 0, because the nav grid reserves negative heights for blocked cells. Sunken areas are made by raising the surroundings. A ramp must end beyond where a carved plateau starts, or the plateau edge makes a step.
 - Lighting rule: lamp posts only along roads in human areas; fires, torches and lanterns in Fallen and Scorn camps; glowing crystals near the Hive; Cabal architecture carries its own fixtures.
 

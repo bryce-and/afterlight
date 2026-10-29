@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v3.5 "Open Frontier" (wave 3)**: Titan becomes a patrol zone. Oil-rig stations stand on red stilt legs above the methane sea, joined by pipe bridges the Sparrow can ride. The biosphere arcology under its glass dome is overgrown, and the Hive have nested in the Solarium and one tower wing. Sloane waits at her command post, and the Sunken Gallery runs down under the sea. New public events: Rig Breach and Brood Hatch.
 - **v3.4 "Open Frontier" (wave 2)**: the Moon and Mars become patrol zones. The Moon has Fallen in the ruined colony and the Hive in its caves and catacombs; Mars has a buried city to fight through, subway tunnels, and a Cabal fortress on a mesa. Roads run from each landing to every area, and the Sparrow has tracks to ride. New NPCs: Eris Morn on the Moon and Ana Bray on Mars.
 - **v3.3 "Open Frontier"**: the Cosmodrome opens up as a patrol zone with no timer and no end. Beacons pay engrams and XP (Bounties and Clear missions), public events turn Heroic when you kill the marked targets in time, camps wake as you near them, Tab pulls out your Ghost, and holding E summons a Sparrow. Patrol is on Earth for now; the Sparrow is off in campaign missions.
 - **v3.2 "High Ground II"**: the same terrain and sky treatment for Io, Titan, the Tangled Shore and the Leviathan, with every mission rebuilt around climbs, descents and a real up and down.
@@ -78,6 +79,7 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/patrol-kit.js` | Shared patrol helpers (roads, torches, fire pits, lanterns, halls) |
 | `js/patrol-moon.js` | The Moon patrol map |
 | `js/patrol-mars.js` | The Mars patrol map |
+| `js/patrol-titan.js` | The Titan patrol map |
 | `js/sparrow.js` | Ghost view, Sparrow controller and models |
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |

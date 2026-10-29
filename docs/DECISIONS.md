@@ -199,3 +199,6 @@
 | 2026-10-24 | v3.4 uses `artPending` (title artwork comes with the last Open Frontier wave). | Claude |
 | 2026-10-29 | U17c briefs and references from Bryce (`docs/reference/README.md`): Titan is industrial rigs high above the sea plus the ruined biosphere arcology reclaimed by nature, Hive gunk, crystals and eggs over parts of it, parts going under the ocean; Io is a barren green rocky world of canyons and valleys, primarily Vex with an enterable Pyramidion whose interior must feel huge, a Taken presence, a Cabal military base with interiors. NPCs: Sloane (Titan), Asher Mir (Io). Build Titan, pause, then Io; one release. | Bryce |
 | 2026-10-29 | Rails, walkways and platforms must sit on the ground under them and follow its slope; new patrol zones are built that way, existing maps get a level QC pass (roadmap LQC). | Bryce |
+| 2026-10-29 | v3.5 ships Titan alone under Open Frontier. Io becomes U17d (v3.6), and the Tangled Shore and Dreaming City become U17e (v3.7). | Bryce |
+| 2026-10-29 | Titan's rig legs go straight down into the ocean plane (no sea slabs under them), and its horizon is open sea: no distant skyscrapers, rigs or land in the sky, only clouds, haze and Saturn. | Bryce |
+| 2026-10-29 | v3.5 keeps the 3.3 title artwork (Open Frontier waves share it until the last wave). | Claude |
