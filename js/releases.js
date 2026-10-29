@@ -5,6 +5,20 @@
 
 export const RELEASES = [
   {
+    version: '3.5', name: 'Open Frontier', date: '2026-10-29', accent: '#7fe3ff', glyph: '◈',
+    get art() { return RELEASES.find((r) => r.version === '3.3').art; }, // wave 3 of the Open Frontier chain: shares the 3.3 artwork until the last wave brings its own
+    summary: 'Patrol Titan: oil-rig stations on red stilts above the methane sea, pipe bridges to ride, and an overgrown arcology under a glass dome where the Hive have nested.',
+    notes: [
+      'Patrol: Titan now has a Patrol button in the Director. The whole zone stands high above the methane sea on platforms joined by bridges, with deck roads from the landing to every area',
+      'The Rigs: the landing deck with Sloane\'s command post and a radar dish, six rig stations on red stilt legs (derricks, tank farms, crane yards, a gas flare), Siren\'s Watch, a stepped tower you can climb to a lookout, and pipe bridges with cable rails that take the Sparrow',
+      'The Arcology: a huge glass dome on the rigs with a ruined Golden Age city inside, terraced towers, ponds, kiosks and glowing screens, taken back by jungle. The Hive have nested in the Solarium and one tower wing, with eggs, crystals and creep',
+      'The Sunken Gallery: a glass tube runs down from the dome into a corridor under the sea, with water past the windows, ending in a Hive-held chamber',
+      'Beacons and events: five beacons (three Bounties, two Clears) and two new public events. Rig Breach: the Hive climb out of the sea onto a rig, kill the Hive Wizards in time for Heroic. Brood Hatch: egg clusters in the Solarium hatch, kill the Brood Knights in time for Heroic',
+      'Quests: Sloane waits at her command post on The Rig with a side quest, "Arcology Watch", the first time you patrol there',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.4', name: 'Open Frontier', date: '2026-10-24', accent: '#7fe3ff', glyph: '◈',
     get art() { return RELEASES.find((r) => r.version === '3.3').art; }, // wave 2 of the Open Frontier chain: shares the 3.3 artwork until the last wave brings its own
     summary: 'Patrol the Moon and Mars: ruined colonies, Hive catacombs, a buried city, a subway and a Cabal fortress, with roads and tracks to every area.',
@@ -575,7 +589,7 @@ export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Tra
 export const ROADMAP = [
   {
     name: 'The Next Patrols', status: 'On the Horizon', accent: '#7fe3ff', glyph: '◈',
-    teaser: 'The Cosmodrome, the Moon and Mars are open for patrol. Beacons, public events and a few familiar faces are waiting on the worlds further out.',
+    teaser: 'The Cosmodrome, the Moon, Mars and Titan are open for patrol. Worlds further out are still waiting, and the Vex have noticed you on Io.',
     themes: ['Patrol zones', 'Public events', 'Heroics'],
   },
   {
