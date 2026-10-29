@@ -33,7 +33,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
-import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS } from '../js/patrol-data.js';
+import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP } from '../js/patrol-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1998,7 +1998,7 @@ test('U17a: a dropped patrol quest keeps its NPC away until it is picked up agai
 
 // ---------- U17b: Moon and Mars patrol zones ----------
 const KINDS_B = new Set(['grunt', 'rusher', 'captain', 'heavy', 'suicide']);
-for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol']]) {
+for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan', 't_patrol']]) {
   const D = PATROL_DATA[pid], P = D.patrol;
   const all = () => [...P.beacons, ...P.beacons.map((b) => b.site), ...P.events, ...P.camps, ...Object.values(P.npcs)];
   test(`U17b: ${dest} has a patrol zone wired to the Director, and every site is inside the map`, () => {
@@ -2048,6 +2048,44 @@ test('U17b: the Mars subway ramps are under the slope cap and the trench floor i
   ok(Math.abs(t.at(-62, -120)) < 0.05, 'the tunnel floor is at 0');
   ok(Math.abs(t.at(-20, -120) - 5) < 0.3, 'the city bed above it is at 5');
 });
+
+// ---------- U17c: the Titan patrol zone ----------
+{
+  const D = PATROL_DATA.t_patrol, P = D.patrol, T = buildTerrain(D.terrain);
+  const rect = (x, z, m = 0) => TITAN_DECKS.find(([, x0, x1, z0, z1]) => x > x0 + m && x < x1 - m && z > z0 + m && z < z1 - m);
+  const sites = () => [...P.beacons, ...P.beacons.map((b) => b.site), ...P.events, ...P.camps, ...Object.values(P.npcs)];
+  test('U17c: Titan: every beacon, site, event, camp and NPC stands inside a deck, away from its edge', () => {
+    for (const p of sites()) ok(rect(p.x, p.z, 2), `(${p.x}, ${p.z}) is on a deck`);
+  });
+  test('U17c: Titan: every deck is level with its own height, the gallery floor is at 0 and the sea sits above it', () => {
+    for (const [id, x0, x1, z0, z1, kind] of TITAN_DECKS) {
+      const x = (x0 + x1) / 2, z = (z0 + z1) / 2;
+      if (kind === 'x') continue;
+      ok(Math.abs(T.at(x, z) - TITAN.deck) < 0.01 && Math.abs(T.at(x0 + 1, z0 + 1) - TITAN.deck) < 0.01, `${id} is flat at the deck height`);
+    }
+    ok(Math.abs(T.at(134, -170)) < 0.01 && Math.abs(T.at(130, -100)) < 0.01, 'the chamber and the gallery floor are at 0');
+    ok(TITAN.sea > 8.5 && TITAN.sea < TITAN.deck - 8, 'the sea is above the gallery roof (8) and well below the decks');
+  });
+  test('U17c: Titan: the descent tube is a walkable ramp from the dome floor to the gallery floor', () => {
+    const { x0, x1, z0, h0 } = TITAN_RAMP;
+    ok(routeSlope(T, [[x0 - 4, z0], [x1 + 4, z0]]) < MAX_SLOPE, 'the ramp is under the slope cap');
+    ok(Math.abs(T.at(x0 - 4, z0) - h0) < 0.01 && Math.abs(T.at(x1 + 4, z0)) < 0.01, 'it runs from the deck to 0');
+  });
+  test('U17c: Titan: the decks are one connected network from the landing, and every bridge fits a Sparrow', () => {
+    const touch = (a, b) => a[1] <= b[2] && b[1] <= a[2] && a[3] <= b[4] && b[3] <= a[4];
+    const seen = new Set([TITAN_DECKS[0][0]]);
+    for (let grew = true; grew;) { grew = false; for (const a of TITAN_DECKS) for (const b of TITAN_DECKS) if (seen.has(a[0]) && !seen.has(b[0]) && touch(a, b)) { seen.add(b[0]); grew = true; } }
+    eq(seen.size, TITAN_DECKS.length);
+    for (const [id, x0, x1, z0, z1, kind] of TITAN_DECKS) if (kind === 'b') ok(Math.min(x1 - x0, z1 - z0) >= 8, `${id} is at least 8 m wide`);
+  });
+  test('U17c: Titan: the breach and hatch events are Hive scripts with a heroic', () => {
+    for (const id of ['rig_breach', 'brood_hatch']) {
+      const sp = EVENT_SPECS[id];
+      ok(sp.faction === null && sp.marked.n >= 2 && sp.pushes.length >= 2 && sp.finale.heroicN > sp.finale.n, `${id} is complete`);
+    }
+    ok(P.beacons.some((b) => b.type === 'hunt') && P.beacons.some((b) => b.type === 'clear') && P.beacons.length >= 4, 'the beacons mix hunts and clears');
+  });
+}
 
 
 // ---------- runner ----------

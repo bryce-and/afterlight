@@ -478,6 +478,8 @@ export const LOCATIONS = [
       { id: 't2', mood: 'day', name: 'The Sunken Labs', power: 127, zones: 4, boss: { name: 'Ir Halak, Brood Wizard', element: 'void' , model: 'broodwizard' }, desc: 'Push into the flooded labs where the Hive are growing something in the dark.' },
       { id: 't3', mood: 'dusk', name: "Savathûn's Song", power: 136, zones: 5, boss: { name: "Sedrak, Song of Savathûn", element: 'solar' , model: 'shrieker' }, desc: 'Silence the Hive choir singing Savathûn\'s song beneath the Arcology.' },
     ],
+    // U17c: the free-roam patrol zone (js/patrol-titan.js, js/patrol.js)
+    patrol: { id: 't_patrol', mood: 'day', name: 'Titan Patrol', objective: 'Patrol Titan', power: 118, zones: 0, boss: { name: '', element: 'void', model: 'broodwizard' }, desc: 'Roam the rigs and the ruined biosphere high above the methane sea. Activate beacons, join public events, and ride a Sparrow along the pipe bridges.' },
   },
   {
     id: 'tangled', name: 'The Tangled Shore', planetName: 'The Reef', faction: 'Fallen',

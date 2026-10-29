@@ -8,6 +8,7 @@ import EARTH from './level-earth.js';
 import EARTH_PATROL from './patrol-earth.js';
 import MOON_PATROL from './patrol-moon.js';
 import MARS_PATROL from './patrol-mars.js';
+import TITAN_PATROL from './patrol-titan.js';
 import MOON from './level-moon.js';
 import MARS from './level-mars.js';
 import TITAN from './level-titan.js';
@@ -18,7 +19,7 @@ import LEVIATHAN from './level-leviathan.js';
 import { TOWER } from './level-tower.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
+const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...TITAN_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
 
 const matCache = new Map();
 export function mat(color, o = {}) {
@@ -123,7 +124,7 @@ export function buildLevel(loc, def) {
     if (loc.sea) return n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // the play area is a deck above the sea
     return n * 0.12 + Math.min(out, 90) * 0.7 * rimK * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
   };
-  scene.add(buildGround(bounds, C, heightAt, rng, gAt ? 2 : 5));
+  scene.add(buildGround(bounds, C, heightAt, rng, gAt ? 2 : 5, set.hideCliffs));
   if (loc.vista) loc.vista(scene, C);
   else if (loc.sea) {
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 }));
@@ -670,7 +671,7 @@ function mergeDecor(scene, from, keep) {
   }
 }
 
-function buildGround(bounds, C, heightAt, rng, cellSize = 5) {
+function buildGround(bounds, C, heightAt, rng, cellSize = 5, cliffCut = 0) {
   const rolling = cellSize < 5; // terrain map: rock shows where the ground is steep, not just where it is high
   const pad = 130;
   const minX = bounds.minX - pad, maxX = bounds.maxX + pad, minZ = bounds.minZ - pad, maxZ = bounds.maxZ + pad;
@@ -692,6 +693,21 @@ function buildGround(bounds, C, heightAt, rng, cellSize = 5) {
     for (let k = 0; k < 3; k++) { colors[(i + k) * 3] = c.r; colors[(i + k) * 3 + 1] = c.g; colors[(i + k) * 3 + 2] = c.b; }
   }
   g2.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  if (cliffCut) { // U17c: a map of decks over the sea drops the near-vertical skirts of its plateaus (a face steeper than `cliffCut` of level is not drawn)
+    const nor = g2.attributes.normal, keep = [];
+    for (let i = 0; i < p2.count; i += 3) if (nor.getY(i) >= cliffCut) keep.push(i, i + 1, i + 2);
+    const cut = new THREE.BufferGeometry();
+    for (const [name, size] of [['position', 3], ['normal', 3], ['color', 3]]) {
+      const src = g2.attributes[name].array, out = new Float32Array(keep.length * size);
+      keep.forEach((v, k) => { for (let c = 0; c < size; c++) out[k * size + c] = src[v * size + c]; });
+      cut.setAttribute(name, new THREE.BufferAttribute(out, size));
+    }
+    cut.computeBoundingSphere();
+    g2.dispose();
+    const m = new THREE.Mesh(cut, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }));
+    m.receiveShadow = true;
+    return m;
+  }
   const mesh = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }));
   mesh.receiveShadow = true;
   return mesh;

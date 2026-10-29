@@ -322,6 +322,12 @@ function seaPlatforms(K, rects) {
   }
 }
 
+/** U17c: the helpers and tones the Titan patrol zone (js/patrol-titan.js) builds with. */
+export const TITAN_KIT = {
+  rail, derrick, flare, dish, mast, crane, tank, container, stack, lane, hive, crystals, creep, brazier, pipeRun, tree, glassMat, lamp, seaScenery, archRib,
+  C: { PALE, PALE2, AMBER, GREEN, CHITIN, CHITIN2, YELLOW, TRUNK, SOIL, LAMP, FLOOD, TEAL, CONT },
+};
+
 // ---------------------------------------------------------------------------
 export default {
   // =========================================================================

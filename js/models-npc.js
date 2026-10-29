@@ -13,6 +13,7 @@ export const NPC_INFO = {
   kadi: { name: 'Kadi 55-30', title: 'Postmaster', color: '#ffe08a' },
   eris: { name: 'Eris Morn', title: 'Hunter', color: '#b5e6ff' }, // U17b: patrol-zone meetings
   ana: { name: 'Ana Bray', title: 'Hunter', color: '#7fd0e8' },
+  sloane: { name: 'Sloane', title: 'Vanguard Deputy', color: '#9fc4d8' }, // U17c
 };
 
 const _mats = new Map();
@@ -504,7 +505,61 @@ function eris() {
   };
 }
 
-const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris };
+// ---------------------------------------------------------------------------
+/** U17c: Sloane after the Destiny 2 reference: short tousled dark grey hair, a big domed blue-grey pauldron studded with spikes on one shoulder and a smaller
+ *  plate on the other, a white chest plate over ribbed blue-grey armour, a white belt with a buckle, white gloves, one hand on her hip. */
+function sloane() {
+  const skin = M(0x9a6c52), hair = M(0x4a4c52), hairLt = M(0x6c6e74), white = M(0xe9eded), grey = M(0xaab4b8), armour = M(0x4f6877), armourDk = M(0x34444f);
+  const blue = M(0x5f8294, { metalness: 0.35 }), dark = M(0x262c33), badge = M(0xe0b030), belt = M(0xd5dada);
+  const f = figure({
+    hipW: 0.1, thigh: 0.14, pants: armourDk, boot: dark, chestW: 0.42, chestD: 0.24, shirt: armour,
+    armT: 0.11, sleeve: armourDk, glove: white, hand: white, skin,
+  });
+  const { group, torso, head } = f;
+  humanHead(head, skin, 0.17, 0.22);
+  // short, tousled hair with a lighter streak
+  box(0.19, 0.08, 0.19, 0, 0.22, -0.005, hair, head);
+  box(0.06, 0.12, 0.17, -0.1, 0.14, -0.01, hair, head);
+  box(0.06, 0.12, 0.17, 0.1, 0.14, -0.01, hair, head);
+  box(0.19, 0.2, 0.05, 0, 0.1, -0.1, hair, head);
+  box(0.07, 0.06, 0.1, 0.05, 0.27, 0.0, hairLt, head, [0.1, 0, 0.3]);
+  box(0.07, 0.06, 0.1, -0.06, 0.26, 0.02, hair, head, [0.1, 0, -0.35]);
+  // armour under the plate: a high collar and ribbed grey bands down the belly
+  cyl(0.12, 0.14, 0.12, 8, 0, 0.66, 0, armour, torso);
+  for (let i = 0; i < 4; i++) box(0.24, 0.035, 0.03, 0, 0.1 + i * 0.07, 0.135, grey, torso);
+  // the white chest plate, wider at the top and tapering, with a grey panel and a yellow badge
+  box(0.4, 0.3, 0.07, 0, 0.45, 0.13, white, torso);
+  box(0.26, 0.14, 0.07, 0, 0.3, 0.13, white, torso, [0.08, 0, 0]);
+  box(0.12, 0.2, 0.03, 0.0, 0.44, 0.175, grey, torso);
+  cyl(0.03, 0.03, 0.02, 8, 0.15, 0.52, 0.175, badge, torso, [Math.PI / 2, 0, 0]);
+  // belt: white with a square buckle and a pouch on each hip
+  box(0.44, 0.07, 0.27, 0, 0.0, 0, belt, torso);
+  box(0.09, 0.09, 0.03, 0, 0.0, 0.145, grey, torso);
+  for (const s of [-1, 1]) box(0.08, 0.1, 0.1, s * 0.2, 0.0, 0.1, dark, torso);
+  // the big domed pauldron with its spikes, and the smaller plate opposite
+  const big = pivot(0.33, 0.62, 0, torso, 'pauldron');
+  box(0.3, 0.17, 0.3, 0, 0, 0, blue, big, [0, 0, -0.18]);
+  box(0.22, 0.1, 0.24, 0.0, 0.1, 0, blue, big, [0, 0, -0.22]);
+  for (const [x, y, z] of [[-0.1, 0.17, 0.08], [0.06, 0.18, 0.1], [0.12, 0.12, -0.06], [-0.04, 0.17, -0.1]]) cone(0.03, 0.12, 4, x, y, z, grey, big);
+  box(0.06, 0.06, 0.3, 0.17, -0.02, 0, grey, big);
+  const small = pivot(-0.31, 0.6, 0, torso, 'pauldron');
+  box(0.22, 0.12, 0.26, 0, 0, 0, grey, small, [0, 0, 0.2]);
+  box(0.05, 0.05, 0.06, -0.06, 0.02, 0.14, M(0xc2402e), small);
+  // her left hand rests on her hip, the other arm hangs
+  f.armL.arm.rotation.set(0.0, 0, 0.5); f.armL.fore.rotation.set(-0.15, 0.2, -0.7);
+  f.armR.arm.rotation.set(0.02, 0, -0.06); f.armR.fore.rotation.set(-0.12, 0, 0);
+  const base = torso.position.y;
+  return {
+    group, height: 1.75, update(dt, t) {
+      const b = breathe(t, 1.15);
+      torso.position.y = base + b * 0.004;
+      torso.scale.set(1, 1 + b * 0.012, 1 + b * 0.01);
+      head.rotation.y = Math.sin(t * 0.35 + 1) * 0.15;
+    },
+  };
+}
+
+const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris, sloane };
 
 /** Build one Tower NPC. Returns { group, update(dt, t), height }. */
 export function buildNpc(id) {

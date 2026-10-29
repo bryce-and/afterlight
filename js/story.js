@@ -15,6 +15,7 @@ export const SPEAKERS = {
   petra:   { name: 'Petra Venj', color: '#a8ffe0' },
   kadi:    { name: 'Kadi 55-30', color: '#ffe08a' },
   ana:     { name: 'Ana Bray', color: '#7fd0e8' },
+  sloane:  { name: 'Sloane', color: '#9fc4d8' },
   mara:    { name: 'Mara Sov', color: '#f4e3a8' },
   riven:   { name: 'Riven',    color: '#ff9a3c' },
   calus:   { name: 'Emperor Calus', color: '#ffd24d' },
@@ -313,6 +314,12 @@ export const PATROL_TALKS = {
     ['ana', 'I come out to the Buried City to remember what we built before the Collapse. The towers outlasted the people who raised them.'],
     ['ghost', 'Some of those people are still around.'],
     ['ana', 'Some of us. Here, a little something for the road, Guardian.'],
+  ],
+  sloane_titan: [
+    ['sloane', 'You are the Guardian I asked for? Good. I do not have time for a speech, so here is the short version.'],
+    ['sloane', 'The rigs keep the lights on in the dome. The Hive moved into the Solarium and one of the tower wings, and they are still moving in.'],
+    ['ghost', 'And the rest of the arcology?'],
+    ['sloane', 'Empty, and growing wild. Walk it carefully, Guardian. Take this, and clear me a path.'],
   ],
   cayde_earth: [
     ['cayde', 'There you are! Do not look at me. Look at the car. The very rusty car. Good.'],
