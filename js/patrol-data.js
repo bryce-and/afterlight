@@ -315,6 +315,7 @@ export const PATROL_DATA = {
     hideBulbs: true,
     lightPool: 8,
     merge: true,
+    seaY: TITAN.sea, // world.js: the ocean plane lies at the water line, so the rig legs go straight down into it
     hideCliffs: 0.35, // world.js buildGround: the plateaus' sheer skirts are not drawn, so the rigs stand on open legs and the bridges hang in the air
     // overcast and teal: the colours of the rigs stand out against it
     colors: { sky: 0x86a9a3, fog: 0x8ba9a0, hemiTop: 0xd0e4dc, hemiBot: 0x3a4a44, sea: 0x2b5550 },
@@ -325,7 +326,6 @@ export const PATROL_DATA = {
       bodies: [{ color: 0xe6d0a2, size: 120, pos: [260, 170, -480], ring: true, bands: [0xe6d0a2, 0xd6b886, 0xeeddb4, 0xcfa872] }],
       clouds: { n: 22, color: 0xdfeae4, opacity: 0.7, y: [80, 170], size: 28 },
       haze: [{ color: 0x8fb0a4, opacity: 0.6, r: 470, h: 120, y: -10 }],
-      skyline: [{ kind: 'rig', n: 9, r: [430, 610], h: [40, 90], w: [12, 22], color: 0x5f7e78, haze: 0.5 }, { kind: 'tower', n: 5, r: [450, 620], h: [60, 120], w: [10, 16], color: 0x6b8a84, haze: 0.5 }],
     },
     patrol: {
       beacons: [

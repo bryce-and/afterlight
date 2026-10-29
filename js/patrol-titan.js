@@ -100,7 +100,7 @@ const inRect = (r, x, z) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
 const walkClass = (x, z) => (rects.some((r) => r.kind !== 'x' && inRect(r, x, z)) ? 1 : rects.some((r) => inRect(r, x, z)) ? 2 : 0);
 
 /**
- * The sea: slabs at the water line over every cell that is not a deck (merged greedily), with a tall invisible collider where they lie inside the map so nobody can fall in,
+ * The sea: the world's ocean plane at the water line (`seaY`), and over every cell that is not a deck (merged greedily) a tall invisible collider so nobody can fall in,
  * and a railing on every railed deck edge (the enclosed tube and gallery have walls instead).
  */
 function sea(K) {
@@ -125,7 +125,6 @@ function sea(K) {
     }
     for (let a = i; a <= i2; a++) for (let b = j; b <= j2; b++) used[a][b] = true;
     const x1 = xs[i], x2 = xs[i2 + 1], z1 = zs[j], z2 = zs[j2 + 1];
-    K.box((x1 + x2) / 2, (z1 + z2) / 2, x2 - x1 - 0.04, 0.8, z2 - z1 - 0.04, C.sea, { y: SEA - 0.8, abs: true, collide: false });
     const cx1 = Math.max(x1, minX - 10), cx2 = Math.min(x2, maxX + 10), cz1 = Math.max(z1, minZ - 10), cz2 = Math.min(z2, maxZ + 10);
     if (cx2 > cx1 && cz2 > cz1) solid(K, cx1, -2, cz1, cx2, 70, cz2);
   }
@@ -547,7 +546,7 @@ function tube(K) {
 /** The Sunken Gallery: a glass corridor under the water running east then north, then a Hive-held chamber. */
 function gallery(K) {
   water(K, 104, 176, -198, -88, -0.5, SEA);
-  const roof = (x0, x1, z0, z1) => { A(K, (x0 + x1) / 2, 7.9, (z0 + z1) / 2, x1 - x0, 0.3, z1 - z0, 0x4d6866, { glow: 0.3 }); A(K, (x0 + x1) / 2, 8.2, (z0 + z1) / 2, x1 - x0, SEA - 8.2, z1 - z0, K.C.sea); };
+  const roof = (x0, x1, z0, z1) => { A(K, (x0 + x1) / 2, 7.9, (z0 + z1) / 2, x1 - x0, 0.3, z1 - z0, 0x4d6866, { glow: 0.3 }); };
   const floor = (x0, x1, z0, z1) => A(K, (x0 + x1) / 2, 0.05, (z0 + z1) / 2, x1 - x0, 0.08, z1 - z0, 0x38403e);
   // the corridor east (x 112 to 152 at z -104 to -96) and north (x 144 to 152 at z -150 to -96)
   roof(111, 153, -105, -95); roof(143, 153, -150, -105); floor(112, 152, -104, -96); floor(144, 152, -150, -96);
@@ -584,8 +583,6 @@ export default {
     build(K) {
       sea(K);
       for (const r of rects) if (r.kind === 'p') { hull(K, r, r.id === 'arco' ? { x: 57, z0: -105.5, z1: -94.5 } : null); if (r.id !== 'arco') plate(K, r, 0x46504d); } else if (r.kind === 'b') bridge(K, r);
-      // the sea scenery stands on the water line, not at the world's own (it is lower than the water here)
-      TK.seaScenery(Object.assign(Object.create(K), { edge: (fn, n, a, b) => K.edge((x, z) => fn(x, z, SEA), n, a, b) }), 26, 20, 90);
 
       // ================================================================ roads: deck lanes for the Sparrow across the rigs and bridges, the boulevard in the dome
       road(K, [[0, 160], [0, -30]]);

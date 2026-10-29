@@ -128,7 +128,7 @@ export function buildLevel(loc, def) {
   if (loc.vista) loc.vista(scene, C);
   else if (loc.sea) {
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 }));
-    sea.position.set(0, -0.7, (bounds.minZ + bounds.maxZ) / 2);
+    sea.position.set(0, set?.seaY ?? -0.7, (bounds.minZ + bounds.maxZ) / 2);
     scene.add(sea);
   }
 
