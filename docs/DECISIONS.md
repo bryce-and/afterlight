@@ -207,3 +207,7 @@
 | 2026-11-02 | The Tangled Shore's Fallen are replaced by the Scorn, in the campaign missions and the future patrol zone. | Bryce |
 | 2026-11-02 | The U17d draft is split: U17d v3.6 is the Vex and Taken rework (plus default looks and the Tangled Shore Scorn), U17e v3.7 is the Io patrol zone built on it, and the Tangled Shore and Dreaming City patrol zones move to U17f v3.8. Each needs its own Gate B approval. | Bryce |
 | 2026-11-02 | U17d approved. Every enemy model gets reworked from references (EMR), after the Io patrol zone (U17e); the Vex and Taken go first in U17d to test how well reference images work. | Bryce |
+| 2026-11-02 | Tangled Shore activities are all Scorn, the arena champion included (`ACTIVITY_OWN` in `js/factions.js`), so the destination does not mix factions. | Claude |
+| 2026-11-02 | Sniper numbers for the shared `snipe` skill (`SKILL.snipe` in `js/factions.js`): lock 0.4 s, track 5, hit radius 0.9. Vex Hobgoblin charge 1.6 s and 38 damage; Taken Vandal 1.5 s and 34 damage (replaces its ward); Taken Hobgoblin 1.6 s and 38 damage, plus blink. At even power a hit is 38 of about 213 health and shield. | Claude |
+| 2026-11-02 | The Taken Psion stands on the ground instead of floating. | Claude |
+| 2026-11-02 | U17d gets its own title artwork (Vex Hobgoblin and Taken Vandal trading aim lines). | Bryce |
