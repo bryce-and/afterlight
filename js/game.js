@@ -24,7 +24,7 @@ import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from
 import { WEAKEN_MULT } from './status.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
-import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction, baseExtras } from './factions.js';
+import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction, baseExtras, ACTIVITY_OWN } from './factions.js';
 import { skillIncoming, skillHit } from './enemy-skills.js';
 import { buildVoidAxe } from './models.js';
 import { updateTower } from './tower.js';
@@ -196,7 +196,7 @@ export function spawnUnit(z, type, pos, o = {}) {
   const cls = classOf(type), def = UNITS[type];
   const e = new Enemy(type, pos, {
     zone: z, hpMult: M.hpMult * (type === 'boss' ? (1 + M.g * 0.08) * FT.boss : FT.hp) * (o.hpFrac ?? 1), dmgMult: M.dmgMult * (type === 'boss' ? 1 : FT.dmg),
-    element: o.element, name: o.name, model: o.model, faction: o.faction, pal: o.pal,
+    element: o.element, name: o.name, model: o.model, faction: o.faction,
     tier: o.tier || (def?.support || def?.life ? 'minor' : rollTier(cls, M.g)),
     noDrops: o.noDrops, revived: o.revived, owner: o.owner, life: o.life, totemKind: o.totemKind, isClone: o.isClone,
   });
@@ -1187,10 +1187,14 @@ function activityWave(n) {
   const more = fireteamScale(M.fireteam).count * (1 + 0.3 * M.arenaIdx);
   const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type }));
   const k = Math.min(n, 20);
-  const alt = activityFaction(M.loc.id, n); // U14: every third wave on Io and the Tangled Shore is the destination's second faction
+  const alt = activityFaction(M.loc.id, n); // U14: every third wave on Io is the destination's second faction; U17d: every wave on the Tangled Shore is Scorn
   if (alt && n % M.act.arenaEvery !== 0) return [0, 1].map((wi) => composeWave(alt, wi, 1, M.g, more).map((type) => ({ type, faction: alt })));
   if (n % M.act.arenaEvery === 0) {
-    const b = M.arenaDef.boss;
+    const b = M.arenaDef.boss, own = ACTIVITY_OWN[M.loc.id];
+    if (own) { // the champion fights for the destination's own new faction, with a handful of its units
+      const F = (wi, k) => composeWave(own, wi, 1, M.g, more).sort(() => Math.random() - 0.5).slice(0, Math.round(k * more)).map((type) => ({ type, faction: own }));
+      return [[{ type: 'boss', name: b.name, element: b.element, model: b.model, faction: own }, ...F(0, 5)], F(1, 4)];
+    }
     return [[{ type: 'boss', name: b.name, element: b.element, model: b.model }, ...T('grunt', 3), ...T('rusher', 2)], [...T('grunt', 3), ...T('captain', 1)]];
   }
   const first = [...T('grunt', 3 + Math.floor(k / 3)), ...T('rusher', 1 + Math.floor(k / 4))];

@@ -168,7 +168,7 @@ export function onAbandon() {
 export function registerEnemy(e) {
   if (!net.isHost) return;
   e.netId = nextId++;
-  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined, tr: e.tier || undefined, fc: e.isBoss && FACTIONS[e.faction] ? e.faction : undefined, nd: e.noDrops ? 1 : undefined, pl: e.pal || undefined });
+  broadcast({ t: 'sp', id: e.netId, ty: e.typeId, x: r2(e.pos.x), z: r2(e.pos.z), n: e.name, el: e.shieldEl, mh: Math.round(e.maxHp), ms: Math.round(e.maxShield), bm: e.bossModel || undefined, tr: e.tier || undefined, fc: e.isBoss && FACTIONS[e.faction] ? e.faction : undefined, nd: e.noDrops ? 1 : undefined });
 }
 
 export function announceKill(e, o) {
@@ -234,7 +234,7 @@ export function netTick(dt) {
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
-    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0)]);
+    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0) | (en.sk?.aim > 0 ? 16 : 0)]);
     const M = G.mission;
     const z = M.zones[M.current];
     const ms = { pt: M.patrol ? patrolSnapshot() : 0, cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0, ob: objSnapshot() };
@@ -386,7 +386,7 @@ function updateAvatars(dt) {
 // ---------------------------------------------------------------------------
 function proxy(id, type, x, z, info = {}) {
   const M = G.mission;
-  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm, tier: info.tr, faction: info.fc, pal: info.pl, noDrops: !!info.nd });
+  const e = new Enemy(type, new THREE.Vector3(x, 0, z), { zone: M.zones[M.current] || { enemies: [] }, hpMult: 1, dmgMult: 1, element: info.el, name: info.n, model: info.bm, tier: info.tr, faction: info.fc, noDrops: !!info.nd });
   e.remote = true;
   e.netId = id;
   if (info.mh) { e.maxHp = info.mh; e.hp = info.mh; }

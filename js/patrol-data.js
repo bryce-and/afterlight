@@ -18,8 +18,8 @@ export const SPARROW = {
 
 /** U17b: units of a faction met in another destination's patrol zone (`f` on a camp or beacon). Fallen wear Earth's colours, the Hive the Moon's. */
 export const FACTION_KITS = {
-  fallen: { faction: 'scrappers', pal: 'earth', names: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' } },
-  hive: { faction: 'hollow', pal: 'moon', names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' } },
+  fallen: { faction: 'scrappers', names: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' } },
+  hive: { faction: 'hollow', names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' } },
 };
 
 export const BEACON_TEXT = {
@@ -31,7 +31,7 @@ export const BEACON_TEXT = {
 // `faction` null means the destination's own units; 'hollow' is the Hive.
 export const EVENT_SPECS = {
   hive_ritual: {
-    name: 'Hive Ritual', blurb: 'A Hive ritual is under way.', faction: 'hollow', palette: 'moon', // the Hive wear the Moon's colours wherever they are met
+    name: 'Hive Ritual', blurb: 'A Hive ritual is under way.', faction: 'hollow',
     names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' },
     marked: { n: 3, unit: 'captain', name: 'Ritualist', time: 60, text: 'Kill the Ritualists' },
     pushes: [[['rusher', 4], ['grunt', 3]], [['captain', 2], ['rusher', 3]]],
@@ -46,7 +46,7 @@ export const EVENT_SPECS = {
   },
   // U17b
   station_defense: {
-    name: 'Station Defense', blurb: 'The House of Devils are stripping the Golden Age station.', faction: 'scrappers', palette: 'earth',
+    name: 'Station Defense', blurb: 'The House of Devils are stripping the Golden Age station.', faction: 'scrappers',
     names: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' },
     marked: { n: 2, unit: 'captain', name: 'Salvage Captain', time: 60, text: 'Kill the Salvage Captains' },
     pushes: [[['rusher', 5], ['grunt', 3]], [['captain', 1], ['rusher', 4], ['grunt', 3]]],

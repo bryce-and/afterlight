@@ -2,7 +2,8 @@
 // Each unit lists its skills in factions.js (`skills`, with a block of numbers per skill). Nothing here is
 // hardcoded to a unit id: a skill reads its numbers from the unit's definition.
 //   blink        short teleport on a timer, or as a dodge when hit (Taken Thrall, Wizard, Centurion, Knight; Scorn Raider)
-//   ward         a damage-reducing bubble once hurt (Taken Vandal)
+//   ward         a damage-reducing bubble once hurt (unused since U17d made the Taken Vandal a sniper)
+//   snipe        an aim line tracks the target, locks, then a charged high-damage shot; breaks without line of sight (Vex Hobgoblin, Taken Vandal, Taken Hobgoblin)
 //   clone        splits into a copy once hurt (Taken Psion)
 //   allyShield   makes a nearby ally invulnerable until the Goblin dies (Taken Goblin)
 //   summon       calls Shadow Thralls (Taken Wizard)
@@ -19,14 +20,14 @@ import { ELEMENTS } from './data.js';
 import { rand, pick } from './util.js';
 import { NAV, heightAt, lineClear } from './nav.js';
 import { insideLeash } from './ai.js';
-import { sparks, ringFx } from './effects.js';
+import { sparks, ringFx, tracer, basicMat } from './effects.js';
 import { sfx } from './audio.js';
-import { allPlayers, damageRemote } from './coop.js';
+import { allPlayers, damageRemote, fxTracer } from './coop.js';
 import { damagePlayer, killEnemy, spawnUnit, findSpawn, addTicker } from './game.js';
 import * as ui from './ui.js';
-import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, guardMult, spinBlocks } from './factions.js';
+import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, guardMult, spinBlocks, snipePhase, snipeHits } from './factions.js';
 
-const _v = new THREE.Vector3();
+const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const LIGHT = 0xdfe8ff, ETHER = 0xb46bff;
 
 export function skillInit(e, o = {}) {
@@ -34,6 +35,7 @@ export function skillInit(e, o = {}) {
   e.sk = {};
   if (has('blink')) Object.assign(e.sk, { blinkT: rand(d.blink.cd[0], d.blink.cd[1]) * 0.6, tell: 0, hitCd: 0, dest: null });
   if (has('ward')) { e.sk.wardUsed = false; e.wardT = 0; }
+  if (has('snipe')) Object.assign(e.sk, { snipeT: rand(d.snipe.cd[0], d.snipe.cd[1]) * 0.6, aim: 0, tp: new THREE.Vector3() });
   if (has('clone')) e.sk.cloned = !!o.isClone;
   if (has('allyShield')) Object.assign(e.sk, { retargetT: 0.5, ally: null });
   if (has('summon')) Object.assign(e.sk, { summonT: rand(d.summon.cd[0], d.summon.cd[1]) * 0.6, hold: 0 });
@@ -68,6 +70,7 @@ export function skillUpdate(e, dt, P, dist) {
   if (skills.includes('totem')) totem(e, dt, dist);
   if (skills.includes('summon') && summon(e, dt, dist)) held = true;
   if (skills.includes('blink') && blink(e, dt, P, dist)) held = true;
+  if (skills.includes('snipe') && snipe(e, dt, P, dist)) held = true;
   return !held;
 }
 
@@ -165,6 +168,56 @@ function blink(e, dt, P, dist) {
   sk.dest = dest; sk.tell = SKILL.blinkTell;
   return true;
 }
+
+// ---- snipe ----
+// Charging (sk.aim > 0) holds the unit still and keeps its ordinary fire off (enemies.js mayFire). The aim point `tp` eases toward the
+// target's chest, then holds still for the last SKILL.snipe.lock seconds; the shot goes along that line. Losing sight of the target breaks it.
+function snipe(e, dt, P, dist) {
+  const sk = e.sk, s = e.def.snipe;
+  if (sk.aim > 0) {
+    if (!e.los || P.dead || dist > e.def.range || e.staggerT > 0) { sk.aim = 0; sk.snipeT = rand(1, 2); hideAim(e); return false; }
+    sk.aim -= dt;
+    const ph = snipePhase(sk.aim);
+    if (ph === 'track') sk.tp.lerp(_v.set(P.pos.x, P.pos.y + 1.1, P.pos.z), Math.min(1, dt * SKILL.snipe.track));
+    if (ph !== 'fire') { drawAim(e, sk.tp, 1 - sk.aim / s.charge); return true; }
+    // fire along the locked line
+    hideAim(e);
+    const from = e.model.muzzle.getWorldPosition(new THREE.Vector3());
+    tracer(from, sk.tp, e.shotColor, 0.08, 0.18); fxTracer(from, sk.tp, e.shotColor);
+    sfx.enemyShot(e.pos, e.faction);
+    for (const Pl of allPlayers()) {
+      if (Pl.dead || !snipeHits(sk.tp, _v.set(Pl.pos.x, Pl.pos.y + 1.1, Pl.pos.z))) continue;
+      if (Pl.remote) damageRemote(Pl, s.dmg * e.dmgMult, e.pos);
+      else damagePlayer(s.dmg * e.dmgMult, e.pos);
+    }
+    sk.aim = 0; sk.snipeT = rand(s.cd[0], s.cd[1]);
+    return false;
+  }
+  sk.snipeT -= dt;
+  if (sk.snipeT > 0 || !e.los || dist > e.def.range || e.staggerT > 0) return false;
+  sk.aim = s.charge;
+  sk.tp.set(P.pos.x, P.pos.y + 1.1, P.pos.z);
+  if (!P.remote) sfx.charge();
+  return true;
+}
+
+/** The sniper's aim line from its muzzle to `to`, brighter as the charge `k` (0 to 1) fills. Also drawn on fireteam members' copies (enemies.js remoteStep). */
+export function drawAim(e, to, k) {
+  let L = e.aimLine;
+  if (!L) {
+    L = e.aimLine = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), basicMat(e.shotColor, true).clone());
+    L.material.transparent = true;
+    G.scene.add(L);
+  }
+  const from = e.model.muzzle.getWorldPosition(_v2);
+  L.visible = true;
+  L.position.lerpVectors(from, to, 0.5);
+  L.lookAt(to);
+  const w = SKILL.snipe.width * (1 + k);
+  L.scale.set(w, w, from.distanceTo(to));
+  L.material.opacity = 0.35 + 0.6 * k;
+}
+export function hideAim(e) { if (e.aimLine) { G.scene.remove(e.aimLine); e.aimLine.geometry.dispose(); e.aimLine.material.dispose(); e.aimLine = null; } }
 
 // ---- ward ----
 function ward(e) {
@@ -295,6 +348,7 @@ function totemAura(e, dt) {
 /** Called when a unit dies on the leader: a Scorn corpse that was not burned stands up again after a few seconds. */
 export function skillOnDeath(e) {
   const d = e.def;
+  hideAim(e);
   if (e.remote) return;
   if (d.skills?.includes('deathBlast') && !e.noBlast) deathBlast(e);
   if (d.skills?.includes('deathSpawn') && e.zone && !e.noBlast) for (let i = 0; i < d.deathSpawn.n; i++) {

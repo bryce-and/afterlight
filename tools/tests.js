@@ -1812,7 +1812,7 @@ test('U14 factions: new factions have sounds, profiles and a Darkness-orb throwe
 
 test('v2.9 Vex: roster, shields, stationary artillery, floating units and the Hydra spin guard', () => {
   const vexIds = Object.keys(FA.UNITS).filter((i) => i.startsWith('vx_'));
-  ok(vexIds.length >= 11, 'Vex units are registered');
+  ok(vexIds.length >= 10, 'Vex units are registered');
   for (const id of vexIds) ok(ENEMY_TYPES[id] && ENEMY_TYPES[id].faction === 'vex', `${id} registered as a Vex enemy type`);
   for (const bad of ['vx_gate_lord', 'vx_axis', 'fl_archon']) ok(!FA.UNITS[bad], `${bad} is not an enemy unit`);
   ok(FA.UNITS.vx_cyclops.stationary && FA.UNITS.hv_shrieker.stationary, 'Cyclops and Shrieker never move');
@@ -1960,10 +1960,9 @@ test('U17a: every beacon and event has its script', () => {
   ok(EVENT_SPECS.hive_ritual.faction === 'hollow' && EVENT_SPECS.salvage_defense.faction === null, 'one Hive event and one of the destination\'s own');
 });
 test('U17a: the Hive in the Earth patrol wear the Moon\'s colours', () => {
-  const pal = EVENT_SPECS.hive_ritual.palette;
-  eq(pal, 'moon');
-  ok(LOCATIONS.some((l) => l.id === pal && l.colors.eye !== undefined), 'the palette names a destination with colours');
-  eq(LOCATIONS.find((l) => l.id === pal).faction, 'Hive');
+  const earth = LOCATIONS.find((l) => l.id === 'earth'), moon = LOCATIONS.find((l) => l.id === 'moon');
+  eq(EVENT_SPECS.hive_ritual.faction, 'hollow');
+  eq(FA.enemyColors('hollow', earth).enemy, moon.colors.enemy); // U17d: every faction has one look (this replaced the H16 event palette)
 });
 test('U17a: the Ghost holds: 1 second to summon a Sparrow, 5 to return to orbit', () => {
   eq(SPARROW.summonHold, 1); eq(SPARROW.orbitHold, 5);
@@ -2036,8 +2035,8 @@ for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan',
   });
 }
 test('U17b: Fallen and Hive kits borrow the Earth and Moon colours', () => {
-  eq(FACTION_KITS.fallen.faction, 'scrappers'); eq(FACTION_KITS.fallen.pal, 'earth');
-  eq(FACTION_KITS.hive.faction, 'hollow'); eq(FACTION_KITS.hive.pal, 'moon');
+  eq(FACTION_KITS.fallen.faction, 'scrappers'); eq(FACTION_KITS.fallen.pal, undefined); // U17d: the faction's own look, no palette
+  eq(FACTION_KITS.hive.faction, 'hollow'); eq(FACTION_KITS.hive.pal, undefined);
   eq(EVENT_SPECS.station_defense.faction, 'scrappers');
   eq(EVENT_SPECS.cabal_drop.faction, null);
 });
@@ -2086,6 +2085,59 @@ test('U17b: the Mars subway ramps are under the slope cap and the trench floor i
     ok(P.beacons.some((b) => b.type === 'hunt') && P.beacons.some((b) => b.type === 'clear') && P.beacons.length >= 4, 'the beacons mix hunts and clears');
   });
 }
+
+
+test('U17d: one look per faction on every destination; Loyalists, Taken and Scorn keep theirs', () => {
+  const at = (id) => LOCATIONS.find((l) => l.id === id), look = (C) => [C.enemy, C.enemy2, C.eye, C.accent];
+  for (const [f, home] of Object.entries(FA.FACTION_HOME)) for (const L of LOCATIONS) {
+    if (f === 'legion' && L.colors.loyalist) continue;
+    eq(look(FA.enemyColors(f, L)), look(at(home).colors), `${f} on ${L.id} wear the ${home} look`);
+    eq(FA.enemyColors(f, L).sky, L.colors.sky, `${f} on ${L.id}: the scenery colours stay the destination's`);
+  }
+  eq(look(FA.enemyColors('legion', at('leviathan'))), look(at('leviathan').colors), 'the Loyalist Cabal keep the gold');
+  ok(FA.enemyColors('legion', at('leviathan')).loyalist && !FA.enemyColors('legion', at('io')).loyalist, 'only the Leviathan has Loyalists');
+  for (const f of ['taken', 'scorn', 'vex']) for (const L of LOCATIONS) eq(FA.enemyColors(f, L).enemy, FA.FACTIONS[f].colors.enemy, `${f} on ${L.id}`);
+  eq(FA.enemyColors('hollow', at('titan'), true), at('titan').colors, 'a boss with its own model keeps the destination colours');
+  let threw = false; try { FA.enemyColors('nobody', at('io')); } catch { threw = true; }
+  ok(threw, 'an unknown faction is an error, not a silent fallback');
+});
+
+test('U17d: Supplicant and Taken Incendior retired; Taken Hobgoblin added; every roster entry resolves', () => {
+  for (const id of ['vx_supplicant', 'tk_incendior']) {
+    ok(!FA.UNITS[id] && !ENEMY_TYPES[id], `${id} is gone`);
+    for (const list of Object.values(FA.ROSTER)) ok(!list.some((r) => r.t === id), `${id} is in no roster`);
+  }
+  ok(FA.UNITS.lg_incendior, 'the Cabal Incendior stays');
+  eq(FA.UNITS.tk_hobgoblin.faction, 'taken');
+  ok(FA.ROSTER.taken.some((r) => r.t === 'tk_hobgoblin') && FA.ROSTER.vex.some((r) => r.t === 'vx_fanatic'), 'the replacements are rostered');
+  for (const list of [...Object.values(FA.ROSTER), ...Object.values(FA.BASE_EXTRAS)]) for (const r of list) ok(ENEMY_TYPES[r.t], `${r.t} is a defined enemy type`);
+});
+
+test('U17d: the sniper skill (Vex Hobgoblin, Taken Vandal, Taken Hobgoblin)', () => {
+  const snipers = Object.keys(FA.UNITS).filter((id) => FA.UNITS[id].skills?.includes('snipe')).sort();
+  eq(snipers, ['tk_hobgoblin', 'tk_vandal', 'vx_hobgoblin']);
+  for (const id of snipers) {
+    const d = FA.UNITS[id];
+    ok(d.snipe.charge > FA.SKILL.snipe.lock + 0.5, `${id}: the aim line shows well before the lock`);
+    ok(d.snipe.dmg > 0 && d.snipe.dmg < 50 && d.snipe.cd[0] >= 3, `${id}: high damage, never a one-shot, not spammed`);
+    ok(d.range >= 50, `${id} engages at range`);
+  }
+  ok(!FA.UNITS.tk_vandal.skills.includes('ward'), 'the Taken Vandal lost its ward');
+  eq(FA.snipePhase(1.2), 'track'); eq(FA.snipePhase(FA.SKILL.snipe.lock - 0.01), 'lock'); eq(FA.snipePhase(0), 'fire');
+  const p = { x: 10, y: 1.1, z: 5 };
+  ok(FA.snipeHits(p, { x: 10.5, y: 1.1, z: 5 }), 'a Guardian still on the locked point is hit');
+  ok(!FA.snipeHits(p, { x: 11.5, y: 1.1, z: 5 }), 'a sidestep out of the line dodges it');
+});
+
+test('U17d: the Tangled Shore is fought against the Scorn', () => {
+  eq(LOCATIONS.find((l) => l.id === 'tangled').faction, 'Scorn');
+  for (const L of LOCATIONS.filter((l) => l.id === 'tangled')) for (const m of L.missions) {
+    for (let zi = 0; zi < m.zones; zi++) eq(FA.zonePlan(m.id, zi, m.zones, zi === m.zones - 1), { open: 'scorn', reinf: 'scorn' }, `${m.id} zone ${zi}`);
+  }
+  for (const n of [1, 2, 3, 4]) eq(FA.activityFaction('tangled', n), 'scorn');
+  eq(FA.activityFaction('io', 3), 'vex'); eq(FA.activityFaction('io', 2), null);
+  eq(FA.LOC_FACTION.tangled, 'scorn');
+});
 
 
 // ---------- runner ----------

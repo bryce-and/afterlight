@@ -2,7 +2,7 @@
 // Taken and Scorn as full factions: unit roster (Destiny 2 names), their stats on top of the five base
 // classes, which skills each unit runs, how mission zones mix factions, and what a wave of each faction holds.
 // Unit sheets come from Destiny 2 (Destinypedia). Shield elements where the sources disagreed are marked.
-import { ENEMY_TYPES } from './data.js';
+import { ENEMY_TYPES, LOCATIONS } from './data.js';
 
 // ---- factions ----
 // `colors` replace the destination's enemy colors for these units (the mission's own scenery colors are untouched).
@@ -26,6 +26,24 @@ export const FACTIONS = {
 };
 export function isNewFaction(f) { return !!FACTIONS[f]; }
 
+// U17d: one look per faction on every destination (Bryce, 2026-11-02). The Fallen, Hive and Red Legion wear their home
+// destination's enemy colours wherever they are met; the Loyalist Cabal (a destination marked `loyalist`) are a subtype and keep theirs.
+// Bosses with their own model keep the destination's colours. The rest of the destination's palette (sky, ground...) is untouched.
+export const FACTION_HOME = { scrappers: 'earth', hollow: 'moon', legion: 'mars' };
+const LOOK = ['enemy', 'enemy2', 'eye', 'accent'];
+/** The colours an enemy of `faction` is built and lit with on destination `loc`. */
+export function enemyColors(faction, loc, bossModel = false) {
+  const C = loc.colors;
+  if (bossModel) return C;
+  if (FACTIONS[faction]) return { ...C, ...FACTIONS[faction].colors };
+  if (faction === 'legion' && C.loyalist) return C;
+  const home = LOCATIONS.find((l) => l.id === FACTION_HOME[faction]);
+  if (!home) throw new Error(`No default look for faction ${faction}`);
+  const out = { ...C, loyalist: false };
+  for (const k of LOOK) out[k] = home.colors[k];
+  return out;
+}
+
 // ---- profiles ----
 // Same shape as tiers.js FACTION_PROFILES. Taken blink and weave; Scorn charge, never hide, and rush even alone.
 export const NEW_PROFILES = {
@@ -43,7 +61,8 @@ export const UNITS = {
   tk_thrall:    { faction: 'taken', base: 'rusher', name: 'Taken Thrall', hp: 90, speed: 7.4, meleeDmg: 18, skills: ['blink'], blink: { cd: [4, 7], range: [6, 10], toward: true } },
   tk_shadow:    { faction: 'taken', base: 'rusher', name: 'Shadow Thrall', hp: 36, speed: 8.0, meleeDmg: 12, scale: 0.8, life: 16, noDrops: true, skills: [] },
   tk_acolyte:   { faction: 'taken', base: 'grunt', name: 'Taken Acolyte', hp: 105, dmg: 6, skills: [] },
-  tk_vandal:    { faction: 'taken', base: 'grunt', name: 'Taken Vandal', hp: 100, skills: ['ward'], ward: { below: 0.6, dur: 4.5, mult: 0.35 } },
+  tk_vandal:    { faction: 'taken', base: 'grunt', name: 'Taken Vandal', hp: 100, range: 55, prefer: 26, skills: ['snipe'], snipe: { charge: 1.5, dmg: 34, cd: [3.4, 5.0] } }, // U17d: a sniper (it had a ward)
+  tk_hobgoblin: { faction: 'taken', base: 'grunt', name: 'Taken Hobgoblin', hp: 120, range: 60, prefer: 28, speed: 2.8, scale: 1.1, skills: ['snipe', 'blink'], snipe: { charge: 1.6, dmg: 38, cd: [3.2, 4.6] }, blink: { cd: [7, 11], range: [5, 8], onHit: true } }, // U17d: no reference; the Vex Hobgoblin frame, Taken
   tk_psion:     { faction: 'taken', base: 'grunt', name: 'Taken Psion', hp: 85, speed: 3.9, skills: ['clone'], clone: { below: 0.7, hpFrac: 0.5, maxPerZone: 3 } },
   tk_goblin:    { faction: 'taken', base: 'grunt', name: 'Taken Goblin', hp: 80, dmg: 3, speed: 3.2, prefer: 20, skills: ['allyShield'], allyShield: { range: 16, retarget: 2.5 } },
   tk_wizard:    { faction: 'taken', base: 'captain', name: 'Taken Wizard', hp: 260, shield: 140, shieldEl: 'void', prefer: 20, speed: 3.0, skills: ['summon', 'blink'], summon: { type: 'tk_shadow', cd: [11, 15], n: 2, max: 4 }, blink: { cd: [7, 11], range: [5, 8], toward: false } },
@@ -67,9 +86,8 @@ export const UNITS = {
   // ---- v2.9: the Vex (Destiny 2). `fly` lifts a floating unit; `stationary` units never move but still shoot; `lob` fires a mortar arc; `noShield` skips the heavy class shield ----
   vx_goblin:    { faction: 'vex', base: 'grunt', name: 'Goblin', hp: 90, skills: [] },
   vx_fanatic:   { faction: 'vex', base: 'suicide', name: 'Fanatic', hp: 40, speed: 6.6, scale: 0.95, blastMul: 1 },
-  vx_hobgoblin: { faction: 'vex', base: 'grunt', name: 'Hobgoblin', hp: 110, range: 42, prefer: 26, speed: 2.8, burst: 1, burstGap: 0.2, fireCd: [2.4, 3.4], dmg: 14, projSpeed: 38, shotSize: 0.13, scale: 1.1, skills: [] },
+  vx_hobgoblin: { faction: 'vex', base: 'grunt', name: 'Hobgoblin', hp: 110, range: 60, prefer: 26, speed: 2.8, burst: 1, burstGap: 0.2, fireCd: [2.4, 3.4], dmg: 14, projSpeed: 38, shotSize: 0.13, scale: 1.1, skills: ['snipe'], snipe: { charge: 1.6, dmg: 38, cd: [3.2, 4.6] } },
   vx_harpy:     { faction: 'vex', base: 'grunt', name: 'Harpy', hp: 70, speed: 5.0, prefer: 16, burst: 2, burstGap: 0.12, dmg: 5, scale: 0.9, fly: 2.0, skills: [] },
-  vx_supplicant: { faction: 'vex', base: 'suicide', name: 'Supplicant', hp: 40, speed: 7.8, scale: 0.9, fly: 1.6, blastMul: 1 },
   vx_minotaur:  { faction: 'vex', base: 'rusher', name: 'Minotaur', hp: 420, shield: 200, shieldEl: 'void', speed: 5.6, meleeDmg: 30, scale: 1.25, skills: ['blink'], blink: { cd: [4, 7], range: [7, 12], toward: true } },
   vx_wyvern:    { faction: 'vex', base: 'rusher', name: 'Wyvern', hp: 640, shield: 320, shieldEl: 'void', speed: 6.4, meleeDmg: 38, scale: 1.35, fly: 1.2, skills: ['blink'], blink: { cd: [3, 5], range: [8, 13], toward: true } },
   vx_hydra:     { faction: 'vex', base: 'heavy', name: 'Hydra', hp: 820, noShield: true, speed: 2.2, prefer: 12, range: 28, burst: 1, dmg: 22, projSpeed: 20, splash: 2.5, fly: 0.9, skills: ['spinGuard', 'deathBlast'], spinGuard: { arc: 2.6, speed: 1.3, mult: 0.1 }, deathBlast: { radius: 5, dmg: 28 } },
@@ -82,7 +100,6 @@ export const UNITS = {
   hv_shrieker:  { faction: 'hollow', base: 'grunt', name: 'Shrieker', hp: 360, stationary: true, fly: 1.0, range: 40, prefer: 25, burst: 10, burstGap: 0.09, fireCd: [1.6, 2.4], dmg: 4, projSpeed: 20, shotSize: 0.13, shotColor: 0xb26bff, spiral: { r: 0.12, turn: 0.9 }, skills: [] },
   lg_incendior: { faction: 'legion', base: 'heavy', name: 'Incendior', hp: 560, noShield: true, speed: 2.4, range: 15, prefer: 7, burst: 10, burstGap: 0.07, fireCd: [1.2, 2.0], dmg: 3.5, projSpeed: 17, shotSize: 0.2, splash: 1.5, shotColor: 0xff7a2a, scale: 1.05, skills: ['knockBurst', 'deathBlast'], knockBurst: { range: 4.5, cd: 6, dmg: 12, push: 12 }, deathBlast: { radius: 5, dmg: 40 } },
   lg_gladiator: { faction: 'legion', base: 'rusher', name: 'Gladiator', hp: 700, speed: 6.2, meleeDmg: 40, scale: 1.35, skills: [] },
-  tk_incendior: { faction: 'taken', base: 'heavy', name: 'Taken Incendior', hp: 600, noShield: true, speed: 2.4, range: 26, prefer: 14, burst: 1, burstGap: 0.2, fireCd: [2.2, 3.2], dmg: 20, projSpeed: 16, shotSize: 0.3, splash: 3, shotColor: 0xff7a2a, scale: 1.05, skills: ['deathBlast'], deathBlast: { radius: 5, dmg: 40 } },
 };
 
 // Scorn shield elements by unit id are the Ether Totem kinds (Chieftain totems: Ether Bind arc, Ether Torch solar, Ether Shield void).
@@ -129,7 +146,7 @@ export const ROSTER = {
     { t: 'tk_phalanx',   wave: 1,      n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
     { t: 'tk_knight',    wave: 1,      n: (zi, g) => (zi >= 2 && g >= 2 ? 1 : 0) },
     { t: 'tk_ogre',      wave: 1,      n: (zi, g) => (zi >= 1 && g >= 3 ? 1 : 0) },
-    { t: 'tk_incendior', wave: 1,      n: (zi, g) => (zi >= 1 && g >= 2 ? 1 : 0) },
+    { t: 'tk_hobgoblin', wave: 1,      n: (zi, g) => (zi >= 1 && g >= 2 ? 1 : 0) },
   ],
   scorn: [
     { t: 'sc_screeb',    wave: 'both', n: (zi, g) => (zi > 0 ? 1 : 0) + Math.floor(g / 8) },
@@ -146,7 +163,6 @@ export const ROSTER = {
     { t: 'vx_fanatic',    wave: 0,      n: (zi, g) => (zi > 0 ? 1 : 0) + Math.floor(g / 8) },
     { t: 'vx_hobgoblin',  wave: 0,      n: (zi, g) => 1 + (zi > 0 ? 1 : 0) },
     { t: 'vx_harpy',      wave: 'both', n: (zi, g) => (zi >= 1 || g >= 1 ? 1 + Math.floor(g / 5) : 0) },
-    { t: 'vx_supplicant', wave: 1,      n: (zi, g) => (zi >= 1 ? 1 : 0) },
     { t: 'vx_imp_swarm',  wave: 1,      n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
     { t: 'vx_cyclops',    wave: 0,      n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
     { t: 'vx_minotaur',   wave: 1,      n: (zi, g) => (zi >= 1 || g >= 2 ? 1 : 0) },
@@ -168,7 +184,7 @@ export const BASE_EXTRAS = {
   ],
 };
 /** Each destination's own enemy faction. */
-export const LOC_FACTION = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scrappers', io: 'legion', dc: 'hollow', leviathan: 'legion' };
+export const LOC_FACTION = { earth: 'scrappers', moon: 'hollow', mars: 'legion', titan: 'hollow', tangled: 'scorn', io: 'legion', dc: 'hollow', leviathan: 'legion' };
 /** Extra unit ids for a wave of an ordinary destination wave (`waveIdx` 0 or 1+). */
 export function baseExtras(locId, waveIdx, zi, g, more = 1) {
   const out = [];
@@ -195,10 +211,12 @@ export function composeWave(faction, waveIdx, zi, g, more = 1) {
 // destination's faction and then be breached. `null` means the destination's own faction. A plan applies to the
 // zones listed by index; the boss zone is always the last one.
 //   io1 Sacred Ground:  Legion hold the Oasis; the Taken breach into Giant's Scar behind them; the Rupture is Taken all through.
-//   ts3 Scorned:        Fallen hold the wrecks; Scorn pour in behind them in the camp; totem procession and arena are Scorn.
+//   Tangled Shore:      U17d: the Scorn throughout (they replaced the Fallen there, Bryce 2026-11-02); the Barons keep their boss models.
 export const MISSION_FACTIONS = {
   io1: [[null, null], [null, 'taken'], 'boss:taken'],
-  ts3: [[null, null], [null, 'scorn'], ['scorn', 'scorn'], 'boss:scorn'],
+  ts1: [['scorn', 'scorn'], 'boss:scorn'],
+  ts2: [['scorn', 'scorn'], 'boss:scorn'],
+  ts3: [['scorn', 'scorn'], 'boss:scorn'],
   // U15: the Dreaming City is Taken throughout; the Leviathan is Loyalist Cabal, and the Taken stalk the Royal Pools (zone 2)
   dc1: [['taken', 'taken'], 'boss:taken'],
   dc2: [['taken', 'taken'], 'boss:taken'],
@@ -208,9 +226,11 @@ export const MISSION_FACTIONS = {
   lev1: [[null, null], [null, null], ['taken', 'taken'], [null, null], [null, null]],
 };
 // Missions that only brush the second faction: a lone reinforcement wave in the deepest zone before the boss.
-export const MISSION_TASTE = { io2: 'taken', ts2: 'scorn' };
+export const MISSION_TASTE = { io2: 'taken' };
 // Wave activities (Horde/Endless) bring the destination's second faction every third wave.
-export const ACTIVITY_SECOND = { io: 'vex', tangled: 'scorn', dc: 'taken' };
+export const ACTIVITY_SECOND = { io: 'vex', dc: 'taken' };
+// U17d: destinations whose own enemies are one of the new factions: every activity wave (arena adds included) is that faction.
+export const ACTIVITY_OWN = { tangled: 'scorn' };
 
 /**
  * Faction plan for a zone: { open, reinf } (faction ids; null = the destination's own).
@@ -228,8 +248,9 @@ export function zonePlan(missionId, zi, zoneCount, isBoss) {
   return { open: null, reinf: null };
 }
 
-/** Wave faction for activity wave n (1-based): every third wave is the second faction. */
+/** Wave faction for activity wave n (1-based): every third wave is the second faction, or every wave on a new-faction destination (ACTIVITY_OWN). */
 export function activityFaction(locId, n) {
+  if (ACTIVITY_OWN[locId]) return ACTIVITY_OWN[locId];
   const f = ACTIVITY_SECOND[locId];
   return f && n % 3 === 0 ? f : null;
 }
@@ -244,8 +265,16 @@ export const SKILL = {
   reviveMaxPerZone: 6,    // revivals per zone, so a zone always ends
   reviveBurn: ['burn'],   // a burning corpse is burned beyond recognition and does not revive
   orb: { speed: 9, gravity: 6, fuse: 1.6, radius: 3.4, dmg: 22, color: 0xdfe8ff },
+  // U17d sniper (Vex Hobgoblin, Taken Vandal, Taken Hobgoblin): an aim line tracks the target for `charge` seconds (the unit's own number),
+  // stops following for the last `lock` seconds so a sidestep dodges it, then fires along the line; it hits a Guardian whose chest is within `hitR`
+  snipe: { lock: 0.4, track: 5, hitR: 0.9, width: 0.035 },
   totemTick: 0.4,
 };
+
+/** Sniper: the phase of a charge with `left` seconds to go (`track` follows the target, `lock` holds still, `fire` shoots). */
+export function snipePhase(left) { return left <= 0 ? 'fire' : left <= SKILL.snipe.lock ? 'lock' : 'track'; }
+/** Sniper: does a shot along the locked line hit a Guardian whose chest is at `chest`? (the line ends at the locked point) */
+export function snipeHits(lock, chest) { return Math.hypot(lock.x - chest.x, lock.y - chest.y, lock.z - chest.z) <= SKILL.snipe.hitR; }
 
 /** Blink destination distance and tell are chosen by the unit; this clamps a requested range to its definition. */
 export function blinkRange(def, r = Math.random()) {

@@ -482,7 +482,7 @@ export const LOCATIONS = [
     patrol: { id: 't_patrol', mood: 'day', name: 'Titan Patrol', objective: 'Patrol Titan', power: 118, zones: 0, boss: { name: '', element: 'void', model: 'broodwizard' }, desc: 'Roam the rigs and the ruined biosphere high above the methane sea. Activate beacons, join public events, and ride a Sparrow along the pipe bridges.' },
   },
   {
-    id: 'tangled', name: 'The Tangled Shore', planetName: 'The Reef', faction: 'Fallen',
+    id: 'tangled', name: 'The Tangled Shore', planetName: 'The Reef', faction: 'Scorn', // U17d: the Scorn replaced the Fallen here
     desc: 'A lawless snarl of asteroids lashed together with Fallen cable and scrap. The Spider runs the markets; Uldren\'s Barons run everything else.',
     fog: [34, 175], sunDir: [0.5, 1, 0.2], light: { hemi: 1.6, sun: 2.1 },
     colors: { sky: 0x8a78a8, fog: 0x7c6c98, hemiTop: 0xeadcff, hemiBot: 0x3a2e38, sun: 0xffe2c4, ground: 0x7a5e52, ground2: 0x6a5048, rock: 0x5e4842, rock2: 0x4a3a36, wall: 0x6e6460, metal: 0x58606a, accent: 0xff9a3c, crate: 0x6a5a48, foliage: 0x4a3a4a, enemy: 0x5a4a78, enemy2: 0x241e2c, eye: 0xc37aff },

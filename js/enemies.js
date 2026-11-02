@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G } from './state.js';
-import { ENEMY_TYPES, ELEMENTS, LOCATIONS } from './data.js';
+import { ENEMY_TYPES, ELEMENTS } from './data.js';
 import { STAGGER } from './combat.js';
 import { mat } from './world.js';
 import { rand, clamp, pick } from './util.js';
@@ -14,11 +14,11 @@ import * as ui from './ui.js';
 import { pickTarget, allPlayers, damageRemote, announceShot, announceGrenade, remoteBarrierBlocks, sendFx } from './coop.js';
 import { TIERS, FACTION_PROFILES, SHIELD, shieldFor, GRENADE, grenadeThrower, lobVelocity, JET, ENRAGE, isEnraged, SUICIDE_BLAST, suicideCore, BOSS_PHASE, bossPhaseTime, shieldBurstDamage } from './tiers.js';
 import { BOSS_MODELS } from './bosses.js';
-import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, isNewFaction } from './factions.js';
+import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, enemyColors } from './factions.js';
 import { taken } from './models-taken.js';
 import { scorn } from './models-scorn.js';
 import { vex, extraModel } from './models-vex.js';
-import { skillInit, skillUpdate, skillOnDeath, spinAngle } from './enemy-skills.js';
+import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
@@ -30,8 +30,7 @@ const easeOutBack = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 
 // Models face +z, stand on y = 0, and are ~2m tall before def.scale.
 // Head/eye meshes are tagged crit (precision hits).
 // ---------------------------------------------------------------------------
-function buildModel(e, C, faction) {
-  if (isNewFaction(faction) && !e.bossModel) C = { ...C, ...FACTIONS[faction].colors }; // U14: Taken and Scorn units keep their own palette on any destination
+export function buildModel(e, C, faction) {
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: C.enemy, flatShading: true, roughness: 0.7, metalness: 0.15 });
   const dark = mat(C.enemy2);
@@ -521,8 +520,7 @@ export class Enemy {
     this.escort = false; this.escortT = SUICIDE_BLAST.escortHold; this.allyT = 0;
     this.bossPhase = 'hold'; this.bossPhaseT = this.isBoss ? bossPhaseTime('hold', 0) : 0;
     this.noDrops = !!(def.noDrops || o.noDrops); this.revived = !!o.revived; this.owner = o.owner || null;
-    this.pal = o.pal || null; // a palette from another destination (the Hive in the Earth patrol wear the Moon's colours)
-    this.colors = o.pal ? LOCATIONS.find((l) => l.id === o.pal).colors : M.loc.colors;
+    this.colors = enemyColors(faction, M.loc, !!this.bossModel); // U17d: one look per faction on every destination
     this.shotColor = def.shotColor || FACTIONS[faction]?.shot || this.colors.eye;
     this.model = buildModel(this, this.colors, faction);
     this.height = this.model.height * this.scale;
@@ -833,7 +831,7 @@ export class Enemy {
         else this.grenadeStep(dt, dist, P);
         this.fireT -= dt;
         const jetBusy = this.jet && this.jet.s !== 'ground' && this.jet.s !== 'hover';
-        const mayFire = !swinging && !jetBusy && this.throwT <= 0 && (!this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance');
+        const mayFire = !swinging && !jetBusy && this.throwT <= 0 && !def.snipe && (!this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance');
         if (mayFire && this.fireT <= 0 && this.los && dist < def.range) {
           const mad = def.berserk && this.hp < this.maxHp * def.berserk.below; // a Cyclops pushed into its berserk rage fires far faster
           this.burstLeft = Math.max(1, Math.round(def.burst * this.prof.burstMul)); this.burstT = 0;
@@ -1178,6 +1176,21 @@ export class Enemy {
     if (this.alive) killEnemy(this, { self: true });
   }
 
+  /** Fireteam member's copy of a charging sniper: draw its aim line at whichever Guardian it is facing. */
+  remoteAim() {
+    let best = null, bd = 0.5;
+    for (const Pl of allPlayers()) {
+      if (Pl.dead) continue;
+      let d = Math.atan2(Pl.pos.x - this.pos.x, Pl.pos.z - this.pos.z) - this.yaw;
+      d = Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
+      if (d < bd) { bd = d; best = Pl; }
+    }
+    if (!best) { hideAim(this); return; }
+    this.aimTo ??= new THREE.Vector3();
+    this.aimTo.set(best.pos.x, best.pos.y + 1.1, best.pos.z);
+    drawAim(this, this.aimTo, 0.6);
+  }
+
   /** Cover state machine: toCover -> hide -> peek (shoot one burst) -> toCover ... */
   /** Fireteam member's copy of a leader-owned enemy: just follow the network state. */
   remoteStep(dt) {
@@ -1193,6 +1206,7 @@ export class Enemy {
     if (fl & 2) this.flash = Math.sin(G.time * 45) > 0 ? 0.12 : 0;
     if ((fl & 4) && !this.enraged) { this.enraged = true; ringFx(this.pos, 4 * this.scale, 0xff3a1a, 0.7); sfx.alert(); }
     if (this.jet) this.jetPose(fl & 8 ? 'airborne' : 'ground', dt);
+    if (fl & 16) this.remoteAim(); else hideAim(this); // U17d: the leader's sniper is charging
     let dy = this.netYaw - this.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
