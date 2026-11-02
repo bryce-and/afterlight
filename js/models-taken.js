@@ -8,46 +8,64 @@ import { mat } from './world.js';
 // face +z, stand on y = 0, c.torso / c.legs / c.arms / c.muzzle set per unit.
 // ---------------------------------------------------------------------------
 
-let _blight = null, _halo = null;
+let _blight = null, _halo = null, _orb = null;
+/** Bright cyan-white light for faces and eyes: the brightest thing on the unit. */
+function orbMat() { return (_orb ||= mat(0xdff4ff, { emissive: 0xdff4ff, emissiveIntensity: 4 })); }
 function blightMats() {
   if (!_blight) {
     _blight = mat(0x050609);
-    _halo = new THREE.MeshBasicMaterial({ color: 0x9ab8ff, transparent: true, opacity: 0.35, depthWrite: false });
+    _halo = new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.07, depthWrite: false });
   }
   return [_blight, _halo];
 }
 
-/** Two legs; digitigrade bends the knee backward (copy of enemies.js legsBiped). */
-function legsBiped(c, hipY, hipW, thick, m, foot, digi = false) {
+// Taken look: black body, white glowing legs and edges, one blazing orb face, and black flame
+// wisps (horns off the shoulders, flames off the head) that every unit gets from wisps().
+// ---------------------------------------------------------------------------
+
+/** Two legs. `upper` and `lower` are materials (white-glow lower legs and boots are the Taken tell). Digitigrade bends the knee back. */
+function legsBiped(c, hipY, hipW, thick, upper, lower, digi = false, boot = 1, bootM = null) {
   for (const s of [-1, 1]) {
     const hip = c.pivot(s * hipW, hipY, 0);
     const L = hipY / 2;
     if (digi) {
-      c.B(thick, L * 1.05, thick * 1.1, 0, -L * 0.48, 0.07, m, hip, false, [-0.32, 0, 0]);
-      c.B(thick * 0.8, L * 1.05, thick * 0.9, 0, -L * 1.45, 0.06, m, hip, false, [0.3, 0, 0]);
+      c.B(thick, L * 1.05, thick * 1.1, 0, -L * 0.48, 0.07, upper, hip, false, [-0.32, 0, 0]);
+      c.B(thick * 0.8, L * 1.05, thick * 0.9, 0, -L * 1.45, 0.06, lower, hip, false, [0.3, 0, 0]);
     } else {
-      c.B(thick, L, thick * 1.1, 0, -L * 0.5, 0, m, hip);
-      c.B(thick * 0.95, L, thick, 0, -L * 1.5, 0, m, hip);
+      c.B(thick, L, thick * 1.1, 0, -L * 0.5, 0, upper, hip);
+      c.B(thick * 0.95, L, thick, 0, -L * 1.5, 0, lower, hip);
     }
-    c.B(thick * 1.1, 0.09, thick * 1.8, 0, -hipY + 0.045, 0.06, foot, hip);
+    c.B(thick * 1.15 * boot, 0.09, thick * 2 * boot, 0, -hipY + 0.045, 0.07, bootM || c.accent, hip);
     c.legs.push(hip);
   }
 }
 
-/** Gun held at chest height; places the muzzle at its front (copy of enemies.js gun). */
+/** Rifle or pistol held at the torso; places the muzzle at its tip. Long ones get a scope and a glowing barrel line. */
 function gun(c, parent, x, y, z, len, thick, glow = true) {
   c.B(thick, thick * 1.2, len, x, y, z, c.dark, parent);
-  if (glow) c.B(thick * 0.5, thick * 0.4, len * 0.4, x, y + thick * 0.7, z, c.accent, parent);
-  c.muzzle.position.set(x, y, z + len / 2 + 0.03);
+  if (glow) c.B(thick * 0.4, thick * 0.35, len * 0.7, x, y + thick * 0.7, z, c.accent, parent);
+  if (len > 0.9) {
+    c.B(thick * 0.8, thick * 0.9, len * 0.28, x, y + thick * 0.95, z + len * 0.06, c.dark, parent);
+    c.B(thick * 0.45, thick * 0.45, len * 0.4, x, y + thick * 0.05, z + len * 0.5 + 0.05, c.dark, parent);
+    c.B(thick * 1.1, thick * 2.2, len * 0.14, x, y - thick * 0.9, z - len * 0.3, c.dark, parent);
+  }
+  c.muzzle.position.set(x, y, z + len / 2 + (len > 0.9 ? 0.2 : 0.03));
   parent.add(c.muzzle);
 }
 
-function arm(c, parent, x, y, len, thick, m, lift = -1.1, rz = 0) {
+/** Arm pivot (swung by the game). Black limb with an optional strip of Light down the forearm. */
+function limb(c, parent, x, y, len, thick, m, lift = -0.3, rz = 0, glow = false) {
   const p = c.pivot(x, y, 0, parent);
   c.B(thick, len, thick, 0, -len / 2, 0, m, p);
+  if (glow) c.B(thick * 0.3, len * 0.55, thick * 0.3, Math.sign(x || 1) * thick * 0.5, -len * 0.62, thick * 0.3, c.accent, p);
   p.rotation.x = lift;
   p.rotation.z = rz;
   return p;
+}
+
+/** Hooked claws at the end of a limb. */
+function claws(c, p, y, n, len, spread = 0.03, m = null) {
+  for (let k = 0; k < n; k++) c.add(new THREE.ConeGeometry(len * 0.1, len, 3), m || c.dark, (k - (n - 1) / 2) * spread, y, 0.02, p, false, [Math.PI + 0.25, 0, 0]);
 }
 
 /** Thin strip of Light. */
@@ -57,19 +75,56 @@ function edge(c, parent, w, h, d, x, y, z, r = null) {
 
 /** Glowing orb (face / eye). Crit by default. */
 function orb(c, parent, x, y, z, rad, crit = true) {
-  return c.add(new THREE.IcosahedronGeometry(rad, 1), c.accent, x, y, z, parent, crit);
+  return c.add(new THREE.IcosahedronGeometry(rad, 1), orbMat(), x, y, z, parent, crit);
 }
 
-/** n Blight wisps circling (cx, cy, cz): dark core plus a pale non-hittable halo. */
-function wisps(c, parent, n, radius, cx, cy, cz, size = 0.07, phase = 0) {
+/** A (squashed) ball: hoods, helmets, torsos. */
+function blob(c, parent, m, x, y, z, r, sx = 1, sy = 1, sz = 1, detail = 1) {
+  return c.add(new THREE.IcosahedronGeometry(r, detail), m, x, y, z, parent, false).scale.set(sx, sy, sz);
+}
+
+/** One black flame spike (base at bx,by,bz, tilted by ax/az) with a pale halo; returns its tip. */
+function spike(c, parent, bx, by, bz, len, rad, az, ax, halo) {
+  const d = new THREE.Vector3(0, 1, 0).applyEuler(new THREE.Euler(ax, 0, az));
+  const cx = bx + d.x * len / 2, cy = by + d.y * len / 2, cz = bz + d.z * len / 2;
+  c.add(new THREE.ConeGeometry(rad, len, 4), blightMats()[0], cx, cy, cz, parent, false, [ax, 0, az]);
+  const h = new THREE.Mesh(new THREE.ConeGeometry(rad * 1.5, len * 1.08, 4), halo);
+  h.position.set(cx, cy, cz);
+  h.rotation.set(ax, 0, az);
+  parent.add(h);
+  return [bx + d.x * len, by + d.y * len, bz + d.z * len];
+}
+
+/**
+ * The Taken's black flame, the same helper on every unit but never the same shape: a crescent horn curling up and out from ONE
+ * shoulder, torn tatters off the other, and a flame off the back of the head. Pure black, with only a very faint pale rim.
+ * hy = head height, hw = shoulder half width, k = size, hz = head z, seed picks the horn side, lengths and angles per unit.
+ */
+function wisps(c, parent, hy, hw, k = 1, hz = 0, seed = 0) {
   const [blight, halo] = blightMats();
+  const j = (n) => ((seed * 37 + n * 53) % 10) / 10; // 0..0.9, stable per seed
+  const a = seed % 2 ? -1 : 1, b = -a;
+  // crescent horn off shoulder a: up and out, then hooking in
+  const t = spike(c, parent, a * hw, hy - 0.1 * k, hz - 0.03 * k, (0.24 + 0.08 * j(1)) * k, 0.07 * k, -a * (0.5 + 0.3 * j(2)), -0.35, halo);
+  const t2 = spike(c, parent, t[0], t[1], t[2], (0.2 + 0.06 * j(3)) * k, 0.05 * k, a * (0.5 + 0.4 * j(4)), -0.45, halo);
+  spike(c, parent, t2[0], t2[1], t2[2], 0.1 * k, 0.03 * k, a * 1.2, -0.5, halo);
+  // torn tatters off shoulder b: thin ragged blades leaning out and back
+  const n = 2 + (seed % 2);
   for (let i = 0; i < n; i++) {
-    const a = phase + (i / n) * Math.PI * 2;
-    const x = cx + Math.cos(a) * radius, z = cz + Math.sin(a) * radius, y = cy + (i % 2 ? 0.14 : -0.1);
-    c.add(new THREE.IcosahedronGeometry(size, 0), blight, x, y, z, parent);
-    const h = new THREE.Mesh(new THREE.IcosahedronGeometry(size * 1.8, 0), halo);
-    h.position.set(x, y, z);
-    parent.add(h);
+    const l = (0.16 + 0.1 * j(5 + i)) * k;
+    c.B(0.03 * k, l, 0.012, b * (hw + 0.03 * i * k), hy - 0.04 * k + l * 0.45, hz - (0.05 + 0.03 * i) * k, blight, parent, false, [-0.5 - 0.2 * j(8 + i), 0, b * (0.45 + 0.3 * j(2 + i))]);
+  }
+  // a flame off the back of the head, leaning back and to one side
+  spike(c, parent, b * 0.03 * k, hy + 0.08 * k, hz - 0.08 * k, (0.18 + 0.08 * j(6)) * k, 0.05 * k, b * (0.2 + 0.3 * j(7)), -0.8, halo);
+  c.B(0.02 * k, 0.14 * k, 0.01, a * 0.07 * k, hy + 0.06 * k, hz - 0.15 * k, blight, parent, false, [-0.6, 0, a * 0.6]);
+}
+
+/** Black bands and patches broken across white-glow legs, with dark boots edged in white (the heavy units). */
+function bands(c, hipY, thick, m) {
+  for (const hip of c.legs) {
+    for (const f of [0.52, 0.8]) c.B(thick * 1.06, 0.1, thick * 1.2, 0, -hipY * f, 0, m, hip);
+    c.B(thick * 0.5, 0.2, thick * 0.3, thick * 0.2, -hipY * 0.66, thick * 0.55, m, hip);
+    c.B(thick * 0.8, 0.02, thick * 0.4, 0, -hipY + 0.095, 0.12, c.accent, hip);
   }
 }
 
@@ -83,351 +138,349 @@ function strips(c, parent, n, width, len, x0, x1, y, z, m, glowTips = false) {
   }
 }
 
+/** Crescent horn pair off the shoulders is in wisps(); this adds a hunched-frame shoulder hump. */
+function hump(c, parent, x, y, z, w, h, d, m, r = null) {
+  return c.B(w, h, d, x, y, z, m, parent, false, r);
+}
+
 // ---------------------------------------------------------------------------
 export function taken(c, t) {
   const { B, add, pivot, bodyMat, dark, accent } = c;
   switch (t) {
     case 'tk_thrall': {
-      // hunched, long clawed arms, digitigrade legs, orb face
-      legsBiped(c, 0.85, 0.1, 0.08, dark, dark, true);
+      // hunched, narrow body, huge orb head sunk between the shoulders, long clawed arms, bare white legs
+      legsBiped(c, 0.85, 0.12, 0.1, accent, accent, true, 1.1);
       const torso = pivot(0, 0.85, 0);
-      torso.rotation.x = 0.6;
+      torso.rotation.x = 0.5;
       c.torso = torso;
-      B(0.24, 0.5, 0.18, 0, 0.3, 0, bodyMat, torso);
-      for (let i = 0; i < 3; i++) B(0.26, 0.025, 0.2, 0, 0.2 + i * 0.1, 0.01, dark, torso);
-      edge(c, torso, 0.02, 0.5, 0.02, 0, 0.3, -0.1);
-      add(new THREE.ConeGeometry(0.11, 0.3, 6), dark, 0, 0.62, 0.05, torso, true, [0.9, 0, 0]);
-      orb(c, torso, 0, 0.68, 0.16, 0.09);
+      B(0.24, 0.5, 0.18, 0, 0.28, 0, bodyMat, torso);
+      for (let i = 0; i < 3; i++) B(0.26, 0.025, 0.2, 0, 0.16 + i * 0.1, 0.01, dark, torso);
+      edge(c, torso, 0.02, 0.4, 0.02, 0, 0.28, 0.1);
+      hump(c, torso, -0.17, 0.5, 0, 0.14, 0.14, 0.2, dark);
+      hump(c, torso, 0.17, 0.5, 0, 0.14, 0.14, 0.2, dark);
+      blob(c, torso, dark, 0, 0.62, 0.12, 0.2, 1, 0.95, 1);
+      orb(c, torso, 0, 0.62, 0.27, 0.12);
       for (const s of [-1, 1]) {
-        const a = arm(c, torso, s * 0.17, 0.5, 0.62, 0.05, bodyMat, -1.3, s * -0.1);
-        edge(c, a, 0.012, 0.6, 0.012, s * 0.03, -0.31, 0);
-        for (let k = -1; k <= 1; k++) add(new THREE.ConeGeometry(0.012, 0.16, 3), dark, k * 0.025, -0.68, 0.02, a, false, [Math.PI, 0, 0]);
+        const a = limb(c, torso, s * 0.2, 0.5, 0.75, 0.09, bodyMat, -0.25, s * 0.22, true);
+        claws(c, a, -0.8, 3, 0.18);
         c.arms.push(a);
       }
-      wisps(c, torso, 2, 0.32, 0, 0.35, -0.1, 0.05);
+      wisps(c, torso, 0.62, 0.22, 1.1, 0.1, 1);
       c.muzzle.position.set(0, 0.5, 0.3); torso.add(c.muzzle);
       c.height = 1.8;
       return;
     }
     case 'tk_shadow': {
-      // smaller, wispy, thin limbs
-      for (const s of [-1, 1]) {
-        const hip = pivot(s * 0.07, 0.6, 0);
-        B(0.045, 0.62, 0.045, 0, -0.3, 0.02, dark, hip, false, [-0.15, 0, 0]);
-        c.legs.push(hip);
-      }
-      const torso = pivot(0, 0.6, 0);
-      torso.rotation.x = 0.5;
+      // all ink: no glow but flecks, thin loping limbs, ragged shards, one reaching arm
+      const ink = bodyMat;
+      legsBiped(c, 0.62, 0.08, 0.06, ink, ink, true, 0.9);
+      const torso = pivot(0, 0.62, 0);
+      torso.rotation.x = 0.55;
       c.torso = torso;
-      B(0.16, 0.42, 0.12, 0, 0.24, 0, bodyMat, torso);
-      edge(c, torso, 0.012, 0.42, 0.012, 0, 0.24, 0.07);
-      add(new THREE.ConeGeometry(0.08, 0.24, 5), dark, 0, 0.54, 0.05, torso, true, [0.9, 0, 0]);
-      orb(c, torso, 0, 0.58, 0.12, 0.06);
+      B(0.18, 0.42, 0.13, 0, 0.24, 0, ink, torso);
+      blob(c, torso, ink, 0, 0.5, 0.1, 0.11, 1, 1, 1.1, 0);
+      orb(c, torso, 0, 0.5, 0.2, 0.035);
       for (const s of [-1, 1]) {
-        const a = arm(c, torso, s * 0.11, 0.4, 0.55, 0.03, dark, -1.3, s * -0.1);
-        edge(c, a, 0.008, 0.5, 0.008, 0, -0.28, 0.02);
-        for (let k = -1; k <= 1; k++) add(new THREE.ConeGeometry(0.008, 0.13, 3), dark, k * 0.018, -0.6, 0.02, a, false, [Math.PI, 0, 0]);
+        const a = limb(c, torso, s * 0.12, 0.4, s > 0 ? 0.7 : 0.5, 0.04, ink, s > 0 ? -1.2 : -0.35, s * 0.15);
+        claws(c, a, s > 0 ? -0.72 : -0.52, 2, 0.12, 0.025);
+        edge(c, a, 0.01, 0.07, 0.01, 0, -0.3, 0.025);
         c.arms.push(a);
       }
-      // trailing wisp tail
-      B(0.04, 0.4, 0.02, 0, 0.1, -0.12, dark, torso, false, [0.7, 0, 0]);
-      wisps(c, torso, 3, 0.25, 0, 0.3, 0, 0.04);
+      for (let i = 0; i < 5; i++) B(0.03, 0.2 + (i % 3) * 0.08, 0.01, (i - 2) * 0.1, 0.15 + (i % 2) * 0.1, -0.1 - i * 0.02, ink, torso, false, [0.8 - i * 0.3, 0, (i - 2) * 0.35]);
+      wisps(c, torso, 0.5, 0.13, 0.8, 0.08, 2);
       c.muzzle.position.set(0, 0.4, 0.2); torso.add(c.muzzle);
-      c.height = 1.5;
+      c.height = 1.45;
       return;
     }
     case 'tk_acolyte': {
-      // tall hooded chitin humanoid, orb in the hood
-      legsBiped(c, 1.0, 0.12, 0.1, dark, dark, true);
+      // tall hooded Hive, stooped, white orb in the hood, white bare legs, rifle, tattered pale cloak
+      legsBiped(c, 1.0, 0.12, 0.1, accent, accent, true);
       const torso = pivot(0, 1.0, 0);
-      torso.rotation.x = 0.1;
+      torso.rotation.x = 0.2;
       c.torso = torso;
-      B(0.28, 0.24, 0.2, 0, 0.12, 0, dark, torso);
-      B(0.44, 0.46, 0.3, 0, 0.5, 0, bodyMat, torso);
-      for (let i = 0; i < 3; i++) B(0.4, 0.035, 0.04, 0, 0.38 + i * 0.1, 0.16, dark, torso);
+      B(0.28, 0.22, 0.2, 0, 0.1, 0, dark, torso);
+      B(0.44, 0.48, 0.3, 0, 0.48, 0, bodyMat, torso);
+      for (let i = 0; i < 3; i++) B(0.4, 0.035, 0.04, 0, 0.36 + i * 0.1, 0.16, dark, torso);
       edge(c, torso, 0.38, 0.015, 0.012, 0, 0.7, 0.16);
-      edge(c, torso, 0.015, 0.46, 0.012, 0, 0.5, 0.165);
-      // tall hood
-      add(new THREE.ConeGeometry(0.2, 0.62, 5), dark, 0, 1.0, 0.0, torso, true);
-      B(0.26, 0.22, 0.22, 0, 0.86, 0.02, bodyMat, torso, true);
-      orb(c, torso, 0, 0.87, 0.14, 0.085);
-      edge(c, torso, 0.22, 0.012, 0.012, 0, 0.99, 0.12);
-      for (const s of [-1, 1]) {
-        B(0.2, 0.12, 0.28, s * 0.3, 0.7, 0, dark, torso, false, [0, 0, s * -0.25]);
-        add(new THREE.ConeGeometry(0.04, 0.3, 4), bodyMat, s * 0.36, 0.84, -0.02, torso, false, [0, 0, s * -0.6]);
-      }
-      c.arms.push(arm(c, torso, -0.29, 0.66, 0.55, 0.08, dark, -1.15, 0.1), arm(c, torso, 0.29, 0.66, 0.55, 0.08, dark, -1.15, -0.1));
+      edge(c, torso, 0.015, 0.46, 0.012, 0, 0.48, 0.165);
+      blob(c, torso, dark, 0, 0.95, 0.03, 0.25, 1, 1.1, 1);
+      add(new THREE.ConeGeometry(0.17, 0.4, 5), dark, 0, 1.2, -0.12, torso, false, [-0.45, 0, 0]);
+      orb(c, torso, 0, 0.93, 0.2, 0.12);
+      for (const s of [-1, 1]) hump(c, torso, s * 0.3, 0.7, 0, 0.2, 0.14, 0.28, dark, [0, 0, s * -0.25]);
+      c.arms.push(limb(c, torso, -0.29, 0.66, 0.55, 0.08, dark, -0.5, 0.15, true), limb(c, torso, 0.29, 0.66, 0.55, 0.08, dark, -1.2, -0.1, true));
       gun(c, torso, 0.16, 0.42, 0.42, 0.6, 0.08);
-      strips(c, torso, 4, 0.07, 0.6, -0.12, 0.12, 0.05, 0.17, dark, true);
-      wisps(c, torso, 2, 0.4, 0, 0.5, 0, 0.05, 1);
+      strips(c, torso, 5, 0.08, 0.7, -0.16, 0.16, 0.3, -0.17, dark, true);
+      wisps(c, torso, 0.95, 0.27, 1.1, 0, 3);
       c.height = 2.15;
       return;
     }
     case 'tk_vandal': {
-      // four arms, four eyes, cloak
-      legsBiped(c, 0.95, 0.15, 0.12, dark, bodyMat, true);
+      // Taken Fallen sniper: four arms, helmet orb, white greaves and boots, cloak, long rifle
+      legsBiped(c, 0.95, 0.15, 0.12, dark, accent, true);
       const torso = pivot(0, 0.95, 0);
-      torso.rotation.x = 0.22;
+      torso.rotation.x = 0.2;
       c.torso = torso;
       B(0.26, 0.24, 0.2, 0, 0.12, 0, dark, torso);
       B(0.42, 0.38, 0.28, 0, 0.45, 0, bodyMat, torso);
-      edge(c, torso, 0.36, 0.015, 0.012, 0, 0.6, 0.15);
+      for (let i = 0; i < 3; i++) edge(c, torso, 0.34, 0.012, 0.012, 0, 0.34 + i * 0.1, 0.15);
       edge(c, torso, 0.015, 0.34, 0.012, 0, 0.45, 0.15);
-      B(0.22, 0.18, 0.26, 0, 0.82, 0.07, dark, torso, true);
-      for (const s of [-1, 1]) {
-        B(0.04, 0.14, 0.12, s * 0.12, 0.74, 0.17, dark, torso, true, [0.3, 0, s * 0.2]);
-        for (const dy of [0, 0.05]) B(0.035, 0.03, 0.03, s * 0.05, 0.84 - dy, 0.205, accent, torso, true);
-      }
-      add(new THREE.ConeGeometry(0.34, 0.4, 5, 1, true), dark, 0, 0.8, -0.04, torso);
+      B(0.22, 0.2, 0.26, 0, 0.82, 0.06, dark, torso);
+      for (const s of [-1, 1]) B(0.04, 0.14, 0.12, s * 0.12, 0.76, 0.17, bodyMat, torso, false, [0.3, 0, s * 0.2]);
+      orb(c, torso, 0, 0.84, 0.2, 0.09);
+      add(new THREE.ConeGeometry(0.32, 0.4, 5, 1, true), dark, 0, 0.78, -0.05, torso);
       B(0.5, 0.8, 0.03, 0, 0.25, -0.17, dark, torso, false, [0.15, 0, 0]);
-      edge(c, torso, 0.5, 0.012, 0.012, 0, -0.14, -0.2, [0.15, 0, 0]);
-      const up = [arm(c, torso, -0.27, 0.62, 0.48, 0.08, bodyMat, -1.2, 0.1), arm(c, torso, 0.27, 0.62, 0.48, 0.08, bodyMat, -1.2, -0.1)];
-      arm(c, torso, -0.2, 0.36, 0.38, 0.065, bodyMat, -0.9, 0.3);
-      arm(c, torso, 0.2, 0.36, 0.38, 0.065, bodyMat, -0.9, -0.3);
-      c.arms.push(...up);
-      gun(c, torso, 0.12, 0.42, 0.45, 0.65, 0.08);
       strips(c, torso, 4, 0.08, 0.5, -0.18, 0.18, -0.1, -0.2, dark, true);
-      wisps(c, torso, 2, 0.45, 0, 0.5, 0, 0.05);
+      c.arms.push(limb(c, torso, -0.27, 0.62, 0.5, 0.08, bodyMat, -1.4, 0.35, true), limb(c, torso, 0.27, 0.62, 0.5, 0.08, bodyMat, -1.15, -0.1, true));
+      for (const s of [-1, 1]) { const a = limb(c, torso, s * 0.22, 0.38, 0.45, 0.06, bodyMat, -0.5, s * 0.7, true); claws(c, a, -0.48, 2, 0.12, 0.03); }
+      gun(c, torso, 0.1, 0.46, 0.5, 1.4, 0.08);
+      wisps(c, torso, 0.85, 0.24, 1, 0, 4);
+      c.height = 2.1;
       return;
     }
     case 'tk_psion': {
-      // thin hovering alien with a big glowing dome
-      for (const s of [-1, 1]) {
-        const hip = pivot(s * 0.06, 0.75, 0);
-        B(0.045, 0.5, 0.045, 0, -0.25, 0.02, dark, hip, false, [-0.1, 0, 0]);
-        B(0.06, 0.04, 0.1, 0, -0.51, 0.04, dark, hip);
-        c.legs.push(hip);
-      }
-      const torso = pivot(0, 0.75, 0);
+      // black armoured shell with ribs of white light, domed helmet with a big orb, white boots, sidearm
+      legsBiped(c, 0.85, 0.12, 0.12, dark, accent, false);
+      for (const s of [-1, 1]) edge(c, c.legs[s < 0 ? 0 : 1], 0.015, 0.4, 0.015, s * 0.045, -0.3, 0.07);
+      const torso = pivot(0, 0.85, 0);
+      torso.rotation.x = 0.12;
       c.torso = torso;
-      B(0.16, 0.2, 0.1, 0, 0.08, 0, dark, torso);
-      B(0.2, 0.34, 0.13, 0, 0.35, 0, bodyMat, torso);
-      edge(c, torso, 0.012, 0.34, 0.012, 0, 0.35, 0.07);
-      B(0.05, 0.14, 0.05, 0, 0.59, 0, dark, torso);
-      add(new THREE.IcosahedronGeometry(0.2, 1), dark, 0, 0.82, 0, torso, true).scale.set(1, 1.1, 1);
-      orb(c, torso, 0, 0.82, 0.07, 0.15);
-      for (const s of [-1, 1]) {
-        const a = arm(c, torso, s * 0.13, 0.5, 0.55, 0.035, bodyMat, -0.9, s * -0.1);
-        edge(c, a, 0.01, 0.5, 0.01, 0, -0.28, 0.02);
-        c.arms.push(a);
-      }
-      gun(c, torso, 0.14, 0.28, 0.3, 0.3, 0.05);
-      wisps(c, torso, 3, 0.36, 0, 0.4, 0, 0.045);
-      c.hover = true;
-      c.height = 1.7;
+      B(0.34, 0.2, 0.24, 0, 0.1, 0, dark, torso);
+      B(0.44, 0.42, 0.3, 0, 0.45, 0, bodyMat, torso);
+      for (let i = 0; i < 4; i++) edge(c, torso, 0.4, 0.014, 0.012, 0, 0.3 + i * 0.07, 0.16);
+      hump(c, torso, -0.26, 0.62, 0, 0.14, 0.14, 0.24, dark);
+      hump(c, torso, 0.26, 0.62, 0, 0.14, 0.14, 0.24, dark);
+      blob(c, torso, dark, 0, 0.86, 0.02, 0.22, 1, 1.05, 1.05);
+      orb(c, torso, 0, 0.86, 0.15, 0.13);
+      add(new THREE.ConeGeometry(0.04, 0.12, 4), dark, 0, 1.1, 0.0, torso);
+      c.arms.push(limb(c, torso, -0.28, 0.62, 0.55, 0.075, bodyMat, -0.35, 0.2, true), limb(c, torso, 0.28, 0.62, 0.55, 0.075, bodyMat, -1.2, -0.08, true));
+      gun(c, torso, 0.28, 0.35, 0.3, 0.3, 0.06);
+      wisps(c, torso, 0.86, 0.22, 1.0, 0, 6);
+      c.height = 1.8;
       return;
     }
     case 'tk_goblin': {
-      // spherical shell, one big eye, hooked legs, projector ring
-      const torso = pivot(0, 0.68, 0);
+      // round black shell, one huge ringed orb, antenna whips, two long legs with white feet, one gun arm
+      legsBiped(c, 0.62, 0.17, 0.08, dark, accent, true, 0.9);
+      const torso = pivot(0, 0.98, 0);
       c.torso = torso;
-      add(new THREE.IcosahedronGeometry(0.4, 1), bodyMat, 0, 0, 0, torso);
-      add(new THREE.TorusGeometry(0.4, 0.014, 4, 18), accent, 0, 0, 0, torso, false, [0, Math.PI / 2, 0]);
-      add(new THREE.TorusGeometry(0.4, 0.014, 4, 18), accent, 0, 0, 0, torso, false, [Math.PI / 2, 0, 0]);
-      add(new THREE.CylinderGeometry(0.17, 0.2, 0.06, 8).rotateX(Math.PI / 2), dark, 0, 0, 0.37, torso);
-      orb(c, torso, 0, 0, 0.4, 0.11);
-      // projector ring above
-      B(0.06, 0.2, 0.06, 0, 0.5, 0, dark, torso);
-      add(new THREE.TorusGeometry(0.26, 0.016, 4, 18).rotateX(Math.PI / 2), accent, 0, 0.7, 0, torso);
-      // short hooked legs
-      for (const [x, z] of [[-0.24, 0.18], [0.24, 0.18], [-0.24, -0.18], [0.24, -0.18]]) {
-        const hip = pivot(x, 0.45, z);
-        B(0.05, 0.3, 0.05, x * 0.2, -0.15, 0, dark, hip, false, [0, 0, x > 0 ? -0.3 : 0.3]);
-        add(new THREE.ConeGeometry(0.03, 0.18, 4), dark, x * 0.55, -0.37, 0.02, hip, false, [Math.PI, 0, 0]);
-        c.legs.push(hip);
-      }
+      blob(c, torso, bodyMat, 0, 0, 0, 0.4, 1, 0.95, 1);
+      blob(c, torso, dark, 0, 0.14, -0.1, 0.4, 1.05, 0.7, 1.05, 0);
+      add(new THREE.TorusGeometry(0.2, 0.02, 4, 14), accent, 0, 0.02, 0.37, torso);
+      orb(c, torso, 0, 0.02, 0.37, 0.15);
       for (const s of [-1, 1]) {
-        const a = arm(c, torso, s * 0.36, -0.02, 0.28, 0.04, dark, -0.6, s * -0.4);
-        c.arms.push(a);
+        B(0.012, 0.5, 0.012, s * 0.18, 0.5, -0.12, accent, torso, false, [0.2, 0, s * -0.5]);
+        edge(c, torso, 0.012, 0.3, 0.012, s * 0.34, 0.1, 0.2, [0, 0, s * 0.5]);
       }
-      gun(c, torso, 0, -0.2, 0.35, 0.2, 0.05);
-      wisps(c, torso, 2, 0.55, 0, 0.1, 0, 0.045);
-      c.height = 1.45;
+      B(0.2, 0.14, 0.2, 0, -0.34, 0.05, dark, torso);
+      c.arms.push(limb(c, torso, -0.4, -0.02, 0.4, 0.06, bodyMat, -0.3, 0.3, true), limb(c, torso, 0.4, -0.02, 0.4, 0.06, bodyMat, -1.2, -0.15, true));
+      gun(c, torso, 0.38, -0.15, 0.32, 0.3, 0.06);
+      wisps(c, torso, 0.28, 0.34, 1.0, 0.0, 7);
+      c.height = 1.5;
       return;
     }
     case 'tk_wizard': {
-      // floating robe, orb face, tattered hem, circling Blight
+      // floating robe over a black ribbed torso, orb face under a horned hood, glowing hands, ragged white hem
       const torso = pivot(0, 0.95, 0);
       c.torso = torso;
-      add(new THREE.ConeGeometry(0.38, 1.0, 6), bodyMat, 0, -0.1, 0, torso);
-      B(0.4, 0.3, 0.26, 0, 0.5, 0, dark, torso);
-      edge(c, torso, 0.34, 0.015, 0.012, 0, 0.62, 0.14);
-      edge(c, torso, 0.012, 0.8, 0.012, 0, 0.05, 0.3, [-0.35, 0, 0]);
-      add(new THREE.ConeGeometry(0.2, 0.46, 5), dark, 0, 0.92, -0.02, torso, true);
-      orb(c, torso, 0, 0.82, 0.1, 0.12);
+      add(new THREE.ConeGeometry(0.38, 1.05, 6), bodyMat, 0, -0.1, 0, torso);
+      B(0.42, 0.34, 0.28, 0, 0.5, 0, dark, torso);
+      for (let i = 0; i < 3; i++) edge(c, torso, 0.36, 0.014, 0.012, 0, 0.4 + i * 0.09, 0.15);
+      edge(c, torso, 0.012, 0.8, 0.012, 0, 0.05, 0.31, [-0.35, 0, 0]);
+      blob(c, torso, dark, 0, 0.86, 0, 0.22, 1, 1.05, 1);
+      orb(c, torso, 0, 0.84, 0.15, 0.12);
       for (const s of [-1, 1]) {
-        B(0.2, 0.1, 0.24, s * 0.26, 0.6, 0, dark, torso, false, [0, 0, s * -0.3]);
-        const a = arm(c, torso, s * 0.28, 0.55, 0.65, 0.035, bodyMat, -1.0, s * -0.35);
-        edge(c, a, 0.01, 0.6, 0.01, 0, -0.33, 0.02);
+        hump(c, torso, s * 0.27, 0.66, 0, 0.2, 0.12, 0.26, dark, [0, 0, s * -0.3]);
+        const a = limb(c, torso, s * 0.28, 0.58, 0.55, 0.06, bodyMat, -1.0, s * 0.35, true);
+        add(new THREE.IcosahedronGeometry(0.09, 0), accent, 0, -0.6, 0.02, a);
         c.arms.push(a);
       }
-      // tattered hem
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2, l = 0.3 + ((i * 5) % 4) * 0.08;
-        B(0.08, l, 0.02, Math.sin(a) * 0.32, -0.62 - l / 2, Math.cos(a) * 0.32, dark, torso, false, [Math.cos(a) * 0.2, 0, -Math.sin(a) * 0.2]);
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2, l = 0.3 + ((i * 5) % 4) * 0.08;
+        add(new THREE.ConeGeometry(0.05, l, 3), i % 2 ? accent : dark, Math.sin(a) * 0.33, -0.62 - l / 2 + 0.1, Math.cos(a) * 0.33, torso, false, [Math.PI + Math.cos(a) * 0.2, 0, -Math.sin(a) * 0.2]);
       }
-      wisps(c, torso, 4, 0.75, 0, 0.35, 0, 0.07);
+      wisps(c, torso, 0.86, 0.26, 1.2, 0, 8);
       c.muzzle.position.set(0, 0.6, 0.55); torso.add(c.muzzle);
       c.hover = true;
       c.height = 2.0;
       return;
     }
     case 'tk_captain': {
-      // bigger four-armed Fallen, shredded cape, Kell crest
+      // bigger four-armed Fallen: blazing orb face, white boots, shredded cape, canister launcher, horn crest
       const W = 1.3;
-      legsBiped(c, 0.95, 0.15 * W, 0.12 * W, dark, bodyMat, true);
+      legsBiped(c, 0.95, 0.15 * W, 0.12 * W, dark, accent, true);
       const torso = pivot(0, 0.95, 0);
-      torso.rotation.x = 0.2;
+      torso.rotation.x = 0.18;
       c.torso = torso;
       B(0.26 * W, 0.24, 0.2, 0, 0.12, 0, dark, torso);
-      B(0.42 * W, 0.38, 0.28, 0, 0.45, 0, bodyMat, torso);
-      edge(c, torso, 0.38 * W, 0.015, 0.012, 0, 0.62, 0.15);
-      edge(c, torso, 0.015, 0.36, 0.012, 0, 0.45, 0.15);
-      B(0.22, 0.18, 0.26, 0, 0.84, 0.07, dark, torso, true);
-      for (const s of [-1, 1]) {
-        B(0.04, 0.14, 0.12, s * 0.12, 0.76, 0.17, dark, torso, true, [0.3, 0, s * 0.2]);
-        for (const dy of [0, 0.05]) B(0.035, 0.03, 0.03, s * 0.05, 0.86 - dy, 0.205, accent, torso, true);
-        B(0.26, 0.12, 0.32, s * 0.33, 0.68, 0, dark, torso, false, [0, 0, s * -0.3]);
-        add(new THREE.ConeGeometry(0.03, 0.34, 4), dark, s * 0.09, 1.04, 0.02, torso, true, [-0.4, 0, s * -0.4]);
-      }
-      // Kell crest: tall central fin with a glowing edge
-      B(0.03, 0.3, 0.28, 0, 1.02, -0.02, dark, torso, true, [0.35, 0, 0]);
-      edge(c, torso, 0.012, 0.28, 0.012, 0, 1.08, 0.12, [0.35, 0, 0]);
-      const up = [arm(c, torso, -0.27 * W, 0.62, 0.5, 0.09, bodyMat, -1.2, 0.1), arm(c, torso, 0.27 * W, 0.62, 0.5, 0.09, bodyMat, -1.2, -0.1)];
-      arm(c, torso, -0.2 * W, 0.36, 0.4, 0.07, bodyMat, -0.9, 0.3);
-      arm(c, torso, 0.2 * W, 0.36, 0.4, 0.07, bodyMat, -0.9, -0.3);
-      c.arms.push(...up);
-      gun(c, torso, 0.12, 0.42, 0.45, 0.75, 0.09);
-      // long cape of shredded strips
-      B(0.5 * W, 0.2, 0.03, 0, 0.7, -0.17, dark, torso, false, [0.1, 0, 0]);
+      B(0.42 * W, 0.4, 0.28, 0, 0.46, 0, bodyMat, torso);
+      for (let i = 0; i < 3; i++) edge(c, torso, 0.38 * W, 0.013, 0.012, 0, 0.34 + i * 0.1, 0.15);
+      edge(c, torso, 0.015, 0.36, 0.012, 0, 0.46, 0.15);
+      B(0.24, 0.2, 0.26, 0, 0.86, 0.06, dark, torso);
+      orb(c, torso, 0, 0.88, 0.2, 0.1);
+      for (const s of [-1, 1]) hump(c, torso, s * 0.34, 0.7, 0, 0.26, 0.14, 0.32, dark, [0, 0, s * -0.3]);
+      c.arms.push(limb(c, torso, -0.27 * W, 0.62, 0.5, 0.09, bodyMat, -1.0, 0.25, true), limb(c, torso, 0.27 * W, 0.62, 0.5, 0.09, bodyMat, -1.2, -0.1, true));
+      for (const s of [-1, 1]) { const a = limb(c, torso, s * 0.22 * W, 0.36, 0.42, 0.07, bodyMat, -0.5, s * 0.8, true); claws(c, a, -0.44, 2, 0.12, 0.03); }
+      gun(c, torso, 0.14, 0.42, 0.45, 0.5, 0.13);
+      B(0.55 * W, 0.2, 0.03, 0, 0.7, -0.17, dark, torso, false, [0.1, 0, 0]);
       strips(c, torso, 7, 0.1, 1.3, -0.3 * W, 0.3 * W, 0.6, -0.19, dark, true);
-      wisps(c, torso, 3, 0.55, 0, 0.5, 0, 0.06);
+      wisps(c, torso, 0.9, 0.3, 1.2, 0, 9);
       c.height = 2.3;
       return;
     }
     case 'tk_centurion': {
-      // big armoured Cabal, domed helmet, orb visor, no jetpack
+      // big armoured Cabal: black dome helmet with a glowing visor slit, big horns, white greaves and fists, chevron thigh plates
       const W = 1.3;
-      const metal = mat(0x0c0c10);
-      legsBiped(c, 0.9, 0.17 * W, 0.17 * W, dark, metal);
-      for (const s of [-1, 1]) B(0.2 * W, 0.24, 0.22, s * 0.17 * W, 0.62, 0.04, bodyMat);
+      legsBiped(c, 0.9, 0.17 * W, 0.17 * W, dark, accent, false, 1, bodyMat);
+      bands(c, 0.9, 0.17 * W, bodyMat);
+      for (const s of [-1, 1]) {
+        B(0.2 * W, 0.26, 0.22, s * 0.17 * W, 0.66, 0.04, bodyMat);
+        edge(c, c.g, 0.012, 0.22, 0.012, s * 0.17 * W, 0.66, 0.16);
+        edge(c, c.g, 0.2 * W, 0.012, 0.012, s * 0.17 * W, 0.78, 0.16);
+      }
       const torso = pivot(0, 0.9, 0);
       c.torso = torso;
       B(0.42 * W, 0.26, 0.3, 0, 0.12, 0, dark, torso);
+      edge(c, torso, 0.44 * W, 0.04, 0.32, 0, 0.26, 0);
       B(0.62 * W, 0.5, 0.42, 0, 0.5, 0, bodyMat, torso);
-      B(0.5 * W, 0.18, 0.08, 0, 0.42, 0.22, metal, torso);
+      B(0.5 * W, 0.18, 0.08, 0, 0.42, 0.22, dark, torso);
       edge(c, torso, 0.5 * W, 0.015, 0.012, 0, 0.72, 0.22);
-      edge(c, torso, 0.015, 0.4, 0.012, 0, 0.5, 0.215);
-      add(new THREE.IcosahedronGeometry(0.2, 1), bodyMat, 0, 0.95, 0.03, torso, true).scale.set(1, 0.95, 1.05);
-      B(0.26, 0.12, 0.08, 0, 0.92, 0.19, dark, torso, true);
-      orb(c, torso, 0, 0.92, 0.23, 0.065);
+      blob(c, torso, bodyMat, 0, 0.95, 0.03, 0.22, 1.05, 0.95, 1.05);
+      add(new THREE.IcosahedronGeometry(0.1, 1), orbMat(), 0, 0.94, 0.2, torso, true).scale.set(2.1, 0.42, 0.5);
       for (const s of [-1, 1]) {
-        B(0.3 * W, 0.2, 0.42, s * 0.42 * W, 0.72, 0, bodyMat, torso, false, [0, 0, s * -0.15]);
-        edge(c, torso, 0.3 * W, 0.012, 0.012, s * 0.42 * W, 0.82, 0.21, [0, 0, s * -0.15]);
+        B(0.32 * W, 0.22, 0.44, s * 0.44 * W, 0.72, 0, bodyMat, torso, false, [0, 0, s * -0.15]);
+        edge(c, torso, 0.3 * W, 0.012, 0.012, s * 0.44 * W, 0.84, 0.22, [0, 0, s * -0.15]);
       }
-      const arms = [arm(c, torso, -0.44 * W, 0.62, 0.55, 0.15, dark, -1.1, 0.12), arm(c, torso, 0.44 * W, 0.62, 0.55, 0.15, dark, -1.1, -0.12)];
-      for (const a of arms) B(0.2, 0.22, 0.2, 0, -0.42, 0, bodyMat, a);
+      const arms = [limb(c, torso, -0.46 * W, 0.62, 0.55, 0.15, dark, -0.4, 0.15, true), limb(c, torso, 0.46 * W, 0.62, 0.55, 0.15, dark, -1.1, -0.12, true)];
+      for (const a of arms) B(0.2, 0.22, 0.2, 0, -0.5, 0, accent, a);
       c.arms.push(...arms);
-      gun(c, torso, 0.2, 0.4, 0.45, 0.6, 0.12);
-      // crest and torn cape
-      B(0.04, 0.16, 0.36, 0, 1.15, 0.02, dark, torso, true);
-      strips(c, torso, 3, 0.12, 0.8, -0.3 * W, -0.1, 0.7, -0.15, dark, true);
-      wisps(c, torso, 2, 0.6, 0, 0.55, 0, 0.06, 0.5);
+      gun(c, torso, 0.22, 0.4, 0.45, 0.6, 0.12);
+      wisps(c, torso, 0.95, 0.33, 1.3, 0.0, 10);
       c.height = 2.1;
       return;
     }
     case 'tk_phalanx': {
-      // brute with a front slab shield; short weapon beside it
+      // brute with a tall black slab shield on the left (its hitbox is `frontGuard.box` in factions.js: x -0.62, z 0.5, 0.6 wide, 1.2 tall)
       const W = 1.4;
-      const metal = mat(0x0c0c10);
-      legsBiped(c, 0.9, 0.17 * W, 0.18 * W, dark, metal);
-      for (const s of [-1, 1]) B(0.2 * W, 0.24, 0.22, s * 0.17 * W, 0.62, 0.04, bodyMat);
+      legsBiped(c, 0.9, 0.17 * W, 0.18 * W, dark, accent, false, 1, bodyMat);
+      bands(c, 0.9, 0.18 * W, bodyMat);
+      for (const s of [-1, 1]) {
+        B(0.2 * W, 0.26, 0.22, s * 0.17 * W, 0.66, 0.04, bodyMat);
+        edge(c, c.g, 0.012, 0.22, 0.012, s * 0.17 * W, 0.66, 0.16);
+      }
       const torso = pivot(0, 0.9, 0);
       c.torso = torso;
       B(0.42 * W, 0.26, 0.3, 0, 0.12, 0, dark, torso);
+      edge(c, torso, 0.44 * W, 0.04, 0.32, 0, 0.26, 0);
       B(0.62 * W, 0.5, 0.42, 0, 0.5, 0, bodyMat, torso);
-      add(new THREE.IcosahedronGeometry(0.19, 1), bodyMat, 0, 0.9, 0.02, torso, true).scale.set(1.1, 0.9, 1);
-      B(0.26, 0.08, 0.08, 0, 0.9, 0.17, dark, torso, true);
-      orb(c, torso, 0, 0.9, 0.2, 0.05);
-      for (const s of [-1, 1]) B(0.3 * W, 0.2, 0.42, s * 0.42 * W, 0.72, 0, bodyMat, torso, false, [0, 0, s * -0.15]);
-      // shield slab: small, held out to the left of the body, edge-lit (its hitbox is `frontGuard.box` in factions.js)
+      blob(c, torso, bodyMat, 0, 0.9, 0.02, 0.21, 1.1, 0.95, 1.05);
+      add(new THREE.IcosahedronGeometry(0.095, 1), orbMat(), 0, 0.9, 0.2, torso, true).scale.set(1.5, 0.8, 0.6);
+      for (const s of [-1, 1]) {
+        B(0.34 * W, 0.24, 0.44, s * 0.44 * W, 0.72, 0, bodyMat, torso, false, [0, 0, s * -0.15]);
+        edge(c, torso, 0.3 * W, 0.012, 0.012, s * 0.44 * W, 0.85, 0.23, [0, 0, s * -0.15]);
+      }
+      // shield slab: tall, dark, with an edge-lit rim and a hooked horn on top
       const sx = -0.62, sy = 0.3, sz = 0.5;
-      B(0.55, 1.1, 0.1, sx, sy, sz, dark, torso);
-      B(0.45, 0.98, 0.06, sx, sy, sz + 0.07, bodyMat, torso);
-      edge(c, torso, 0.55, 0.018, 0.02, sx, sy + 0.55, sz + 0.06);
-      edge(c, torso, 0.55, 0.018, 0.02, sx, sy - 0.55, sz + 0.06);
-      edge(c, torso, 0.018, 1.1, 0.02, sx - 0.275, sy, sz + 0.06);
-      edge(c, torso, 0.018, 1.1, 0.02, sx + 0.275, sy, sz + 0.06);
-      edge(c, torso, 0.3, 0.03, 0.02, sx, sy + 0.32, sz + 0.11);
-      // arms: left braces the shield, right holds the weapon
-      const la = arm(c, torso, -0.44 * W, 0.62, 0.55, 0.15, dark, -1.3, 0.2);
-      const ra = arm(c, torso, 0.44 * W, 0.62, 0.55, 0.15, dark, -1.1, -0.12);
-      B(0.2, 0.22, 0.2, 0, -0.42, 0, bodyMat, la);
-      B(0.2, 0.22, 0.2, 0, -0.42, 0, bodyMat, ra);
+      B(0.6, 1.2, 0.14, sx, sy, sz, dark, torso);
+      B(0.5, 1.06, 0.06, sx, sy, sz + 0.09, bodyMat, torso);
+      edge(c, torso, 0.6, 0.02, 0.02, sx, sy + 0.6, sz + 0.08);
+      edge(c, torso, 0.6, 0.02, 0.02, sx, sy - 0.6, sz + 0.08);
+      edge(c, torso, 0.02, 1.2, 0.02, sx - 0.3, sy, sz + 0.08);
+      edge(c, torso, 0.02, 1.2, 0.02, sx + 0.3, sy, sz + 0.08);
+      edge(c, torso, 0.28, 0.03, 0.02, sx, sy + 0.1, sz + 0.13);
+      add(new THREE.ConeGeometry(0.06, 0.35, 4), dark, sx + 0.1, sy + 0.77, sz, torso, false, [0, 0, -0.25]);
+      const la = limb(c, torso, -0.46 * W, 0.62, 0.55, 0.15, dark, -1.3, 0.2, true);
+      const ra = limb(c, torso, 0.46 * W, 0.62, 0.55, 0.15, dark, -1.1, -0.12, true);
+      B(0.2, 0.22, 0.2, 0, -0.5, 0, accent, la);
+      B(0.2, 0.22, 0.2, 0, -0.5, 0, accent, ra);
       c.arms.push(la, ra);
-      gun(c, torso, 0.5, 0.4, 0.5, 0.7, 0.1);
-      wisps(c, torso, 2, 0.7, 0, 0.5, -0.1, 0.06, 0.8);
+      gun(c, torso, 0.52, 0.4, 0.5, 0.7, 0.1);
+      wisps(c, torso, 0.9, 0.34, 1.3, 0.0, 11);
       c.height = 2.15;
       return;
     }
     case 'tk_knight': {
-      // tall armoured Hive, boomer, horned crest, orb eye
+      // tall cloaked Hive: black wedge hood with a grinning orb, jagged shoulders, glowing skull gauntlet, white shins
       const W = 1.25;
-      legsBiped(c, 0.95, 0.13 * W, 0.11 * W, dark, dark, true);
+      legsBiped(c, 0.95, 0.13 * W, 0.12 * W, dark, accent, true, 1, bodyMat);
+      bands(c, 0.95, 0.12 * W, bodyMat);
       const torso = pivot(0, 0.95, 0);
-      torso.rotation.x = 0.12;
+      torso.rotation.x = 0.15;
       c.torso = torso;
       B(0.3 * W, 0.24, 0.22, 0, 0.12, 0, dark, torso);
-      B(0.46 * W, 0.42, 0.3, 0, 0.47, 0, bodyMat, torso);
-      for (let i = 0; i < 3; i++) B(0.4 * W, 0.04, 0.04, 0, 0.36 + i * 0.1, 0.16, dark, torso);
-      edge(c, torso, 0.015, 0.4, 0.012, 0, 0.47, 0.19);
-      edge(c, torso, 0.44 * W, 0.015, 0.012, 0, 0.7, 0.16);
-      add(new THREE.IcosahedronGeometry(0.15, 0), dark, 0, 0.86, 0.03, torso, true).scale.set(1, 1.15, 1.2);
-      orb(c, torso, 0, 0.86, 0.18, 0.055);
-      for (let i = -2; i <= 2; i++) add(new THREE.ConeGeometry(0.03, 0.22 + (2 - Math.abs(i)) * 0.08, 4), dark, i * 0.06, 1.05, 0, torso, true, [0, 0, -i * 0.15]);
+      B(0.5 * W, 0.46, 0.32, 0, 0.5, 0, bodyMat, torso);
+      for (let i = 0; i < 3; i++) B(0.42 * W, 0.04, 0.04, 0, 0.36 + i * 0.1, 0.17, dark, torso);
+      edge(c, torso, 0.015, 0.4, 0.012, 0, 0.47, 0.2);
+      edge(c, torso, 0.44 * W, 0.015, 0.012, 0, 0.7, 0.17);
+      blob(c, torso, dark, 0, 0.92, 0.02, 0.22, 1, 1.05, 1.05, 0);
+      add(new THREE.ConeGeometry(0.16, 0.3, 4), dark, 0, 1.18, -0.05, torso, false, [-0.3, 0, 0]);
+      orb(c, torso, 0, 0.92, 0.2, 0.1);
+      edge(c, torso, 0.14, 0.02, 0.012, 0, 0.8, 0.21);
       for (const s of [-1, 1]) {
-        add(new THREE.ConeGeometry(0.05, 0.4, 4), bodyMat, s * 0.14, 1.0, 0.02, torso, true, [0.2, 0, s * -0.9]);
-        B(0.2 * W, 0.12, 0.28, s * 0.3 * W, 0.66, 0, dark, torso, false, [0, 0, s * -0.25]);
-        add(new THREE.ConeGeometry(0.04, 0.3, 4), bodyMat, s * 0.36 * W, 0.82, -0.02, torso, false, [0, 0, s * -0.6]);
+        hump(c, torso, s * 0.32 * W, 0.68, 0, 0.24 * W, 0.14, 0.3, dark, [0, 0, s * -0.25]);
+        add(new THREE.ConeGeometry(0.05, 0.3, 4), bodyMat, s * 0.38 * W, 0.84, -0.02, torso, false, [0, 0, s * -0.6]);
       }
-      c.arms.push(arm(c, torso, -0.32 * W, 0.62, 0.55, 0.1, dark, -1.15, 0.1), arm(c, torso, 0.32 * W, 0.62, 0.55, 0.1, dark, -1.15, -0.1));
-      gun(c, torso, 0.16, 0.42, 0.42, 0.55, 0.15);
-      B(0.26, 0.5, 0.02, 0, -0.1, 0.17, dark, torso);
-      strips(c, torso, 3, 0.08, 0.6, -0.12, 0.12, 0.05, -0.17, dark, true);
-      wisps(c, torso, 2, 0.5, 0, 0.5, 0, 0.06);
+      const gaunt = limb(c, torso, -0.34 * W, 0.64, 0.5, 0.11, dark, -0.45, 0.15, true);
+      B(0.16, 0.34, 0.12, 0, -0.55, 0.02, accent, gaunt);
+      B(0.1, 0.1, 0.1, 0, -0.76, 0.02, dark, gaunt);
+      c.arms.push(gaunt, limb(c, torso, 0.34 * W, 0.64, 0.55, 0.1, dark, -1.15, -0.1, true));
+      gun(c, torso, 0.18, 0.42, 0.42, 0.55, 0.14);
+      B(0.28, 0.5, 0.02, 0, -0.1, 0.18, dark, torso);
+      strips(c, torso, 4, 0.09, 0.7, -0.14, 0.14, 0.05, -0.17, dark, true);
+      wisps(c, torso, 0.92, 0.3, 1.2, 0, 12);
       c.height = 2.2;
       return;
     }
     case 'tk_ogre': {
-      // huge hulking brute with a gaping orb in the chest
-      legsBiped(c, 1.0, 0.3, 0.3, dark, dark);
+      // huge hunched brute: black barrel body, one giant orb eye in the chest, long arms, white legs
+      legsBiped(c, 1.0, 0.3, 0.3, accent, accent, false, 1.05, bodyMat);
+      bands(c, 1.0, 0.3, bodyMat);
       const torso = pivot(0, 1.0, 0);
-      torso.rotation.x = 0.25;
+      torso.rotation.x = 0.28;
       c.torso = torso;
-      B(1.1, 0.95, 0.75, 0, 0.55, 0, bodyMat, torso);
-      B(1.0, 0.4, 0.65, 0, 1.0, -0.08, dark, torso);
-      for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.07, 0.34, 4), dark, -0.36 + i * 0.18, 1.3, -0.22, torso);
-      // chest maw: dark frame and glowing orb
-      B(0.5, 0.5, 0.08, 0, 0.55, 0.38, dark, torso, true);
-      orb(c, torso, 0, 0.55, 0.42, 0.2);
-      edge(c, torso, 0.56, 0.02, 0.02, 0, 0.82, 0.42);
-      edge(c, torso, 0.56, 0.02, 0.02, 0, 0.28, 0.42);
-      edge(c, torso, 0.02, 0.56, 0.02, -0.28, 0.55, 0.42);
-      edge(c, torso, 0.02, 0.56, 0.02, 0.28, 0.55, 0.42);
-      // small head with horns
-      B(0.32, 0.26, 0.28, 0, 0.98, 0.34, dark, torso, true);
-      B(0.14, 0.04, 0.04, 0, 1.0, 0.49, accent, torso, true);
+      B(1.1, 0.5, 0.7, 0, 0.2, 0, dark, torso);
+      blob(c, torso, bodyMat, 0, 0.8, 0, 0.62, 1.05, 0.95, 0.85);
+      blob(c, torso, dark, 0, 1.15, -0.08, 0.4, 1.1, 0.7, 0.9, 0);
+      for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.07, 0.34, 4), dark, -0.36 + i * 0.18, 1.45, -0.22, torso);
+      // the eye: a dark socket ring with a huge orb
+      add(new THREE.TorusGeometry(0.24, 0.05, 4, 10), dark, 0, 0.82, 0.46, torso);
+      orb(c, torso, 0, 0.82, 0.44, 0.2);
       for (const s of [-1, 1]) {
-        add(new THREE.ConeGeometry(0.06, 0.4, 4), bodyMat, s * 0.16, 1.2, 0.3, torso, true, [0.3, 0, s * -0.7]);
-        add(new THREE.ConeGeometry(0.1, 0.4, 4), bodyMat, s * 0.62, 1.12, 0, torso, false, [0, 0, s * -0.5]);
-        const a = arm(c, torso, s * 0.72, 0.9, 1.1, 0.3, bodyMat, -0.4, s * -0.15);
+        add(new THREE.ConeGeometry(0.1, 0.4, 4), bodyMat, s * 0.62, 1.3, 0, torso, false, [0, 0, s * -0.5]);
+        const a = limb(c, torso, s * 0.72, 1.1, 1.1, 0.3, bodyMat, -0.3, s * 0.12, true);
         B(0.42, 0.34, 0.44, 0, -1.2, 0.05, dark, a);
-        edge(c, a, 0.02, 1.0, 0.02, s * 0.16, -0.55, 0.14);
+        edge(c, a, 0.02, 0.5, 0.02, s * 0.16, -1.2, 0.2);
         c.arms.push(a);
       }
-      wisps(c, torso, 4, 0.95, 0, 0.6, 0, 0.09);
-      c.muzzle.position.set(0, 0.55, 0.6); torso.add(c.muzzle);
+      wisps(c, torso, 1.1, 0.5, 2.0, -0.05, 13);
+      c.muzzle.position.set(0, 0.8, 0.6); torso.add(c.muzzle);
       c.height = 2.6;
+      return;
+    }
+    case 'tk_hobgoblin': {
+      // the Vex Hobgoblin frame in Taken black: tall and slender, cone head with an orb face, ribbed chest, back conduits, long Line Rifle
+      legsBiped(c, 1.0, 0.13, 0.09, dark, accent, true);
+      const torso = pivot(0, 1.0, 0);
+      torso.rotation.x = 0.1;
+      c.torso = torso;
+      B(0.26, 0.18, 0.2, 0, 0.07, 0, dark, torso);
+      B(0.2, 0.3, 0.14, 0, 0.3, 0, bodyMat, torso);
+      for (const s of [-1, 1]) for (let i = 0; i < 2; i++) edge(c, torso, 0.05, 0.1, 0.05, s * (0.13 + i * 0.015), 0.24 + i * 0.13, 0.02, [0, 0, s * (0.1 + i * 0.08)]);
+      B(0.46, 0.28, 0.28, 0, 0.6, 0, bodyMat, torso);
+      edge(c, torso, 0.34, 0.015, 0.012, 0, 0.7, 0.15);
+      edge(c, torso, 0.015, 0.26, 0.012, 0, 0.6, 0.15);
+      for (const s of [-1, 1]) {
+        hump(c, torso, s * 0.29, 0.68, 0, 0.14, 0.12, 0.22, dark, [0, 0, s * -0.2]);
+        B(0.05, 0.5, 0.05, s * 0.2, 0.52, -0.18, dark, torso);
+        edge(c, torso, 0.015, 0.4, 0.015, s * 0.2, 0.52, -0.15);
+      }
+      B(0.08, 0.14, 0.08, 0, 0.82, 0, dark, torso);
+      add(new THREE.ConeGeometry(0.15, 0.42, 5), dark, 0, 1.08, -0.02, torso, false, [-0.2, 0, 0]);
+      blob(c, torso, bodyMat, 0, 0.94, 0.04, 0.14, 1, 1.05, 1.05, 0);
+      orb(c, torso, 0, 0.94, 0.16, 0.085);
+      c.arms.push(limb(c, torso, -0.3, 0.68, 0.55, 0.07, bodyMat, -1.2, 0.1, true), limb(c, torso, 0.3, 0.68, 0.55, 0.07, bodyMat, -1.25, -0.1, true));
+      gun(c, torso, 0.1, 0.46, 0.55, 1.35, 0.08);
+      wisps(c, torso, 1.0, 0.27, 1.0, 0, 5);
+      c.height = 2.2;
       return;
     }
     default:
