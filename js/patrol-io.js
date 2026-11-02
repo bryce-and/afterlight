@@ -476,7 +476,13 @@ function interior(K) {
   ab(K, 0, ILH + 0.9, -103.8, 28, 0.15, 0.2, MILK, { glow: 1.6 });
   // the pit: terraces of lit stone stepping down to a red floor
   const levels = [[50, 4.5], [40, 3], [30, 1.5], [22, 0]];
-  for (const [w, h] of levels) { IK.flat(K, 0, -172, w - 1, w - 1, INTF, { y: 0.08, h: 0.08 }); }
+  // stone on every terrace (a ring round the next one down, at its own height) and on the main floor round the pit, so no bare ground shows inside
+  levels.forEach(([w, h], i) => {
+    const wi = levels[i + 1]?.[0] ?? 0, band = (w - wi) / 2;
+    if (!wi) { ab(K, 0, h + 0.02, -172, w, 0.08, w, INTF); return; }
+    for (const s of [-1, 1]) { ab(K, 0, h + 0.02, -172 + s * (w - band) / 2, w, 0.08, band, INTF); ab(K, s * (w - band) / 2, h + 0.02, -172, band, 0.08, wi, INTF); }
+  });
+  for (const [x0, x1, z0, z1] of [[PY.x0, PY.x1, PY.z0, -197], [PY.x0, PY.x1, -147, PY.z1], [PY.x0, -25, -197, -147], [25, PY.x1, -197, -147]]) ab(K, (x0 + x1) / 2, FLOOR + 0.02, (z0 + z1) / 2, x1 - x0, 0.08, z1 - z0, INTF);
   for (const [w, h] of levels) for (const [dx, dz, ww, dd] of [[0, -w / 2 - 0.4, w + 1, 0.3], [0, w / 2 + 0.4, w + 1, 0.3], [-w / 2 - 0.4, 0, 0.3, w + 1], [w / 2 + 0.4, 0, 0.3, w + 1]]) ab(K, dx, h + 0.1, -172 + dz, ww, 0.5, dd, 0xff4a2a, { glow: 1.4 });
   ab(K, 0, 0.12, -172, 19, 0.15, 19, 0xff3a22, { glow: 1.8 });
   K.light(0, 4, -172, 0xff3a22, 18, 64); K.light(0, 24, -172, 0xff5a3a, 12, 70);
