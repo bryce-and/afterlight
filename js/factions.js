@@ -17,10 +17,10 @@ export const FACTIONS = {
     colors: { enemy: 0x8b8470, enemy2: 0x3a342c, eye: 0xc37aff },
     shot: 0xb46bff,
   },
-  // v2.9: the Vex, gold-bronze and cream with a red photoreceptor
+  // v2.9: the Vex; U17d: bronze and black with a red photoreceptor (models-vex.js builds with the same colours)
   vex: {
     name: 'Vex', short: 'Vex',
-    colors: { enemy: 0xd9c9a0, enemy2: 0x6b5232, eye: 0xff4a2a },
+    colors: { enemy: 0x9c7a44, enemy2: 0x17140f, eye: 0xff0d08 },
     shot: 0xff8a3a,
   },
 };
