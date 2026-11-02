@@ -382,30 +382,9 @@ function shell(K) {
   for (const s of [-1, 1]) ab(K, s * 5.9, IO.plinth, z1 + T + 0.6, 0.3, 13.6, 0.3, MILK, { glow: 1.6 });
   ab(K, 0, IO.plinth + 13.2, z1 + T + 0.6, 12, 0.3, 0.3, MILK, { glow: 1.6 });
   IK.tstrip(K, 0, z1 + T + 6, 0, z1 - 12, 11, INTF, { y: 0.1, h: 0.08 });
-  // outside: stepped courses stacked up the faces, each deeper than the one above, and ribs; a red-orange glow band where the block meets the plinth
-  const W = x1 - x0 + 2 * T, D = z1 - z0 + 2 * T;
-  const faces = [[0, z1 + T, 0, 1, W], [0, z0 - T, 0, -1, W], [x1 + T, PY.cz, 1, 0, D], [x0 - T, PY.cz, -1, 0, D]];
-  for (const [fx, fz, nx, nz, len] of faces) {
-    const south = nz === 1;                                              // the gate faces south: its opening is kept clear below the lintel
-    for (let k = 0; k < 5; k++) {
-      const y = IO.plinth + 2 + k * 6, depth = 2.6 - k * 0.45, sc = len * (1 - k * 0.08), low = south && y < IO.plinth + 16;
-      const dims = (l) => [nx !== 0 ? depth : l, 2.8, nx !== 0 ? l : depth];
-      if (low) for (const q of [-1, 1]) { const l = sc / 2 - 8; vb(K, fx + q * (8 + l / 2), y + 1.4, fz + nz * depth / 2, ...dims(l), EXT[k % 3]); } else vb(K, fx + nx * depth / 2, y + 1.4, fz + nz * depth / 2, ...dims(sc), EXT[k % 3]);
-    }
-    for (let r = -3; r <= 3; r++) {
-      if (south && Math.abs(r) < 1) continue;
-      const px = nx !== 0 ? fx + nx * 0.7 : fx + r * len / 7.4, pz = nx !== 0 ? fz + r * len / 7.4 : fz + nz * 0.7;
-      vb(K, px, IO.plinth + 17, pz, nx !== 0 ? 1.4 : 3.2, 30, nx !== 0 ? 3.2 : 1.4, EXT[(r + 3) % 3]);
-    }
-    if (south) { for (const q of [-1, 1]) vb(K, fx + q * (8 + (len / 2 - 8) / 2), IO.plinth + 0.5, fz + 0.3, len / 2 - 8, 1.1, 0.8, 0xff7a3a, { glow: 2.2 }); }
-    else vb(K, fx + nx * 0.3, IO.plinth + 0.5, fz + nz * 0.3, nx !== 0 ? 0.8 : len, 1.1, nx !== 0 ? len : 0.8, 0xff7a3a, { glow: 2.2 });
-  }
-  K.light(0, IO.plinth + 4, z1 + T + 14, 0xff7a3a, 14, 60);
-  K.light(x1 + T + 14, IO.plinth + 4, PY.cz, 0xff7a3a, 12, 60);
-  K.light(x0 - T - 14, IO.plinth + 4, PY.cz, 0xff7a3a, 12, 60);
 }
 
-/** The roof: four huge slabs, two sloping along z and two along x, crossing over the middle; and the tilted stepped block above them with a red-orange glow beneath. */
+/** The roof: four huge slabs, two sloping along z and two along x, crossing over the middle (the inside of the hall; outside, the tilted block hides it). */
 function roof(K) {
   const { x0, x1, z0, z1, wallTop: H, apex: A, cz } = PY, run = (z1 - z0) / 2 + PY.wall, rise = A - H, len = Math.hypot(run, rise), ang = Math.atan2(rise, run);
   for (const s of [-1, 1]) {
@@ -424,15 +403,74 @@ function roof(K) {
   }
   // the capping wall courses above the roof line, outside, close the gaps between the slabs
   for (const [x, z, w, d] of [[0, z0 - PY.wall / 2, x1 - x0 + 2 * PY.wall, PY.wall], [0, z1 + PY.wall / 2, x1 - x0 + 2 * PY.wall, PY.wall]]) ab(K, x, H - 0.1, z, w, 3, d, EXT[0]);
-  // the block above: three stepped slabs tilted together, lifted at one edge over a glowing gap
-  const tilt = 0.09;
-  vb(K, 0, A + 12, cz, 190, 18, 176, EXT[0], { rz: tilt, rx: -0.03 });
-  vb(K, -4, A + 25, cz - 4, 150, 14, 132, EXT[1], { rz: tilt, rx: -0.03 });
-  vb(K, -10, A + 36, cz - 8, 104, 12, 90, EXT[2], { rz: tilt, rx: -0.03 });
-  vb(K, -14, A + 44, cz - 10, 60, 8, 56, EXTD, { rz: tilt, rx: -0.03 });
-  vb(K, 84, A + 11, cz, 16, 0.8, 140, 0xff6a30, { rz: tilt, glow: 2.0 });
-  K.light(84, A + 6, cz, 0xff7a3a, 14, 80);
-  for (const [x, y, z, w, h, d] of [[40, A + 16, cz - 70, 30, 12, 8], [-30, A + 30, cz + 60, 40, 10, 8], [70, A + 34, cz + 30, 14, 26, 14]]) vb(K, x, y, z, w, h, d, EXT[(Math.abs(x) | 0) % 3], { rz: tilt });
+}
+
+/**
+ * The Pyramidion as it is seen from outside (docs/reference/io-patrol-pyramidion-exterior.webp): one colossal block of pale Vex stone tipped up on its north edge, 200 m wide and
+ * over 300 m tall, its underside lifted over the gate and the ramp with a red-orange glow beneath, every face covered in stepped, layered relief. The hall is inside it.
+ * The block is built in its own frame (x across, v up its height, u along its length) and tilted by BLK.a about x. Only its faces are built, so nothing of it shows inside the
+ * hall; the underside is left open above the hall, where the hall's walls close it.
+ */
+const BLK = { a: 0.61, W: 200, H: 300, L: 300, ez: -40, ey: 75 };                 // tilt, size, and where its lifted front edge hangs (z, height)
+const blkC = (() => {
+  const { a, H, L, ez, ey } = BLK, c = Math.cos(a), s = Math.sin(a);
+  return { c, s, y: ey + (H / 2) * c - (L / 2) * s, z: ez - (H / 2) * s - (L / 2) * c };
+})();
+/** A box in the block's frame: centre (x, v, u), size along x, v and u. */
+function bb(K, x, v, u, w, h, d, color, o = {}) {
+  const { c, s, y, z } = blkC;
+  vb(K, x, y + v * c + u * s, z - v * s + u * c, w, h, d, color, { rx: -BLK.a, glow: o.glow });
+}
+const STONE = [0xb3ab9a, 0xa39b8a, 0xc4bcaa, 0x958d7d], STONED = 0x6f685c;
+/**
+ * Stepped relief on one face: the rectangle (a0..a1, b0..b1) is split again and again into panels; each panel stands out from the face and carries a smaller panel on top
+ * (sometimes two), or sinks as a dark recess. `put(a, b, n, wa, wb, wn, color)` places a box with its centre at face coordinates a, b and height n off the face.
+ */
+function relief(K, put, a0, a1, b0, b1, depth = 0, glowSeam = 0) {
+  const wa = a1 - a0, wb = b1 - b0;
+  if (depth < 5 && Math.max(wa, wb) > 26 && K.R(0, 1) < 0.92) {
+    const alongA = wa > wb ? K.R(0, 1) < 0.8 : K.R(0, 1) < 0.2, t = K.R(0.3, 0.7);
+    if (alongA) { const m = a0 + wa * t; relief(K, put, a0, m, b0, b1, depth + 1, glowSeam); relief(K, put, m, a1, b0, b1, depth + 1, glowSeam); }
+    else { const m = b0 + wb * t; relief(K, put, a0, a1, b0, m, depth + 1, glowSeam); relief(K, put, a0, a1, m, b1, depth + 1, glowSeam); }
+    return;
+  }
+  const ca = (a0 + a1) / 2, cb = (b0 + b1) / 2, gap = 0.8, pa = wa - gap, pb = wb - gap;
+  if (K.R(0, 1) < 0.14) { put(ca, cb, 0.2, pa * 0.8, pb * 0.8, 0.6, STONED); return; }             // a dark recess
+  let h = K.R(1.2, 5.5), n = 0, sa = pa, sb = pb;
+  const steps = K.R(0, 1) < 0.5 ? 3 : 2;
+  for (let k = 0; k < steps; k++) {
+    const warm = glowSeam && k === steps - 1 && K.R(0, 1) < glowSeam * 0.5;    // on the underside, some panels glow with the red-orange light beneath
+    put(ca + (k ? K.R(-0.12, 0.12) * sa : 0), cb + (k ? K.R(-0.12, 0.12) * sb : 0), n + h / 2, sa, sb, h, warm ? 0xc4502a : STONE[(depth + k + (K.R(0, 4) | 0)) % 4], warm ? 0.9 : 0);
+    n += h; sa *= K.R(0.45, 0.75); sb *= K.R(0.45, 0.75); h = K.R(0.8, 3.5);
+    if (sa < 3 || sb < 3) break;
+  }
+  if (glowSeam && K.R(0, 1) < glowSeam) put(ca, cb + pb / 2 + 0.2, 1.2, pa * 0.9, 0.5, 2.4, 0xff5a2a, 2.2);
+}
+function block(K) {
+  const { W, H, L } = BLK, hw = W / 2, hh = H / 2, hl = L / 2, T = 6;
+  // the faces: top, front (south, lifted), back (north, buried), the two sides; the underside in three parts so it stays out of the hall
+  bb(K, 0, hh - T / 2, 0, W, T, L, STONE[0]);
+  bb(K, 0, 0, hl - T / 2, W, H, T, STONE[1]);
+  bb(K, 0, 0, -hl + T / 2, W, H, T, STONE[3]);
+  for (const sx of [-1, 1]) bb(K, sx * (hw - T / 2), 0, 0, T, H, L, STONE[2]);
+  const uCut = (-86 - blkC.z - hh * blkC.s) / blkC.c;                          // where the underside passes over the hall's south wall
+  for (const sx of [-1, 1]) bb(K, sx * (hw + 74) / 2, -hh + T / 2, 0, hw - 74, T, L, STONE[3]);
+  bb(K, 0, -hh + T / 2, (uCut + hl) / 2, 148, T, hl - uCut, STONE[3]);
+  // relief on every face that can be seen (wa, wb, wn are the sizes along the face's own axes and its normal)
+  relief(K, (a, b, n, wa, wb, wn, col, glow) => bb(K, a, b, hl + n, wa, wb, wn, col, { glow: glow || 0 }), -hw, hw, -hh, hh);                     // front: a = x, b = v
+  relief(K, (a, b, n, wa, wb, wn, col, glow) => bb(K, a, hh + n, b, wa, wn, wb, col, { glow: glow || 0 }), -hw, hw, -hl, hl);                     // top: a = x, b = u
+  for (const sx of [-1, 1]) relief(K, (a, b, n, wa, wb, wn, col, glow) => bb(K, sx * (hw + n), a, b, wn, wa, wb, col, { glow: glow || 0 }), -hh, hh, -hl, hl); // sides: a = v, b = u
+  for (const sx of [-1, 1]) relief(K, (a, b, n, wa, wb, wn, col, glow) => bb(K, a, -hh - n, b, wa, wn, wb, col, { glow: glow || 0 }), sx > 0 ? 74 : -hw, sx > 0 ? hw : -74, -hl, hl, 1, 0.35);
+  relief(K, (a, b, n, wa, wb, wn, col, glow) => bb(K, a, -hh - n, b, wa, wn, wb, col, { glow: glow || 0 }), -74, 74, uCut, hl, 1, 0.8);             // underside over the gate
+  // the red-orange glow beneath the lifted edge, lighting the gate and the underside
+  K.light(0, IO.plinth + 8, -64, 0xff6a30, 90, 140);
+  K.light(-60, IO.plinth + 4, -96, 0xff5a2a, 60, 110); K.light(60, IO.plinth + 4, -96, 0xff5a2a, 60, 110);
+  K.light(0, 20, -60, 0xff7a3a, 70, 110);                                      // up under the lifted edge, so the underside glows warm
+  bb(K, 0, -BLK.H / 2 - 0.4, BLK.L / 2 - 3, 148, 0.8, 4, 0xff6a30, { glow: 2.4 }); // a seam of light along the lifted edge
+  for (const q of [-1, 1]) ab(K, q * 40, IO.plinth + 0.3, -81.4, 60, 1.1, 0.8, 0xff7a3a, { glow: 2.2 });
+  // solid where the block meets the ground beside and behind the hall (its underside is high overhead everywhere else a player can go)
+  for (const sx of [-1, 1]) { K.ocollider(sx * (78 + hw) / 2, -248, hw - 78, 90, 228, 0); K.ocollider(sx * 81, -119, 6, 90, 32, 0); } // the ground at 4 m, and the plinth's lip
+  K.ocollider(0, -300, W, 90, 124, 0);
 }
 
 /** The interior: dressed wall courses, the stairs, terraces round the pit, the core, pillars, floating and leaning blocks, the lit gate far below. */
@@ -542,8 +580,8 @@ export default {
       road(K, [[-4, 150], [-18, 128], [-52, 114]], 7);
       road(K, [[0, 16], [-60, 16], [-104, 16], [-130, 14], [-160, 10]], 9);
       road(K, [[0, 16], [60, 16], [112, 18], [142, 12]], 9);
-      road(K, [[-104, 16], [-100, -20], [-98, -74], [-98, -140], [-96, -150]], 9);
-      road(K, [[-96, -150], [-124, -150]], 9);
+      road(K, [[-104, 16], [-100, -20], [-98, -74], [-104, -112], [-112, -140], [-116, -150]], 9);   // bends west of the Pyramidion's grounded side
+      road(K, [[-116, -150], [-124, -150]], 9);
       road(K, [[142, 12], [150, -4], [150, -20], [150, -48], [150, -66]], 9, 'cabal');
       for (const s of [-1, 1]) {
         road(K, [[s * 3, 100], [s * 22, 100], [s * 52, 100]], 8);
@@ -562,6 +600,7 @@ export default {
       pyramidExterior(K);
       shell(K);
       roof(K);
+      block(K);
       interior(K);
     },
   },

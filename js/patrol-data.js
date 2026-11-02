@@ -441,7 +441,7 @@ export const PATROL_DATA = {
     merge: true,
     // green ground, olive strata, teal-grey haze: Jupiter low over the mesas
     colors: { sky: 0x9cc4b2, fog: 0xa9c4a8, hemiTop: 0xe6f0d0, hemiBot: 0x4a5236, ground: 0xa8b24c, ground2: 0x96a042, rock: 0x7d8650, rock2: 0x636c3e },
-    fog: [90, 430],
+    fog: [110, 620], // far enough to see the Pyramidion's full height from the landing
     terrain: IO_TERRAIN,
     sky: {
       bodies: [{ color: 0xe8c890, size: 190, pos: [-280, 90, -520], bands: [0xe8c890, 0xd0784a, 0xf0dcb0, 0xb86a40, 0xe8d2a0] }],
