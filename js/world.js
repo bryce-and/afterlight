@@ -9,6 +9,7 @@ import EARTH_PATROL from './patrol-earth.js';
 import MOON_PATROL from './patrol-moon.js';
 import MARS_PATROL from './patrol-mars.js';
 import TITAN_PATROL from './patrol-titan.js';
+import IO_PATROL from './patrol-io.js';
 import MOON from './level-moon.js';
 import MARS from './level-mars.js';
 import TITAN from './level-titan.js';
@@ -19,7 +20,7 @@ import LEVIATHAN from './level-leviathan.js';
 import { TOWER } from './level-tower.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...TITAN_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
+const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...TITAN_PATROL, ...IO_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
 
 const matCache = new Map();
 export function mat(color, o = {}) {

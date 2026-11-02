@@ -14,7 +14,7 @@ import { playMusic, stinger } from './music.js';
 import { sfx } from './audio.js';
 import { cleanupMission, spawnUnit, findSpawn, banner, gainXp, dropEngram, livesFor } from './game.js';
 import { playerPower, writeSave } from './save.js';
-import { PATROL_TUNE, BEACON_TEXT, EVENT_SPECS, FACTION_KITS } from './patrol-data.js';
+import { PATROL_TUNE, BEACON_TEXT, EVENT_SPECS, FACTION_KITS, kitUnit } from './patrol-data.js';
 import { buildNpc, NPC_INFO } from './models-npc.js';
 import { patrolMeetingsFor, metPatrolMeeting, offerPatrolQuests } from './quests.js';
 import { PATROL_TALKS } from './story.js';
@@ -136,7 +136,7 @@ function spawnPack(zone, n, o = {}) {
   const names = kit?.names ?? o.names;
   kinds.forEach((type) => {
     const pos = findSpawn(c, rand(0, Math.PI * 2), Math.PI, 2, o.spread ?? 9);
-    spawnUnit(zone, type, pos, { faction: kit?.faction ?? o.faction, name: names?.[type], tier: o.tier });
+    spawnUnit(zone, kitUnit(kit?.units, type), pos, { faction: kit?.faction ?? o.faction, name: names?.[type], tier: o.tier });
   });
   G.hitDirty = true;
   return kinds.length;
@@ -267,7 +267,7 @@ function startBeacon(Pt, b) {
   if (b.def.type === 'hunt') {
     spawnPack(b.site, 4, { spread: 7, f: b.def.f });
     const pos = findSpawn(site, rand(0, Math.PI * 2), Math.PI, 1, 4);
-    b.target = spawnUnit(b.site, b.def.target.unit, pos, { tier: 'major', name: b.def.target.name, faction: FACTION_KITS[b.def.f]?.faction });
+    b.target = spawnUnit(b.site, kitUnit(FACTION_KITS[b.def.f]?.units, b.def.target.unit), pos, { tier: 'major', name: b.def.target.name, faction: FACTION_KITS[b.def.f]?.faction });
     b.objective = `Hunt ${b.def.target.name}`;
     banner(b.def.name, `Marked: ${b.def.target.name}`, 2.6, 'alert');
   } else {
@@ -436,7 +436,7 @@ function startEventAssault(Pt, E) {
   const m = E.spec.marked;
   for (let i = 0; i < m.n; i++) {
     const a = (i / m.n) * Math.PI * 2 + rand(-0.4, 0.4), pos = findSpawn(E.zone.center, a, 0.2, E.def.r * 0.45, E.def.r * 0.8);
-    E.marked.push(spawnUnit(E.zone, m.unit, pos, { tier: 'major', name: m.n > 1 ? `${m.name}` : m.name, faction: E.spec.faction ?? undefined }));
+    E.marked.push(spawnUnit(E.zone, kitUnit(E.spec.units, m.unit), pos, { tier: 'major', name: m.n > 1 ? `${m.name}` : m.name, faction: E.spec.faction ?? undefined }));
   }
   E.markedT = m.time;
   banner(E.spec.name, `${m.text} within ${m.time}s for Heroic`, 3, 'alert');
@@ -447,7 +447,7 @@ function spawnEventPush(E, i) {
   const push = E.spec.pushes[i];
   for (const [type, n] of push) for (let k = 0; k < n; k++) {
     const pos = findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, E.def.r * 0.4, E.def.r * 0.95);
-    spawnUnit(E.zone, type, pos, { faction: E.spec.faction ?? undefined, name: E.spec.names?.[type] });
+    spawnUnit(E.zone, kitUnit(E.spec.units, type), pos, { faction: E.spec.faction ?? undefined, name: E.spec.names?.[type] });
   }
   G.hitDirty = true;
 }
@@ -475,7 +475,7 @@ function tickEventAssault(Pt, E, dt) {
   else if (!E.finale && E.push === 1 && alive <= 2) {
     E.finale = true;
     const f = E.spec.finale, n = E.heroic ? f.heroicN : f.n;
-    for (let i = 0; i < n; i++) spawnUnit(E.zone, f.unit, findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, 3, 9), { tier: 'major', name: f.name, faction: E.spec.faction ?? undefined });
+    for (let i = 0; i < n; i++) spawnUnit(E.zone, kitUnit(E.spec.units, f.unit), findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, 3, 9), { tier: 'major', name: f.name, faction: E.spec.faction ?? undefined });
     banner(f.name, 'Finish the event', 2.6, 'bossIntro');
     stinger('boss');
   } else if (E.finale && alive === 0) completeEvent(Pt, E);

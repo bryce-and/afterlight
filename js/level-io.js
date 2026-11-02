@@ -381,6 +381,13 @@ function cluster(K, cx, cz, list, o = {}) {
   for (const [dx, dz, h, r] of list) spire(K, cx + dx, cz + dz, h, { r, collide: o.collide });
 }
 
+/** U17e: the helpers and tones the Io patrol zone (js/patrol-io.js) builds with. */
+export const IO_KIT = {
+  vbox, flat, strip, tstrip, tcrack, ghost, spire, pool, mound, cliff, mesa, blight, bulwark, hazardPost, barricade, supply, dropship, thresher, landing, pipe, scaffold,
+  floodlight, crane, vexPillar, vexCube, vexGate, rib, gunNest, psionPod, padMarks, cluster, vabs,
+  C: { SPIRE, SPIRE2, SULF, CRUST, TEAL, STEAM, CRACK, SCAR, LIGHTG, TAKEN, TAKENG, CAB, CAB2, CAB3, HAZ, HAZR, LEGION, CONC, CONC2, STEEL, FLOOD, VW, VW2, VB, VBR, VD, MILK, VRED, PSI },
+};
+
 export default {
 
   // -------------------------------------------------------------------------

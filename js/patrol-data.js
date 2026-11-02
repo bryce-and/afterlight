@@ -20,7 +20,16 @@ export const SPARROW = {
 export const FACTION_KITS = {
   fallen: { faction: 'scrappers', names: { grunt: 'Vandal', rusher: 'Dreg', captain: 'Fallen Captain', heavy: 'Fallen Brig', suicide: 'Explosive Shank' } },
   hive: { faction: 'hollow', names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' } },
+  // U17e: a kit may map each role to real units (`units`, a unit id or a list to pick from) instead of renaming the base types
+  vex: { faction: 'vex', units: { grunt: ['vx_goblin', 'vx_goblin', 'vx_hobgoblin'], rusher: ['vx_harpy', 'vx_fanatic'], captain: 'vx_minotaur', heavy: ['vx_hydra', 'vx_cyclops'], suicide: 'vx_fanatic' } },
+  taken: { faction: 'taken', units: { grunt: ['tk_acolyte', 'tk_acolyte', 'tk_vandal'], rusher: 'tk_thrall', captain: ['tk_captain', 'tk_centurion'], heavy: ['tk_ogre', 'tk_phalanx'], suicide: 'tk_thrall' } },
 };
+/** U17e: the unit type a kit (or an event spec with `units`) spawns for a role; `pick` chooses from a list. No map means the base type. */
+export function kitUnit(units, role, pick = (a) => a[Math.floor(Math.random() * a.length)]) {
+  const u = units?.[role];
+  if (!u) return role;
+  return Array.isArray(u) ? pick(u) : u;
+}
 
 export const BEACON_TEXT = {
   hunt: { label: 'Bounty', blurb: 'Hunt down the marked champion and the pack guarding it.', reward: 'Engram  ·  XP' },
@@ -81,6 +90,21 @@ export const EVENT_SPECS = {
     pushes: [[['rusher', 5], ['grunt', 4]], [['captain', 2], ['rusher', 3], ['grunt', 2]]],
     finale: { unit: 'heavy', name: 'Brood Ogre', n: 1, heroicN: 2 },
   },
+  // U17e
+  vex_incursion: {
+    name: 'Vex Incursion', blurb: 'A Vex gate is opening in the canyon.', faction: 'vex', units: FACTION_KITS.vex.units,
+    names: null,
+    marked: { n: 2, unit: 'captain', name: 'Gate Minotaur', time: 60, text: 'Kill the Gate Minotaurs' },
+    pushes: [[['rusher', 4], ['grunt', 4]], [['captain', 1], ['rusher', 3], ['grunt', 3]]],
+    finale: { unit: 'heavy', name: 'Gate Hydra', n: 1, heroicN: 2 },
+  },
+  taken_blight: {
+    name: 'Taken Blight', blurb: 'The Taken blight beside Terrabase Charon is surging.', faction: 'taken', units: FACTION_KITS.taken.units,
+    names: null,
+    marked: { n: 2, unit: 'tk_captain', name: 'Blight Captain', time: 60, text: 'Kill the Blight Captains' },
+    pushes: [[['rusher', 5], ['grunt', 3]], [['captain', 1], ['rusher', 4], ['grunt', 3]]],
+    finale: { unit: 'tk_ogre', name: 'Blight Ogre', n: 1, heroicN: 2 },
+  },
 };
 
 /**
@@ -111,6 +135,48 @@ export const TITAN_RAMP = { x0: 58, z0: -100, x1: 112, z1: -100, width: 9, h0: 2
 export const TITAN_TERRAIN = [
   ...TITAN_DECKS.filter((d) => d[5] !== 'x').map(([, x0, x1, z0, z1]) => ({ type: 'plateau', x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0, h: TITAN.deck, edge: 0.4 })),
   { type: 'ramp', ...TITAN_RAMP },
+];
+
+/**
+ * U17e: the Io patrol (js/patrol-io.js). A valley floor at `floor` with layered mesas, canyons and dirt roads; the Cabal base, Terrabase Charon and Giant's Scar stand on raised
+ * pads. The Pyramidion stands on a plinth at `plinth`; inside it the main floor is at `pit`, a terraced hollow sinks to 0 under the red core, and the entry ledge and two
+ * stairways descend from the plinth height. All terrain (ground never dips below 0); mirrored mesas come from one list.
+ */
+export const IO = { floor: 4, plinth: 26, pit: 6, base: 8, charon: 10, scar: 6, landing: 16.5 };
+const mirror = (f) => [f, { ...f, ...(f.x != null ? { x: -f.x } : {}), ...(f.x0 != null ? { x0: -f.x0, x1: -f.x1 } : {}) }];
+export const IO_TERRAIN = [
+  { type: 'plateau', x: 0, z: -40, w: 1400, d: 1400, h: IO.floor, edge: 1 },                          // the valley floor
+  { type: 'basin', x: -48, z: 150, r: 30, flat: 0.5, depth: 2.6 },                                    // the Lost Oasis lake bed
+  { type: 'mound', x: 44, z: 122, r: 16, h: 1.4 }, { type: 'mound', x: -20, z: 114, r: 14, h: 1.1 }, { type: 'mound', x: 100, z: 150, r: 20, h: 1.6 }, { type: 'mound', x: 150, z: 120, r: 18, h: 1.3 },
+  { type: 'mound', x: -130, z: 110, r: 18, h: 1.3 }, { type: 'mound', x: -150, z: 150, r: 22, h: 1.8 }, { type: 'mound', x: 0, z: 46, r: 12, h: 0.9 },
+  // the west and east mesas flanking the Spine: two layers and a corner block; a ramp up the first (a Sparrow road) and one from it to the second
+  ...mirror({ type: 'plateau', x: -73, z: 75, w: 74, d: 70, h: 14, edge: 3 }),
+  ...mirror({ type: 'plateau', x: -73, z: 62, w: 50, d: 44, h: 22, edge: 3 }),
+  ...mirror({ type: 'plateau', x: -88, z: 50, w: 16, d: 16, h: 28, edge: 3 }),
+  // the mesas either side of the Gate canyon, the walls of the White Tree canyon, and the wall south of Giant's Scar
+  ...mirror({ type: 'plateau', x: -66, z: -30, w: 48, d: 46, h: 14, edge: 3 }),
+  ...mirror({ type: 'plateau', x: -70, z: -34, w: 30, d: 28, h: 21, edge: 3 }),
+  { type: 'plateau', x: -155, z: -47, w: 70, d: 24, h: 16, edge: 3 }, { type: 'plateau', x: -158, z: 62, w: 74, d: 40, h: 14, edge: 3 }, { type: 'plateau', x: -170, z: 60, w: 40, d: 24, h: 21, edge: 3 },
+  { type: 'plateau', x: 160, z: 66, w: 70, d: 50, h: 12, edge: 3 }, { type: 'plateau', x: 168, z: 62, w: 36, d: 26, h: 19, edge: 3 },
+  // Giant's Scar: the drill's flat slab ground; the Cabal base; Terrabase Charon's pad
+  { type: 'plateau', x: 142, z: 12, w: 62, d: 56, h: IO.scar, edge: 6 },
+  { type: 'plateau', x: 148, z: -100, w: 96, d: 100, h: IO.base, edge: 4 },
+  { type: 'plateau', x: -150, z: -152, w: 80, d: 76, h: IO.charon, edge: 4 },
+  // the Pyramidion: a plinth, the sunk main floor, the terraced pit under the core, the entry ledge, the landings and two stairways, and the ramp up to the gate
+  { type: 'plateau', x: 0, z: -160, w: 164, d: 180, h: IO.plinth, edge: 10 },
+  { type: 'plateau', x: 0, z: -160, w: 140, d: 140, h: IO.pit, edge: 1.5 },
+  { type: 'plateau', x: 0, z: -172, w: 50, d: 50, h: 4.5, edge: 3 }, { type: 'plateau', x: 0, z: -172, w: 40, d: 40, h: 3, edge: 3 }, { type: 'plateau', x: 0, z: -172, w: 30, d: 30, h: 1.5, edge: 3 }, { type: 'plateau', x: 0, z: -172, w: 22, d: 22, h: 0, edge: 3 },
+  { type: 'plateau', x: 0, z: -95, w: 32, d: 18, h: IO.plinth, edge: 1.5 },
+  ...mirror({ type: 'plateau', x: -54, z: -100, w: 20, d: 18, h: IO.landing, edge: 1.5 }),
+  ...mirror({ type: 'ramp', x0: -12, z0: -98, x1: -46, z1: -98, width: 9, h0: IO.plinth, h1: IO.landing, edge: 1.5 }),
+  ...mirror({ type: 'ramp', x0: -54, z0: -100, x1: -54, z1: -150, width: 9, h0: IO.landing, h1: IO.pit, edge: 1.5 }),
+  { type: 'ramp', x0: 0, z0: -18, x1: 0, z1: -72, width: 14, h0: IO.floor, h1: IO.plinth, edge: 2 },
+  // the roads up the mesas (Sparrow routes), the ramps to the base, to Charon, and up each first layer's second layer
+  ...mirror({ type: 'ramp', x0: -22, z0: 100, x1: -52, z1: 100, width: 10, h0: IO.floor, h1: 14, edge: 2 }),
+  ...mirror({ type: 'ramp', x0: -62, z0: 88, x1: -62, z1: 64, width: 9, h0: 14, h1: 22, edge: 2 }),
+  ...mirror({ type: 'ramp', x0: -26, z0: -20, x1: -50, z1: -16, width: 9, h0: IO.floor, h1: 14, edge: 2 }),
+  { type: 'ramp', x0: 150, z0: -20, x1: 150, z1: -48, width: 10, h0: IO.floor, h1: IO.base, edge: 3 },
+  { type: 'ramp', x0: -96, z0: -150, x1: -120, z1: -150, width: 9, h0: IO.floor, h1: IO.charon, edge: 3 },
 ];
 
 /** Patrol maps by map id: the data half of each (js/patrol-<dest>.js adds `build`). */
@@ -345,6 +411,64 @@ export const PATROL_DATA = {
         { x: 6, z: -120, n: 6 }, { x: 52, z: -128, n: 5 }, { x: 118, z: -100, n: 4 }, { x: 148, z: -126, n: 5 }, { x: 124, z: -170, n: 5 },
       ],
       npcs: { sloane: { x: 20, z: 150, yaw: 0 } },
+    },
+  },
+  // U17e: Io. A green, barren moon of layered mesas and canyons joined by dirt roads (Sparrow routes). The Vex hold the canyons and the Pyramidion (enterable, an enormous
+  // sunken hall); the Taken a blight beside the abandoned Terrabase Charon; the Red Legion a base with interiors and the drill at Giant's Scar. Every area hangs off a road from the landing.
+  i_patrol: {
+    spawn: [0, 156],
+    bounds: [-200, 200, -260, 176],
+    zones: [
+      { name: 'Lost Oasis', x: 0, z: 156 },
+      { name: 'Oasis Beacon', x: 22, z: 140 },
+      { name: 'Mesa Beacon', x: -20, z: 90 },
+      { name: 'White Tree Beacon', x: -104, z: 18 },
+      { name: "Giant's Scar Beacon", x: 112, z: 18 },
+      { name: 'Blight Beacon', x: -98, z: -74 },
+      { name: 'Pyramidion Beacon', x: 0, z: -128 },
+      { name: 'Legion Base Beacon', x: 150, z: -66 },
+      { name: 'Gate Canyon', x: 0, z: 8 },
+      { name: 'The Blight', x: -148, z: -92 },
+      { name: 'White Tree Canyon', x: -160, z: 12 },
+      { name: "Giant's Scar", x: 142, z: 12 },
+      { name: 'Terrabase Charon', x: -150, z: -160 },
+      { name: 'Red Legion Base', x: 150, z: -100 },
+      { name: 'The Pyramidion', x: 0, z: -172 },
+    ],
+    noEdge: true,
+    hideBulbs: true,
+    lightPool: 8,
+    merge: true,
+    // green ground, olive strata, teal-grey haze: Jupiter low over the mesas
+    colors: { sky: 0x9cc4b2, fog: 0xa9c4a8, hemiTop: 0xe6f0d0, hemiBot: 0x4a5236, ground: 0xa8b24c, ground2: 0x96a042, rock: 0x7d8650, rock2: 0x636c3e },
+    fog: [90, 430],
+    terrain: IO_TERRAIN,
+    sky: {
+      bodies: [{ color: 0xe8c890, size: 190, pos: [-280, 90, -520], bands: [0xe8c890, 0xd0784a, 0xf0dcb0, 0xb86a40, 0xe8d2a0] }],
+    },
+    patrol: {
+      beacons: [
+        { id: 'oasis_hunt', x: 22, z: 140, type: 'hunt', f: 'vex', name: 'Oasis Bounty', site: { x: 66, z: 62 }, target: { name: 'Sol-Kath, Mesa Warden', unit: 'captain' } },
+        { id: 'mesa_clear', x: -20, z: 90, type: 'clear', f: 'vex', name: 'Mesa Camp', site: { x: -70, z: 62 } },
+        { id: 'tree_hunt', x: -104, z: 18, type: 'hunt', f: 'vex', name: 'White Tree Bounty', site: { x: -160, z: 14 }, target: { name: 'Yal-Ner, Canyon Hydra', unit: 'heavy' } },
+        { id: 'scar_clear', x: 112, z: 18, type: 'clear', name: "Giant's Scar Camp", site: { x: 142, z: 24 } },
+        { id: 'blight_hunt', x: -98, z: -74, type: 'hunt', f: 'taken', name: 'Blight Bounty', site: { x: -172, z: -100 }, target: { name: "Ul'Dagh, Blight Knight", unit: 'captain' } },
+        { id: 'pyramid_clear', x: 0, z: -128, type: 'clear', f: 'vex', name: 'Pyramidion Camp', site: { x: 0, z: -214 } },
+        { id: 'base_clear', x: 150, z: -66, type: 'clear', name: 'Legion Base Camp', site: { x: 176, z: -88 } },
+      ],
+      events: [
+        { id: 'vex_incursion', x: 0, z: 8, r: 22 },
+        { id: 'taken_blight', x: -148, z: -92, r: 20 },
+      ],
+      camps: [
+        { x: -72, z: 94, n: 4, f: 'vex' }, { x: 72, z: 94, n: 4, f: 'vex' }, { x: -66, z: 56, n: 5, f: 'vex' }, { x: 66, z: 56, n: 5, f: 'vex' },
+        { x: -130, z: 16, n: 5, f: 'vex' }, { x: -176, z: 28, n: 4, f: 'vex' }, { x: -60, z: 22, n: 4, f: 'vex' }, { x: 60, z: 22, n: 4, f: 'vex' },
+        { x: -36, z: 2, n: 4, f: 'vex' }, { x: 36, z: 2, n: 4, f: 'vex' },
+        { x: -40, z: -130, n: 6, f: 'vex' }, { x: 40, z: -130, n: 6, f: 'vex' }, { x: 0, z: -206, n: 6, f: 'vex' }, { x: -48, z: -196, n: 5, f: 'vex' }, { x: 48, z: -196, n: 5, f: 'vex' },
+        { x: -176, z: -96, n: 4, f: 'taken' }, { x: -150, z: -132, n: 5, f: 'taken' }, { x: -130, z: -172, n: 4, f: 'taken' }, { x: -112, z: -100, n: 4, f: 'taken' },
+        { x: 130, z: 26, n: 5 }, { x: 168, z: 8, n: 5 }, { x: 126, z: -82, n: 5 }, { x: 176, z: -132, n: 5 }, { x: 150, z: -100, n: 4 }, { x: 120, z: -62, n: 4 },
+      ],
+      npcs: { asher: { x: -150, z: -170, yaw: 0 } },
     },
   },
 };

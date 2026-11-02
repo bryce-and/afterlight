@@ -463,6 +463,8 @@ export const LOCATIONS = [
       { id: 'io1', mood: 'dawn', name: 'Sacred Ground', power: 100, zones: 3, boss: { name: 'Malok-Ra, Taken Captain', element: 'void', model: 'takencaptain' }, desc: 'Cross the Lost Oasis and Giant\'s Scar to the Rupture, where the Taken have gathered at the Traveler\'s last touch.' },
       { id: 'io3', mood: 'night', name: 'The Pyramidion', power: 109, zones: 4, boss: { name: 'Protheon, Modular Mind', element: 'arc', model: 'vexmind' }, desc: 'Descend past Excavation Site XII into the Vex Pyramidion and take apart the Mind that guards it.' },
     ],
+    // U17e: the free-roam patrol zone (js/patrol-io.js, js/patrol.js)
+    patrol: { id: 'i_patrol', mood: 'day', name: 'Io Patrol', objective: 'Patrol Io', power: 109, zones: 0, boss: { name: '', element: 'void', model: 'broodwizard' }, desc: 'Roam the green canyons of Io. Activate beacons, join public events, ride a Sparrow along the dirt roads, and walk the vast Vex hall under the Pyramidion.' },
   },
   {
     id: 'titan', name: 'New Pacific Arcology', planetName: 'Titan', faction: 'Hive', sea: true,
