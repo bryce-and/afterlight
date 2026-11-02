@@ -60,7 +60,7 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F07 | 51 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U18 | Planned |
 | F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U19 | Planned |
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
-| F14 | A patrol zone on every destination | U17 (Earth shipped in U17a, v3.3; Moon and Mars in U17b, v3.4; Titan in U17c, v3.5; Io in U17d and the rest in U17e) | In progress (v3.5, Earth, Moon, Mars and Titan) |
+| F14 | A patrol zone on every destination | U17 (Earth shipped in U17a, v3.3; Moon and Mars in U17b, v3.4; Titan in U17c, v3.5; Io in U17e (after the U17d Vex and Taken rework) and the rest in U17f) | In progress (v3.5, Earth, Moon, Mars and Titan) |
 | F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U19 (difficulty scaling) | Complete and published (v2.4) |
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U27 (optional) | Planned |
 | F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U19 | Planned |

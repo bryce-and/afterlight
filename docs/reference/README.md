@@ -72,3 +72,10 @@ Brief: a relatively barren rocky planet with a green surface, canyons and valley
 ## All patrol zones (Bryce, 2026-10-29)
 
 Walkways, rails and platforms sit on what is under them: no floating rails, and a path over sloped ground follows the slope. Existing levels have this problem; a level QC pass is on the roadmap. New patrol zones must be built right from the start.
+
+## Vex and Taken units (U17d, Bryce, 2026-11-02)
+
+In `enemies/`, two images per unit (three for the Hydra), named `<faction>-<unit>-<n>`. Shape references: every unit uses its faction's one default look (Bryce, 2026-11-02; see `docs/U17d_PROPOSAL.md` Part 2), so the white, gold and blue variants (`vex-imp-swarm-2`, `vex-fanatic-1`, `vex-fanatic-2`) are built in the standard bronze.
+
+- Vex: Harpy, Goblin, Minotaur, Cyclops, Hobgoblin (sniper), Imp Swarm, Fanatic (suicide), Wyvern, Hydra. The Supplicant is retired; the Fanatic replaces it.
+- Taken: Thrall, Shadow Thrall, Acolyte, Vandal (sniper), Psion, Goblin, Wizard, Captain, Centurion, Phalanx, Knight, Ogre. The Taken Hobgoblin (sniper) has no reference: Vex Hobgoblin frame in the Taken style. The Taken Incendior is retired.
