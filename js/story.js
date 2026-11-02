@@ -321,6 +321,12 @@ export const PATROL_TALKS = {
     ['ghost', 'And the rest of the arcology?'],
     ['sloane', 'Empty, and growing wild. Walk it carefully, Guardian. Take this, and clear me a path.'],
   ],
+  asher_io: [
+    ['asher', 'Assistant! You found the lab. Mind the wires, the Taken are fond of chewing them.'],
+    ['asher', 'This is Terrabase Charon. The Traveler touched Io here, last of all, and the Light left marks on everything. The Vex noticed. The Red Legion noticed. Nobody asked me.'],
+    ['ghost', 'You have been out here alone?'],
+    ['asher', 'Never alone. I have my notes, and the Pyramidion humming at me all night. Take these, assistant, and go and listen to it for me.'],
+  ],
   cayde_earth: [
     ['cayde', 'There you are! Do not look at me. Look at the car. The very rusty car. Good.'],
     ['cayde', 'Back when the Cosmodrome was a parking lot, I hid something here. A snack, or a weapon. Honestly, I forget which.'],

@@ -33,7 +33,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
-import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP } from '../js/patrol-data.js';
+import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, kitUnit } from '../js/patrol-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1997,7 +1997,8 @@ test('U17a: a dropped patrol quest keeps its NPC away until it is picked up agai
 
 // ---------- U17b: Moon and Mars patrol zones ----------
 const KINDS_B = new Set(['grunt', 'rusher', 'captain', 'heavy', 'suicide']);
-for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan', 't_patrol']]) {
+const unitOk = (u) => KINDS_B.has(u) || !!FA.UNITS[u]; // a base role, or (U17e) a real unit id
+for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan', 't_patrol'], ['io', 'i_patrol']]) {
   const D = PATROL_DATA[pid], P = D.patrol;
   const all = () => [...P.beacons, ...P.beacons.map((b) => b.site), ...P.events, ...P.camps, ...Object.values(P.npcs)];
   test(`U17b: ${dest} has a patrol zone wired to the Director, and every site is inside the map`, () => {
@@ -2018,12 +2019,12 @@ for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan',
     for (const b of P.beacons) {
       ok(BEACON_TEXT[b.type], `${b.id} has a card for ${b.type}`);
       ok(!b.f || FACTION_KITS[b.f], `${b.id} names a known faction kit (none means the destination's own)`);
-      if (b.type === 'hunt') ok(b.target?.name && KINDS_B.has(b.target.unit), `${b.id} names a target`);
+      if (b.type === 'hunt') ok(b.target?.name && unitOk(b.target.unit), `${b.id} names a target`);
     }
     for (const c of P.camps) ok(!c.f || FACTION_KITS[c.f], `camp (${c.x}, ${c.z}) names a known faction kit`);
     for (const e of P.events) {
       const sp = EVENT_SPECS[e.id];
-      ok(sp && KINDS_B.has(sp.marked.unit) && sp.pushes.length >= 2 && sp.finale.heroicN > sp.finale.n, `${e.id} is scripted`);
+      ok(sp && unitOk(sp.marked.unit) && sp.pushes.length >= 2 && sp.finale.heroicN > sp.finale.n, `${e.id} is scripted`);
     }
   });
   test(`U17b: ${dest}'s patrol NPC is offered, once, at the patrol`, () => {
@@ -2138,6 +2139,81 @@ test('U17d: the Tangled Shore is fought against the Scorn', () => {
   eq(FA.activityFaction('io', 3), 'vex'); eq(FA.activityFaction('io', 2), null);
   eq(FA.LOC_FACTION.tangled, 'scorn');
 });
+
+// ---------- U17e: the Io patrol zone ----------
+{
+  const D = PATROL_DATA.i_patrol, P = D.patrol, T = buildTerrain(D.terrain);
+  const inPyr = (p) => p.x > -70 && p.x < 70 && p.z > -230 && p.z < -90;
+  const inBase = (p) => p.x > 104 && p.x < 192 && p.z > -146 && p.z < -54;
+  test('U17e: Io: the Pyramidion is a sunk hall: floor, ledge, plinth and pit heights', () => {
+    ok(Math.abs(T.at(0, -76) - IO.plinth) < 0.01 && Math.abs(T.at(0, -97) - IO.plinth) < 0.01, 'the gate ledge is at the plinth');
+    for (const [x, z] of [[-60, -130], [60, -130], [-60, -220], [60, -220], [0, -125]]) ok(Math.abs(T.at(x, z) - IO.pit) < 0.01, `(${x}, ${z}) is on the main floor`);
+    ok(Math.abs(T.at(0, -172)) < 0.01 && T.at(0, -148) < IO.pit, 'the pit under the core sinks to 0');
+    ok(IO.plinth - IO.pit >= 18, 'the descent is at least 18 m');
+  });
+  test('U17e: Io: every Sparrow road, stairway and ramp is under the slope cap', () => {
+    const routes = [
+      [[0, -18], [0, -72]], [[12, -98], [46, -98]], [[-12, -98], [-46, -98]], [[54, -101], [54, -150]], [[-54, -101], [-54, -150]],
+      [[-22, 100], [-52, 100]], [[22, 100], [52, 100]], [[-62, 88], [-62, 64]], [[62, 88], [62, 64]], [[-26, -20], [-50, -16]], [[26, -20], [50, -16]],
+      [[150, -20], [150, -48]], [[-96, -150], [-120, -150]], [[0, 156], [0, -16]], [[0, 16], [-160, 10]], [[0, 16], [142, 12]], [[-104, 16], [-96, -150]],
+    ];
+    for (const r of routes) ok(routeSlope(T, r) < MAX_SLOPE, `route ${JSON.stringify(r)} is walkable`);
+  });
+  test('U17e: Io: every area has an intentional road and the Pyramidion, base, tree, Scar and Charon sit where the data says', () => {
+    ok(Math.abs(T.at(150, -100) - IO.base) < 0.01 && Math.abs(T.at(-150, -152) - IO.charon) < 0.01 && Math.abs(T.at(142, 12) - IO.scar) < 0.01, 'the base, Charon and Scar pads are flat');
+    ok(P.npcs.asher && Math.abs(T.at(P.npcs.asher.x, P.npcs.asher.z) - IO.charon) < 0.01, 'Asher stands on the Charon pad');
+    for (const [x, z] of [[0, 156], [-160, 12], [142, 24], [-150, -92], [150, -66]]) ok(T.at(x, z) < 12, `(${x}, ${z}) is on low ground`);
+  });
+  test('U17e: Io: at least five beacons, spread over the canyons, Giant\'s Scar, the blight, the Pyramidion and the Cabal base', () => {
+    ok(P.beacons.length >= 5, 'five or more');
+    ok(P.beacons.some((b) => b.type === 'clear' && inPyr(b)), 'a Clear inside the Pyramidion');
+    ok(P.beacons.some((b) => b.type === 'clear' && inBase(b) && !b.f), 'a Clear inside the Cabal base, against the Red Legion');
+    ok(P.beacons.some((b) => b.type === 'hunt' && b.f === 'taken'), 'a Taken hunt at the blight');
+    ok(P.beacons.some((b) => !b.f && Math.hypot(b.site.x - 142, b.site.z - 12) < 30), "a camp at Giant's Scar");
+    ok(P.beacons.filter((b) => b.f === 'vex').length >= 3, 'Vex beacons across the canyons');
+    ok(P.beacons.some((b) => b.type === 'hunt') && P.beacons.some((b) => b.type === 'clear'), 'hunts and clears');
+  });
+  test('U17e: Io: camps are mostly Vex, Taken near the blight and Charon, Cabal in their base and at the Scar', () => {
+    const f = (k) => P.camps.filter((c) => (c.f ?? 'cabal') === k);
+    ok(f('vex').length > f('taken').length + f('cabal').length - 4 && f('vex').length >= 12, 'the Vex hold most camps');
+    ok(f('taken').length >= 3 && f('taken').every((c) => c.x < -100 && c.z < -80), 'the Taken stay by the blight and Charon');
+    ok(f('cabal').length >= 5 && f('cabal').every((c) => c.x > 100), 'the Cabal hold the east');
+    ok(P.camps.filter((c) => c.f === 'vex' && inPyr(c)).length >= 4, 'Vex camps inside the Pyramidion');
+    ok(P.camps.filter(inBase).length >= 3, 'camps inside the Cabal base');
+  });
+  test('U17e: Io: the Vex Incursion and Taken Blight events are complete, name a kit, and resolve to real units', () => {
+    for (const [id, faction] of [['vex_incursion', 'vex'], ['taken_blight', 'taken']]) {
+      const sp = EVENT_SPECS[id];
+      eq(sp.faction, faction); eq(sp.units, FACTION_KITS[faction].units);
+      ok(sp.marked.n >= 2 && sp.pushes.length >= 2 && sp.finale.heroicN > sp.finale.n, `${id} has a heroic mechanic`);
+      ok(FA.UNITS[kitUnit(sp.units, sp.marked.unit, (a) => a[0])], `${id} marks a real unit`);
+      ok(FA.UNITS[kitUnit(sp.units, sp.finale.unit, (a) => a[0])], `${id} ends on a real unit`);
+      for (const push of sp.pushes) for (const [role] of push) ok(FA.UNITS[kitUnit(sp.units, role, (a) => a[0])], `${id} pushes ${role}`);
+    }
+    eq(kitUnit(EVENT_SPECS.vex_incursion.units, 'captain'), 'vx_minotaur');
+    ok(['tk_captain', 'tk_centurion'].includes(kitUnit(FACTION_KITS.taken.units, 'captain')), 'the Taken captain role');
+    ok(P.events.length === 2 && P.events.every((e) => EVENT_SPECS[e.id]), 'both events are placed');
+  });
+  test('U17e: faction kits: a unit map resolves each role to a real unit, a list picks, an explicit id passes through, no map keeps the base type', () => {
+    for (const k of ['vex', 'taken']) {
+      eq(FA.UNITS[kitUnit(FACTION_KITS[k].units, 'grunt', (a) => a[0])].faction, k);
+      for (const role of ['grunt', 'rusher', 'captain', 'heavy', 'suicide']) for (const pick of [(a) => a[0], (a) => a.at(-1)]) {
+        const u = kitUnit(FACTION_KITS[k].units, role, pick);
+        ok(FA.UNITS[u] && FA.UNITS[u].faction === k, `${k} ${role} -> ${u}`);
+      }
+    }
+    eq(kitUnit(undefined, 'captain'), 'captain'); eq(kitUnit(FACTION_KITS.fallen.units, 'heavy'), 'heavy');
+    eq(kitUnit({ heavy: ['a', 'b'] }, 'heavy', (a) => a[1]), 'b'); eq(kitUnit({}, 'tk_ogre'), 'tk_ogre');
+    ok(FACTION_KITS.vex.pal === undefined && FACTION_KITS.taken.pal === undefined, 'no palette: the faction look');
+  });
+  test('U17e: Asher Mir has a meeting, a quest, and a talk', () => {
+    const m = Q.PATROL_MEETINGS.find((x) => x.id === 'asher_io');
+    ok(m && m.dest === 'io' && m.npc === 'asher' && m.place === 'patrol:io', 'the meeting');
+    eq(Q.QUESTS.asher_io.name, 'The Last Touch'); eq(Q.QUESTS.asher_io.meeting, 'asher_io');
+    const talk = ST_.PATROL_TALKS.asher_io;
+    ok(talk.length >= 3 && talk.every(([who, text]) => ST_.SPEAKERS[who] && text.length > 5 && !/[–—]/.test(text)), 'the talk');
+  });
+}
 
 
 // ---------- runner ----------

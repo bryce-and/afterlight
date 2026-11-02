@@ -35,11 +35,13 @@ export const PATROL_MEETINGS = [
   { id: 'eris_moon', dest: 'moon', npc: 'eris', place: 'patrol:moon', text: 'Find Eris Morn in the Moon patrol zone' },
   { id: 'ana_mars', dest: 'mars', npc: 'ana', place: 'patrol:mars', text: 'Find Ana Bray in the Mars patrol zone' },
   { id: 'sloane_titan', dest: 'titan', npc: 'sloane', place: 'patrol:titan', text: 'Find Sloane in the Titan patrol zone' },
+  { id: 'asher_io', dest: 'io', npc: 'asher', place: 'patrol:io', text: 'Find Asher Mir in the Io patrol zone' },
 ];
 QUESTS.cayde_earth = { id: 'cayde_earth', name: 'Stash and Dash', desc: 'Cayde-6 has hidden something in the Cosmodrome and needs a Guardian who will not ask questions.', abandonable: true, meeting: 'cayde_earth' };
 QUESTS.eris_moon = { id: 'eris_moon', name: 'What the Dark Gave', desc: 'Eris Morn keeps watch over the Moon, and has something to say to a Guardian who walks it.', abandonable: true, meeting: 'eris_moon' };
 QUESTS.ana_mars = { id: 'ana_mars', name: 'Beneath the Sand', desc: 'Ana Bray walks the Buried City, where the Golden Age still stands under the dunes.', abandonable: true, meeting: 'ana_mars' };
 QUESTS.sloane_titan = { id: 'sloane_titan', name: 'Arcology Watch', desc: 'Sloane keeps the rigs of New Pacific Arcology and wants a Guardian to look at what is growing in the dome.', abandonable: true, meeting: 'sloane_titan' };
+QUESTS.asher_io = { id: 'asher_io', name: 'The Last Touch', desc: 'Asher Mir works in the empty halls of Terrabase Charon, where the Traveler last touched Io, and wants a Guardian to carry his notes past the Vex.', abandonable: true, meeting: 'asher_io' };
 
 const locIndex = (id) => LOCATIONS.findIndex((l) => l.id === id);
 const lastMission = (li) => LOCATIONS[li].missions[LOCATIONS[li].missions.length - 1];

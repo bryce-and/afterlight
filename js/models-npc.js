@@ -14,6 +14,7 @@ export const NPC_INFO = {
   eris: { name: 'Eris Morn', title: 'Hunter', color: '#b5e6ff' }, // U17b: patrol-zone meetings
   ana: { name: 'Ana Bray', title: 'Hunter', color: '#7fd0e8' },
   sloane: { name: 'Sloane', title: 'Vanguard Deputy', color: '#9fc4d8' }, // U17c
+  asher: { name: 'Asher Mir', title: 'Researcher', color: '#ffe08a' }, // U17e
 };
 
 const _mats = new Map();
@@ -559,7 +560,70 @@ function sloane() {
   };
 }
 
-const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris, sloane };
+// ---------------------------------------------------------------------------
+/** U17e: Asher Mir after the reference: blue-grey skin, swept white hair with red at the left side, a tall orange coat with a cream-edged high collar and a purple-dark sleeve,
+ *  a bandolier of brown cartridges, a wide belt with pouches, and a red Vex arm (his right) ending in a clawed hand. */
+function asher() {
+  const skin = M(0x8ba8c8), hair = M(0xf1f3f6), hairRed = M(0xb83a34), orange = M(0xc98a2c), orangeDk = M(0xa86e22), cream = M(0xe8d8b8), purple = M(0x4a3f68);
+  const redArm = M(0xa8322a, { metalness: 0.4 }), redDk = M(0x6e1f1a), brown = M(0x5a3a22), leather = M(0x6a4a30), dark = M(0x241f22), brass = M(0xc8a24a), pants = M(0x6a2a22);
+  const f = figure({
+    hipW: 0.11, thigh: 0.15, pants, boot: dark, chestW: 0.42, chestD: 0.24, shirt: orange,
+    armT: 0.12, sleeve: purple, glove: purple, hand: skin, skin,
+  });
+  const { group, torso, head } = f;
+  humanHead(head, skin, 0.17, 0.22);
+  // white swept hair, red on the left side
+  box(0.19, 0.07, 0.2, 0, 0.23, 0.0, hair, head);
+  box(0.07, 0.1, 0.18, 0.1, 0.15, -0.01, hair, head);
+  box(0.07, 0.1, 0.18, -0.1, 0.15, -0.01, hairRed, head);
+  box(0.19, 0.18, 0.05, 0, 0.1, -0.1, hair, head);
+  box(0.09, 0.08, 0.1, 0.03, 0.29, 0.02, hair, head, [0.2, 0, 0.2]);
+  // the coat: a long front panel and skirts, a sleeveless-looking orange vest over a red under-layer, and a high flared collar edged in cream
+  box(0.42, 0.5, 0.26, 0, 0.3, 0.0, orange, torso);
+  box(0.12, 0.5, 0.27, -0.15, 0.3, 0.0, orangeDk, torso);
+  box(0.34, 0.36, 0.05, 0, -0.22, 0.12, orange, torso);
+  box(0.34, 0.36, 0.05, 0, -0.22, -0.12, orangeDk, torso);
+  box(0.1, 0.5, 0.05, 0.2, -0.05, 0.12, redDk, torso);
+  box(0.3, 0.14, 0.2, 0, 0.66, -0.03, orange, torso, [-0.1, 0, 0]);
+  box(0.06, 0.2, 0.2, 0.15, 0.7, 0.02, cream, torso, [0, 0, -0.2]);
+  box(0.06, 0.2, 0.2, -0.15, 0.7, 0.02, cream, torso, [0, 0, 0.2]);
+  box(0.04, 0.5, 0.01, 0, 0.3, 0.135, cream, torso);
+  // the bandolier: a strap from the right shoulder to the left hip studded with cartridges
+  const band = pivot(0, 0.3, 0.14, torso, 'bandolier');
+  box(0.07, 0.62, 0.02, 0, 0, 0, leather, band, [0, 0, 0.62]);
+  for (let i = 0; i < 6; i++) cyl(0.025, 0.025, 0.07, 6, -0.16 + i * 0.065, 0.14 - i * 0.092, 0.02, brass, band, [0, 0, 0.62]);
+  // a wide belt, a buckle and two pouches
+  box(0.46, 0.08, 0.28, 0, 0.0, 0, leather, torso);
+  box(0.07, 0.07, 0.03, 0, 0.0, 0.15, brass, torso);
+  for (const s of [-1, 1]) box(0.09, 0.11, 0.1, s * 0.2, -0.03, 0.12, brown, torso);
+  // shoulders: a dark pad on his left, bare orange on the right
+  const pl = pivot(0.28, 0.58, 0, torso, 'pauldron');
+  box(0.16, 0.08, 0.2, 0, 0, 0, orangeDk, pl, [0, 0, -0.2]);
+  box(0.04, 0.1, 0.2, 0.1, -0.02, 0, cream, pl);
+  // the red Vex arm on his right: plated upper arm and a clawed hand
+  const ar = f.armR;
+  box(0.15, 0.3, 0.15, 0, -0.15, 0, redArm, ar.arm);
+  box(0.17, 0.06, 0.17, 0, -0.02, 0, redDk, ar.arm);
+  box(0.13, 0.3, 0.13, 0, -0.15, 0, redArm, ar.fore);
+  box(0.11, 0.1, 0.12, 0, -0.34, 0, redDk, ar.fore);
+  for (const x of [-0.04, 0, 0.04]) box(0.02, 0.09, 0.025, x, -0.43, 0.01, redArm, ar.fore, [0.25, 0, 0]);
+  const redGlow = glow(0xff4a3a, 1.4);
+  box(0.03, 0.03, 0.03, 0.0, -0.18, 0.08, redGlow, ar.fore);
+  // arms: his Vex hand hangs ready, the other is lowered and relaxed
+  f.armR.arm.rotation.set(0.12, 0, -0.1); f.armR.fore.rotation.set(-0.45, 0, 0);
+  f.armL.arm.rotation.set(0.02, 0, 0.08); f.armL.fore.rotation.set(-0.1, 0, 0);
+  const base = torso.position.y;
+  return {
+    group, height: 1.8, update(dt, t) {
+      const b = breathe(t, 1.1);
+      torso.position.y = base + b * 0.004;
+      torso.scale.set(1, 1 + b * 0.012, 1 + b * 0.01);
+      head.rotation.y = Math.sin(t * 0.3 + 2) * 0.16;
+    },
+  };
+}
+
+const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris, sloane, asher };
 
 /** Build one Tower NPC. Returns { group, update(dt, t), height }. */
 export function buildNpc(id) {
