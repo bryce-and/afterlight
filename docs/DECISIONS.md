@@ -215,3 +215,7 @@
 | 2026-11-03 | The Tangled Shore patrol zone mixes factions: Fallen across most of it, Scorn in some spots, Hive at the crashed Hive ship. This replaces the 2026-11-02 "all Scorn" rule for the patrol zone only; campaign missions and activities stay Scorn. | Bryce |
 | 2026-11-03 | Falling off a ledge in the Tangled Shore patrol is allowed: the player dies, ragdolls and wakes at the landing. | Bryce |
 | 2026-11-03 | Petra Venj is the Tangled Shore patrol NPC; the Spider sits in his throne room in his lair. | Bryce |
+| 2026-11-03 | A fall in the patrol spends no revive and no co-op life; teammates see the tumble and cannot revive it. Enemies knocked into the abyss die. | Claude |
+| 2026-11-03 | Fallen, Scorn and Hive in the Tangled Shore patrol use their faction's default look (no palette overrides). | Bryce |
+| 2026-11-03 | Plank bridges in the Tangled Shore have solid rope rails. Wide decks are open-edged Sparrow routes. | Claude |
+| 2026-11-03 | The patrol spawn faces south. This is an existing quirk, noted and not changed. | Claude |

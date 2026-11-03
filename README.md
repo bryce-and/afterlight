@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v3.8 "Open Frontier" (wave 5)**: The Tangled Shore becomes a patrol zone. Thieves' Landing is a safe cavern under a rock ceiling, with the Spider's lair and throne room, the chained rocks of the Rift, Four-Holed Cove, a crashed Hive ship with a walkable hold, and the Scorn flats and Trapper's Cave. Fallen, Scorn and Hive, six beacons, and two new public events, Ether Resupply and Hive Awakening, both with a heroic mechanic. Petra Venj is met in the patrol zone, with the quest The Queen's Wrath. The abyss between the rocks is a fall: step off and you die.
 - **v3.7 "Open Frontier" (wave 4)**: Io becomes a patrol zone. Green canyons and valleys, a Red Legion base with walkable interiors, the Taken blight at Terrabase Charon, and the Pyramidion, an enterable colossal Vex block with a large interior hall and a red-glowing pit. Vex, Taken and Red Legion camps. Seven beacons and two new public events, Vex Incursion and Taken Blight, both with a heroic mechanic. Asher Mir is met in the patrol zone, with the quest The Last Touch.
 - **v3.6 "Vex and Taken" (U17d)**: New Vex models from Bryce's references, bronze and black with a red eye, and new Taken models with black flames off the head and shoulders. A shared sniper skill with an aim line for the Vex Hobgoblin, Taken Vandal and new Taken Hobgoblin. Supplicant and Taken Incendior are retired. Each faction keeps one look on every destination, and the Tangled Shore is Scorn.
 - **v3.5 "Open Frontier" (wave 3)**: Titan becomes a patrol zone. Oil-rig stations stand on red stilt legs above the methane sea, joined by pipe bridges the Sparrow can ride. The biosphere arcology under its glass dome is overgrown, and the Hive have nested in the Solarium and one tower wing. Sloane waits at her command post, and the Sunken Gallery runs down under the sea. New public events: Rig Breach and Brood Hatch.
@@ -83,6 +84,7 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/patrol-mars.js` | The Mars patrol map |
 | `js/patrol-titan.js` | The Titan patrol map |
 | `js/patrol-io.js` | The Io patrol map |
+| `js/patrol-tangled.js` | The Tangled Shore patrol map |
 | `js/sparrow.js` | Ghost view, Sparrow controller and models |
 | `js/data.js` | All tuning: classes, weapons, perks, enemies, locations |
 | `js/loot.js` / `js/save.js` | Item generation, inventory, save file (schema version + migrations) |
