@@ -211,3 +211,7 @@
 | 2026-11-02 | Sniper numbers for the shared `snipe` skill (`SKILL.snipe` in `js/factions.js`): lock 0.4 s, track 5, hit radius 0.9. Vex Hobgoblin charge 1.6 s and 38 damage; Taken Vandal 1.5 s and 34 damage (replaces its ward); Taken Hobgoblin 1.6 s and 38 damage, plus blink. At even power a hit is 38 of about 213 health and shield. | Claude |
 | 2026-11-02 | The Taken Psion stands on the ground instead of floating. | Claude |
 | 2026-11-02 | U17d gets its own title artwork (Vex Hobgoblin and Taken Vandal trading aim lines). | Bryce |
+| 2026-11-03 | U17e and U17f are chained in one session; U17f is the Tangled Shore alone and the Dreaming City becomes U17g with its own Gate B. | Bryce |
+| 2026-11-03 | The Tangled Shore patrol zone mixes factions: Fallen across most of it, Scorn in some spots, Hive at the crashed Hive ship. This replaces the 2026-11-02 "all Scorn" rule for the patrol zone only; campaign missions and activities stay Scorn. | Bryce |
+| 2026-11-03 | Falling off a ledge in the Tangled Shore patrol is allowed: the player dies, ragdolls and wakes at the landing. | Bryce |
+| 2026-11-03 | Petra Venj is the Tangled Shore patrol NPC; the Spider sits in his throne room in his lair. | Bryce |

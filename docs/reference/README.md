@@ -69,6 +69,25 @@ Brief: a mix of two zones, everything on platforms high above the water. (1) The
 
 Brief: a relatively barren rocky planet with a green surface, canyons and valleys. A Taken presence; primarily a Vex presence. The Pyramidion is a large Vex structure, enterable, with much more complex Vex architecture inside; the main goal is the scale of its interior, it must feel huge. A Cabal presence and a military base in the same look as earlier Cabal builds, with interiors. As with every patrol zone: intentionally designed, distinguishable architecture and intentional paths through the map. NPC on Io: Asher Mir.
 
+## Tangled Shore patrol zone (U17f, Bryce, 2026-11-03)
+
+Screenshots of the actual Destiny 2 patrol space, plus Petra Venj. `tangled-shore-floating-rocks.webp` (above) fits this set.
+
+| File | Note |
+|---|---|
+| `tangled-patrol-scorn-flats-vortex.webp` | Pale sand flats with dry scrub, low dark rocks, a white Scorn sigil painted on a boulder, rusted wreck ribs; floating rocks tethered by cables; a vast broken ring of debris round a glowing core fills the purple sky |
+| `tangled-patrol-chained-rocks-cranes.webp` | Floating asteroids lashed together with cables and chains, a rusted deck on a rock shelf with Fallen cranes (eye-lit heads, hanging cargo cradles), plank bridges, an Awoken spire far off |
+| `tangled-patrol-wreck-hull.webp` | A colossal crashed ship hull lying on its side over a rocky hollow, plated and lit with small green lights; a cave under it glows green; plank walkways with rope rails in front |
+| `tangled-patrol-wreck-hull-side.png` | The same hull from the side: its overhang above a debris slope, a dome turret, a round pad, a floating wreck in the distance |
+| `tangled-patrol-thieves-landing.webp` | Thieves' Landing: under a rock ceiling hung with bulbous Fallen pods, rounded Fallen huts on steel stilts with orange glyphs and red-glowing eyes, red banners, walkways over blue mist |
+| `tangled-patrol-spider-lair.webp` | Inside the cavern: a tall lit tower door between Fallen domes on a rock, a plank bridge with circle-marked panels, a crane lowering a cargo net, cloud sea below |
+| `petra-venj.webp`, `petra-venj-standing.png` | Petra Venj: Awoken (pale blue-grey skin, glowing blue eye), red side-swept hair, an eyepatch, a cream fur-collared jacket and scarf, a glowing yellow sigil on the chest, a plum scaled bodysuit, brown bracers, a cape, a knife at the thigh |
+
+| `tangled-patrol-spider-throne-room.webp` | The Spider's throne room: green cargo netting hung like tent walls, bare hanging lamps, green pods and crates, a cable-strewn deck; the Spider on his raised throne, two spear-carrying Fallen guards with quill-spike crests and blue-lit claws either side |
+| `spider-closeup.png`, `spider-art.webp` | The Spider: a huge, heavy-set Fallen Baron sunk into a round throne-rig of tanks and pipes on short legs; a pale blue-white crested helmet with spikes, glowing blue eyes, a grey cowl and a long dark robe draped over his front, four arms |
+
+Brief: start with the Tangled Shore (the Dreaming City is a separate update). NPC: Petra Venj; the Spider sits in his lair. Fallen across the Shore, Scorn in some spots, the Hive at the crashed Hive ship. Falling off a ledge is allowed: the player dies and ragdolls.
+
 ## All patrol zones (Bryce, 2026-10-29)
 
 Walkways, rails and platforms sit on what is under them: no floating rails, and a path over sloped ground follows the slope. Existing levels have this problem; a level QC pass is on the roadmap. New patrol zones must be built right from the start.
