@@ -119,7 +119,7 @@ function oasis(K) {
   // the arch over the east road
   const AX = 46, AZ = 144;
   for (const s of [-1, 1]) { K.box(AX + s * 9, AZ, 6, 16, 8, PALE2); K.box(AX + s * 9, AZ, 7, 3, 9, pick(K, MOSS), { y: 0, collide: false }); }
-  K.box(AX, AZ, 28, 4, 8, PALE, { y: 14 });
+  K.box(AX, AZ, 28, 4, 8.4, PALE, { y: 14 });
   K.box(AX, AZ, 20, 3, 7, PALE2, { y: 11, collide: false });
   for (const [dx, dy] of [[-7, 0], [7, 0], [0, 1.5]]) K.box(AX + dx, AZ + 0.2, 6, 1.4, 7.6, pick(K, MOSS), { y: 17.6 + dy, collide: false });
   // the landing: a ring of dressed stones round the Guardian's feet
@@ -172,7 +172,7 @@ function whiteTree(K) {
   K.mesh(new THREE.IcosahedronGeometry(6.5, 1), 0xfff2b8, X, 41, Z, { glow: 1.1, collide: false });
   K.mesh(new THREE.IcosahedronGeometry(3.4, 0), 0xffffff, X, 41, Z, { glow: 1.8, collide: false });
   K.light(X, 40, Z, 0xfff0c0, 14, 70);
-  for (let i = 0; i < 9; i++) { const a = i * TAU / 9; K.mesh(new THREE.BoxGeometry(2.6, 1.6, 13), i % 2 ? 0xf0ecdc : 0xe0dcc8, X + Math.cos(a) * 9, 0.6, Z + Math.sin(a) * 9, { ry: -a, collide: false }); }
+  for (let i = 0; i < 9; i++) { const a = i * TAU / 9; K.mesh(new THREE.BoxGeometry(2.6, i % 2 ? 1.7 : 1.6, 13), i % 2 ? 0xf0ecdc : 0xe0dcc8, X + Math.cos(a) * 9, 0.6, Z + Math.sin(a) * 9, { ry: -a, collide: false }); }
   // sand
   for (const [x, z, w, d] of [[-146, 22, 22, 14], [-172, -14, 26, 16], [-140, -8, 18, 12], [-186, 20, 16, 12], [-122, 6, 14, 10]]) IK.flat(K, x, z, w, d, SAND, { y: 0.08, h: 0.1 });
   // the stream, from the canyon head to the south wall
@@ -259,14 +259,14 @@ function legionBase(K) {
   } });
   fixture(K, 126, 12.6, -76, 9);
   // the corridor from the hangar to the command hall, and the command hall with its consoles and a raised gallery
-  hall(K, 152.5, -88, 23, 5, 4.6, { doors: { e: 4, w: 4 }, lamps: 3 });
+  hall(K, 152.5, -88, 22.2, 5, 4.6, { doors: { e: 4, w: 4 }, lamps: 3 });
   hall(K, 176, -88, 24, 22, 9, { doors: { w: 4, s: 5, n: 4 }, lamps: 3, props: (k, cx, cz) => {
     for (const x of [-6, -1, 4]) console_(k, cx + x, cz + 2, CP);
     shelf(k, cx + 10, cz, false, CP); desk(k, cx - 6, cz - 6, true, CP);
     k.platform(cx - 7, cz - 8.5, 5, 3.5, 2.2, { stairs: ['e'], stairW: 2.2, color: CAB2, stairColor: CAB });
   } });
   // the corridor north to the barracks, and the barracks
-  hall(K, 176, -110, 5, 22, 4.6, { doors: { n: 4, s: 4 }, lamps: 3 });
+  hall(K, 176, -110, 5, 21.2, 4.6, { doors: { n: 4, s: 4 }, lamps: 3 });
   hall(K, 176, -132, 22, 22, 7, { doors: { s: 4 }, lamps: 3, props: (k, cx, cz) => {
     for (const x of [-7, 0, 7]) { k.box(cx + x, cz - 7, 2.4, 0.9, 1.2, CAB2); k.box(cx + x, cz - 3, 2.4, 0.9, 1.2, CAB2); }
     shelf(k, cx - 10, cz + 4, false, CP); k.crate(cx + 8, cz + 6);
@@ -466,7 +466,7 @@ function block(K) {
   K.light(0, IO.plinth + 8, -64, 0xff6a30, 90, 140);
   K.light(-60, IO.plinth + 4, -96, 0xff5a2a, 60, 110); K.light(60, IO.plinth + 4, -96, 0xff5a2a, 60, 110);
   K.light(0, 20, -60, 0xff7a3a, 70, 110);                                      // up under the lifted edge, so the underside glows warm
-  bb(K, 0, -BLK.H / 2 - 0.4, BLK.L / 2 - 3, 148, 0.8, 4, 0xff6a30, { glow: 2.4 }); // a seam of light along the lifted edge
+  bb(K, 0, -BLK.H / 2 - 0.45, BLK.L / 2 - 3, 148, 0.8, 4, 0xff6a30, { glow: 2.4 }); // a seam of light along the lifted edge
   for (const q of [-1, 1]) ab(K, q * 40, IO.plinth + 0.3, -81.4, 60, 1.1, 0.8, 0xff7a3a, { glow: 2.2 });
   // solid where the block meets the ground beside and behind the hall (its underside is high overhead everywhere else a player can go)
   for (const sx of [-1, 1]) { K.ocollider(sx * (78 + hw) / 2, -248, hw - 78, 90, 228, 0); K.ocollider(sx * 81, -119, 6, 90, 32, 0); } // the ground at 4 m, and the plinth's lip
@@ -509,7 +509,7 @@ function interior(K) {
   ab(K, 0, FLOOR, -97.5, 31.6, ILH - 0.2 - FLOOR, 14.6, INT[0]);
   for (const s of [-1, 1]) ab(K, s * 54, FLOOR, -100, 19.6, IO.landing - 0.2 - FLOOR, 18.6, INT[2]);
   // the entry ledge: parapet along its open north edge, a lit sill, and two monumental piers either side of the descent
-  K.box(0, -103.4, 32, 1.3, 0.8, INT[1]);
+  K.box(0, -103.4, 31.6, 1.3, 0.8, INT[1]);
   for (const s of [-1, 1]) { K.box(s * 14.5, -103.4, 3, 7, 3, INT[0]); K.box(s * 14.5, -103.4, 3.6, 0.6, 3.6, INTL, { y: 7, collide: false }); }
   ab(K, 0, ILH + 0.9, -103.8, 28, 0.15, 0.2, MILK, { glow: 1.6 });
   // the pit: terraces of lit stone stepping down to a red floor

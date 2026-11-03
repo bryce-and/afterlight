@@ -5,6 +5,20 @@
 
 export const RELEASES = [
   {
+    version: '3.7', name: 'Open Frontier', date: '2026-11-03', accent: '#7fe3ff', glyph: '◈',
+    get art() { return RELEASES.find((r) => r.version === '3.3').art; }, // wave 4 of the Open Frontier chain: shares the 3.3 artwork until the last wave brings its own
+    summary: 'Patrol Io: green canyons ruled by the Vex, a Taken blight, a Red Legion base you can walk through, and the Pyramidion, a colossal Vex block you can step inside.',
+    notes: [
+      'Patrol: Io now has a Patrol button in the Director. You land at the Lost Oasis, a still lake under a petrified tree, and dirt roads run through yellow-green canyons and up onto the mesas to every area',
+      'The Pyramidion: a colossal tilted block of Vex stone, 200 m wide and over 300 m tall, glowing red under its lifted edge. Walk in through its gate to a vast hall with stairways down through floating Vex blocks to a pit glowing red under a suspended core',
+      'Across Io: the White Tree canyon, the Giant\'s Scar with its Cabal drill, Terrabase Charon with a Taken blight crackling beside it, and a Red Legion base with a hangar, a command hall and corridors you can fight through',
+      'Factions: the Vex hold most of Io, the Taken spread from the blight, and the Red Legion hold their base and the Scar. Camps spawn the real Vex and Taken units',
+      'Beacons and events: seven beacons (four Bounties, three Clears, one inside the Pyramidion) and two new public events. Vex Incursion: a gate opens in the canyon, kill the Minotaurs in time for Heroic. Taken Blight: the blight surges, kill the Taken Captains in time for Heroic',
+      'Quests: Asher Mir works in the empty halls of Terrabase Charon and has a side quest, "The Last Touch", the first time you patrol there',
+      'No save changes',
+    ],
+  },
+  {
     version: '3.6', name: 'Vex and Taken', date: '2026-11-02', accent: '#d9a85a', glyph: '◈',
     art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="vtBg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a2a14"/><stop offset="0.5" stop-color="#1a1620"/><stop offset="1" stop-color="#05060c"/></linearGradient><radialGradient id="vtOrb" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#dff4ff"/><stop offset="1" stop-color="#9ab8ff" stop-opacity="0"/></radialGradient><radialGradient id="vtEye" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd0c0"/><stop offset="0.45" stop-color="#ff1a10"/><stop offset="1" stop-color="#ff1a10" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#vtBg)"/><g fill="#ffffff" fill-opacity="0.6"><circle cx="190" cy="20" r="1"/><circle cx="240" cy="36" r="1.2"/><circle cx="300" cy="16" r="1"/><circle cx="270" cy="60" r="0.9"/></g><path d="M0 150 L60 140 L120 148 L200 138 L260 146 L320 140 V180 H0Z" fill="#14110e"/><g fill="#9c7a44"><path d="M66 46 L54 28 L60 27 L70 42Z"/><path d="M90 46 L102 28 L96 27 L86 42Z"/><rect x="70" y="42" width="16" height="14" rx="2"/><path d="M62 60 H94 L90 90 H66Z"/><rect x="58" y="96" width="12" height="26"/><rect x="86" y="96" width="12" height="26"/><path d="M56 122 L66 150 H52Z"/><path d="M100 122 L104 150 H90Z"/></g><g fill="#17140f"><rect x="56" y="90" width="44" height="7"/><rect x="88" y="66" width="64" height="5"/></g><ellipse cx="78" cy="70" rx="7" ry="7" fill="#f4f7ff"/><circle cx="78" cy="49" r="8" fill="url(#vtEye)"/><circle cx="78" cy="49" r="2.6" fill="#ff1a10"/><g fill="#07070c"><path d="M232 30 Q222 10 238 2 Q230 18 240 30Z"/><path d="M262 34 L284 18 L276 32 L292 26 L270 42Z"/><path d="M250 26 L246 8 L256 22Z"/><path d="M236 50 H268 L274 98 H230Z"/><circle cx="252" cy="40" r="12"/><path d="M232 56 L170 70 L170 74 L234 64Z"/></g><g fill="#eef6ff"><rect x="230" y="98" width="10" height="32"/><rect x="264" y="98" width="10" height="32"/><path d="M228 130 H242 L244 150 H224Z"/><path d="M262 130 H276 L280 150 H260Z"/><path d="M236 50 L232 64 L235 64 L239 52Z"/><path d="M268 50 L272 64 L269 64 L265 52Z"/><path d="M200 66 L232 59 L232 61 L200 68Z"/></g><circle cx="252" cy="40" r="14" fill="url(#vtOrb)"/><circle cx="252" cy="40" r="5" fill="#ffffff"/><path d="M152 68 L244 42" stroke="#ff3a2a" stroke-width="1.6" stroke-opacity="0.85"/><path d="M170 72 L86 50" stroke="#dff4ff" stroke-width="1.6" stroke-opacity="0.85"/><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
     summary: 'The Vex and the Taken are rebuilt from the ground up, three of them now snipe with a visible aim line, every faction looks the same wherever you meet it, and the Scorn have taken the Tangled Shore.',
@@ -602,7 +616,7 @@ export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Tra
 export const ROADMAP = [
   {
     name: 'The Next Patrols', status: 'On the Horizon', accent: '#7fe3ff', glyph: '◈',
-    teaser: 'The Cosmodrome, the Moon, Mars and Titan are open for patrol. Worlds further out are still waiting, and the Vex have noticed you on Io.',
+    teaser: 'The Cosmodrome, the Moon, Mars, Titan and Io are open for patrol. Out on the Reef, someone has been keeping a seat warm for you.',
     themes: ['Patrol zones', 'Public events', 'Heroics'],
   },
   {
