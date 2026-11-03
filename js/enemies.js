@@ -751,7 +751,7 @@ export class Enemy {
       if (hh >= 0) {
         if (hh > this.pos.y) { if (hh - this.pos.y <= NAV.step + 0.05) this.pos.y = hh; }
         else this.pos.y = Math.max(hh, this.pos.y - 14 * dt);
-      }
+      } else if (G.level.voidAt?.(this.pos.x, this.pos.z)) this.pos.y -= 14 * dt; // U17f: knocked over the abyss, there is no floor
       if (G.level.groundAt) this.pos.y = Math.max(this.pos.y, groundAt(this.pos.x, this.pos.z)); // never under the terrain (knockback, a step too steep for the grid)
     }
     if (!hopping || this.jet?.s === 'hover') pushOutCircle(this.pos, this.radius, this.height);

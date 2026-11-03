@@ -497,6 +497,8 @@ export const LOCATIONS = [
       { id: 'ts2', mood: 'night', name: 'The Mindbender', power: 154, zones: 4, boss: { name: 'Reksis Vahn, the Mindbender', element: 'void' , model: 'mindbender' }, desc: 'Follow the Mindbender\'s Hive-tainted crew down through the Rift to his ritual cavern.' },
       { id: 'ts3', mood: 'storm', name: 'Scorned', power: 163, zones: 4, boss: { name: 'Fikrul, the Fanatic', element: 'solar' , model: 'fanatic' }, desc: 'Cross the wreck fields of Jetsam of Saturn and end the Fanatic who raises the Scorn.' },
     ],
+    // U17f: the free-roam patrol zone (js/patrol-tangled.js, js/patrol.js)
+    patrol: { id: 'ts_patrol', mood: 'day', name: 'Tangled Shore Patrol', objective: 'Patrol the Tangled Shore', power: 145, zones: 0, boss: { name: '', element: 'arc', model: 'baron' }, desc: "Roam the chained rocks of the Reef over the cloud abyss. Visit the Spider in his lair, activate beacons, join public events, and mind the edge." },
   },
   {
     id: 'dc', name: 'The Dreaming City', planetName: 'Dreaming City', faction: 'Taken',

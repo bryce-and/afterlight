@@ -303,6 +303,18 @@ export function lineDuration(text) {
 // ---------------------------------------------------------------------------
 /** U17a: talks held in patrol zones, by meeting id (quests.js PATROL_MEETINGS). */
 export const PATROL_TALKS = {
+  // U17f
+  petra_tangled: [
+    ['petra', "Guardian. Keep your weapon low in the Landing. The Spider's crew are touchy, and I need them in a good mood."],
+    ['petra', 'The Queen keeps accounts on this Shore, and I am the one who collects. The Barons who ran with Uldren are not the only ones who owe her.'],
+    ['ghost', 'And the Spider?'],
+    ['petra', 'The Spider sells everyone everything, us included. Take this for your trouble. When I need a gun on the Shore, I will send for you.'],
+  ],
+  spider_lair: [
+    ['spider', 'Ah, the Guardian. Come in, come in. Mind the guards, they bite.'],
+    ['spider', 'Everything that crosses the Shore passes through my hands sooner or later. Ether, salvage, secrets. Even you, it seems.'],
+    ['spider', 'Bring me something worth my while one day, and we shall talk business. Until then, enjoy my hospitality.'],
+  ],
   eris_moon: [
     ['eris', 'You walk like someone who has not been here long. Good. The ones who know the Moon walk quietly.'],
     ['eris', 'The Hive still sing in the dark below the Hellmouth. I listen, so that you do not have to.'],

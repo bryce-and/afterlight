@@ -27,6 +27,7 @@ export function buildNav(colliders, bounds, o = {}) {
   const base = new Float32Array(W * D); // the terrain under each cell (U16e); collider heights below are measured from it
   const blocked = new Uint8Array(W * D);
   const ground = o.ground ?? G.level?.groundAt ?? null, rolling = !!ground; // a flat map keeps the exact old numbers
+  const voidAt = o.voidAt ?? G.level?.voidAt ?? null;
   if (rolling) {
     for (let j = 0; j < D; j++) for (let i = 0; i < W; i++) { const g = ground(minX + (i + 0.5) * cell, minZ + (j + 0.5) * cell); base[j * W + i] = g; hgt[j * W + i] = g; }
   }
@@ -47,7 +48,8 @@ export function buildNav(colliders, bounds, o = {}) {
     for (let i = 0; i < W; i++) {
       const idx = j * W + i, cx = minX + (i + 0.5) * cell, cz = minZ + (j + 0.5) * cell;
       const edge = cx < minX + 1 || cx > bounds.maxX - 1 || cz < minZ + 1 || cz > bounds.maxZ - 1; // enemies are clamped 1 m inside the bounds
-      if (blocked[idx] || edge) hgt[idx] = -1;
+      const abyss = voidAt && hgt[idx] <= base[idx] + 0.05 && voidAt(cx, cz); // U17f: the abyss between islands is no floor (unless something stands in it)
+      if (blocked[idx] || edge || abyss) hgt[idx] = -1;
     }
   }
   return { cell, minX, minZ, W, D, hgt, base };

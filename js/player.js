@@ -307,7 +307,7 @@ export class Player {
     const inp = G.input;
     if (this.dead) {
       const M = G.mission;
-      if (M.coop) {
+      if (M.coop && !this.ragdoll) { // U17f: a fall is not a down: no revive, no life, back at the landing
         // downed: teammates can revive us; when the timer runs out a pooled life brings us back
         this.downT -= dt;
         if (this.downT <= 0 && !this.lifeAsked && M.lives > 0) { this.lifeAsked = true; requestLife(); }
@@ -2040,15 +2040,15 @@ export class Player {
     sfx.death();
   }
 
-  /** U16d: fell off the Tower. No revive is spent; the body tumbles on the way down and you are back at the Watch a moment later. */
-  fallDie() {
+  /** U16d: fell off the Tower (U17f: or off an island in a patrol zone). No revive or life is spent; the body tumbles on the way down and you wake at the checkpoint a moment later. */
+  fallDie(sub = 'The Last City is a long way down') {
     if (this.dead) return;
     this.dead = true; this.health = 0; this.shield = 0;
     this.superActive = null;
     this.viewmodel.visible = false;
     this.respawnT = 3.6;
     this.ragdoll = { t: 0, sx: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3), sy: (Math.random() - 0.5) * 4, sz: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 3) };
-    ui.showDeath('You Fell', 'The Last City is a long way down');
+    ui.showDeath('You Fell', sub);
     sfx.death();
   }
 

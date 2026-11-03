@@ -135,7 +135,7 @@ function updateRevives(dt) {
   }
   let target = null, bd = 2.6;
   if (!P.dead) for (const r of remotes.values()) {
-    if (!r.inMission || !r.dead) continue;
+    if (!r.inMission || !r.dead || r.state?.rg) continue; // U17f: nobody revives a Guardian who fell
     const d = Math.hypot(r.pos.x - P.pos.x, r.pos.z - P.pos.z);
     if (d < bd) { bd = d; target = r; }
   }
@@ -219,7 +219,7 @@ function myState() {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, lk: P.lookCode,
     x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0,
     // animation: sprinting, airborne, firing, and the gun in hand
-    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, mt: P.mount ? 1 : 0, mh: P.mount ? r2(P.mount.heading) : 0, gm: P.ghostOut || P.mount ? 1 : 0, w: (P.superActive && !P.keepsGuns) || P.holdingAxe || P.ghostOut || P.mount ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
+    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, mt: P.mount ? 1 : 0, mh: P.mount ? r2(P.mount.heading) : 0, gm: P.ghostOut || P.mount ? 1 : 0, rg: P.ragdoll ? 1 : 0, w: (P.superActive && !P.keepsGuns) || P.holdingAxe || P.ghostOut || P.mount ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
   };
 }
 
@@ -335,8 +335,10 @@ function updateAvatars(dt) {
       g.position.copy(r.pos);
       g.rotation.y = r.yaw + Math.PI;
     }
-    g.rotation.x = r.dead ? -1.4 : 0;
-    setReviveGhost(r, r.dead);
+    const fell = r.dead && !!r.state?.rg; // U17f: a teammate who fell tumbles on the way down and cannot be revived
+    if (fell) { r.tumble = (r.tumble ?? 0) + dt * 4; g.rotation.set(r.tumble, g.rotation.y + r.tumble * 0.3, r.tumble * 0.7, 'YXZ'); }
+    else { r.tumble = 0; g.rotation.x = r.dead ? -1.4 : 0; g.rotation.z = 0; }
+    setReviveGhost(r, r.dead && !fell);
     if (r.reviveGhost) {
       const gh = r.reviveGhost;
       gh.position.set(r.pos.x, r.pos.y + 1.3 + Math.sin(G.time * 2.4) * 0.08, r.pos.z);

@@ -33,7 +33,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
-import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, kitUnit } from '../js/patrol-data.js';
+import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, kitUnit } from '../js/patrol-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1998,7 +1998,7 @@ test('U17a: a dropped patrol quest keeps its NPC away until it is picked up agai
 // ---------- U17b: Moon and Mars patrol zones ----------
 const KINDS_B = new Set(['grunt', 'rusher', 'captain', 'heavy', 'suicide']);
 const unitOk = (u) => KINDS_B.has(u) || !!FA.UNITS[u]; // a base role, or (U17e) a real unit id
-for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan', 't_patrol'], ['io', 'i_patrol']]) {
+for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan', 't_patrol'], ['io', 'i_patrol'], ['tangled', 'ts_patrol']]) {
   const D = PATROL_DATA[pid], P = D.patrol;
   const all = () => [...P.beacons, ...P.beacons.map((b) => b.site), ...P.events, ...P.camps, ...Object.values(P.npcs)];
   test(`U17b: ${dest} has a patrol zone wired to the Director, and every site is inside the map`, () => {
@@ -2215,6 +2215,61 @@ test('U17d: the Tangled Shore is fought against the Scorn', () => {
   });
 }
 
+// ---------- U17f: the Tangled Shore patrol zone ----------
+{
+  const D = PATROL_DATA.ts_patrol, P = D.patrol, T = buildTerrain(D.terrain);
+  const voidAt = (x, z) => T.at(x, z) < D.voidBelow; // world.js voidAt for this map (no open edges)
+  const island = (id) => TANGLED_ISLANDS.find((i) => i[0] === id);
+  const on = (id, p) => { const [, a, b, c, d] = island(id); return p.x > a && p.x < b && p.z > c && p.z < d; };
+  test('U17f: Tangled: islands stand over the abyss: solid on every island, deck and plank, void between them and under the cloud sea', () => {
+    for (const [id, x0, x1, z0, z1, h] of TANGLED_ISLANDS) {
+      const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      ok(Math.abs(T.at(cx, cz) - h) < 0.01 && !voidAt(cx, cz), `${id} is solid at its height`);
+    }
+    for (const r of TANGLED_RAMPS) ok(!voidAt((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2), `${r.id} is solid`);
+    for (const [x, z] of [[0, 180], [-60, 100], [60, 100], [-40, 10], [40, -10], [0, -100], [-30, -80], [170, 0], [-170, 160]]) ok(voidAt(x, z), `(${x}, ${z}) is the abyss`);
+    ok(voidAt(8, 90) && !voidAt(5, 90), 'the landing deck has an open edge');
+    ok(TANGLED.sea < TANGLED.voidBelow && TANGLED.voidBelow < Math.min(...TANGLED_ISLANDS.map((i) => i[5])), 'the cloud sea lies below the void line, the islands above it');
+  });
+  test('U17f: Tangled: every area is joined to the landing by decks and planks a Guardian can walk, the Sparrow routes are wide decks', () => {
+    for (const r of [[[0, 150], [0, 60]], [[0, 50], [-78, 46], [-80, -96]], [[0, 50], [30, 40], [76, 40], [80, -100]], [[0, 50], [0, -26]], [[-20, -30], [-80, -30], [-80, -96]], [[0, -30], [80, -30], [80, -100]], [[0, 146], [-92, 146]], [[0, 88], [40, 88]], [[0, 92], [-42, 92]]]) {
+      ok(routeSlope(T, r) < MAX_SLOPE, `route ${JSON.stringify(r)} is walkable`);
+      for (let i = 1; i < r.length; i++) for (let k = 0; k <= 40; k++) { const x = r[i - 1][0] + (r[i][0] - r[i - 1][0]) * k / 40, z = r[i - 1][1] + (r[i][1] - r[i - 1][1]) * k / 40; ok(!voidAt(x, z), `(${x.toFixed(1)}, ${z.toFixed(1)}) on ${JSON.stringify(r)} has a floor`); }
+    }
+    for (const r of TANGLED_RAMPS) ok(r.kind === 'p' ? r.width < 5 : r.width >= 10, `${r.id}: decks are wide, planks narrow`);
+    for (const i of TANGLED_ISLANDS.filter((x) => x[6] === 'd')) ok(Math.min(i[2] - i[1], i[4] - i[3]) >= 10, `${i[0]} is wide enough for the Sparrow`);
+  });
+  test('U17f: Tangled: Fallen hold the Rift and the Cove, Scorn the flats and Trapper\'s Cave, Hive the crashed ship; the landing and the lair are safe', () => {
+    const all = [...P.camps, ...P.beacons];
+    for (const c of all) ok(['fallen', 'scorn', 'hive'].includes(c.f), `(${c.x}, ${c.z}) names its faction`);
+    for (const c of all) ok(!on('landing', c.site ?? c) && !on('lair', c.site ?? c), `(${c.x}, ${c.z}) is not in the safe hub`);
+    ok(P.camps.filter((c) => c.f === 'scorn').every((c) => on('flats', c)), 'the Scorn stay on the flats');
+    ok(P.camps.filter((c) => c.f === 'hive').every((c) => on('hulk', c)), 'the Hive stay at the ship');
+    ok(P.camps.filter((c) => c.f === 'fallen').every((c) => !on('flats', c) && !on('hulk', c)), 'the Fallen hold the rest');
+    for (const f of ['fallen', 'scorn', 'hive']) ok(P.beacons.some((b) => b.f === f), `a ${f} beacon`);
+    ok(P.beacons.length >= 5 && P.beacons.some((b) => b.f === 'hive' && b.type === 'clear' && b.site.z < -107 && b.site.z > -133), 'five beacons, one a Clear inside the hold');
+  });
+  test('U17f: Tangled: the Ether Resupply and Hive Awakening events are complete and resolve to real units of their faction', () => {
+    eq(EVENT_SPECS.ether_resupply.faction, 'scorn'); eq(EVENT_SPECS.ether_resupply.units, FACTION_KITS.scorn.units);
+    eq(EVENT_SPECS.hive_awakening.faction, 'hollow');
+    const sp = EVENT_SPECS.ether_resupply;
+    for (const u of [sp.marked.unit, sp.finale.unit, ...sp.pushes.flat().map(([r]) => r)]) eq(FA.UNITS[kitUnit(sp.units, u, (a) => a[0])].faction, 'scorn');
+    eq(sp.marked.unit, 'sc_chieftain');
+    for (const role of ['grunt', 'rusher', 'captain', 'heavy', 'suicide']) for (const pick of [(a) => a[0], (a) => a.at(-1)]) eq(FA.UNITS[kitUnit(FACTION_KITS.scorn.units, role, pick)].faction, 'scorn');
+    eq(FACTION_KITS.scorn.pal, undefined); // the faction's default look
+    ok(on('flats', P.events.find((e) => e.id === 'ether_resupply')) && on('hulk', P.events.find((e) => e.id === 'hive_awakening')), 'each event on its faction\'s ground');
+  });
+  test('U17f: Petra Venj has a meeting, a quest and a talk; the Spider talks in his lair with his guards', () => {
+    const m = Q.PATROL_MEETINGS.find((x) => x.id === 'petra_tangled');
+    ok(m && m.dest === 'tangled' && m.npc === 'petra', 'the meeting');
+    eq(Q.QUESTS.petra_tangled.name, "The Queen's Wrath");
+    ok(on('landing', P.npcs.petra), 'Petra waits at the landing');
+    const sp = P.talkers.find((t) => t.npc === 'spider');
+    ok(sp && on('lair', sp) && ST_.PATROL_TALKS[sp.talk]?.length >= 2, 'the Spider sits in his lair and has lines');
+    ok(P.figures.filter((f) => f.npc === 'spiderguard' && on('lair', f)).length === 2, 'two guards beside him');
+    for (const id of ['petra_tangled', 'spider_lair']) ok(ST_.PATROL_TALKS[id].every(([who, text]) => ST_.SPEAKERS[who] && !/[–—]/.test(text)), `${id} speakers and text`);
+  });
+}
 
 // ---------- runner ----------
 const out = document.getElementById('out');

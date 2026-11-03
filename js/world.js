@@ -10,6 +10,7 @@ import MOON_PATROL from './patrol-moon.js';
 import MARS_PATROL from './patrol-mars.js';
 import TITAN_PATROL from './patrol-titan.js';
 import IO_PATROL from './patrol-io.js';
+import TANGLED_PATROL from './patrol-tangled.js';
 import MOON from './level-moon.js';
 import MARS from './level-mars.js';
 import TITAN from './level-titan.js';
@@ -20,7 +21,7 @@ import LEVIATHAN from './level-leviathan.js';
 import { TOWER } from './level-tower.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...TITAN_PATROL, ...IO_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
+const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...TITAN_PATROL, ...IO_PATROL, ...TANGLED_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER };
 
 const matCache = new Map();
 export function mat(color, o = {}) {
@@ -117,7 +118,7 @@ export function buildLevel(loc, def) {
     if (gAt) { // the play area is the terrain; past its edge the slopes rise from wherever the terrain ends
       const base = gAt(Math.min(bounds.maxX, Math.max(bounds.minX, x)), Math.min(bounds.maxZ, Math.max(bounds.minZ, z)));
       if (out <= 0) return base - 0.03;
-      if (loc.sea) return base + n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // a deck over the sea: past the edge the ground falls away into the water
+      if (loc.sea || set.abyss) return base + n * 0.12 - 1.2 - Math.min(out, 40) * 0.25; // a deck over the sea (or a cloud abyss, U17f): past the edge the ground falls away
       return base + n * 0.12 + Math.min(out, 90) * 0.7 * rimK * (0.75 + 0.25 * n) + Math.max(0, out - 90) * 0.2;
     }
     if (out <= 0) return loc.vista ? -0.08 : n * 0.12; // the Tower's paving sits above flat ground (no terrain bumps poking through, no z-fighting)
@@ -127,8 +128,10 @@ export function buildLevel(loc, def) {
   };
   scene.add(buildGround(bounds, C, heightAt, rng, gAt ? 2 : 5, set.hideCliffs));
   if (loc.vista) loc.vista(scene, C);
-  else if (loc.sea) {
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 }));
+  else if (loc.sea || set.abyss) {
+    // U17f: an abyss map draws a matte cloud sea there instead of water
+    const seaMat = set.abyss ? new THREE.MeshStandardMaterial({ color: C.sea, roughness: 1, metalness: 0, emissive: C.sea, emissiveIntensity: 0.35 }) : new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 });
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), seaMat);
     sea.position.set(0, set?.seaY ?? -0.7, (bounds.minZ + bounds.maxZ) / 2);
     scene.add(sea);
   }
@@ -537,7 +540,9 @@ export function buildLevel(loc, def) {
   if (!open.e) rawCollider(bounds.maxX, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.maxZ + 10, null);
   if (!open.n) rawCollider(bounds.minX - 10, -5, bounds.minZ - 10, bounds.maxX + 10, T, bounds.minZ, null);
   if (!open.s) rawCollider(bounds.minX - 10, -5, bounds.maxZ, bounds.maxX + 10, T, bounds.maxZ + 10, null);
-  const voidAt = Object.keys(open).length ? (x, z) => (open.w && x < bounds.minX) || (open.e && x > bounds.maxX) || (open.n && z < bounds.minZ) || (open.s && z > bounds.maxZ) : null;
+  const edgeVoid = Object.keys(open).length ? (x, z) => (open.w && x < bounds.minX) || (open.e && x > bounds.maxX) || (open.n && z < bounds.minZ) || (open.s && z > bounds.maxZ) : null;
+  // U17f: a map of islands over an abyss (`voidBelow`): ground under that height has no floor either
+  const voidAt = set.voidBelow != null ? (x, z) => !!edgeVoid?.(x, z) || GY(x, z) < set.voidBelow : edgeVoid;
 
   if (set.merge) mergeDecor(scene, buildFrom, new Set(staticMeshes)); // U17a: a packed map folds its scenery into few draw calls
 
@@ -616,7 +621,7 @@ export function buildLevel(loc, def) {
   const bossIdx = zones.findIndex((z) => z.isBoss);
   if (bossIdx > 0 && set.lockIn !== false) for (const d of doors) if (d.zone === bossIdx - 1) d.lock = bossIdx;
 
-  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights: updateAll, openDoors, updateDoors, syncLocks, voidAt, groundAt: gAt, terrain, patrol: set.patrol };
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights: updateAll, openDoors, updateDoors, syncLocks, voidAt, voidBelow: set.voidBelow, fallText: set.fallText, groundAt: gAt, terrain, patrol: set.patrol };
 }
 
 /**

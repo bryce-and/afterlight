@@ -23,6 +23,8 @@ export const FACTION_KITS = {
   // U17e: a kit may map each role to real units (`units`, a unit id or a list to pick from) instead of renaming the base types
   vex: { faction: 'vex', units: { grunt: ['vx_goblin', 'vx_goblin', 'vx_hobgoblin'], rusher: ['vx_harpy', 'vx_fanatic'], captain: 'vx_minotaur', heavy: ['vx_hydra', 'vx_cyclops'], suicide: 'vx_fanatic' } },
   taken: { faction: 'taken', units: { grunt: ['tk_acolyte', 'tk_acolyte', 'tk_vandal'], rusher: 'tk_thrall', captain: ['tk_captain', 'tk_centurion'], heavy: ['tk_ogre', 'tk_phalanx'], suicide: 'tk_thrall' } },
+  // U17f: the Scorn in the Tangled Shore patrol (their default look, js/factions.js)
+  scorn: { faction: 'scorn', units: { grunt: ['sc_stalker', 'sc_stalker', 'sc_raider', 'sc_lurker'], rusher: ['sc_wraith', 'sc_wraith', 'sc_ravager'], captain: 'sc_chieftain', heavy: 'sc_abomination', suicide: 'sc_screeb' } },
 };
 /** U17e: the unit type a kit (or an event spec with `units`) spawns for a role; `pick` chooses from a list. No map means the base type. */
 export function kitUnit(units, role, pick = (a) => a[Math.floor(Math.random() * a.length)]) {
@@ -105,6 +107,21 @@ export const EVENT_SPECS = {
     pushes: [[['rusher', 5], ['grunt', 3]], [['captain', 1], ['rusher', 4], ['grunt', 3]]],
     finale: { unit: 'tk_ogre', name: 'Blight Ogre', n: 1, heroicN: 2 },
   },
+  // U17f
+  ether_resupply: {
+    name: 'Ether Resupply', blurb: 'The Scorn are hauling ether across the flats to their totems.', faction: 'scorn', units: FACTION_KITS.scorn.units,
+    names: null,
+    marked: { n: 2, unit: 'sc_chieftain', name: 'Ether Chieftain', time: 60, text: 'Kill the Ether Chieftains' },
+    pushes: [[['rusher', 4], ['grunt', 4]], [['captain', 1], ['rusher', 3], ['grunt', 3]]],
+    finale: { unit: 'sc_abomination', name: 'Ether Abomination', n: 1, heroicN: 2 },
+  },
+  hive_awakening: {
+    name: 'Hive Awakening', blurb: 'The crashed Hive ship is waking. The Hive are pouring out of the hold.', faction: 'hollow',
+    names: { grunt: 'Acolyte', rusher: 'Thrall', captain: 'Knight', heavy: 'Ogre', suicide: 'Cursed Thrall' },
+    marked: { n: 2, unit: 'captain', name: 'Hull Knight', time: 60, text: 'Kill the Hull Knights' },
+    pushes: [[['rusher', 5], ['grunt', 3]], [['captain', 1], ['rusher', 4], ['grunt', 3]]],
+    finale: { unit: 'heavy', name: 'Hull Ogre', n: 1, heroicN: 2 },
+  },
 };
 
 /**
@@ -177,6 +194,44 @@ export const IO_TERRAIN = [
   ...mirror({ type: 'ramp', x0: -26, z0: -20, x1: -50, z1: -16, width: 9, h0: IO.floor, h1: 14, edge: 2 }),
   { type: 'ramp', x0: 150, z0: -20, x1: 150, z1: -48, width: 10, h0: IO.floor, h1: IO.base, edge: 3 },
   { type: 'ramp', x0: -96, z0: -150, x1: -120, z1: -150, width: 9, h0: IO.floor, h1: IO.charon, edge: 3 },
+];
+
+/**
+ * U17f: the Tangled Shore patrol (js/patrol-tangled.js). Whole rock islands float over a cloud sea; every island, deck and plank bridge is a flat plateau or a ramp
+ * (so the Sparrow, the nav grid and the ground all agree), and the ground between them is 0, far under the cloud sea at `sea`. Ground under `voidBelow` is the abyss:
+ * there is no floor there (world.js voidAt) and whoever walks off falls. Kinds: i = island, d = wide deck (a Sparrow route), p = plank bridge (on foot).
+ * Islands: [id, minX, maxX, minZ, maxZ, height, kind]; ramps join islands of different heights.
+ */
+export const TANGLED = { deck: 40, sea: 16, voidBelow: 20 };
+export const TANGLED_ISLANDS = [
+  ['landing', -48, 48, 108, 172, 40, 'i'],     // Thieves' Landing, under its rock ceiling
+  ['lair', -112, -72, 124, 168, 40, 'i'],      // the Spider's lair
+  ['rift', -32, 32, 28, 72, 40, 'i'],          // the Rift: the middle of the chained rocks
+  ['riftW', -100, -56, 20, 60, 44, 'i'],
+  ['riftE', 54, 98, 14, 54, 37, 'i'],
+  ['rockE', 29, 51, 79, 97, 40, 'i'],          // two small chained rocks off the landing deck
+  ['rockW', -52, -32, 82, 102, 40, 'i'],
+  ['cove', -28, 28, -48, -4, 40, 'i'],         // Four-Holed Cove
+  ['hulk', -158, -66, -138, -54, 40, 'i'],     // Jetsam of Saturn: the crashed Hive ship
+  ['flats', 40, 152, -148, -52, 42, 'i'],      // the Scorn flats and Trapper's Cave
+  ['deckN', -6, 6, 72, 108, 40, 'd'],          // landing to the Rift
+  ['deckC', -6, 6, -4, 28, 40, 'd'],           // the Rift to the Cove
+  ['plankLair', -72, -48, 143.5, 148.5, 40, 'p'],
+  ['plankE', 6, 29, 86.25, 89.75, 40, 'p'],
+  ['plankW', -32, -6, 90.25, 93.75, 40, 'p'],
+];
+/** Ramps: wide decks between islands at different heights, and the two planks from the Cove that meet the decks to the ship and the flats. */
+export const TANGLED_RAMPS = [
+  { id: 'deckW', x0: -32, z0: 46, x1: -56, z1: 46, width: 11, h0: 40, h1: 44, kind: 'd' },
+  { id: 'deckE', x0: 32, z0: 40, x1: 54, z1: 40, width: 11, h0: 40, h1: 37, kind: 'd' },
+  { id: 'deckH', x0: -80, z0: 20, x1: -80, z1: -54, width: 12, h0: 44, h1: 40, kind: 'd' },
+  { id: 'deckF', x0: 80, z0: 14, x1: 80, z1: -52, width: 12, h0: 37, h1: 42, kind: 'd' },
+  { id: 'plankF', x0: 28, z0: -30, x1: 74, z1: -30, width: 3.5, h0: 40, h1: 37 + 5 * 44 / 66, kind: 'p' }, // onto the flats deck where it passes
+  { id: 'plankH', x0: -28, z0: -30, x1: -74, z1: -30, width: 3.5, h0: 40, h1: 44 - 4 * 50 / 74, kind: 'p' }, // onto the Hive deck where it passes (its height there)
+];
+export const TANGLED_TERRAIN = [
+  ...TANGLED_ISLANDS.map(([, x0, x1, z0, z1, h]) => ({ type: 'plateau', x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0, h, edge: 0.4 })),
+  ...TANGLED_RAMPS.map((r) => ({ type: 'ramp', ...r, edge: 0.4 })),
 ];
 
 /** Patrol maps by map id: the data half of each (js/patrol-<dest>.js adds `build`). */
@@ -469,6 +524,72 @@ export const PATROL_DATA = {
         { x: 130, z: 26, n: 5 }, { x: 168, z: 8, n: 5 }, { x: 126, z: -82, n: 5 }, { x: 176, z: -132, n: 5 }, { x: 150, z: -100, n: 4 }, { x: 120, z: -62, n: 4 },
       ],
       npcs: { asher: { x: -150, z: -170, yaw: 0 } },
+    },
+  },
+  // U17f: the Tangled Shore. Rock islands lashed together over a cloud abyss under the broken ring. Thieves' Landing (safe, under a rock ceiling) and the Spider's
+  // lair in the south; the Fallen hold the chained rocks of the Rift and Four-Holed Cove; the Scorn the flats and Trapper's Cave; the Hive the crashed ship and its hold.
+  ts_patrol: {
+    spawn: [0, 150],
+    bounds: [-178, 178, -172, 190],
+    zones: [
+      { name: "Thieves' Landing", x: 0, z: 150 },
+      { name: 'Landing Beacon', x: 0, z: 100 },
+      { name: 'Rift Beacon', x: -64, z: 46 },
+      { name: 'Cove Beacon', x: 0, z: 2 },
+      { name: 'Flats Beacon', x: 80, z: -58 },
+      { name: "Trapper's Beacon", x: 122, z: -58 },
+      { name: 'Hulk Beacon', x: -82, z: -60 },
+      { name: "The Spider's Lair", x: -92, z: 146 },
+      { name: 'The Rift', x: 0, z: 50 },
+      { name: 'Four-Holed Cove', x: 0, z: -30 },
+      { name: 'Jetsam of Saturn', x: -110, z: -76 },
+      { name: 'The Scorn Flats', x: 96, z: -104 },
+      { name: "Trapper's Cave", x: 136, z: -80 },
+    ],
+    noEdge: true,
+    hideBulbs: true,
+    lightPool: 8,
+    merge: true,
+    abyss: true, // world.js: a cloud sea at seaY instead of water, no hills past the edge
+    seaY: TANGLED.sea,
+    voidBelow: TANGLED.voidBelow, // world.js voidAt: ground under this is the abyss (no floor); js/patrol.js kills whoever falls into it
+    fallText: 'The Reef has no floor',
+    hideCliffs: 0.35,
+    // purple dusk over a lilac cloud sea
+    colors: { sky: 0x6a5a98, fog: 0x7a68a8, hemiTop: 0xe4d8ff, hemiBot: 0x3a2e4a, sun: 0xffe2c8, ground: 0x6a5a5a, ground2: 0x5c4e52, rock: 0x4e4458, rock2: 0x3c3448, sea: 0xa898d0 },
+    fog: [90, 460],
+    terrain: TANGLED_TERRAIN,
+    sky: {
+      zenith: 0x1a1634, mid: 0x4a3c7a, horizon: 0x9a86c8, floor: 0xa898d0,
+      bodies: [],
+      vortex: { pos: [120, 190, -460], r: 150, core: 0xf4ecff, glow: 0xb89aff, color: 0x3a3456, n: 150 },
+      floaters: [{ kind: 'island', n: 18, r: [300, 620], y: [-40, 160], size: [14, 50], color: 0x3c3450, haze: 0.45 }],
+      haze: [{ color: 0xb8a8e0, opacity: 0.55, r: 470, h: 90, y: -20 }],
+    },
+    patrol: {
+      beacons: [
+        { id: 'rift_hunt', x: 0, z: 100, type: 'hunt', f: 'fallen', name: 'Rift Bounty', site: { x: 76, z: 30 }, target: { name: 'Virixas, Baron\'s Hand', unit: 'captain' } },
+        { id: 'rift_clear', x: -64, z: 46, type: 'clear', f: 'fallen', name: 'Chained Rocks Camp', site: { x: -82, z: 34 } },
+        { id: 'cove_clear', x: 0, z: 2, type: 'clear', f: 'fallen', name: 'Four-Holed Cove Camp', site: { x: 0, z: -34 } },
+        { id: 'flats_hunt', x: 80, z: -58, type: 'hunt', f: 'scorn', name: 'Flats Bounty', site: { x: 104, z: -120 }, target: { name: 'Hask, Ether-Mad', unit: 'captain' } },
+        { id: 'trapper_clear', x: 122, z: -58, type: 'clear', f: 'scorn', name: "Trapper's Cave Den", site: { x: 136, z: -82 } },
+        { id: 'hold_clear', x: -82, z: -60, type: 'clear', f: 'hive', name: 'Hold of the Hulk', site: { x: -112, z: -120 } },
+      ],
+      events: [
+        { id: 'ether_resupply', x: 96, z: -104, r: 22 },
+        { id: 'hive_awakening', x: -110, z: -76, r: 18 },
+      ],
+      camps: [
+        { x: -14, z: 46, n: 5, f: 'fallen' }, { x: 16, z: 60, n: 4, f: 'fallen' }, { x: -86, z: 40, n: 5, f: 'fallen' }, { x: 80, z: 26, n: 5, f: 'fallen' }, { x: 64, z: 46, n: 4, f: 'fallen' },
+        { x: 40, z: 88, n: 4, f: 'fallen' }, { x: -42, z: 92, n: 4, f: 'fallen' }, { x: 10, z: -28, n: 5, f: 'fallen' }, { x: -12, z: -22, n: 4, f: 'fallen' },
+        { x: 64, z: -76, n: 5, f: 'scorn' }, { x: 112, z: -92, n: 5, f: 'scorn' }, { x: 130, z: -130, n: 5, f: 'scorn' }, { x: 74, z: -130, n: 4, f: 'scorn' }, { x: 138, z: -84, n: 4, f: 'scorn' },
+        { x: -128, z: -74, n: 5, f: 'hive' }, { x: -96, z: -86, n: 4, f: 'hive' }, { x: -130, z: -120, n: 5, f: 'hive' }, { x: -146, z: -66, n: 4, f: 'hive' },
+      ],
+      npcs: { petra: { x: 16, z: 134, yaw: Math.PI } }, // facing the landing
+      // people who stay put: the Spider talks when you walk up (story.js PATROL_TALKS[talk]); his guards stand either side
+      talkers: [{ npc: 'spider', x: -104, z: 146, y: 0.8, yaw: -Math.PI / 2, talk: 'spider_lair', r: 6 }], // y: on his dais
+      figures: [{ npc: 'spiderguard', x: -99, z: 139, yaw: -Math.PI / 2 }, { npc: 'spiderguard', x: -99, z: 153, yaw: -Math.PI / 2 },
+        { npc: 'spiderguard', x: -12, z: 132, yaw: 2.4 }, { npc: 'spiderguard', x: 10, z: 112, yaw: Math.PI }, { npc: 'spiderguard', x: -60, z: 147.4, yaw: Math.PI / 2 }], // his crew at the landing and on the bridge
     },
   },
 };

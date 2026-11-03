@@ -11,6 +11,7 @@
 //   skyline: [{ kind: 'spire'|'tower'|'dome'|'rig'|'block', n, r: [lo, hi], h: [lo, hi], w: [lo, hi], color, haze }],
 //   haze: [{ color, opacity, r, h, y }],   // soft bands, bottom opaque -> top clear
 //   clouds: { n, color, opacity, y: [lo, hi], size },
+//   vortex: { pos, r, core, glow, color, n },  // U17f: a broken ring of debris round a glowing core
 //   aurora: [{ color, y, r, h, arc: [a0, a1], opacity, waves }],
 //   floaters: [{ kind: 'rock'|'island'|'spire'|'ship', n, r: [lo, hi], y: [lo, hi], size: [lo, hi], color, glow }],
 // }
@@ -260,6 +261,33 @@ function floater(f, spec, rng) {
   return g;
 }
 
+/** U17f: the Tangled Shore's broken ring: dark blocky debris in torn arcs round a glowing white-violet core, tilted toward the viewer. */
+function vortex(v, rng) {
+  const g = new THREE.Group(), dark = shaded(v.color), dark2 = shaded(new THREE.Color(v.color).multiplyScalar(1.5).getHex());
+  g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(v.r * 0.16, 2), basic(v.core)));
+  for (const [k, o] of [[0.3, 0.5], [0.5, 0.22], [0.8, 0.1]]) g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(v.r * k, 2), basic(v.glow, { transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false })));
+  // three rings of debris, each with gaps torn out of it, the inner ones turning faster
+  const rings = [];
+  for (const [rk, n, size, gap] of [[0.45, v.n * 0.6, 0.022, 0.25], [0.7, v.n, 0.03, 0.3], [1, v.n * 1.2, 0.038, 0.35]]) {
+    const ring = new THREE.Group();
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      if (Math.sin(a * 3 + rk * 7) < -1 + gap * 2 && rng() < 0.85) continue; // the torn gaps
+      const s = v.r * size * (0.5 + rng()), b = new THREE.Mesh(new THREE.BoxGeometry(s * (1 + rng() * 2), s * (0.5 + rng()), s * (0.6 + rng())), rng() < 0.5 ? dark : dark2);
+      const rr = v.r * rk * (0.92 + rng() * 0.16);
+      b.position.set(Math.cos(a) * rr, Math.sin(a) * rr, (rng() - 0.5) * v.r * 0.08);
+      b.rotation.set(rng() * 3, rng() * 3, a);
+      ring.add(b);
+    }
+    ring.userData.spin = 0.004 / rk;
+    rings.push(ring); g.add(ring);
+  }
+  g.position.set(...v.pos);
+  g.lookAt(0, 0, 0); g.rotateX(0.35);
+  g.userData.rings = rings;
+  return g;
+}
+
 /** Build a sky from its spec. Returns { group, update(p, t) }: call update every frame so the sky follows the player. */
 export function buildSky(scene, spec, seedKey) {
   const rng = mulberry32(hashStr(`sky:${seedKey}`)), group = new THREE.Group(), moving = [], pulse = [];
@@ -272,6 +300,8 @@ export function buildSky(scene, spec, seedKey) {
   if (spec.clouds) group.add(clouds(spec.clouds, spec, rng));
   for (const a of spec.aurora || []) { const m = ribbon(a.color, a.r, a.h, a.y, { arc: a.arc, opacity: a.opacity, waves: a.waves, aurora: true }); pulse.push({ m, base: a.opacity ?? 0.5, ph: rng() * 6 }); group.add(m); }
   for (const f of spec.floaters || []) { const fg = floater(f, spec, rng); moving.push(fg); group.add(fg); }
+  const vx = spec.vortex ? vortex(spec.vortex, rng) : null;
+  if (vx) group.add(vx);
   group.traverse((o) => { o.frustumCulled = false; });
   scene.add(group);
   return {
@@ -280,6 +310,7 @@ export function buildSky(scene, spec, seedKey) {
       group.position.set(p.x, 0, p.z);
       for (const q of pulse) q.m.material.opacity = q.base * (0.75 + 0.25 * Math.sin(t * 0.5 + q.ph));
       for (const fg of moving) for (const o of fg.children) o.position.y = o.userData.y + Math.sin(t * 0.3 + o.userData.bob) * o.userData.amp;
+      if (vx) for (const r of vx.userData.rings) r.rotation.z = t * r.userData.spin;
     },
   };
 }

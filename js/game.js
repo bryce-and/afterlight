@@ -184,6 +184,7 @@ export function findSpawn(center, angle, spread, rMin, rMax) {
     const p = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
     p.x = clamp(p.x, b.minX + 2, b.maxX - 2);
     p.z = clamp(p.z, b.minZ + 2, b.maxZ - 2);
+    if (G.level.voidAt?.(p.x, p.z)) continue; // U17f: never over the abyss
     p.y = groundAt(p.x, p.z);
     if (!pointInColliders(_c.copy(p).setY(p.y + 0.5), 0.8) && p.distanceTo(G.player.pos) > 8) return p;
   }

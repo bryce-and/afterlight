@@ -441,6 +441,12 @@ function interior(K, x, z, w, d, lamp = LANT) {
   K.box(x, z - d / 2 + 0.5, w * 0.5, 0.2, 0.1, lamp, { y: 1.8, collide: false, glow: 1.2 });
 }
 
+/** U17f: the helpers and tones the Tangled Shore patrol zone (js/patrol-tangled.js) builds with. */
+export const TANGLED_KIT = {
+  beam, cable, chainSpan, chain, floater, shanty, banner, lanternString, skiff, minePod, junkPile, holedWall, hiveGrowth, hiveCrystals, plate, ribs, totem, etherCan, spikes, crane, hullWall, crateHeap,
+  C: { SCRAP, CLOTH, HULL, LANT, ROPE, DARK, IRON, BONE, ETHER, HIVE, CHITIN, PAPER },
+};
+
 // ---------------------------------------------------------------- missions
 
 export default {

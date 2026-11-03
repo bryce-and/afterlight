@@ -90,7 +90,9 @@ function makePatrol(level, loc) {
   const camps = set.camps.map((c, i) => ({ ...mk('camp', c, i), state: 'idle', t: 0 }));
   const events = { defs: set.events, cur: null, nextT: PATROL_TUNE.eventFirst, order: 0, done: 0 };
   const npcs = patrolMeetingsFor(G.save, loc.id).map((m) => ({ meeting: m, spot: set.npcs?.[m.npc], model: null, mark: null })).filter((n) => n.spot);
-  return { set, loc, beacons, camps, events, npcs, buildT: 0 };
+  const talkers = (set.talkers || []).map((t) => ({ def: t, model: null, cd: 0 })); // U17f: people who stay put and talk (the Spider)
+  const figures = (set.figures || []).map((f) => ({ def: f, model: null }));         // U17f: scenery people (his guards)
+  return { set, loc, beacons, camps, events, npcs, talkers, figures, buildT: 0 };
 }
 
 const countAlive = (z) => z.enemies.filter((e) => e.alive).length;
@@ -149,6 +151,7 @@ export function updatePatrol(dt) {
   const M = G.mission, Pt = M.patrol, P = G.player;
   if (P.dead) { hideCard(); }
   buildVisualsOnce(Pt);
+  updateFalls(Pt);
   if (M.remote) { updateBeaconVisuals(Pt, dt); updateCard(Pt); updateNpcs(Pt, dt); return; } // fireteam members follow the host
   updateCamps(Pt, dt);
   updateBeacons(Pt, dt);
@@ -194,6 +197,12 @@ const BEACON_COLOR = { ready: 0x7fe3ff, active: 0xffa24a, done: 0x6b7480 };
 function buildVisualsOnce(Pt) {
   if (Pt.visuals) return;
   Pt.visuals = true;
+  for (const p of [...Pt.talkers, ...Pt.figures]) {
+    p.model = buildNpc(p.def.npc);
+    p.model.group.position.set(p.def.x, (G.level.groundAt ? G.level.groundAt(p.def.x, p.def.z) : 0) + (p.def.y ?? 0), p.def.z);
+    p.model.group.rotation.y = (p.def.yaw || 0) + Math.PI;
+    G.scene.add(p.model.group);
+  }
   for (const n of Pt.npcs) {
     n.model = buildNpc(n.meeting.npc);
     const y = G.level.groundAt ? G.level.groundAt(n.spot.x, n.spot.z) : 0;
@@ -303,6 +312,13 @@ function completeBeacon(Pt, b) {
 function updateNpcs(Pt, dt) {
   const P = G.player;
   let near = null;
+  for (const p of Pt.figures) p.model?.update(dt, G.time);
+  for (const t of Pt.talkers) {
+    if (!t.model) continue;
+    t.model.update(dt, G.time);
+    t.cd = Math.max(0, t.cd - dt);
+    if (!near && Math.hypot(P.pos.x - t.def.x, P.pos.z - t.def.z) < (t.def.r ?? 3.4) && !P.dead && !P.mount && !P.ghostBusy) near = { talker: t, meeting: { npc: t.def.npc } };
+  }
   for (const n of Pt.npcs) {
     if (!n.model) continue;
     n.model.update(dt, G.time);
@@ -316,9 +332,26 @@ function updateNpcs(Pt, dt) {
   }
   if (near) {
     ui.prompt(`[E]  Talk to ${NPC_INFO[near.meeting.npc].name}`);
-    if (G.input.pressed.KeyE) meet(Pt, near);
+    if (G.input.pressed.KeyE) { if (near.talker) talk(near.talker); else meet(Pt, near); }
   } else if (Pt.npcPrompt) ui.prompt(null);
   Pt.npcPrompt = !!near;
+}
+
+/** U17f: someone who stays put says their lines (story.js PATROL_TALKS) each time you speak to them. */
+function talk(t) {
+  if (t.cd > 0) return;
+  for (const [who, text] of PATROL_TALKS[t.def.talk] || []) ui.say(who, text);
+  t.cd = 8;
+}
+
+// ---- falls: a map over an abyss (`voidBelow`) kills whoever drops into it (U17f) ----
+function updateFalls(Pt) {
+  const below = G.level.voidBelow, va = G.level.voidAt;
+  if (below == null || !va) return;
+  const P = G.player;
+  if (!P.dead && P.pos.y < below + 8 && va(P.pos.x, P.pos.z)) P.fallDie(G.level.fallText); // a few metres down: the tumble shows before the clouds
+  if (G.mission.remote) return; // the host owns the enemies
+  for (const e of G.enemies) if (e.alive && e.pos.y < below && va(e.pos.x, e.pos.z)) { e.alive = false; e.noDrops = true; e.dieT = 2; e.hp = 0; G.hitDirty = true; }
 }
 
 function meet(Pt, n) {

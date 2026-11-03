@@ -15,6 +15,9 @@ export const NPC_INFO = {
   ana: { name: 'Ana Bray', title: 'Hunter', color: '#7fd0e8' },
   sloane: { name: 'Sloane', title: 'Vanguard Deputy', color: '#9fc4d8' }, // U17c
   asher: { name: 'Asher Mir', title: 'Researcher', color: '#ffe08a' }, // U17e
+  petra: { name: 'Petra Venj', title: "The Queen's Wrath", color: '#a8ffe0' }, // U17f
+  spider: { name: 'The Spider', title: 'Baron of the Shore', color: '#d8a8ff' },
+  spiderguard: { name: "Spider's Guard", title: 'Fallen', color: '#9fd8ff' },
 };
 
 const _mats = new Map();
@@ -623,7 +626,173 @@ function asher() {
   };
 }
 
-const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris, sloane, asher };
+// ---------------------------------------------------------------------------
+/** U17f: Petra Venj after the references: Awoken (pale blue-grey skin, a glowing blue eye), red hair swept over her right eye under an eyepatch, a cream jacket with a
+ *  fur collar and a scarf, a glowing yellow sigil on the chest, a plum scaled bodysuit, brown bracers, a long cape, and a knife on her thigh. */
+function petra() {
+  const skin = M(0xb4c0d2), hair = M(0x8e2a22), hairDk = M(0x6a1e1a), cream = M(0xc4b498), creamDk = M(0xa8987c), fur = M(0xa8866a), plum = M(0x5c2848, { metalness: 0.25, roughness: 0.55 });
+  const plumDk = M(0x3e1a32), brown = M(0x6a3e2a), patch = M(0x2a1e1e), capeM = cloth(0xc2b49c), blade = metal(0xc8ccd2);
+  const f = figure({
+    hipW: 0.1, thigh: 0.14, pants: plum, boot: plumDk, chestW: 0.38, chestD: 0.22, shirt: plum, // thigh 0.14: at 0.13 the boot's back face meets the shin's
+    armT: 0.1, sleeve: plum, glove: brown, hand: skin, skin,
+  });
+  const { group, body, torso, head } = f;
+  humanHead(head, skin, 0.16, 0.22);
+  // her left eye glows blue; the right is under the patch and the hair
+  box(0.03, 0.022, 0.012, -0.035, 0.128, 0.087, glow(0x8fd8ff, 2.2), head);
+  box(0.06, 0.05, 0.015, 0.04, 0.13, 0.088, patch, head);
+  box(0.17, 0.012, 0.012, 0, 0.15, 0.0, patch, head, [0, 0, -0.25]);
+  // red hair: short at the back, a long side-swept fringe falling over the right side of the face
+  box(0.18, 0.07, 0.19, 0, 0.225, -0.005, hair, head);
+  box(0.18, 0.17, 0.05, 0, 0.12, -0.095, hairDk, head);
+  box(0.05, 0.14, 0.17, -0.095, 0.15, -0.01, hair, head);
+  box(0.1, 0.16, 0.05, 0.05, 0.16, 0.08, hair, head, [0.1, 0, 0.35]);
+  box(0.06, 0.12, 0.17, 0.095, 0.12, 0.0, hair, head, [0, 0, 0.1]);
+  // the cream jacket: cropped and open down the front over the plum suit, with puffed shoulders, a scarf and a big fur collar on her left
+  for (const sx of [-1, 1]) box(0.15, 0.3, 0.25, sx * 0.13, 0.44, 0.0, cream, torso);
+  box(0.4, 0.3, 0.06, 0, 0.44, -0.1, cream, torso);
+  for (const s of [-1, 1]) box(0.14, 0.12, 0.22, s * 0.24, 0.56, 0, creamDk, torso, [0, 0, s * 0.25]);
+  box(0.24, 0.1, 0.24, 0, 0.64, 0.0, cream, torso);
+  for (const [x, y, z, r] of [[0.13, 0.6, 0.05, 0.6], [0.18, 0.5, 0.1, 0.9], [0.08, 0.66, 0.1, 0.3], [0.2, 0.62, -0.05, 0.4]]) box(0.12, 0.14, 0.1, x, y, z, fur, torso, [r, 0.3, r * 0.5]);
+  // the glowing sigil on the chest and the plum bodysuit showing below the jacket
+  const sig = glow(0xe8ff3a, 2.4);
+  box(0.09, 0.09, 0.012, -0.06, 0.38, 0.13, sig, torso, [0, 0, 0.6]);
+  box(0.03, 0.12, 0.012, -0.06, 0.38, 0.131, sig, torso);
+  box(0.36, 0.2, 0.23, 0, 0.12, 0, plum, torso);
+  box(0.4, 0.05, 0.25, 0, 0.02, 0, brown, torso);
+  // bracers and the thigh knife
+  for (const a of [f.armL, f.armR]) box(0.12, 0.16, 0.12, 0, -0.16, 0, brown, a.fore);
+  const leg = body.children.find((c) => c.name === 'leg');
+  box(0.04, 0.22, 0.06, -0.09, -0.3, 0.02, brown, leg);
+  box(0.02, 0.12, 0.04, -0.09, -0.46, 0.02, blade, leg);
+  // the cape, from her shoulders to her calves
+  const cape = pivot(0, 0.6, -0.14, torso, 'cape');
+  box(0.44, 1.2, 0.03, 0, -0.6, -0.02, capeM, cape, [0.08, 0, 0]);
+  box(0.46, 0.04, 0.04, 0, -1.2, -0.06, creamDk, cape, [0.08, 0, 0]);
+  // one hand on her hip, the other hanging by the knife
+  f.armL.arm.rotation.set(0.0, 0, 0.45); f.armL.fore.rotation.set(-0.2, 0.2, -0.75);
+  f.armR.arm.rotation.set(0.05, 0, -0.08); f.armR.fore.rotation.set(-0.15, 0, 0);
+  const base = torso.position.y;
+  return {
+    group, height: 1.76, update(dt, t) {
+      const b = breathe(t, 1.2);
+      torso.position.y = base + b * 0.004;
+      torso.scale.set(1, 1 + b * 0.012, 1 + b * 0.01);
+      cape.rotation.x = Math.sin(t * 0.9) * 0.04;
+      head.rotation.y = Math.sin(t * 0.32 + 0.5) * 0.14;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+/** U17f: the Spider after the references: a huge, heavy-set Fallen Baron sunk into a round throne-rig of tanks and pipes on short legs; a pale blue-white crested helmet with
+ *  spikes and glowing blue eyes, a grey cowl, a long dark robe draped over his front, four arms (two on the armrests, two folded over the belly). Seated; faces +z. */
+function spider() {
+  const group = new THREE.Group();
+  const body = pivot(0, 0, 0, group, 'body');
+  const rig = M(0x5e5a52, { metalness: 0.5, roughness: 0.5 }), rigDk = M(0x3e3a36, { metalness: 0.5 }), brass = metal(0x8a7a52), hide = M(0x6a6670), hideDk = M(0x4a4652);
+  const robeM = cloth(0x2a2630), cowl = cloth(0x8a8a90), helm = M(0xc8d4e2, { metalness: 0.4, roughness: 0.4 }), helmDk = M(0x8a96a8), eye = glow(0x7fd0ff, 2.6);
+  // the throne-rig: a round drum on four short legs, tanks on its flanks, pipes round the back
+  cyl(1.15, 1.25, 0.9, 10, 0, 0.95, -0.1, rig, body);
+  cyl(1.2, 1.2, 0.12, 10, 0, 1.45, -0.1, rigDk, body);
+  for (const [x, z] of [[-0.8, 0.6], [0.8, 0.6], [-0.8, -0.8], [0.8, -0.8]]) {
+    cyl(0.16, 0.2, 0.7, 6, x, 0.35, z, rigDk, body, [z > 0 ? 0.3 : -0.3, 0, x > 0 ? -0.3 : 0.3]);
+    cyl(0.24, 0.24, 0.1, 6, x * 1.12, 0.05, z * 1.12, rig, body);
+  }
+  for (const s of [-1, 1]) {
+    cyl(0.32, 0.32, 1.4, 8, s * 1.25, 1.15, -0.1, rig, body, [Math.PI / 2, 0, 0]);
+    cyl(0.34, 0.34, 0.08, 8, s * 1.25, 1.15, 0.6, brass, body, [Math.PI / 2, 0, 0]);
+    cyl(0.22, 0.22, 0.8, 8, s * 1.1, 0.7, 0.55, rigDk, body, [0, 0, Math.PI / 2]);
+    box(0.5, 0.12, 0.9, s * 0.95, 1.65, 0.05, rigDk, body); // the armrests
+  }
+  for (let i = 0; i < 4; i++) cyl(0.08, 0.08, 1.8, 6, -0.6 + i * 0.4, 1.6, -1.05, brass, body, [0, 0, Math.PI / 2 * (i % 2)]);
+  cyl(0.9, 1.0, 1.2, 8, 0, 2.0, -0.85, rig, body, [-0.15, 0, 0]); // the back of the seat
+  // the Baron: a vast belly, a broad chest, the robe hanging over the front of the rig to the floor
+  const torso = pivot(0, 1.5, 0.05, body, 'torso');
+  ico(0.62, 0, 0.42, 0.25, hide, torso).scale.set(1.1, 0.9, 0.95);
+  box(1.1, 0.6, 0.7, 0, 0.95, -0.05, hide, torso);
+  box(1.3, 0.25, 0.75, 0, 1.18, -0.05, hideDk, torso);
+  const robe = pivot(0, 0.75, 0.55, torso, 'robe');
+  box(0.95, 2.0, 0.05, 0, -0.95, 0.15, robeM, robe, [0.18, 0, 0]);
+  for (const s of [-1, 1]) box(0.25, 1.8, 0.05, s * 0.5, -0.85, 0.1, robeM, robe, [0.14, s * 0.3, 0]);
+  // the cowl round his neck and shoulders
+  cyl(0.38, 0.62, 0.35, 8, 0, 1.32, -0.05, cowl, torso);
+  // the helmet: pale and crested, a ring of spikes, four blue eyes
+  const head = pivot(0, 1.5, 0.08, torso, 'head');
+  box(0.42, 0.38, 0.42, 0, 0.14, 0.02, helm, head);
+  box(0.3, 0.16, 0.18, 0, 0.0, 0.24, helmDk, head);
+  cone(0.12, 0.4, 4, 0, 0.5, -0.05, helm, head);
+  for (let i = 0; i < 9; i++) { const a = -1.4 + i * 0.35; cone(0.045, 0.32, 4, Math.sin(a) * 0.26, 0.26 + Math.cos(a) * 0.12, -0.05, helmDk, head, [-0.3, 0, -a]); }
+  for (const [x, y] of [[-0.1, 0.18], [0.1, 0.18], [-0.07, 0.08], [0.07, 0.08]]) box(0.06, 0.04, 0.02, x, y, 0.24, eye, head);
+  // four arms: the upper pair on the armrests, the lower pair folded over the belly
+  for (const s of [-1, 1]) {
+    const up = pivot(s * 0.62, 1.05, -0.05, torso, s < 0 ? 'armR' : 'armL');
+    box(0.2, 0.55, 0.2, 0, -0.25, 0.05, hide, up, [0.3, 0, s * 0.35]);
+    box(0.17, 0.5, 0.17, s * 0.15, -0.45, 0.35, hideDk, up, [1.3, 0, 0]);
+    for (const k of [-1, 0, 1]) box(0.04, 0.12, 0.04, s * 0.15 + k * 0.05, -0.47, 0.66, hide, up);
+    const lo = pivot(s * 0.48, 0.7, 0.1, torso, 'armLo');
+    box(0.16, 0.4, 0.16, 0, -0.15, 0.1, hideDk, lo, [0.6, 0, s * 0.2]);
+    box(0.14, 0.38, 0.14, -s * 0.18, -0.3, 0.42, hide, lo, [0, 0, s * 1.3]);
+  }
+  const base = torso.position.y;
+  return {
+    group, height: 3.0, update(dt, t) {
+      const b = breathe(t, 0.7);
+      torso.position.y = base + b * 0.012;
+      torso.scale.set(1 + b * 0.012, 1, 1 + b * 0.015);
+      head.rotation.y = Math.sin(t * 0.25) * 0.12;
+      robe.rotation.x = Math.sin(t * 0.6) * 0.015;
+    },
+  };
+}
+
+/** U17f: one of the Spider's guards: a lean four-armed Fallen in bronze armour with a crest of quills fanned round the head, blue-lit claws and a tall spear. Faces +z. */
+function spiderguard() {
+  const group = new THREE.Group();
+  const body = pivot(0, 0, 0, group, 'body');
+  const bronze = M(0x7a5a3a, { metalness: 0.5, roughness: 0.5 }), bronzeDk = M(0x4a3626, { metalness: 0.4 }), hide = M(0x5a5048), quill = M(0x2a2622), steel = metal(0x9aa0a6), blue = glow(0x7fd0ff, 2.2);
+  for (const s of [-1, 1]) {
+    const leg = pivot(s * 0.15, 1.05, 0, body, 'leg');
+    box(0.15, 0.55, 0.16, 0, -0.25, 0.04, bronze, leg, [-0.2, 0, 0]);
+    box(0.12, 0.5, 0.12, 0, -0.72, -0.06, hide, leg, [0.25, 0, 0]);
+    box(0.16, 0.08, 0.3, 0, -1.0, 0.06, bronzeDk, leg);
+  }
+  const torso = pivot(0, 1.05, 0, body, 'torso');
+  box(0.36, 0.3, 0.22, 0, 0.15, 0, M(0x3a342e), torso);
+  box(0.5, 0.4, 0.28, 0, 0.5, 0, bronze, torso);
+  box(0.26, 0.22, 0.06, 0, 0.5, 0.15, bronzeDk, torso);
+  const head = pivot(0, 0.8, 0.04, torso, 'head');
+  box(0.2, 0.24, 0.24, 0, 0.1, 0.02, bronze, head);
+  for (const [x, y] of [[-0.05, 0.14], [0.05, 0.14], [-0.04, 0.07], [0.04, 0.07]]) box(0.04, 0.03, 0.02, x, y, 0.15, blue, head);
+  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; cone(0.018, 0.55, 3, Math.cos(a) * 0.3, 0.1 + Math.sin(a) * 0.3, -0.08, quill, head, [0, 0, a - Math.PI / 2]); }
+  const arms = [];
+  for (const [s, y] of [[-1, 0.62], [1, 0.62], [-1, 0.4], [1, 0.4]]) {
+    const arm = pivot(s * 0.3, y, 0, torso, s < 0 ? 'armR' : 'armL');
+    box(0.1, 0.32, 0.1, 0, -0.16, 0, bronze, arm);
+    const fore = pivot(0, -0.32, 0, arm, 'forearm');
+    box(0.09, 0.3, 0.09, 0, -0.15, 0, hide, fore);
+    for (const k of [-1, 1]) box(0.02, 0.12, 0.02, k * 0.03, -0.34, 0.03, blue, fore);
+    arms.push({ arm, fore, s, y });
+  }
+  // the spear in the upper right hand, standing on the floor
+  const [ur] = arms;
+  ur.arm.rotation.set(-0.3, 0, -0.25); ur.fore.rotation.set(-0.9, 0, 0);
+  const spear = pivot(-0.42, 0, 0.3, body, 'spear');
+  cyl(0.025, 0.025, 2.9, 5, 0, 1.45, 0, M(0x3a3028), spear);
+  cone(0.06, 0.4, 4, 0, 3.05, 0, steel, spear);
+  box(0.12, 0.05, 0.05, 0, 2.75, 0, blue, spear);
+  for (const a of arms.slice(1)) { a.arm.rotation.set(0.1, 0, a.s * 0.15); a.fore.rotation.set(-0.3, 0, 0); }
+  const base = torso.position.y;
+  return {
+    group, height: 2.4, update(dt, t) {
+      const b = breathe(t, 1.4);
+      torso.position.y = base + b * 0.006;
+      head.rotation.y = Math.sin(t * 0.4 + 1.3) * 0.2;
+    },
+  };
+}
+
+const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris, sloane, asher, petra, spider, spiderguard };
 
 /** Build one Tower NPC. Returns { group, update(dt, t), height }. */
 export function buildNpc(id) {
