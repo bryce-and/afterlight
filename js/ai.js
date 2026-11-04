@@ -7,6 +7,9 @@
 // `leash` / `LEASH` names stay so callers keep working: they now mean "the room, if the zone has one".
 export const LEASH = { radius: Infinity, bossRadius: Infinity, slack: 2 };
 
+/** U17g: whether a player `d2` square metres away is seen, given a notice range in metres (patrol zones set one; none means everyone is seen). */
+export const withinNotice = (d2, range) => !range || d2 <= range * range;
+
 export function leashRadius(zone) {
   return zone.leash ?? (zone.isBoss ? LEASH.bossRadius : LEASH.radius);
 }

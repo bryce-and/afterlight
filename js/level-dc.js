@@ -233,6 +233,12 @@ function stub(K, x, z, w, d, h, col = IVORY2) {
   K.box(x + w * 0.2, z, w * 0.4, 0.5, d * 0.9, col, { y: h, collide: false });
 }
 
+/** U17g: the helpers and tones the Dreaming City patrol zone (js/patrol-dreaming.js) builds with. The campaign maps below are unchanged. */
+export const DC_KIT = {
+  g, ghost, mist, pad, spire, farSpire, arch, crystal, blight, banner, lamp, brazier, run, ruin, arcWall, obelisk, rib, hedge, flowers, fallen, stub,
+  C: { IVORY, IVORY2, LAV, LAV2, DUSK, GOLD, ICE, BLIGHT, BLIGHT2, VEIN, MOSS, MOSS2, CLOTH, MIST, VIOLET, BONE, PINK },
+};
+
 export default {
   // ===========================================================================
   // The Divalian Mists: a low fog shore that climbs, terrace by terrace, to Petra's gate.

@@ -174,7 +174,7 @@ const _gw = new THREE.Vector3();
 function animateGhost(P, dt) {
   const A = GHOST_ANIM, rig = P.ghostModel, gh = rig.userData.ghost, hand = rig.userData.hand, flash = rig.userData.flash;
   const prev = P.ghostT, want = P.ghostOut ? 1 : 0;
-  P.ghostT = want > prev ? Math.min(1, prev + dt / A.inT) : Math.max(0, prev - dt / A.outT);
+  P.ghostT = want ? Math.min(1, prev + dt / A.inT) : Math.max(0, prev - dt / A.outT); // U17g: at 1 it stays at 1 (it used to dip every third frame, so the holds ran at a third of their speed)
   const t = P.ghostT;
   P.ghostLower = smooth(t / 0.3);
   const rise = smooth((t - A.hand[0]) / (A.hand[1] - A.hand[0]));

@@ -33,7 +33,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
-import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, kitUnit } from '../js/patrol-data.js';
+import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -1998,7 +1998,7 @@ test('U17a: a dropped patrol quest keeps its NPC away until it is picked up agai
 // ---------- U17b: Moon and Mars patrol zones ----------
 const KINDS_B = new Set(['grunt', 'rusher', 'captain', 'heavy', 'suicide']);
 const unitOk = (u) => KINDS_B.has(u) || !!FA.UNITS[u]; // a base role, or (U17e) a real unit id
-for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan', 't_patrol'], ['io', 'i_patrol'], ['tangled', 'ts_patrol']]) {
+for (const [dest, pid] of [['moon', 'm_patrol'], ['mars', 'r_patrol'], ['titan', 't_patrol'], ['io', 'i_patrol'], ['tangled', 'ts_patrol'], ['dc', 'dc_patrol']]) {
   const D = PATROL_DATA[pid], P = D.patrol;
   const all = () => [...P.beacons, ...P.beacons.map((b) => b.site), ...P.events, ...P.camps, ...Object.values(P.npcs)];
   test(`U17b: ${dest} has a patrol zone wired to the Director, and every site is inside the map`, () => {
@@ -2270,6 +2270,90 @@ test('U17d: the Tangled Shore is fought against the Scorn', () => {
     for (const id of ['petra_tangled', 'spider_lair']) ok(ST_.PATROL_TALKS[id].every(([who, text]) => ST_.SPEAKERS[who] && !/[–—]/.test(text)), `${id} speakers and text`);
   });
 }
+
+// ---------- U17g: the Dreaming City patrol zone ----------
+{
+  const D = PATROL_DATA.dc_patrol, P = D.patrol, T = buildTerrain(D.terrain);
+  const voidAt = (x, z) => T.at(x, z) < D.voidBelow; // world.js voidAt for this map (no open edges)
+  const island = (id) => DREAMING_ISLANDS.find((i) => i[0] === id);
+  const on = (id, p) => { const [, a, b, c, d] = island(id); return p.x > a && p.x < b && p.z > c && p.z < d; };
+  test('U17g: Dreaming City: islands stand over the abyss: solid on every island, deck and path, void between them and under the cloud sea', () => {
+    for (const [id, x0, x1, z0, z1, h] of DREAMING_ISLANDS) {
+      const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      ok(!voidAt(cx, cz), `${id} is solid at its centre`);
+      ok(Math.abs(T.at(x0 + 1, z0 + 1) - h) < 0.01 || id === 'top' || id === 'cavern' || id === 'palace' || id === 'court', `${id} is flat at its height`);
+    }
+    for (const r of DREAMING_RAMPS) for (let k = 0; k <= 20; k++) { const x = r.x0 + (r.x1 - r.x0) * k / 20, z = r.z0 + (r.z1 - r.z0) * k / 20; ok(!voidAt(x, z), `${r.id} has a floor at ${k}/20`); }
+    for (const [x, z] of [[0, 185], [-80, 130], [80, 120], [-100, 48], [60, 30], [-60, -20], [60, -20], [-80, -100], [180, -100], [0, -150], [-185, 0], [185, 120]]) ok(voidAt(x, z), `(${x}, ${z}) is the abyss`);
+    ok(DREAMING.sea < DREAMING.voidBelow && DREAMING.voidBelow < Math.min(...DREAMING_ISLANDS.map((i) => i[5])), 'the cloud sea lies below the void line, the islands above it');
+    ok(!voidAt(94, -92) && T.at(94, -92) < 40 - 0.5, 'the palace pool is sunken but still has a floor');
+  });
+  test('U17g: Dreaming City: every area is joined to the Strand by paths a Guardian can walk; the Sparrow routes are wide decks', () => {
+    const routes = [[[0, 150], [0, 60]], [[0, 76], [-70, 76], [-123, 76], [-123, 50], [-133, 10], [-133, -40]], [[0, 66], [76, 66], [104, 60], [104, 0], [94, -30], [94, -60]], [[0, 60], [0, 8], [60, 8], [90, 8]],
+      [[104, 60], [135, 64], [164, 64]], [[123, 10], [123, -40], [123, -115], [123, -130], [100, -150]], [[0, 10], [0, -30], [0, -60], [0, -80], [0, -90]], [[94, -52], [94, -80], [94, -100]]];
+    for (const r of routes) {
+      ok(routeSlope(T, r) < MAX_SLOPE, `route ${JSON.stringify(r)} is walkable`);
+      for (let i = 1; i < r.length; i++) for (let k = 0; k <= 40; k++) { const x = r[i - 1][0] + (r[i][0] - r[i - 1][0]) * k / 40, z = r[i - 1][1] + (r[i][1] - r[i - 1][1]) * k / 40; ok(!voidAt(x, z), `(${x.toFixed(1)}, ${z.toFixed(1)}) on ${JSON.stringify(r)} has a floor`); }
+    }
+    for (const r of DREAMING_RAMPS) ok(r.kind === 'd' ? r.width >= 12 : r.width >= 7, `${r.id} is wide enough for its kind`);
+    for (const id of ['toMists', 'toCourt', 'bridgeE', 'bridgeC', 'bridgeP', 'toLower']) ok(DREAMING_RAMPS.find((r) => r.id === id).kind === 'd', `${id} is a Sparrow deck`);
+    for (const r of DREAMING_RAMPS) ok(Math.abs(r.h1 - r.h0) / Math.hypot(r.x1 - r.x0, r.z1 - r.z0) < MAX_SLOPE, `${r.id} climbs gently`);
+  });
+  test('U17g: Dreaming City: Taken hold the Mists, the Well, the Gardens, the palace and the cavern, Scorn the lower decks and Aphelion\'s Rest; the Strand is safe', () => {
+    const all = [...P.camps, ...P.beacons];
+    for (const c of all) ok(['taken', 'scorn'].includes(c.f), `(${c.x}, ${c.z}) names Taken or Scorn (no Awoken enemies)`);
+    ok(P.camps.length >= 20 && P.beacons.length >= 5, 'populated');
+    for (const c of all) ok(!on('strand', c.site ?? c), `(${c.x}, ${c.z}) is not on the Strand`);
+    for (const c of P.camps.filter((q) => q.f === 'scorn')) ok(on('lower', c) || on('rest', c), `Scorn camp (${c.x}, ${c.z}) is on the lower decks or Aphelion's Rest`);
+    for (const c of P.camps.filter((q) => q.f === 'taken')) ok(!on('lower', c) && !on('rest', c), `Taken camp (${c.x}, ${c.z}) is not on Scorn ground`);
+    for (const f of ['taken', 'scorn']) ok(P.beacons.some((b) => b.f === f && b.type === 'clear') && P.beacons.some((b) => b.f === f && b.type === 'hunt') || f === 'taken', `a ${f} beacon`);
+    ok(P.beacons.some((b) => b.id === 'stair_clear' && b.type === 'clear' && on('top', b)), 'a Clear at the head of the cavern stair');
+    ok(P.beacons.some((b) => b.id === 'mists_hunt' && on('mists', b)) && P.beacons.some((b) => b.id === 'gardens_clear' && on('garden1', b)), 'the Mists Bounty and the Gardens Clear');
+  });
+  test('U17g: Dreaming City: the Blind Well has a hold plate and is complete, Ether Resupply is reused at Aphelion\'s Rest', () => {
+    const sp = EVENT_SPECS.blind_well;
+    eq(sp.faction, 'taken'); eq(sp.units, FACTION_KITS.taken.units);
+    for (const u of [sp.marked.unit, sp.finale.unit, ...sp.pushes.flat().map(([r]) => r)]) eq(FA.UNITS[kitUnit(sp.units, u, (a) => a[0])].faction, 'taken');
+    ok(sp.hold && sp.hold.r > 3 && sp.hold.need > 0 && sp.hold.drain >= 0 && sp.hold.text, 'a hold plate');
+    const well = P.events.find((e) => e.id === 'blind_well'), rest = P.events.find((e) => e.id === 'ether_resupply');
+    ok(well && on('court', well) && sp.hold.r < well.r, 'the Well is in its court, the light ring inside the event circle');
+    ok(rest && on('rest', rest), "Ether Resupply is at Aphelion's Rest");
+    for (const e of P.events) ok(D.zones.some((z) => Math.hypot(z.x - e.x, z.z - e.z) < 1), `a zone sits on ${e.id}`);
+  });
+  test('U17g: Dreaming City: Petra Venj has a second meeting, independent of the Tangled Shore one, with its own quest and talk', () => {
+    const a = Q.PATROL_MEETINGS.find((x) => x.id === 'petra_tangled'), b = Q.PATROL_MEETINGS.find((x) => x.id === 'petra_dc');
+    ok(a && b && a.npc === 'petra' && b.npc === 'petra' && a.dest !== b.dest, 'both meetings exist side by side');
+    eq(b.dest, 'dc'); eq(b.place, 'patrol:dc'); eq(b.text, 'Find Petra Venj on the Strand');
+    eq(Q.QUESTS.petra_dc.name, 'The Torn Veil'); eq(Q.QUESTS.petra_dc.meeting, 'petra_dc');
+    ok(on('strand', P.npcs.petra), 'Petra waits on the Strand');
+    const talk = ST_.PATROL_TALKS.petra_dc;
+    ok(talk.length >= 3 && talk.length <= 5 && talk.every(([who, text]) => ST_.SPEAKERS[who] && text.length > 5 && !/[–—]/.test(text)), 'the talk');
+    // independent: finishing one leaves the other offered
+    const s = { quests: Q.newQuests() };
+    Q.offerPatrolQuests(s, 'tangled'); Q.offerPatrolQuests(s, 'dc');
+    eq(Q.patrolMeetingsFor(s, 'tangled').map((m) => m.id), ['petra_tangled']); eq(Q.patrolMeetingsFor(s, 'dc').map((m) => m.id), ['petra_dc']);
+    ok(Q.metPatrolMeeting(s, 'petra_dc'), 'the Dreaming City meeting is done');
+    eq(Q.patrolMeetingsFor(s, 'dc').length, 0); eq(Q.patrolMeetingsFor(s, 'tangled').map((m) => m.id), ['petra_tangled']);
+    ok(Q.metPatrolMeeting(s, 'petra_tangled'), 'then the Tangled Shore one');
+    eq(Q.patrolMeetingsFor(s, 'tangled').length, 0);
+  });
+  test('U17g: Dreaming City: the Director offers a patrol, with a Taken boss model, between the Tangled Shore patrol and the campaign', () => {
+    const L = LOCATIONS.find((l) => l.id === 'dc');
+    eq(L.patrol.id, 'dc_patrol');
+    ok(L.patrol.power > LOCATIONS.find((l) => l.id === 'tangled').patrol.power && L.patrol.power <= L.missions[0].power, 'power fits');
+    ok(FA.UNITS.tk_ogre && L.patrol.boss.model === 'takenchampion', 'a Taken boss model');
+    ok(!/[–—]/.test(L.patrol.desc), 'no dashes');
+  });
+}
+
+// ---------- U17g: patrol notice range and the Ghost holds ----------
+test('U17g: in a patrol zone an enemy only notices a player within the notice range', () => {
+  eq(PATROL_TUNE.notice, 60);
+  ok(AI.withinNotice(59 * 59, PATROL_TUNE.notice), '59 m is seen');
+  ok(!AI.withinNotice(45 * 45 + 45 * 45, PATROL_TUNE.notice), '63.6 m is not');
+  ok(AI.withinNotice(400 * 400, undefined), 'campaign missions set no range: the nearest player anywhere');
+});
+test('U17g: the Sparrow hold is 1 s and the orbit hold 5 s', () => { eq(SPARROW.summonHold, 1); eq(SPARROW.orbitHold, 5); });
 
 // ---------- runner ----------
 const out = document.getElementById('out');

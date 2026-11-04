@@ -57,6 +57,7 @@ export function startPatrol(li) {
     loc, def, li, mi: -1, g, phase: 'patrol', current: 0, zones: [hub],
     fireteam, coop: net.active, remote: net.isClient, revives: 3, lives: net.active ? 99 : livesFor(fireteam), bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
+    notice: PATROL_TUNE.notice, provoke: PATROL_TUNE.provoke, // U17g: enemies only see a player this close or one who just hurt them (coop.js pickTarget), and walk home when nobody is
     playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
     checkpoint: level.spawn.clone(), objective: patrolObjective(def), waypoint: null, chest: null, failing: false, doneT: 0,
   };
@@ -444,9 +445,16 @@ function eventMarker(E) {
   const wall = new THREE.Mesh(new THREE.CylinderGeometry(E.def.r, E.def.r, 7, 40, 1, true), mat(0.07, 0xffd35a));
   wall.position.y = 3.5;
   g.add(ring, wall);
+  let hold = null; // U17g: an event with a hold plate (spec.hold) shows its light ring; it brightens as the plate charges
+  const H = E.spec?.hold;
+  if (H) {
+    hold = new THREE.Mesh(new THREE.RingGeometry(H.r - 0.4, H.r, 48), mat(0.3, 0x7ff0ff));
+    hold.rotation.x = -Math.PI / 2; hold.position.set((H.x ?? E.def.x) - E.def.x, 0.3, (H.z ?? E.def.z) - E.def.z);
+    g.add(hold);
+  }
   g.position.copy(E.zone.center);
   G.scene.add(g);
-  E.marker = { g, ring, wall };
+  E.marker = { g, ring, wall, hold };
 }
 function removeEventMarker(E) { if (E.marker) { E.marker.g.removeFromParent(); E.marker = null; } }
 
@@ -463,7 +471,7 @@ function beginEvent(Pt) {
 }
 
 function startEventAssault(Pt, E) {
-  E.state = 'active'; E.t = 0; E.phase = 0;
+  E.state = 'active'; E.t = 0; E.phase = 0; E.charge = 0;
   spawnEventPush(E, 0);
   // the marked targets: kill them all inside the window and the event turns Heroic
   const m = E.spec.marked;
@@ -500,6 +508,15 @@ function tickEventAssault(Pt, E, dt) {
   }
   let text = `${E.spec.name}${E.heroic ? '  ·  Heroic' : ''}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
   if (E.markedT > 0 && !E.heroic) text = `${E.spec.marked.text}: ${markedAlive} left  ·  ${Math.ceil(E.markedT)}s  ·  ${alive} hostiles`;
+  // U17g: a hold plate (spec.hold): the event cannot finish until a Guardian has stood in the light ring long enough; the charge drains while nobody does
+  const H = E.spec.hold;
+  if (H) {
+    const inside = playersNear(H.x ?? E.def.x, H.z ?? E.def.z, H.r);
+    E.charge = Math.max(0, Math.min(H.need, (E.charge ?? 0) + (inside ? dt : -dt * (H.drain ?? 0.5))));
+    if (E.marker?.hold) E.marker.hold.material.opacity = 0.25 + 0.65 * (E.charge / H.need);
+    const pct = Math.floor((E.charge / H.need) * 100);
+    if (!(E.markedT > 0 && !E.heroic)) text += `  ·  ${H.text}: ${pct}%`;
+  }
   E.objective = text;
   const near = nearestAlive(E.zone, P.pos);
   const markedTarget = E.markedT > 0 && !E.heroic ? E.marked.find((e) => e.alive) : null;
@@ -511,7 +528,7 @@ function tickEventAssault(Pt, E, dt) {
     for (let i = 0; i < n; i++) spawnUnit(E.zone, kitUnit(E.spec.units, f.unit), findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, 3, 9), { tier: 'major', name: f.name, faction: E.spec.faction ?? undefined });
     banner(f.name, 'Finish the event', 2.6, 'bossIntro');
     stinger('boss');
-  } else if (E.finale && alive === 0) completeEvent(Pt, E);
+  } else if (E.finale && alive === 0 && (!H || E.charge >= H.need)) completeEvent(Pt, E);
 }
 
 function completeEvent(Pt, E) {

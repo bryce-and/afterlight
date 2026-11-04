@@ -509,6 +509,8 @@ export const LOCATIONS = [
     skyBody: { color: 0xf4e3c8, size: 52, pos: [260, 160, -430] },
     enemyNames: { grunt: 'Taken Acolyte', rusher: 'Taken Thrall', captain: 'Taken Captain', heavy: 'Taken Phalanx' },
     zoneNames: ['Divalian Mists', 'Rheasilvia', 'The Strand', 'Gardens of Esila', 'Spine of Keres', 'Harbinger\'s Seclude', 'The Wishing Chamber'],
+    // U17g: the free-roam patrol zone (js/patrol-dreaming.js, js/patrol.js)
+    patrol: { id: 'dc_patrol', mood: 'dusk', name: 'Dreaming City Patrol', objective: 'Patrol the Dreaming City', power: 165, zones: 0, boss: { name: '', element: 'void', model: 'takenchampion' }, desc: 'Roam the cliffs and towers of the Dreaming City under the torn ring. Hold the Blind Well, walk the Gardens and the palace, activate beacons, join public events, and mind the edge.' },
     missions: [
       { id: 'dc1', mood: 'dusk', name: 'The Divalian Mists', power: 172, zones: 4, boss: { name: 'The Corrupted Champion', element: 'void', model: 'takenchampion' }, desc: 'Petra Venj waits at the gate. The Taken have torn the veil, and the Mists swallow everything past ten metres. Light the beacons and hold the line.' },
       { id: 'dc2', mood: 'day', name: 'The Spine of Keres', power: 181, zones: 4, boss: { name: 'Morgeth, the Spirekeeper', element: 'solar', model: 'morgeth' }, desc: 'Mara Sov asks you to climb the Spine to the Oracle. Morgeth holds the temple, and Mara has something to tell you.' },

@@ -4,6 +4,8 @@
 /** Tuning for every patrol zone. */
 export const PATROL_TUNE = {
   wake: 56, sleep: 190, campCooldown: 110, // an ambient pack wakes inside `wake` metres, is put away beyond `sleep`, and returns after the cooldown
+  notice: 60, // U17g: an enemy only notices a player within this many metres (Bryce, 2026-11-04)
+  provoke: 8, // U17g: ...or one who hurt it in the last `provoke` seconds, from any range
   beaconUse: 3, beaconCard: 12, beaconCooldown: 95,
   eventFirst: 45, eventGap: 140, eventWarn: 20, eventLimit: 300,
   xp: { beacon: 140, event: 260, heroic: 520 }, // scaled by 1 + g * 0.1 at award time
@@ -114,6 +116,15 @@ export const EVENT_SPECS = {
     marked: { n: 2, unit: 'sc_chieftain', name: 'Ether Chieftain', time: 60, text: 'Kill the Ether Chieftains' },
     pushes: [[['rusher', 4], ['grunt', 4]], [['captain', 1], ['rusher', 3], ['grunt', 3]]],
     finale: { unit: 'sc_abomination', name: 'Ether Abomination', n: 1, heroicN: 2 },
+  },
+  // U17g: the Dreaming City. `hold` is a plate: the event cannot finish until a Guardian has stood `need` seconds in the light ring (radius r); it drains at `drain` per second when nobody does
+  blind_well: {
+    name: 'The Blind Well', blurb: 'The Taken are pouring out of the Blind Well. Stand in its light to hold it shut.', faction: 'taken', units: FACTION_KITS.taken.units,
+    names: null,
+    marked: { n: 2, unit: 'tk_captain', name: 'Well Captain', time: 60, text: 'Kill the Well Captains' },
+    pushes: [[['rusher', 5], ['grunt', 3]], [['captain', 1], ['rusher', 4], ['grunt', 3]]],
+    finale: { unit: 'tk_ogre', name: 'Well Ogre', n: 1, heroicN: 2 },
+    hold: { x: 0, z: 10, r: 8, need: 30, drain: 0.5, text: 'Hold the light ring' }, // x, z: the plate's centre (the event's own centre is clear of the Well)
   },
   hive_awakening: {
     name: 'Hive Awakening', blurb: 'The crashed Hive ship is waking. The Hive are pouring out of the hold.', faction: 'hollow',
@@ -232,6 +243,50 @@ export const TANGLED_RAMPS = [
 export const TANGLED_TERRAIN = [
   ...TANGLED_ISLANDS.map(([, x0, x1, z0, z1, h]) => ({ type: 'plateau', x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0, h, edge: 0.4 })),
   ...TANGLED_RAMPS.map((r) => ({ type: 'ramp', ...r, edge: 0.4 })),
+];
+
+/**
+ * U17g: the Dreaming City patrol (js/patrol-dreaming.js). Cliff-top islands of rock over a sea of cloud, joined by ramps and wide bridge decks. Every island is a plateau and every
+ * deck, gorge and stair a ramp (as on the Tangled Shore); the ground between them is 0, far under the cloud sea at `sea`, and ground under `voidBelow` has no floor (world.js voidAt).
+ * Kinds: i = island, t = a raised terrace inside an island (no rock under it of its own); ramps: d = wide deck (a Sparrow route), w = a narrower path on foot (8 m, still rideable),
+ * g = the gorge to the Gardens (on foot), s = the stair in the crystal cavern. Islands: [id, minX, maxX, minZ, maxZ, height, kind].
+ */
+export const DREAMING = { sea: 10, voidBelow: 20 };
+export const DREAMING_ISLANDS = [
+  ['strand', -52, 52, 118, 176, 30, 'i'],     // the Strand: the landing
+  ['mists', -66, 66, 52, 100, 33, 'i'],       // Divalian Mists: the cliff top under the palace wall
+  ['court', -32, 32, -16, 36, 28, 'i'],       // the court of the Blind Well
+  ['garden1', -156, -90, 56, 112, 38, 'i'],   // Gardens of Esila: the first terrace
+  ['garden2', -156, -100, -12, 42, 42, 'i'],
+  ['garden3', -168, -104, -70, -34, 47, 'i'], // the rocks above, with the dome
+  ['tower1', 84, 124, 44, 84, 36, 'i'],       // Rheasilvia: the towers
+  ['tower2', 84, 128, -22, 22, 38, 'i'],
+  ['palace', 64, 130, -110, -50, 40, 'i'],    // the palace tower: the court and the hall, and a strip of rock beside them
+  ['lower', 146, 182, 24, 104, 29, 'i'],      // the lower decks of Rheasilvia
+  ['cavern', -34, 34, -96, -40, 26, 'i'],     // the crystal cavern
+  ['top', -24, 24, -96, -80, 33, 't'],        // the head of the cavern stair
+  ['rest', 60, 140, -176, -122, 36, 'i'],     // Aphelion's Rest
+];
+export const DREAMING_RAMPS = [
+  { id: 'toMists', x0: 0, z0: 118, x1: 0, z1: 100, width: 14, h0: 30, h1: 33, kind: 'd' },
+  { id: 'toCourt', x0: 0, z0: 52, x1: 0, z1: 36, width: 14, h0: 33, h1: 28, kind: 'd' },
+  { id: 'gorge', x0: -66, z0: 76, x1: -90, z1: 76, width: 7, h0: 33, h1: 38, kind: 'g' },
+  { id: 'gardenUp', x0: -123, z0: 56, x1: -123, z1: 42, width: 8, h0: 38, h1: 42, kind: 'w' },
+  { id: 'gardenTop', x0: -133, z0: -12, x1: -133, z1: -34, width: 8, h0: 42, h1: 47, kind: 'w' },
+  { id: 'bridgeE', x0: 66, z0: 66, x1: 84, z1: 66, width: 12, h0: 33, h1: 36, kind: 'd' },
+  { id: 'bridgeN', x0: 104, z0: 44, x1: 104, z1: 22, width: 12, h0: 36, h1: 38, kind: 'd' },
+  { id: 'bridgeC', x0: 32, z0: 8, x1: 84, z1: 8, width: 12, h0: 28, h1: 38, kind: 'd' },
+  { id: 'bridgeP', x0: 94, z0: -22, x1: 94, z1: -50, width: 12, h0: 38, h1: 40, kind: 'd' },
+  { id: 'sideP', x0: 123, z0: -22, x1: 123, z1: -50, width: 8, h0: 38, h1: 40, kind: 'w' },
+  { id: 'toRest', x0: 123, z0: -110, x1: 123, z1: -122, width: 8, h0: 40, h1: 36, kind: 'w' },
+  { id: 'toLower', x0: 124, z0: 64, x1: 146, z1: 64, width: 12, h0: 36, h1: 29, kind: 'd' },
+  { id: 'toCavern', x0: 0, z0: -16, x1: 0, z1: -40, width: 14, h0: 28, h1: 26, kind: 'd' },
+  { id: 'stair', x0: 0, z0: -60, x1: 0, z1: -80, width: 14, h0: 26, h1: 33, kind: 's' },
+];
+export const DREAMING_TERRAIN = [
+  ...DREAMING_ISLANDS.map(([, x0, x1, z0, z1, h]) => ({ type: 'plateau', x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0, h, edge: 0.4 })),
+  ...DREAMING_RAMPS.map((r) => ({ type: 'ramp', ...r, edge: 0.4 })),
+  { type: 'basin', x: 94, z: -92, r: 7.5, flat: 0.6, depth: 0.8 }, // the round sunken pool in the palace hall
 ];
 
 /** Patrol maps by map id: the data half of each (js/patrol-<dest>.js adds `build`). */
@@ -590,6 +645,73 @@ export const PATROL_DATA = {
       talkers: [{ npc: 'spider', x: -104, z: 146, y: 0.8, yaw: -Math.PI / 2, talk: 'spider_lair', r: 6 }], // y: on his dais
       figures: [{ npc: 'spiderguard', x: -99, z: 139, yaw: -Math.PI / 2 }, { npc: 'spiderguard', x: -99, z: 153, yaw: -Math.PI / 2 },
         { npc: 'spiderguard', x: -12, z: 132, yaw: 2.4 }, { npc: 'spiderguard', x: 10, z: 112, yaw: Math.PI }, { npc: 'spiderguard', x: -60, z: 147.4, yaw: Math.PI / 2 }], // his crew at the landing and on the bridge
+    },
+  },
+  // U17g: the Dreaming City. Landing on the Strand (safe); the Taken hold the Mists, the Blind Well court, the Gardens, the palace and the crystal cavern;
+  // the Scorn hold the lower decks of Rheasilvia and Aphelion's Rest. Awoken Corsairs are scenery, never enemies.
+  dc_patrol: {
+    spawn: [0, 150],
+    bounds: [-190, 190, -200, 190],
+    zones: [
+      { name: 'The Strand', x: 0, z: 150 },
+      { name: 'Mists Beacon', x: -36, z: 66 },
+      { name: 'Gardens Beacon', x: -124, z: 70 },
+      { name: 'Tower Beacon', x: 104, z: 56 },
+      { name: "Aphelion's Beacon", x: 76, z: -132 },
+      { name: 'Stair Beacon', x: -14, z: -88 },
+      { name: 'Palace Beacon', x: 97, z: -60 },
+      { name: 'The Blind Well', x: 0, z: 16 },
+      { name: "Aphelion's Rest", x: 100, z: -150 },
+      { name: 'Divalian Mists', x: 0, z: 76 },
+      { name: 'Gardens of Esila', x: -124, z: 84 },
+      { name: 'Rheasilvia', x: 104, z: 64 },
+      { name: 'The Palace', x: 94, z: -80 },
+      { name: 'Crystal Cavern', x: 0, z: -60 },
+    ],
+    noEdge: true,
+    hideBulbs: true,
+    lightPool: 8,
+    merge: true,
+    abyss: true,
+    seaY: DREAMING.sea,
+    voidBelow: DREAMING.voidBelow,
+    fallText: 'The Mists have no floor',
+    hideCliffs: 0.35,
+    // violet dusk over a sea of pale lilac cloud, gold on the stone
+    colors: { sky: 0x7a68b0, fog: 0x8876b4, hemiTop: 0xe0d2ff, hemiBot: 0x6a5a82, sun: 0xffd8a8, ground: 0x6e6882, ground2: 0x625c76, rock: 0x5a4c58, rock2: 0x463c4a, sea: 0xb8a8dc },
+    fog: [80, 440],
+    terrain: DREAMING_TERRAIN,
+    sky: {
+      zenith: 0x1c1438, mid: 0x5a4690, horizon: 0xb09ad8, floor: 0xb8a8dc,
+      bodies: [],
+      // the torn ring: pale debris arcs round a white-violet core
+      vortex: { pos: [70, 205, -470], r: 170, core: 0xffffff, glow: 0xd4bcff, color: 0xb8aad8, n: 170 },
+      floaters: [{ kind: 'island', n: 14, r: [300, 620], y: [-40, 160], size: [14, 50], color: 0x5a4c64, top: 0x6a7a58, haze: 0.45 }, { kind: 'spire', n: 7, r: [380, 640], y: [40, 190], size: [14, 30], color: 0xe4dcf0, glow: 0x9fe8ff, haze: 0.4 }],
+      haze: [{ color: 0xc8b8ec, opacity: 0.55, r: 470, h: 90, y: -20 }],
+    },
+    patrol: {
+      beacons: [
+        { id: 'mists_hunt', x: -36, z: 66, type: 'hunt', f: 'taken', name: 'Mists Bounty', site: { x: 28, z: 80 }, target: { name: 'Kholuun, Mist Reaver', unit: 'captain' } },
+        { id: 'gardens_clear', x: -124, z: 70, type: 'clear', f: 'taken', name: 'Gardens Camp', site: { x: -132, z: 26 } },
+        { id: 'tower_hunt', x: 104, z: 56, type: 'hunt', f: 'scorn', name: 'Lower Deck Bounty', site: { x: 162, z: 64 }, target: { name: 'Ulkar, Ether-Crowned', unit: 'captain' } },
+        { id: 'rest_clear', x: 76, z: -132, type: 'clear', f: 'scorn', name: "Aphelion's Den", site: { x: 102, z: -152 } },
+        { id: 'stair_clear', x: -14, z: -88, type: 'clear', f: 'taken', name: 'Stair Head Camp', site: { x: 8, z: -90 } },
+        { id: 'palace_hunt', x: 97, z: -60, type: 'hunt', f: 'taken', name: 'Palace Bounty', site: { x: 94, z: -98 }, target: { name: 'Varkhul, Hall Warden', unit: 'captain' } },
+      ],
+      events: [
+        { id: 'blind_well', x: 0, z: 16, r: 22 },
+        { id: 'ether_resupply', x: 100, z: -150, r: 22 },
+      ],
+      camps: [
+        { x: -30, z: 76, n: 5, f: 'taken' }, { x: 34, z: 86, n: 4, f: 'taken' }, { x: 8, z: 62, n: 4, f: 'taken' }, { x: -50, z: 92, n: 4, f: 'taken' },
+        { x: -12, z: 22, n: 4, f: 'taken' }, { x: 14, z: -4, n: 4, f: 'taken' },
+        { x: -122, z: 90, n: 5, f: 'taken' }, { x: -106, z: 70, n: 4, f: 'taken' }, { x: -136, z: 22, n: 5, f: 'taken' }, { x: -114, z: 2, n: 4, f: 'taken' }, { x: -114, z: -52, n: 5, f: 'taken' }, { x: -146, z: 90, n: 4, f: 'taken' },
+        { x: 92, z: -66, n: 5, f: 'taken' }, { x: 94, z: -98, n: 5, f: 'taken' }, { x: 86, z: -86, n: 4, f: 'taken' },
+        { x: 0, z: -52, n: 5, f: 'taken' }, { x: -24, z: -56, n: 4, f: 'taken' }, { x: 10, z: -88, n: 4, f: 'taken' },
+        { x: 160, z: 40, n: 5, f: 'scorn' }, { x: 164, z: 84, n: 5, f: 'scorn' }, { x: 154, z: 64, n: 4, f: 'scorn' },
+        { x: 100, z: -150, n: 5, f: 'scorn' }, { x: 74, z: -140, n: 4, f: 'scorn' }, { x: 124, z: -142, n: 5, f: 'scorn' }, { x: 90, z: -160, n: 4, f: 'scorn' },
+      ],
+      npcs: { petra: { x: 18, z: 136, yaw: Math.PI } }, // on the Strand, facing the shore
     },
   },
 };

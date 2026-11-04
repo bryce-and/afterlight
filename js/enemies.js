@@ -704,6 +704,11 @@ export class Enemy {
         }
       }
     }
+    // U17g: in a patrol zone a unit that sees nobody (coop.js pickTarget, notice range) walks back to its camp
+    if (!this.tgt && M.notice && this.zone?.center && !def.static && !def.stationary) {
+      const hx = this.zone.center.x - this.pos.x, hz = this.zone.center.z - this.pos.z;
+      if (hx * hx + hz * hz > 36) { const sd = this.steer(this.zone.center.x, this.zone.center.z, dt); mx = sd.x; mz = sd.z; }
+    }
     this.staggerT = Math.max(0, this.staggerT - dt);
     this.staggerCd = Math.max(0, this.staggerCd - dt);
     const staggered = this.staggerT > 0;

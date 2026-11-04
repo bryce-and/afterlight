@@ -763,6 +763,7 @@ export function dealDamage(e, amount, o = {}) {
     }
   }
   if (dmg > 0) { e.hp -= dmg; dealt += dmg; }
+  if (M.notice && dealt > 0) { e.provokedBy = o.remoteHit ? o.by : 'local'; e.provokedT = G.time + M.provoke; e.tgtT = 0; } // U17g: a patrol enemy that is hurt notices who did it (coop.js pickTarget)
   e.flash = 0.12;
   if (o.knock && !e.isBoss) e.knock.add(o.knock);
   const killed = e.hp <= 0;

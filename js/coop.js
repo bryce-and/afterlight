@@ -6,6 +6,7 @@ import { decodeAppearance } from './style.js';
 import { UNITS, FACTIONS } from './factions.js';
 import { Enemy, fireEnemyShot, spawnEnemyGrenade } from './enemies.js';
 import { TIERS } from './tiers.js';
+import { withinNotice } from './ai.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
@@ -50,9 +51,12 @@ export function allPlayers() {
 
 export function pickTarget(e) {
   let best = null, bd = Infinity;
+  const R = G.mission?.notice; // U17g: patrol zones set a notice range; nobody further away is seen
   for (const p of allPlayers()) {
     if (!p || p.dead) continue;
     const d = (p.pos.x - e.pos.x) ** 2 + (p.pos.z - e.pos.z) ** 2;
+    const provoked = G.time < (e.provokedT ?? 0) && e.provokedBy === (p === G.player ? 'local' : p.id); // U17g: whoever hurt it is seen from any range
+    if (!provoked && !withinNotice(d, R)) continue;
     if ((p.status?.has('invisible') || p.inv) && d > 9) continue; // Vanishing Step
     if (d < bd) { bd = d; best = p; }
   }

@@ -310,6 +310,13 @@ export const PATROL_TALKS = {
     ['ghost', 'And the Spider?'],
     ['petra', 'The Spider sells everyone everything, us included. Take this for your trouble. When I need a gun on the Shore, I will send for you.'],
   ],
+  // U17g
+  petra_dc: [
+    ['petra', 'Guardian. The Strand is quiet, for now. The Mists have thinned, and what comes through them is not ours.'],
+    ['petra', 'Look up. The veil is torn, and the Taken walk the gardens as if they had always lived there. The Scorn are scavenging the ruins at Aphelion\'s Rest.'],
+    ['ghost', 'Is the Queen worried?'],
+    ['petra', 'The Queen is never worried. She is prepared. Hold the Blind Well, clear what you can, and tell her what you saw.'],
+  ],
   spider_lair: [
     ['spider', 'Ah, the Guardian. Come in, come in. Mind the guards, they bite.'],
     ['spider', 'Everything that crosses the Shore passes through my hands sooner or later. Ether, salvage, secrets. Even you, it seems.'],
