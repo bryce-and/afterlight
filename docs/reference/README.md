@@ -88,6 +88,25 @@ Screenshots of the actual Destiny 2 patrol space, plus Petra Venj. `tangled-shor
 
 Brief: start with the Tangled Shore (the Dreaming City is a separate update). NPC: Petra Venj; the Spider sits in his lair. Fallen across the Shore, Scorn in some spots, the Hive at the crashed Hive ship. Falling off a ledge is allowed: the player dies and ragdolls.
 
+## Dreaming City patrol zone (U17g, Bryce, 2026-11-04)
+
+Inspiration, not blueprints. Every outdoor shot has the same sky landmark: a huge glowing white-violet ring torn in the sky.
+
+| File | Note |
+|---|---|
+| `dc-patrol-cliff-palace-wall.webp` | A grassy cliff top over a sea of cloud; a pale fortified palace wall with thin spires, a ribbed dome and a round sealed door, built on the cliff edge |
+| `dc-patrol-garden-terraces-dome.webp` | Terraced gardens: white curving paths and low walls, round planters with mossy boulders, gnarled bonsai trees, tall rock cliffs; a vine-covered lattice dome on the rocks; blade-like white pylons |
+| `dc-patrol-overgrown-dome-spire-court.webp` | The vine-covered lattice dome with a ringed door; below in the mist, a round court ringed by dark needle spires |
+| `dc-patrol-shore-arch-spire.webp` | A rocky shore of wet flat stone and boulders in low mist, a colossal pointed Awoken arch-spire with lit lattice glass rising behind |
+| `dc-patrol-gorge-arch.webp` | A narrow gorge between rock walls, an overgrown arch spanning it, a white path running through |
+| `dc-patrol-blind-well.webp` | The Blind Well: a mushroom-capped pedestal of dark ribs round a glowing cyan column, on a round dark plate with a cyan light ring; low walls with lamp niches; a ringed door frame in the mist behind |
+| `dc-patrol-crystal-hall-stair.webp` | A purple crystalline cavern hall: a wide stair with a glowing centre line up to a ring-crowned door, dark pillars wrapped in green lattice lamps |
+| `dc-patrol-statues-stair.webp` | Crystal cavern: two tall hooded statues holding orbs flank a stair to a round pool platform and a ringed door; mossy rocks and terraces to the side |
+| `dc-patrol-palace-court-portal.webp` | A palace interior: pink-lilac stone, a huge carved white arch with a lamp at its peak, curved planters with orange bonsai, a blue ringed portal in a side arch |
+| `dc-patrol-dark-pillared-hall.webp` | A dark palace hall: tall black pillars, a round sunken pool with a lit orb pedestal and curved prow-like posts, a gold-framed arch door, purple blight glow |
+
+Brief: the Dreaming City is rocky cliffs, the Divalian Mists, ornate palaces, purple crystalline caverns and statues. Taken and Scorn both live here. NPC: Petra Venj (also on the Tangled Shore). Falling off a ledge is allowed, as on the Tangled Shore.
+
 ## All patrol zones (Bryce, 2026-10-29)
 
 Walkways, rails and platforms sit on what is under them: no floating rails, and a path over sloped ground follows the slope. Existing levels have this problem; a level QC pass is on the roadmap. New patrol zones must be built right from the start.

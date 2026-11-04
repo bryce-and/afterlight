@@ -219,3 +219,7 @@
 | 2026-11-03 | Fallen, Scorn and Hive in the Tangled Shore patrol use their faction's default look (no palette overrides). | Bryce |
 | 2026-11-03 | Plank bridges in the Tangled Shore have solid rope rails. Wide decks are open-edged Sparrow routes. | Claude |
 | 2026-11-03 | The patrol spawn faces south. This is an existing quirk, noted and not changed. | Claude |
+| 2026-11-04 | U17g approved (Dreaming City patrol, v3.9): Petra Venj is the NPC here as well as on the Tangled Shore; Taken and Scorn both live in the Dreaming City; falling off ledges as on the Tangled Shore. References in `docs/reference/` (`dc-patrol-*`). | Bryce |
+| 2026-11-04 | Folded into U17g: in patrol zones, enemies only notice a player within 60 m; nobody hunts you from across the map. | Bryce |
+| 2026-11-04 | Folded into U17g: a patrol enemy that is damaged notices whoever hurt it from any range, for 8 s after each hit (`PATROL_TUNE.provoke`); its packmates do not. | Bryce |
+| 2026-11-04 | Fixed in U17g: the Ghost's progress dipped from 1 every third frame (`js/sparrow.js` animateGhost compared `want > prev`), so the E and O holds filled at a third of their speed since v3.3 (O took about 15 s). Hold times stay 1 s and 5 s. | Claude |

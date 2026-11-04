@@ -50,6 +50,7 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R39 | Objectives within missions | Only travel / clear / boss | U15 | Complete and published (v2.6): hold, activate, retrieve, destroy and survive objectives (`js/objectives.js`) |
 | R42 | More verticality in missions | Player can stand on boxes. Since v2.3 enemies hop onto crates and low walls (up to 1.6 m) as firing positions and use steps; levels still have no ramps or stairs to build on | U13a (enemies, done), U15 (level content) | Complete and published (v2.6): closed boss rooms, interiors, stairs and platforms |
 | R43 | Properly lit dark interiors | Max 6 lights per map | U15 | Complete and published (v2.6): unlimited lights, the 6 nearest are real |
+| R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Shipped: Earth patrol zone in v3.3, Moon and Mars in v3.4, Titan in v3.5, Io in v3.7, the Tangled Shore in v3.8 and the Dreaming City in v3.9 (spaces, beacons, public events, heroic mechanic, multiple factions) | U17 | Complete and published (v3.9): all seven patrol zones shipped |
 
 ## Master-prompt requirements
 
@@ -163,3 +164,4 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | F08 | Campaign progress per Guardian (today `cleared` is one account-wide map in the save); lands with the campaign reset | U15 | Complete and published (v2.6): progress per Guardian; save v9 |
 | F25 | Full progress reset for everyone when the campaign launches; old save backed up, settings kept | U15 | Complete and published (v2.6): save v9 resets older saves with a backup (`afterlight_backup_v8`), settings kept |
 | F16 | Exotic Kiosk in the Tower: retrieve earned exotics at your current Light; armor rolls random stats, exotic weapons have fixed stats | U16 | Complete and published (v2.7): pulls an exotic you have found at your current Light for 7,777 glimmer (`KIOSK_PRICE` in `save.js`); one copy at a time |
+| F14 | A patrol zone on every destination | U17 (Earth shipped in U17a, v3.3; Moon and Mars in U17b, v3.4; Titan in U17c, v3.5; Io in U17e (v3.7, after the U17d Vex and Taken rework); the Tangled Shore in U17f (v3.8) and the Dreaming City in U17g (v3.9)) | Complete and published (v3.9): all seven patrol zones shipped |

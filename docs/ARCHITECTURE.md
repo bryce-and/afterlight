@@ -181,6 +181,12 @@ The module map is in the README. These notes cover systems added during the over
 - Terrain rule (`terrain.js`): ground never dips below 0, because the nav grid reserves negative heights for blocked cells. Sunken areas are made by raising the surroundings. A ramp must end beyond where a carved plateau starts, or the plateau edge makes a step.
 - Lighting rule: lamp posts only along roads in human areas; fires, torches and lanterns in Fallen and Scorn camps; glowing crystals near the Hive; Cabal architecture carries its own fixtures.
 
+## Patrol wave 6: Dreaming City and patrol-wide rules (v3.9, `js/patrol-dreaming.js`)
+- `patrol-dreaming.js` builds the Dreaming City patrol map. Its events and beacons are data in `patrol-data.js`.
+- Event `hold` option (`EVENT_SPECS`, e.g. `blind_well`): `{ x, z, r, need, drain, text }` is a plate. Guardians stand in the light ring (radius `r`, centre `x`, `z`) to charge it. The charge reaches `need` seconds, drains at `drain` per second while nobody is in the ring, and the event completes only when it is charged. `patrol.js` draws the ring and brightens it as it charges.
+- Patrol notice: `PATROL_TUNE.notice` (60 m) and `PATROL_TUNE.provoke` (8 s). `startPatrol` (`patrol.js`) sets `G.mission.notice` and `G.mission.provoke`. `dealDamage` (`game.js`) sets `e.provokedBy` (`'local'` or the hitting player's id) and `e.provokedT`. `pickTarget` (`coop.js`) accepts a player who is provoked from any range, or otherwise within range through `withinNotice` (`ai.js`). `enemies.js` walks a unit back to its camp when it sees nobody.
+- No save change.
+
 ## Known limitations
 - The in-mission HUD is built for keyboard and mouse. Under about 500 px wide the ability block overlaps the weapon list and vitals (true since v1.0).
 - Companions (Child of the Old Gods, Arc Soul) follow the caster on every screen (ability fx carry the caster's id); only the caster's copy deals damage. Jolt arcs are drawn on every screen; jolt damage is dealt by the enemy's owner.
