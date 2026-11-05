@@ -222,12 +222,14 @@ function plate(c, parent, w, h, d, x, y, z, rot, m = sm().gold, n = 2) {
 /** The Scorn ether sidearm (Stalker, Chieftain): a stubby gun with a gold cap and a purple glowing barrel. Builds along +z on `g`. */
 function sidearm(c, g, big = 1) {
   const M = sm(), s = big;
-  c.B(0.07 * s, 0.1 * s, 0.24 * s, 0, 0.0, 0.08 * s, M.iron, g);
-  c.B(0.05 * s, 0.12 * s, 0.06 * s, 0, -0.07 * s, 0.0, M.wrapD, g); // handle
-  cyl(c, 0.055 * s, 0.05 * s, 0.1 * s, 6, M.gold, 0, 0.01 * s, 0.2 * s, g, [PI / 2, 0, 0]);
-  cyl(c, 0.04 * s, 0.04 * s, 0.08 * s, 6, c.accent, 0, 0.01 * s, 0.27 * s, g, [PI / 2, 0, 0]);
-  for (const sx of [-1, 1]) cone(c, 0.012, 0.06 * s, M.gold, sx * 0.05 * s, 0.03 * s, 0.22 * s, g, [0, 0, sx * -1.2], false, 3);
-  c.muzzle.position.set(0, 0.01 * s, 0.33 * s);
+  c.B(0.06 * s, 0.11 * s, 0.26 * s, 0, 0.0, 0.08 * s, M.iron, g); // slab body
+  c.B(0.05 * s, 0.13 * s, 0.06 * s, 0, -0.08 * s, -0.01 * s, M.wrapD, g, false, [0.25, 0, 0]); // handle
+  c.B(0.08 * s, 0.05 * s, 0.2 * s, 0, 0.07 * s, 0.1 * s, M.gold, g); // gold top plate
+  c.B(0.025 * s, 0.02 * s, 0.14 * s, 0, 0.1 * s, 0.1 * s, c.accent, g); // ether vent along the top
+  c.B(0.075 * s, 0.13 * s, 0.05 * s, 0, 0.0, 0.23 * s, M.goldD, g); // squared muzzle block
+  c.B(0.03 * s, 0.03 * s, 0.01 * s, 0, 0.0, 0.26 * s, c.accent, g); // muzzle slot
+  c.B(0.02 * s, 0.09 * s, 0.03 * s, 0, -0.08 * s, 0.2 * s, M.iron, g, false, [-0.5, 0, 0]); // under-blade
+  c.muzzle.position.set(0, 0.0, 0.28 * s);
   g.add(c.muzzle);
 }
 
