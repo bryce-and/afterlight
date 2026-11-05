@@ -16,18 +16,19 @@
 //   deathSpawn   releases smaller units when it dies (Vex Imp Swarm)
 //   revive       a Scorn corpse stands up again unless it was burned
 //   totem        places Ether Totems (Scorn Chieftain); totemAura is what a totem does
+//   lampSlam     whirls a lantern overhead, slams it down in front and leaves a fire pool that burns Guardians standing in it (Scorn Ravager)
 import * as THREE from 'three';
 import { G } from './state.js';
 import { ELEMENTS } from './data.js';
 import { rand, pick } from './util.js';
 import { NAV, heightAt, lineClear } from './nav.js';
 import { insideLeash } from './ai.js';
-import { sparks, ringFx, tracer, basicMat } from './effects.js';
+import { sparks, ringFx, tracer, basicMat, firePool } from './effects.js';
 import { sfx } from './audio.js';
-import { allPlayers, damageRemote, fxTracer } from './coop.js';
+import { allPlayers, damageRemote, fxTracer, fxFirePool } from './coop.js';
 import { damagePlayer, killEnemy, spawnUnit, findSpawn, addTicker, dealDamage } from './game.js';
 import * as ui from './ui.js';
-import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, guardMult, guardCoreHit, spinBlocks, snipePhase, snipeHits } from './factions.js';
+import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, guardMult, guardCoreHit, spinBlocks, snipePhase, snipeHits, slamPhase, poolTickDmg } from './factions.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const LIGHT = 0xdfe8ff, ETHER = 0xb46bff;
@@ -44,6 +45,7 @@ export function skillInit(e, o = {}) {
   if (has('frontGuard') || has('knockBurst')) e.sk.knockCd = rand(2, 4);
   if (d.frontGuard?.core) Object.assign(e.sk, { guardOff: 0, guardUp: 1, guardPred: 0 });
   if (has('totem')) Object.assign(e.sk, { totemT: rand(5, 8), totems: [] });
+  if (has('lampSlam')) e.sk.slamT = 0;
   if (has('totemAura')) {
     const kind = o.totemKind || pick(TOTEM_KINDS);
     Object.assign(e.sk, { kind, tick: 0 });
@@ -348,6 +350,88 @@ function frontGuardBurst(e, dt, P, dist) {
     Pl.vel.x += (Pl.pos.x - e.pos.x) / l * k.push; Pl.vel.z += (Pl.pos.z - e.pos.z) / l * k.push; Pl.vel.y = Math.max(Pl.vel.y, 2.5);
     Pl.shake = Math.max(Pl.shake, 0.35);
   }
+}
+
+// ---- lantern slam (Scorn Ravager) ----
+/** The Ravager's attack, run in place of the rusher lunge (enemies.js). Wind up `spin` seconds whirling the lantern overhead (rooted, as a
+ *  lunge windup is), then slam it down in front: a hit in `radius` and a fire pool that burns for `pool.life` seconds. Leader only. */
+export function lampSlamStep(e, dt, dist, P, nx, nz) {
+  const k = e.def.lampSlam, sk = e.sk, m = e.model;
+  e.meleeT -= dt;
+  if (e.windup > 0) {
+    e.windup -= dt;
+    lampPose(e, 'spin', dt);
+    if (slamPhase(e.windup) === 'slam') { slam(e, k, nx, nz); sk.slamT = 0.4; }
+    return;
+  }
+  if (sk.slamT > 0) { sk.slamT -= dt; lampPose(e, 'slam', dt); return; }
+  lampPose(e, 'run', dt);
+  m.arms.forEach((a) => (a.rotation.x += (-1.3 - a.rotation.x) * Math.min(1, dt * 6)));
+  if (dist < k.reach + e.radius && Math.abs(P.pos.y - e.pos.y) < 2.2 && e.meleeT <= 0 && e.los) {
+    e.windup = k.spin * rand(0.85, 1.3); e.meleeT = e.windup + rand(k.cd[0], k.cd[1]); // uneven windups keep a pack from slamming in step
+    sfx.enemyShot(e.pos, e.faction);
+  }
+}
+
+/** The lantern arm's pose: 'spin' raises it and whirls the chain round overhead, 'slam' drives it down in front, 'run' swings the lantern
+ *  round in a circle at its side while the unit is on the move and lets it hang when it stands. Also run on fireteam members' copies
+ *  (remoteStep), which see the spin flag and the unit's movement. */
+export function lampPose(e, pose, dt) {
+  const L = e.model.lamp;
+  if (!L) return;
+  const ch = L.chain, arm = L.arm;
+  const moved = L.px === undefined ? 0 : Math.hypot(e.pos.x - L.px, e.pos.z - L.pz) / Math.max(dt, 1e-3);
+  L.px = e.pos.x; L.pz = e.pos.z;
+  L.mv = (L.mv ?? 0) + ((moved > 1 ? 1 : 0) - (L.mv ?? 0)) * Math.min(1, dt * 5);
+  const k = Math.min(1, dt * (pose === 'run' ? 8 : 20));
+  if (pose !== 'run' || L.mv < 0.5) ch.rotation.x = Math.atan2(Math.sin(ch.rotation.x), Math.cos(ch.rotation.x)); // unwind a running whirl
+  if (pose === 'spin') {
+    arm.rotation.x += (-2.8 - arm.rotation.x) * k;
+    ch.rotation.x += (1.35 - ch.rotation.x) * k;
+    ch.rotation.y = G.time * 16;
+  } else if (pose === 'slam') {
+    arm.rotation.x += (-0.9 - arm.rotation.x) * k;
+    ch.rotation.x += (-0.5 - ch.rotation.x) * k;
+  } else if (L.mv >= 0.5) {
+    arm.rotation.x += (-0.75 - arm.rotation.x) * k;
+    ch.rotation.y *= 1 - k;
+    ch.rotation.x -= dt * 11; // the lantern circles forward at its side
+  } else {
+    arm.rotation.x += (L.rest - arm.rotation.x) * k;
+    ch.rotation.x += (Math.sin(G.time * 3) * 0.12 - ch.rotation.x) * k;
+    ch.rotation.y *= 1 - k;
+  }
+}
+
+function slam(e, k, nx, nz) {
+  const sc = e.scale || 1, ahead = SKILL.lampSlam.ahead * sc;
+  const at = new THREE.Vector3(e.pos.x + nx * ahead, e.pos.y, e.pos.z + nz * ahead);
+  ringFx(at, k.radius, 0xff7a2a, 0.45); sparks(_v.set(at.x, at.y + 0.3, at.z), 0xffa040, 18, 6, 0.1, 0.5); sfx.explosion(2, at);
+  for (const Pl of allPlayers()) {
+    if (Pl.dead || Math.hypot(Pl.pos.x - at.x, Pl.pos.z - at.z) > k.radius || Math.abs(Pl.pos.y - at.y) > 2.2) continue;
+    if (Pl.remote) { damageRemote(Pl, k.dmg * e.dmgMult, e.pos); continue; }
+    damagePlayer(k.dmg * e.dmgMult, e.pos, 'melee');
+    Pl.shake = Math.max(Pl.shake, 0.3);
+  }
+  const pool = k.pool, M = G.mission, mult = e.dmgMult;
+  firePool(at, pool.radius, pool.life); fxFirePool(at, pool.radius, pool.life);
+  let life = pool.life, tick = 0;
+  addTicker({
+    update(dt) {
+      if (G.mission !== M || G.state !== 'playing') return false;
+      life -= dt; tick -= dt;
+      if (life <= 0) return false;
+      if (tick > 0) return true;
+      tick = SKILL.lampSlam.tick;
+      for (const Pl of allPlayers()) {
+        if (Pl.dead || Math.abs(Pl.pos.y - at.y) > 1.5) continue;
+        const d = poolTickDmg(pool, at, Pl.pos.x, Pl.pos.z) * mult;
+        if (d <= 0) continue;
+        if (Pl.remote) damageRemote(Pl, d, at); else damagePlayer(d, at, 'splash');
+      }
+      return true;
+    },
+  });
 }
 
 // ---- Ether Totems (Chieftain) ----

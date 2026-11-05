@@ -26,7 +26,7 @@ export const FACTION_KITS = {
   vex: { faction: 'vex', units: { grunt: ['vx_goblin', 'vx_goblin', 'vx_hobgoblin'], rusher: ['vx_harpy', 'vx_fanatic'], captain: 'vx_minotaur', heavy: ['vx_hydra', 'vx_cyclops'], suicide: 'vx_fanatic' } },
   taken: { faction: 'taken', units: { grunt: ['tk_acolyte', 'tk_acolyte', 'tk_vandal'], rusher: 'tk_thrall', captain: ['tk_captain', 'tk_centurion'], heavy: ['tk_ogre', 'tk_phalanx'], suicide: 'tk_thrall' } },
   // U17f: the Scorn in the Tangled Shore patrol (their default look, js/factions.js)
-  scorn: { faction: 'scorn', units: { grunt: ['sc_stalker', 'sc_stalker', 'sc_raider', 'sc_lurker'], rusher: ['sc_wraith', 'sc_wraith', 'sc_ravager'], captain: 'sc_chieftain', heavy: 'sc_abomination', suicide: 'sc_screeb' } },
+  scorn: { faction: 'scorn', units: { grunt: ['sc_stalker', 'sc_stalker', 'sc_stalker', 'sc_lurker', 'sc_lurker', 'sc_raider'], rusher: ['sc_ravager', 'sc_ravager', 'sc_ravager', 'sc_wraith'], captain: 'sc_chieftain', heavy: 'sc_abomination', suicide: 'sc_screeb' } },
 };
 /** U17e: the unit type a kit (or an event spec with `units`) spawns for a role; `pick` chooses from a list. No map means the base type. */
 export function kitUnit(units, role, pick = (a) => a[Math.floor(Math.random() * a.length)]) {

@@ -21,7 +21,7 @@ import { vex } from './models-vex.js';
 import { fallen } from './models-fallen.js';
 import { hive } from './models-hive.js';
 import { cabal } from './models-cabal.js';
-import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim, guardStep } from './enemy-skills.js';
+import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim, guardStep, lampSlamStep, lampPose } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
@@ -72,7 +72,7 @@ export function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, aimLift: c.aimLift, onDeath: c.onDeath, deathStep: c.deathStep };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, lamp: c.lamp, aimLift: c.aimLift, onDeath: c.onDeath, deathStep: c.deathStep };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -486,6 +486,8 @@ export class Enemy {
     if (!P.dead && !suppressed && !staggered && !def.static) {
       if (def.suicide) {
         this.suicideStep(dt, dist, P);
+      } else if (def.lampSlam) {
+        lampSlamStep(this, dt, dist, P, nx, nz); // U18 Scorn Ravager: lantern spin and slam in place of the lunge
       } else if (def.melee) {
         // wind up, then lunge ~3m; the hit lands if the player is in reach during the lunge
         this.meleeT -= dt;
@@ -910,6 +912,7 @@ export class Enemy {
     if (this.jet) this.jetPose(fl & 8 ? 'airborne' : 'ground', dt);
     if (fl & 16) this.remoteAim(); else hideAim(this); // U17d: the leader's sniper is charging
     if (this.def.frontGuard?.core) guardStep(this, dt); // U18: the leader's Phalanx shield is down (flag 32)
+    if (m.lamp) lampPose(this, fl & 64 ? 'spin' : 'run', dt); // U18: the leader's Ravager whirls its lantern (spin) or swings it as it runs
     let dy = this.netYaw - this.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;

@@ -7,7 +7,7 @@ import { UNITS, FACTIONS } from './factions.js';
 import { Enemy, fireEnemyShot, spawnEnemyGrenade } from './enemies.js';
 import { TIERS } from './tiers.js';
 import { withinNotice } from './ai.js';
-import { tracer, explosionFx, sparks } from './effects.js';
+import { tracer, explosionFx, sparks, firePool } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
 import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
@@ -208,6 +208,7 @@ export function sendHit(e, dmg, o) {
 
 export function sendFx(msg) { if (net.active && G.state === 'playing') send(msg); }
 export function fxTracer(a, b, color) { if (net.active) sendFx({ t: 'fx', k: 'tr', a: [r2(a.x), r2(a.y), r2(a.z)], b: [r2(b.x), r2(b.y), r2(b.z)], c: color }); }
+export function fxFirePool(p, r, l) { if (net.active) sendFx({ t: 'fx', k: 'fp', p: [r2(p.x), r2(p.y), r2(p.z)], r, l }); } // U18 Ravager slam
 export function fxProjectile(o) {
   if (!net.active || o.visualOnly) return;
   sendFx({ t: 'fx', k: 'pj', kind: o.kind, p: [r2(o.pos.x), r2(o.pos.y), r2(o.pos.z)], v: [r2(o.vel.x), r2(o.vel.y), r2(o.vel.z)], g: o.gravity || 0, s: o.size, c: o.color, l: o.life });
@@ -238,7 +239,7 @@ export function netTick(dt) {
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
-    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0) | (en.sk?.aim > 0 ? 16 : 0) | (en.sk?.guardOff > 0 ? 32 : 0)]);
+    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0) | (en.sk?.aim > 0 ? 16 : 0) | (en.sk?.guardOff > 0 ? 32 : 0) | (en.def.lampSlam && en.windup > 0 ? 64 : 0)]);
     const M = G.mission;
     const z = M.zones[M.current];
     const ms = { pt: M.patrol ? patrolSnapshot() : 0, cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0, ob: objSnapshot() };
@@ -446,6 +447,8 @@ net.on('fx', (m, from) => {
   } else if (m.k === 'boom') {
     const p = new THREE.Vector3(...m.p);
     if (m.s) sparks(p, m.c, 6, m.r * 2, 0.08, 0.4); else explosionFx(p, m.r, m.c);
+  } else if (m.k === 'fp') {
+    firePool(new THREE.Vector3(...m.p), m.r, m.l);
   } else if (m.k === 'ab') {
     replayFx(m.kind, m.o);
   }

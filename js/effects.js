@@ -250,6 +250,24 @@ export function pillar(pos, radius, height, color, life = 0.8, opacity = 0.35) {
   }, () => mat.dispose());
 }
 
+/** U18: a burning patch on the ground (the Scorn Ravager's lantern slam): a flickering disc with rising embers. Visual only;
+ *  the leader's ticker in enemy-skills.js does the damage. */
+const disc = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+export function firePool(pos, radius, life = 5) {
+  const mat = fade(0xff7a1a, 0.55);
+  const m = new THREE.Mesh(disc, mat);
+  m.position.set(pos.x, (pos.y || 0) + 0.06, pos.z);
+  m.scale.setScalar(radius);
+  add(m, life, (f) => {
+    const k = f.life / f.max;
+    mat.opacity = (0.4 + 0.15 * Math.sin(G.time * 17 + pos.x)) * Math.min(1, k * 4);
+    if (Math.random() < 0.35) {
+      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * radius;
+      ember(new THREE.Vector3(pos.x + Math.cos(a) * r, (pos.y || 0) + 0.1, pos.z + Math.sin(a) * r), Math.random() < 0.5 ? 0xff9a2a : 0xffd04a, 0.07, 0.5, 1.4);
+    }
+  }, () => mat.dispose());
+}
+
 /** Quick expanding glow sphere. */
 export function flare(pos, color, size = 1, life = 0.25) {
   const mat = fade(color, 0.9);

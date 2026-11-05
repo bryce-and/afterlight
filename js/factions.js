@@ -79,10 +79,11 @@ export const UNITS = {
   // ---- Scorn (Fallen raised by Dark Ether) ----
   sc_screeb:    { faction: 'scorn', base: 'suicide', name: 'Screeb', hp: 55, speed: 7.4, blastMul: 1.35 },
   sc_wraith:    { faction: 'scorn', base: 'rusher', name: 'Scorn Wraith', hp: 105, speed: 7.0, meleeDmg: 20, skills: ['revive'], revive: { delay: [4, 6], hpFrac: 0.4 } },
-  sc_ravager:   { faction: 'scorn', base: 'rusher', name: 'Scorn Ravager', hp: 300, speed: 5.4, meleeDmg: 34, scale: 1.3, skills: [] },
+  // U18: a red-bar melee unit at normal size (Bryce, 2026-11-05): whirls its lantern overhead, slams it down and leaves a fire pool (lampSlam)
+  sc_ravager:   { faction: 'scorn', base: 'rusher', name: 'Scorn Ravager', hp: 110, speed: 5.6, meleeDmg: 24, skills: ['lampSlam'], lampSlam: { spin: 0.8, reach: 3.0, radius: 2.4, dmg: 24, cd: [2.4, 3.4], pool: { radius: 2.2, life: 5, dps: 12 } } },
   sc_stalker:   { faction: 'scorn', base: 'grunt', name: 'Scorn Stalker', hp: 95, skills: ['revive'], revive: { delay: [4, 6], hpFrac: 0.4 } },
-  sc_raider:    { faction: 'scorn', base: 'grunt', name: 'Scorn Raider', hp: 110, skills: ['blink', 'revive'], blink: { cd: [5, 8], range: [7, 12], toward: false, onHit: true }, revive: { delay: [4, 6], hpFrac: 0.4 } },
-  sc_lurker:    { faction: 'scorn', base: 'grunt', name: 'Scorn Lurker', hp: 150, speed: 3.0, skills: ['frontGuard'], frontGuard: { mult: 0.35, box: { x: -0.6, y: 1.1, z: 0.5, w: 0.7, h: 0.75, d: 0.3 }, knock: null } },
+  sc_raider:    { faction: 'scorn', base: 'grunt', name: 'Scorn Raider', hp: 110, range: 55, prefer: 26, burst: 1, burstGap: 0.2, fireCd: [2.4, 3.4], dmg: 12, projSpeed: 36, shotSize: 0.12, skills: ['snipe', 'blink', 'revive'], snipe: { charge: 1.6, dmg: 34, cd: [3.4, 5.0] }, blink: { cd: [7, 11], range: [7, 12], toward: false, onHit: true }, revive: { delay: [4, 6], hpFrac: 0.4 } }, // U18: the crossbow sniper
+  sc_lurker:    { faction: 'scorn', base: 'grunt', name: 'Scorn Lurker', hp: 150, speed: 4.6, skills: ['frontGuard'], frontGuard: { mult: 0.35, box: { x: -0.6, y: 1.1, z: 0.5, w: 0.72, h: 0.72, d: 0.3 }, knock: null } }, // U18: box fits the round shield
   sc_abomination: { faction: 'scorn', base: 'heavy', name: 'Scorn Abomination', hp: 1000, dmg: 14, burst: 2, burstGap: 0.2, fireCd: [2.2, 3.2], shotColor: 0x5fd3ff, skills: [], enrage: true },
   sc_chieftain: { faction: 'scorn', base: 'captain', name: 'Scorn Chieftain', hp: 340, shield: 160, shieldEl: 'solar', skills: ['totem'], totem: { cd: [14, 19], max: 2, life: 22 } },
   // U15: a story objective target (consoles, totems, emitters): a standing glowing pylon, takes the destination's colors, never moves or shoots
@@ -161,11 +162,14 @@ export const ROSTER = {
   ],
   scorn: [
     { t: 'sc_screeb',    wave: 'both', n: (zi, g) => (zi > 0 ? 1 : 0) + Math.floor(g / 8) },
-    { t: 'sc_wraith',    wave: 'both', n: (zi, g) => 2 + Math.floor(g / 5) },
+    // U18 (Bryce, 2026-11-05): Stalkers and Lurkers are the common Scorn, Wraiths are rare, Ravagers come in packs of one to four
+    { t: 'sc_wraith',    wave: 1,      n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
     { t: 'sc_stalker',   wave: 0,      n: (zi, g) => 2 + Math.floor(g / 4) },
+    { t: 'sc_stalker',   wave: 1,      n: (zi, g) => 1 + Math.floor(g / 6) },
     { t: 'sc_raider',    wave: 'both', n: (zi, g) => (zi >= 1 || g >= 1 ? 1 + Math.floor(g / 6) : 0) },
-    { t: 'sc_lurker',    wave: 1,      n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
-    { t: 'sc_ravager',   wave: 1,      n: (zi, g) => (zi >= 1 || g >= 2 ? 1 : 0) },
+    { t: 'sc_lurker',    wave: 0,      n: (zi, g) => 1 + Math.floor(g / 6) },
+    { t: 'sc_lurker',    wave: 1,      n: (zi, g) => (zi >= 1 ? 1 : 0) },
+    { t: 'sc_ravager',   wave: 1,      n: (zi, g) => (zi >= 1 || g >= 2 ? ravagerPack(zi, g) : 0) },
     { t: 'sc_chieftain', wave: 1,      n: (zi, g) => (g >= 1 && zi >= 1 ? 1 : 0) },
     { t: 'sc_abomination', wave: 1,    n: (zi, g) => (zi >= 1 && g >= 3 ? 1 : 0) },
   ],
@@ -215,6 +219,8 @@ export function baseExtras(locId, waveIdx, zi, g, more = 1) {
 }
 
 /** Spawn list for one wave of a new faction: array of unit ids, scaled by `more` (fireteam count multiplier). */
+/** U18: a Ravager pack is one to four, a little bigger deeper in and at higher power. */
+export function ravagerPack(zi, g, r = Math.random()) { return Math.min(4, 1 + Math.floor(r * 2) + Math.floor((zi + g) / 4)); }
 export function composeWave(faction, waveIdx, zi, g, more = 1) {
   const out = [];
   for (const r of ROSTER[faction] || []) {
@@ -288,7 +294,14 @@ export const SKILL = {
   // stops following for the last `lock` seconds so a sidestep dodges it, then fires along the line; it hits a Guardian whose chest is within `hitR`
   snipe: { lock: 0.4, track: 5, hitR: 0.9, width: 0.035 },
   totemTick: 0.4,
+  // U18 Ravager lantern slam: the slam lands `ahead` metres in front of the unit; its fire pool burns every `tick` seconds
+  lampSlam: { ahead: 1.4, tick: 0.25 },
 };
+
+/** Ravager lantern slam: the swing's phase with `left` seconds of spin to go out of `spin` ('spin' while the lantern whirls, 'slam' as it lands). */
+export function slamPhase(left) { return left > 0 ? 'spin' : 'slam'; }
+/** Fire pool: the damage one burn tick deals a Guardian at (x, z), from a pool at `at` with `pool` numbers (0 outside it). */
+export function poolTickDmg(pool, at, x, z) { return Math.hypot(x - at.x, z - at.z) <= pool.radius ? pool.dps * SKILL.lampSlam.tick : 0; }
 
 /** Sniper: the phase of a charge with `left` seconds to go (`track` follows the target, `lock` holds still, `fire` shoots). */
 export function snipePhase(left) { return left <= 0 ? 'fire' : left <= SKILL.snipe.lock ? 'lock' : 'track'; }

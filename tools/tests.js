@@ -30,6 +30,7 @@ import * as TR from '../js/tiers.js';
 import { fallen } from '../js/models-fallen.js';
 import { hive } from '../js/models-hive.js';
 import { cabal } from '../js/models-cabal.js';
+import { scorn } from '../js/models-scorn.js';
 import * as THREE from 'three';
 import { ENEMY_TYPES } from '../js/data.js';
 import * as FA from '../js/factions.js';
@@ -2122,7 +2123,7 @@ test('U17d: Supplicant and Taken Incendior retired; Taken Hobgoblin added; every
 
 test('U17d: the sniper skill (Vex Hobgoblin, Taken Vandal, Taken Hobgoblin)', () => {
   const snipers = Object.keys(FA.UNITS).filter((id) => FA.UNITS[id].skills?.includes('snipe')).sort();
-  eq(snipers, ['lg_psion', 'tk_hobgoblin', 'tk_vandal', 'vx_hobgoblin']);
+  eq(snipers, ['lg_psion', 'sc_raider', 'tk_hobgoblin', 'tk_vandal', 'vx_hobgoblin']);
   for (const id of snipers) {
     const d = FA.UNITS[id];
     ok(d.snipe.charge > FA.SKILL.snipe.lock + 0.5, `${id}: the aim line shows well before the lock`);
@@ -2439,6 +2440,51 @@ test('U18: every Cabal unit builds a model with crit meshes, a muzzle and its an
   ok(threw, 'an unknown Cabal unit is an error');
   ok(FA.UNITS.lg_psion.skills.includes('snipe') && FA.UNITS.lg_phalanx.skills.includes('frontGuard'), 'the Psion snipes and the Phalanx guards');
   ok(FA.baseExtras('mars', 0, 1, 0).includes('lg_psion') && !FA.baseExtras('mars', 0, 0, 0).includes('lg_psion') && FA.baseExtras('mars', 1, 1, 1).includes('lg_phalanx'), 'Cabal waves bring Psions and Phalanxes from the second zone up');
+});
+
+test('U18: every Scorn unit builds a model with crit meshes, a muzzle and its animation hooks; the Ravager carries its lantern', () => {
+  const units = ['sc_screeb', 'sc_wraith', 'sc_stalker', 'sc_raider', 'sc_lurker', 'sc_ravager', 'sc_chieftain', 'sc_abomination'];
+  for (const t of units) {
+    const g = new THREE.Group(), hit = [];
+    const add = (geo, m, x, y, z, parent = g, crit = false, r = null) => {
+      const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); if (r) mesh.rotation.set(r[0], r[1], r[2]);
+      mesh.userData.crit = crit; parent.add(mesh); hit.push(mesh); return mesh;
+    };
+    const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
+    const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+    const mk = (col) => new THREE.MeshStandardMaterial({ color: col });
+    const c = { g, add, B, pivot, bodyMat: mk(0x8b8470), dark: mk(0x3a342c), accent: mk(0xc37aff), C: { eye: 0xc37aff }, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
+    scorn(c, t);
+    ok(hit.some((m) => m.userData.crit), `${t} has a crit mesh`);
+    ok(c.torso && c.muzzle.parent, `${t} has a torso and a mounted muzzle`);
+    eq(c.legs.length, t === 'sc_screeb' ? 4 : 2, `${t} legs`);
+    if (t !== 'sc_screeb') ok(c.arms.length >= 1, `${t} has animated arms`);
+    eq(c.bodyMat.color.getHex(), 0xd8cfbf, `${t} wears the Scorn skin`);
+    if (t === 'sc_ravager') {
+      ok(c.lamp?.arm && c.lamp.chain && !c.arms.includes(c.lamp.arm), 'the Ravager lantern arm is posed by its skill, not the melee arm swing');
+      ok(c.height < 2.1, 'the Ravager is normal size');
+    }
+    if (t === 'sc_abomination') ok(hit.filter((m) => m.userData.crit).every((m) => m.parent !== c.torso || m.position.y > 1), 'the Abomination weak point is the helm in its chest');
+  }
+  let threw = false; try { scorn({}, 'nobody'); } catch { threw = true; }
+  ok(threw, 'an unknown Scorn unit is an error');
+});
+
+test('U18: Scorn roster: Stalkers and Lurkers are common, Wraiths rare, Ravagers are red-bar slammers in packs of one to four, the Raider snipes', () => {
+  const U = FA.UNITS;
+  ok(U.sc_ravager.hp <= 130 && !U.sc_ravager.scale && U.sc_ravager.skills.includes('lampSlam') && U.sc_ravager.lampSlam.pool.dps > 0, 'Ravager: normal size and health, lantern slam with a fire pool');
+  ok(U.sc_raider.skills.includes('snipe') && U.sc_raider.range >= 50, 'the Raider is the sniper');
+  for (const [zi, g] of [[0, 0], [1, 2], [2, 9]]) {
+    const w = [...FA.composeWave('scorn', 0, zi, g), ...FA.composeWave('scorn', 1, zi, g)], n = (t) => w.filter((x) => x === t).length;
+    ok(n('sc_stalker') > n('sc_wraith') && n('sc_lurker') >= n('sc_wraith'), `zone ${zi}, power ${g}: Stalkers and Lurkers outnumber Wraiths`);
+    ok(n('sc_wraith') <= 1, 'at most one Wraith');
+  }
+  for (const r of [0, 0.5, 0.99]) for (const [zi, g] of [[1, 0], [2, 4], [3, 20]]) { const k = FA.ravagerPack(zi, g, r); ok(k >= 1 && k <= 4, `Ravager pack ${k}`); }
+  eq(FA.ravagerPack(1, 0, 0), 1); eq(FA.ravagerPack(3, 20, 0.99), 4);
+  eq(FA.slamPhase(0.3), 'spin'); eq(FA.slamPhase(0), 'slam');
+  const pool = U.sc_ravager.lampSlam.pool, at = { x: 0, z: 0 };
+  eq(FA.poolTickDmg(pool, at, pool.radius - 0.1, 0), pool.dps * FA.SKILL.lampSlam.tick, 'standing in the fire burns');
+  eq(FA.poolTickDmg(pool, at, pool.radius + 0.1, 0), 0, 'outside it does not');
 });
 
 let pass = 0, fail = 0;
