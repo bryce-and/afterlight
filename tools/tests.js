@@ -29,6 +29,7 @@ import * as AI from '../js/ai.js';
 import * as TR from '../js/tiers.js';
 import { fallen } from '../js/models-fallen.js';
 import { hive } from '../js/models-hive.js';
+import { cabal } from '../js/models-cabal.js';
 import * as THREE from 'three';
 import { ENEMY_TYPES } from '../js/data.js';
 import * as FA from '../js/factions.js';
@@ -2121,7 +2122,7 @@ test('U17d: Supplicant and Taken Incendior retired; Taken Hobgoblin added; every
 
 test('U17d: the sniper skill (Vex Hobgoblin, Taken Vandal, Taken Hobgoblin)', () => {
   const snipers = Object.keys(FA.UNITS).filter((id) => FA.UNITS[id].skills?.includes('snipe')).sort();
-  eq(snipers, ['tk_hobgoblin', 'tk_vandal', 'vx_hobgoblin']);
+  eq(snipers, ['lg_psion', 'tk_hobgoblin', 'tk_vandal', 'vx_hobgoblin']);
   for (const id of snipers) {
     const d = FA.UNITS[id];
     ok(d.snipe.charge > FA.SKILL.snipe.lock + 0.5, `${id}: the aim line shows well before the lock`);
@@ -2411,6 +2412,33 @@ test('U18: every Hive unit builds a model with crit meshes, a muzzle and its ani
   const w = FA.UNITS.hv_wizard;
   ok(w.faction === 'hollow' && w.base === 'captain' && w.fly > 0 && w.shieldEl, 'the Wizard is a shielded, floating Hive caster');
   ok(FA.baseExtras('moon', 1, 1, 1).includes('hv_wizard') && !FA.baseExtras('moon', 1, 0, 0).includes('hv_wizard'), 'Hive reinforcements bring a Wizard from the second zone up');
+});
+
+test('U18: every Cabal unit builds a model with crit meshes, a muzzle and its animation hooks; Loyalists wear gold', () => {
+  const units = ['grunt', 'rusher', 'captain', 'heavy', 'lg_incendior', 'lg_gladiator', 'lg_psion', 'lg_phalanx'];
+  for (const loyalist of [false, true]) for (const t of units) {
+    const g = new THREE.Group(), hit = [];
+    const add = (geo, m, x, y, z, parent = g, crit = false, r = null) => {
+      const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); if (r) mesh.rotation.set(r[0], r[1], r[2]);
+      mesh.userData.crit = crit; parent.add(mesh); hit.push(mesh); return mesh;
+    };
+    const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
+    const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+    const mk = (col) => new THREE.MeshStandardMaterial({ color: col });
+    const c = { g, add, B, pivot, bodyMat: mk(0x8b2c24), dark: mk(0x3a2420), accent: mk(0xffb347), C: { loyalist }, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
+    cabal(c, t);
+    ok(hit.some((m) => m.userData.crit), `${t} has a crit mesh`);
+    ok(c.torso && c.muzzle.parent, `${t} has a torso and a mounted muzzle`);
+    ok(c.legs.length === (t === 'rusher' ? 4 : 2), `${t} has its legs`);
+    if (t !== 'rusher') ok(c.arms.length === 2, `${t} has two animated arms`);
+    if (t === 'captain') ok(c.flames?.length === 2 && c.flames.every((f) => !f.visible), 'the Centurion has hidden jet flames');
+    if (t === 'lg_incendior') ok(hit.filter((m) => m.userData.crit).every((m) => m.position.z < -0.3), 'the Incendior helmet is crit-proof; only the tanks are');
+    if (t === 'grunt') eq(c.bodyMat.color.getHex(), loyalist ? 0xc9a046 : 0xb4b0a8);
+  }
+  let threw = false; try { cabal({}, 'nobody'); } catch { threw = true; }
+  ok(threw, 'an unknown Cabal unit is an error');
+  ok(FA.UNITS.lg_psion.skills.includes('snipe') && FA.UNITS.lg_phalanx.skills.includes('frontGuard'), 'the Psion snipes and the Phalanx guards');
+  ok(FA.baseExtras('mars', 0, 1, 0).includes('lg_psion') && !FA.baseExtras('mars', 0, 0, 0).includes('lg_psion') && FA.baseExtras('mars', 1, 1, 1).includes('lg_phalanx'), 'Cabal waves bring Psions and Phalanxes from the second zone up');
 });
 
 let pass = 0, fail = 0;

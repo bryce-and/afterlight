@@ -31,6 +31,7 @@ export function isNewFaction(f) { return !!FACTIONS[f]; }
 // Bosses with their own model keep the destination's colours. The rest of the destination's palette (sky, ground...) is untouched.
 export const FACTION_HOME = { scrappers: 'earth', hollow: 'moon', legion: 'mars' };
 const LOOK = ['enemy', 'enemy2', 'eye', 'accent'];
+// U18: Loyalist Cabal wear royal purple in place of the Red Legion red (models-cabal.js).
 // U18: the Fallen wear the red and bone of Bryce's references (2026-11-05) instead of the Earth blue: bone plates, dark red
 // undersuit, blue eyes, red cloth. models-fallen.js builds with these; the Servitor keeps its own purple.
 const OWN_LOOK = { scrappers: { enemy: 0xd8ccae, enemy2: 0x5a2622, eye: 0x7fd8ff, accent: 0xa3281f } };
@@ -103,8 +104,13 @@ export const UNITS = {
   fl_servitor:  { faction: 'scrappers', base: 'grunt', name: 'Servitor', hp: 150, speed: 3.2, prefer: 18, burst: 1, burstGap: 0.2, dmg: 9, projSpeed: 22, fly: 0.3, shotColor: 0xb26bff, skills: ['allyShield', 'blink'], allyShield: { range: 16, retarget: 2.5 }, blink: { cd: [6, 9], range: [6, 10], toward: false, onHit: true } }, // U18: hovers low (fly 0.3), Bryce 2026-11-05
   hv_shrieker:  { faction: 'hollow', base: 'grunt', name: 'Shrieker', hp: 360, stationary: true, fly: 1.0, range: 40, prefer: 25, burst: 10, burstGap: 0.09, fireCd: [1.6, 2.4], dmg: 4, projSpeed: 20, shotSize: 0.13, shotColor: 0xb26bff, spiral: { r: 0.12, turn: 0.9 }, skills: [] },
   hv_wizard:    { faction: 'hollow', base: 'captain', name: 'Wizard', hp: 240, shield: 140, shieldEl: 'solar', speed: 2.8, fly: 1.2, range: 40, prefer: 22, burst: 3, burstGap: 0.25, fireCd: [1.8, 2.6], dmg: 9, projSpeed: 14, shotSize: 0.2, shotColor: 0xd8b0ff, skills: ['blink'], blink: { cd: [7, 11], range: [5, 8], toward: false, onHit: true } }, // U18: a floating caster that keeps its distance (Bryce, 2026-11-05)
-  lg_incendior: { faction: 'legion', base: 'heavy', name: 'Incendior', hp: 560, noShield: true, speed: 2.4, range: 15, prefer: 7, burst: 10, burstGap: 0.07, fireCd: [1.2, 2.0], dmg: 3.5, projSpeed: 17, shotSize: 0.2, splash: 1.5, shotColor: 0xff7a2a, scale: 1.05, skills: ['knockBurst', 'deathBlast'], knockBurst: { range: 4.5, cd: 6, dmg: 12, push: 12 }, deathBlast: { radius: 5, dmg: 40 } },
+  lg_incendior: { faction: 'legion', base: 'grunt', name: 'Incendior', hp: 240, noShield: true, speed: 2.4, range: 15, prefer: 7, burst: 10, burstGap: 0.07, fireCd: [1.2, 2.0], dmg: 3.5, projSpeed: 17, shotSize: 0.2, splash: 1.5, shotColor: 0xff7a2a, scale: 1.05, skills: ['knockBurst', 'deathBlast'], knockBurst: { range: 4.5, cd: 6, dmg: 12, push: 12 }, deathBlast: { radius: 5, dmg: 40, critOnly: true, enemyDmg: 160 } },
   lg_gladiator: { faction: 'legion', base: 'rusher', name: 'Gladiator', hp: 700, speed: 6.2, meleeDmg: 40, scale: 1.35, skills: [] },
+  // U18: the Cabal Psion and Phalanx (Bryce's references, 2026-11-05). Stats are a first pass. The Psion snipes with the shared aim line;
+  // the Phalanx's shield block projects a diamond energy panel (the Taken Phalanx's frontGuard; the boxes match models-cabal.js).
+  // Shooting the orange core drops the panel for 5 to 8 s, then it flickers back on (Bryce, 2026-11-05).
+  lg_psion:     { faction: 'legion', base: 'grunt', name: 'Psion', hp: 90, speed: 3.6, range: 55, prefer: 26, burst: 1, burstGap: 0.2, fireCd: [2.4, 3.4], dmg: 12, projSpeed: 36, shotSize: 0.12, shotColor: 0xff6a3a, scale: 0.8, skills: ['snipe'], snipe: { charge: 1.6, dmg: 32, cd: [3.6, 5.2] } },
+  lg_phalanx:   { faction: 'legion', base: 'grunt', name: 'Phalanx', hp: 260, noShield: true, speed: 2.6, dmg: 10, burst: 3, burstGap: 0.18, fireCd: [2.2, 3.2], scale: 1.05, skills: ['frontGuard'], frontGuard: { mult: 0.2, box: { x: -0.4, y: 1.15, z: 0.62, w: 1.1, h: 1.2, d: 0.3 }, core: { x: -0.4, y: 1.15, z: 0.7, w: 0.22, h: 0.22, d: 0.2 }, breakFor: [5, 8], restore: 0.7, knock: { range: 4.5, cd: 7, dmg: 14, push: 11 } } },
 };
 
 // Scorn shield elements by unit id are the Ether Totem kinds (Chieftain totems: Ether Bind arc, Ether Torch solar, Ether Shield void).
@@ -187,8 +193,13 @@ export const BASE_EXTRAS = {
     { t: 'hv_wizard', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
   ],
   legion: [
-    { t: 'lg_incendior', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
+    // U18: Incendiors and Phalanxes are ordinary red-bar units (grunt class), common but fewer than Legionaries (Bryce, 2026-11-05)
+    { t: 'lg_incendior', wave: 0, n: (zi, g) => (zi >= 1 || g >= 1 ? 1 : 0) },
+    { t: 'lg_incendior', wave: 1, n: (zi, g) => 1 + (zi >= 1 && g >= 3 ? 1 : 0) },
     { t: 'lg_gladiator', wave: 1, n: (zi, g) => (zi >= 1 && g >= 2 ? 1 : 0) },
+    { t: 'lg_psion', wave: 0, n: (zi, g) => (zi >= 1 ? 1 + (g >= 3 ? 1 : 0) : 0) },
+    { t: 'lg_phalanx', wave: 0, n: (zi, g) => (zi >= 1 || g >= 1 ? 1 : 0) },
+    { t: 'lg_phalanx', wave: 1, n: (zi, g) => 1 + (zi >= 1 && g >= 3 ? 1 : 0) },
   ],
 };
 /** Each destination's own enemy faction. */
@@ -297,11 +308,16 @@ export function mayRevive({ hasSkill, zoneRevives, burned, alreadyRevived }) {
 
 /** Damage multiplier through a guard shield. (lx, ly, lz) is the hit point in the unit's own space (x right, y up from the feet, z forward, before its scale);
  *  only a hit inside the shield's box `def.frontGuard.box` is reduced, so the rest of the body takes full damage. */
+const inBox = (b, lx, ly, lz) => Math.abs(lx - b.x) <= b.w / 2 && Math.abs(ly - b.y) <= b.h / 2 && Math.abs(lz - b.z) <= b.d / 2;
 export function guardMult(def, lx, ly, lz, raw = false) {
   const g = def.frontGuard;
   if (raw || !g) return 1;
-  const b = g.box;
-  return Math.abs(lx - b.x) <= b.w / 2 && Math.abs(ly - b.y) <= b.h / 2 && Math.abs(lz - b.z) <= b.d / 2 ? g.mult : 1;
+  return inBox(g.box, lx, ly, lz) ? g.mult : 1;
+}
+/** Does a hit at unit-space (lx, ly, lz) land on the guard's breakable core (Cabal Phalanx)? */
+export function guardCoreHit(def, lx, ly, lz) {
+  const b = def.frontGuard?.core;
+  return !!b && inBox(b, lx, ly, lz);
 }
 
 /** Does a Hydra's rotating shield stop a shot? `angle` is the shield's centre bearing (radians, world) and `bearing` the direction of the shooter from the unit. */

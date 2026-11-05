@@ -804,6 +804,7 @@ export function killEnemy(e, o = {}) {
   e.alive = false;
   e.hp = 0;
   G.hitDirty = true;
+  e.killCrit = !!o.crit; e.killBy = o.by; // U18: the Incendior's tanks burst only on a precision kill
   e.onDeath();
   const M = G.mission;
   announceKill(e, o);

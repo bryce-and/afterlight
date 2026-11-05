@@ -203,7 +203,7 @@ export function damageRemote(r, dmg, from) {
 /** Member: report a hit on a host-owned enemy. */
 export function sendHit(e, dmg, o) {
   lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source });
-  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, co: o.corrosive || 0, sb: o.shieldBreaker ? 1 : 0 });
+  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, co: o.corrosive || 0, sb: o.shieldBreaker ? 1 : 0, gb: o.guardBreak ? 1 : 0 });
 }
 
 export function sendFx(msg) { if (net.active && G.state === 'playing') send(msg); }
@@ -238,7 +238,7 @@ export function netTick(dt) {
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
-    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0) | (en.sk?.aim > 0 ? 16 : 0)]);
+    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0) | (en.sk?.aim > 0 ? 16 : 0) | (en.sk?.guardOff > 0 ? 32 : 0)]);
     const M = G.mission;
     const z = M.zones[M.current];
     const ms = { pt: M.patrol ? patrolSnapshot() : 0, cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0, ob: objSnapshot() };
@@ -432,7 +432,7 @@ net.on('p', (m, from) => { if (inMission()) ensureRemote({ ...m, id: from }); })
 net.on('hit', (m, from) => {
   if (!inMission()) return;
   const e = getEnemyByNetId(m.id);
-  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, judged: m.jg, corrosive: m.co, shieldBreaker: !!m.sb });
+  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, judged: m.jg, corrosive: m.co, shieldBreaker: !!m.sb, guardBreak: !!m.gb });
 });
 
 // both: effects

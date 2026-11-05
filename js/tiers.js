@@ -68,7 +68,7 @@ export function grenadeThrower(faction, typeId) { return !!GRENADE[faction] && G
 export const FACTION_PROFILES = {
   scrappers: { strafe: 1.5, burstMul: 0.85, coverMul: 1, rushAlone: false, jet: false },    // Fallen: strafing and dodging, short bursts
   hollow:    { strafe: 0.7, burstMul: 1, coverMul: 0.5, rushAlone: true, jet: false },       // Hive: close in, little cover
-  legion:    { strafe: 0.5, burstMul: 1.4, coverMul: 1, rushAlone: false, jet: true },       // Cabal: steady advance, long volleys, jetpacks
+  legion:    { strafe: 0.5, burstMul: 1.4, coverMul: 1, rushAlone: false, jet: true, plant: ['heavy'] }, // Cabal: steady advance, long volleys, jetpacks; U18: the Colossus (type 'heavy', not the heavy-class units) plants its feet to fire
 };
 
 // ---- jetpacks (Cabal Centurions) ----

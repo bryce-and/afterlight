@@ -7,10 +7,12 @@
 //   clone        splits into a copy once hurt (Taken Psion)
 //   allyShield   makes a nearby ally invulnerable until the Goblin dies (Taken Goblin)
 //   summon       calls Shadow Thralls (Taken Wizard)
-//   frontGuard   a small side shield with its own hitbox that cuts hits landing on it; optionally a knockback burst (Taken Phalanx, Scorn Lurker)
+//   frontGuard   a small side shield with its own hitbox that cuts hits landing on it; optionally a knockback burst (Taken Phalanx, Scorn Lurker);
+//                with a `core`, shooting the core drops the shield for `breakFor` seconds, then it flickers back on (Cabal Phalanx)
 //   spinGuard    a rotating shield that stops bullets from the side it faces; shield-piercing rounds, melee and ability damage get through (Vex Hydra)
 //   knockBurst   a close-range compression blast with knockback (Cabal Incendior)
-//   deathBlast   a burst when the unit dies (Hydra, Incendior's fuel tanks, Taken Incendior)
+//   deathBlast   a burst when the unit dies (Hydra, Taken Incendior); `critOnly` only on a precision kill and `enemyDmg` also hurts
+//                the unit's own side (Cabal Incendior: a precision kill bursts the fuel tanks on its back)
 //   deathSpawn   releases smaller units when it dies (Vex Imp Swarm)
 //   revive       a Scorn corpse stands up again unless it was burned
 //   totem        places Ether Totems (Scorn Chieftain); totemAura is what a totem does
@@ -23,9 +25,9 @@ import { insideLeash } from './ai.js';
 import { sparks, ringFx, tracer, basicMat } from './effects.js';
 import { sfx } from './audio.js';
 import { allPlayers, damageRemote, fxTracer } from './coop.js';
-import { damagePlayer, killEnemy, spawnUnit, findSpawn, addTicker } from './game.js';
+import { damagePlayer, killEnemy, spawnUnit, findSpawn, addTicker, dealDamage } from './game.js';
 import * as ui from './ui.js';
-import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, guardMult, spinBlocks, snipePhase, snipeHits } from './factions.js';
+import { SKILL, TOTEM_KINDS, blinkRange, mayRevive, guardMult, guardCoreHit, spinBlocks, snipePhase, snipeHits } from './factions.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const LIGHT = 0xdfe8ff, ETHER = 0xb46bff;
@@ -40,6 +42,7 @@ export function skillInit(e, o = {}) {
   if (has('allyShield')) Object.assign(e.sk, { retargetT: 0.5, ally: null });
   if (has('summon')) Object.assign(e.sk, { summonT: rand(d.summon.cd[0], d.summon.cd[1]) * 0.6, hold: 0 });
   if (has('frontGuard') || has('knockBurst')) e.sk.knockCd = rand(2, 4);
+  if (d.frontGuard?.core) Object.assign(e.sk, { guardOff: 0, guardUp: 1, guardPred: 0 });
   if (has('totem')) Object.assign(e.sk, { totemT: rand(5, 8), totems: [] });
   if (has('totemAura')) {
     const kind = o.totemKind || pick(TOTEM_KINDS);
@@ -58,6 +61,7 @@ export function skillUpdate(e, dt, P, dist) {
     if (e.lifeT <= 0) { e.noBlast = true; sparks(e.center(_v), e.shotColor, 12, 5, 0.1, 0.5); killEnemy(e, { self: true }); return false; }
   }
   const d = e.def, sk = e.sk, skills = d.skills || []; // the original Fallen, Hive and Cabal units and the bosses have none
+  if (d.frontGuard?.core) guardStep(e, dt);
   if (e.wardT > 0) e.wardT -= dt;
   if (e.auraUntil && e.auraUntil < G.time) e.auraUntil = 0;
   if (skills.includes('totemAura')) totemAura(e, dt);
@@ -83,11 +87,16 @@ export function skillIncoming(e, dmg, o = {}) {
   }
   if (e.wardT > 0) dmg *= e.def.ward.mult;
   if (e.auraUntil > G.time) dmg *= e.auraMult ?? 1;
-  if (e.def.frontGuard && !o.raw && o.pos) {
+  if (e.def.frontGuard && o.guardBreak && !e.remote) breakGuard(e); // a fireteam member shot the core
+  if (e.def.frontGuard && !o.raw && o.pos && !guardDown(e)) {
     // the guard is a small shield with its own box: bring the hit point into the unit's space and test it
     const dx = o.pos.x - e.pos.x, dz = o.pos.z - e.pos.z, c = Math.cos(e.yaw), s = Math.sin(e.yaw), sc = e.scale || 1;
-    const k = guardMult(e.def, (dx * c - dz * s) / sc, (o.pos.y - e.pos.y) / sc, (dx * s + dz * c) / sc);
-    if (k < 1) { dmg *= k; if (Math.random() < 0.4) sparks(_v.copy(o.pos), LIGHT, 3, 3, 0.05, 0.2); }
+    const lx = (dx * c - dz * s) / sc, ly = (o.pos.y - e.pos.y) / sc, lz = (dx * s + dz * c) / sc;
+    if (guardCoreHit(e.def, lx, ly, lz)) { breakGuard(e); if (e.remote) o.guardBreak = true; }
+    else {
+      const k = guardMult(e.def, lx, ly, lz);
+      if (k < 1) { dmg *= k; if (Math.random() < 0.4) sparks(_v.copy(o.pos), LIGHT, 3, 3, 0.05, 0.2); }
+    }
   }
   if (e.def.spinGuard && o.source === 'weapon' && !o.raw && !o.shieldBreaker && !o.weapon?.A?.sword && o.from !== false) {
     const A = o.pos || G.player?.pos;
@@ -289,6 +298,41 @@ function summon(e, dt, dist) {
 }
 
 // ---- front guard (Phalanx, Lurker) ----
+const noRay = () => {};
+/** Is a breakable guard (Cabal Phalanx) down or still coming back on? Guards without a core are never down. */
+export function guardDown(e) { return !!e.def.frontGuard?.core && (e.sk?.guardUp ?? 1) < 1; }
+
+/** The core was shot: the leader drops the guard for `breakFor` seconds; a fireteam member predicts it until the leader's flag arrives. */
+function breakGuard(e) {
+  const sk = e.sk, g = e.def.frontGuard;
+  if (!sk || !g.core || guardDown(e)) return;
+  if (e.remote) sk.guardPred = 0.6; else sk.guardOff = rand(g.breakFor[0], g.breakFor[1]);
+  sk.guardUp = 0;
+  const core = e.model?.guard?.core;
+  if (core) { core.getWorldPosition(_v); sparks(_v, 0xff9a40, 18, 6, 0.1, 0.5); ringFx(_v, 1.2, 0xff9a40, 0.3); }
+  sfx.shieldBreak(e.pos);
+}
+
+/** Guard timers and look, every frame for leader units and members' copies: the panel is gone (and lets shots through) while down,
+ *  then flickers and grows back over `restore` seconds; the core dims while the guard is down. Members follow the leader's flag (32). */
+export function guardStep(e, dt) {
+  const sk = e.sk, g = e.def.frontGuard;
+  if (!sk || !g?.core) return;
+  let off;
+  if (e.remote) { sk.guardPred = Math.max(0, sk.guardPred - dt); off = !!((e.netFl ?? 0) & 32) || sk.guardPred > 0; }
+  else { if (sk.guardOff > 0) sk.guardOff -= dt; off = sk.guardOff > 0; }
+  const was = sk.guardUp;
+  sk.guardUp = off ? 0 : Math.min(1, sk.guardUp + dt / g.restore);
+  if (was === 0 && sk.guardUp > 0) sfx.shieldRecharge();
+  const m = e.model?.guard;
+  if (!m) return;
+  const u = sk.guardUp;
+  m.panel.visible = u >= 1 || (u > 0 && Math.random() < 0.35 + 0.6 * u);
+  m.panel.scale.setScalar(0.3 + 0.7 * (1 - (1 - u) * (1 - u)));
+  m.panelMat.opacity = u >= 1 ? 0.35 : 0.5;
+  m.panel.raycast = u >= 1 ? THREE.Mesh.prototype.raycast : noRay;
+  m.coreMat.emissiveIntensity = off ? 0.25 + 0.15 * Math.sin(G.time * 6) : 2.6;
+}
 function frontGuardBurst(e, dt, P, dist) {
   const k = e.def.knockBurst || e.def.frontGuard?.knock, sk = e.sk;
   if (!k) return;
@@ -350,7 +394,7 @@ export function skillOnDeath(e) {
   const d = e.def;
   hideAim(e);
   if (e.remote) return;
-  if (d.skills?.includes('deathBlast') && !e.noBlast) deathBlast(e);
+  if (d.skills?.includes('deathBlast') && !e.noBlast && (!d.deathBlast.critOnly || e.killCrit)) deathBlast(e);
   if (d.skills?.includes('deathSpawn') && e.zone && !e.noBlast) for (let i = 0; i < d.deathSpawn.n; i++) {
     const pos = findSpawn(e.pos, Math.random() * Math.PI * 2, Math.PI, 0.8, 2.2);
     spawnUnit(e.zone, d.deathSpawn.type, pos, { tier: 'minor', noDrops: true });
@@ -394,5 +438,13 @@ function deathBlast(e) {
     const dmg = b.dmg * e.dmgMult * (1 - d / b.radius * 0.7);
     if (Pl.remote) { damageRemote(Pl, dmg, e.pos); continue; }
     damagePlayer(dmg, e.pos, 'splash');
+  }
+  if (!b.enemyDmg) return;
+  // the burst hurts the unit's own side too, scaled like enemy health; the kill credit goes to whoever burst the tanks
+  for (const o of [...G.enemies]) {
+    if (o === e || !o.alive) continue;
+    const d = Math.hypot(o.pos.x - e.pos.x, o.pos.y - e.pos.y, o.pos.z - e.pos.z);
+    if (d > b.radius) continue;
+    dealDamage(o, b.enemyDmg * (G.mission?.hpMult ?? 1) * (1 - d / b.radius * 0.7), { raw: true, source: 'perk', element: 'solar', by: e.killBy });
   }
 }

@@ -17,10 +17,11 @@ import { BOSS_MODELS } from './bosses.js';
 import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, enemyColors } from './factions.js';
 import { taken } from './models-taken.js';
 import { scorn } from './models-scorn.js';
-import { vex, extraModel } from './models-vex.js';
+import { vex } from './models-vex.js';
 import { fallen } from './models-fallen.js';
 import { hive } from './models-hive.js';
-import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim } from './enemy-skills.js';
+import { cabal } from './models-cabal.js';
+import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim, guardStep } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
@@ -55,12 +56,12 @@ export function buildModel(e, C, faction) {
   const bossBuilder = e.bossModel && BOSS_MODELS[e.bossModel];
   if (bossBuilder) bossBuilder(c);
   else if (e.typeId === 'obj_node') objNode(c);
-  else if (extraModel(e.typeId)) extraModel(e.typeId)(c);
   else if (faction === 'taken') taken(c, e.typeId);
   else if (faction === 'scorn') scorn(c, e.typeId);
   else if (faction === 'vex') vex(c, e.typeId);
   else if (faction === 'scrappers') fallen(c, e.typeId);
   else if (faction === 'hollow') hive(c, e.typeId);
+  else if (faction === 'legion' && e.typeId === 'boss') cabalBoss(c);
   else if (faction === 'legion') cabal(c, e.typeId);
   else throw new Error(`No model for faction ${faction}`);
   let shield = null;
@@ -71,7 +72,7 @@ export function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, onDeath: c.onDeath, deathStep: c.deathStep };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, onDeath: c.onDeath, deathStep: c.deathStep };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -108,152 +109,12 @@ function arm(c, parent, x, y, len, thick, m, lift = -1.1, rz = 0) {
 }
 
 // ---------------------------------------------------------------------------
-// CABAL: massive armoured soldiers, jetpacks, war beasts
+// CABAL boss fallback (the units live in js/models-cabal.js; bosses are out of U18)
 // ---------------------------------------------------------------------------
-function cabal(c, t) {
-  const { B, add, pivot, bodyMat, dark, accent } = c;
-  const armor = bodyMat, under = dark, metal = mat(0x4a4440);
-  if (t === 'rusher') {
-    // War Beast: four-legged attack hound
-    const body = pivot(0, 0.62, 0);
-    c.torso = body;
-    B(0.46, 0.38, 1.0, 0, 0.0, 0, under, body);
-    B(0.5, 0.18, 0.8, 0, 0.18, -0.05, armor, body);
-    B(0.38, 0.3, 0.38, 0, 0.06, 0.62, armor, body, true);
-    B(0.3, 0.1, 0.3, 0, -0.08, 0.68, under, body, true);
-    for (const s of [-1, 1]) {
-      add(new THREE.ConeGeometry(0.04, 0.22, 4), metal, s * 0.16, -0.08, 0.84, body, false, [Math.PI / 2 + 0.4, 0, 0]);
-      B(0.05, 0.04, 0.03, s * 0.1, 0.12, 0.81, accent, body, true);
-    }
-    B(0.06, 0.06, 0.5, 0, 0.05, -0.7, under, body, false, [0.5, 0, 0]);
-    // harness strap and a row of back spikes
-    B(0.52, 0.06, 0.12, 0, 0.17, 0.15, mat(c.C.accent), body);
-    for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.05, 0.2, 4), metal, 0, 0.3, -0.35 + i * 0.18, body);
-    for (const [x, z] of [[-0.2, 0.36], [0.2, 0.36], [0.2, -0.36], [-0.2, -0.36]]) {
-      const hip = pivot(x, 0.6, z);
-      B(0.12, 0.6, 0.14, 0, -0.3, 0, under, hip);
-      B(0.14, 0.06, 0.2, 0, -0.58, 0.04, metal, hip);
-      c.legs.push(hip);
-    }
-    c.muzzle.position.set(0, 0.62, 0.9); c.g.add(c.muzzle);
-    c.height = 1.15;
-    return;
-  }
-  // Loyalist variant (Calus's guard): gold trims; Red Legion keeps the faction accent
-  const trim = c.C.loyalist ? mat(0xf2c14e, { emissive: 0xf2c14e, emissiveIntensity: 0.5 }) : mat(c.C.accent);
-  if (t === 'heavy') return colossus(c, armor, under, metal, trim);
-  if (t === 'captain') return centurion(c, armor, under, metal, trim);
-  if (t === 'boss') return cabalBoss(c, armor, under, metal);
-  legionary(c, armor, under, metal, trim);
-}
-
-/** Legionary: small plain soldier, round helm with one vertical visor slit, light plate, slug rifle two-handed. */
-function legionary(c, armor, under, metal, trim) {
-  const { B, add, pivot, accent } = c;
-  legsBiped(c, 0.85, 0.15, 0.16, under, metal);
-  for (const s of [-1, 1]) B(0.18, 0.2, 0.2, s * 0.15, 0.58, 0.04, armor);
-  const torso = pivot(0, 0.85, 0);
-  c.torso = torso;
-  B(0.38, 0.24, 0.28, 0, 0.12, 0, under, torso);
-  B(0.5, 0.42, 0.36, 0, 0.46, 0, armor, torso);
-  B(0.3, 0.14, 0.06, 0, 0.4, 0.2, metal, torso);
-  // rounded helm: a dome over a jaw block, one vertical slit
-  add(new THREE.SphereGeometry(0.17, 8, 6), armor, 0, 0.84, 0.03, torso, true);
-  B(0.2, 0.1, 0.22, 0, 0.74, 0.04, under, torso, true);
-  B(0.04, 0.18, 0.03, 0, 0.84, 0.2, accent, torso, true);
-  for (const s of [-1, 1]) B(0.2, 0.15, 0.3, s * 0.32, 0.64, 0, armor, torso, false, [0, 0, s * -0.15]);
-  // faction stripe across the left shoulder
-  B(0.22, 0.04, 0.32, -0.32, 0.725, 0, trim, torso, false, [0, 0, 0.15]);
-  const arms = [arm(c, torso, -0.32, 0.58, 0.5, 0.11, under, -1.25, 0.35), arm(c, torso, 0.32, 0.58, 0.5, 0.11, under, -1.3, -0.3)];
-  for (const a of arms) B(0.14, 0.16, 0.14, 0, -0.38, 0, armor, a);
-  c.arms.push(...arms);
-  // long slug rifle held in both hands
-  gun(c, torso, 0.04, 0.34, 0.5, 0.8, 0.09);
-  B(0.07, 0.14, 0.12, 0.04, 0.24, 0.35, metal, torso);
-  c.height = 1.75;
-}
-
-/** Centurion: tall officer. Plumed helm, cape, one oversized pauldron, jetpack, hand cannon. */
-function centurion(c, armor, under, metal, trim) {
-  const { B, add, pivot, accent } = c;
-  legsBiped(c, 1.0, 0.17, 0.17, under, metal);
-  for (const s of [-1, 1]) B(0.2, 0.26, 0.22, s * 0.17, 0.7, 0.04, armor);
-  const torso = pivot(0, 1.0, 0);
-  c.torso = torso;
-  B(0.42, 0.28, 0.3, 0, 0.14, 0, under, torso);
-  B(0.6, 0.56, 0.4, 0, 0.56, 0, armor, torso);
-  B(0.4, 0.2, 0.08, 0, 0.5, 0.22, trim, torso);
-  // helm with a tall plume
-  B(0.3, 0.3, 0.3, 0, 1.0, 0.04, armor, torso, true);
-  B(0.24, 0.1, 0.06, 0, 0.97, 0.2, under, torso, true);
-  B(0.2, 0.035, 0.03, 0, 0.98, 0.235, accent, torso, true);
-  B(0.05, 0.12, 0.42, 0, 1.2, 0, trim, torso, true);
-  B(0.05, 0.3, 0.1, 0, 1.3, -0.2, trim, torso, true, [-0.4, 0, 0]);
-  // asymmetric shoulders: one oversized pauldron on the left, small plate on the right
-  B(0.46, 0.3, 0.5, -0.46, 0.84, 0, armor, torso, false, [0, 0, 0.2]);
-  B(0.5, 0.06, 0.54, -0.46, 1.0, 0, trim, torso, false, [0, 0, 0.2]);
-  B(0.2, 0.14, 0.3, 0.38, 0.8, 0, armor, torso, false, [0, 0, -0.15]);
-  // cape down the back
-  B(0.5, 0.95, 0.03, 0, 0.3, -0.26, trim, torso, false, [0.08, 0, 0]);
-  // jetpack with thruster flames, hidden until lift-off (U13b)
-  for (const s of [-1, 1]) {
-    add(new THREE.CylinderGeometry(0.09, 0.11, 0.42, 8), metal, s * 0.14, 0.45, -0.32, torso);
-    add(new THREE.CylinderGeometry(0.07, 0.07, 0.04, 8), accent, s * 0.14, 0.22, -0.32, torso);
-    const fl = add(new THREE.ConeGeometry(0.09, 0.55, 6).rotateX(Math.PI), mat(0xffa030, { emissive: 0xff7a1a, emissiveIntensity: 2.4 }), s * 0.14, -0.05, -0.32, torso);
-    fl.visible = false;
-    (c.flames ||= []).push(fl);
-  }
-  // off arm raised, cannon arm forward
-  const arms = [arm(c, torso, -0.42, 0.7, 0.58, 0.14, under, -0.5, 0.3), arm(c, torso, 0.42, 0.7, 0.58, 0.14, under, -1.2, -0.12)];
-  for (const a of arms) B(0.18, 0.2, 0.18, 0, -0.44, 0, armor, a);
-  c.arms.push(...arms);
-  gun(c, torso, 0.36, 0.4, 0.5, 0.65, 0.16);
-  B(0.22, 0.22, 0.22, 0.36, 0.4, 0.82, metal, torso);
-  c.height = 2.3;
-}
-
-/** Colossus: squat and very wide. Sunken helm between huge shoulders, back slab and gas tank, gatling arm. */
-function colossus(c, armor, under, metal, trim) {
-  const { B, add, pivot, accent } = c;
-  legsBiped(c, 0.75, 0.3, 0.3, under, metal);
-  for (const s of [-1, 1]) B(0.34, 0.26, 0.34, s * 0.3, 0.52, 0.04, armor);
-  const torso = pivot(0, 0.75, 0);
-  c.torso = torso;
-  B(0.8, 0.3, 0.5, 0, 0.14, 0, under, torso);
-  B(1.0, 0.64, 0.62, 0, 0.6, 0, armor, torso);
-  B(0.7, 0.2, 0.08, 0, 0.5, 0.33, trim, torso);
-  // small helm sunk low, with a wide visor slit
-  B(0.26, 0.24, 0.26, 0, 1.0, 0.08, armor, torso, true);
-  B(0.2, 0.05, 0.06, 0, 1.0, 0.22, accent, torso, true);
-  // huge shoulders rise above the head line
-  for (const s of [-1, 1]) {
-    B(0.5, 0.36, 0.7, s * 0.7, 0.98, 0, armor, torso, false, [0, 0, s * -0.12]);
-    B(0.54, 0.06, 0.74, s * 0.7, 1.17, 0, trim, torso, false, [0, 0, s * -0.12]);
-  }
-  // heavy plated back slab and a gas tank
-  B(0.9, 0.8, 0.14, 0, 0.7, -0.38, metal, torso);
-  add(new THREE.CylinderGeometry(0.16, 0.16, 0.7, 8), under, 0.22, 0.7, -0.55, torso);
-  add(new THREE.CylinderGeometry(0.1, 0.1, 0.12, 8), accent, 0.22, 1.08, -0.55, torso);
-  // off arm hangs thick; gatling arm braced forward
-  const off = arm(c, torso, -0.78, 0.8, 0.6, 0.26, under, -0.6, 0.15);
-  B(0.32, 0.3, 0.32, 0, -0.46, 0, armor, off);
-  const gat = arm(c, torso, 0.78, 0.8, 0.5, 0.28, under, -1.0, -0.05);
-  B(0.34, 0.3, 0.34, 0, -0.4, 0, armor, gat);
-  c.arms.push(off, gat);
-  // slug-thrower gatling: six barrels around a drum
-  const gx = 0.66, gy = 0.46, gz = 0.6;
-  B(0.3, 0.3, 0.4, gx, gy, gz - 0.2, metal, torso);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    add(new THREE.CylinderGeometry(0.028, 0.028, 0.7, 6).rotateX(Math.PI / 2), under, gx + Math.cos(a) * 0.09, gy + Math.sin(a) * 0.09, gz + 0.2, torso);
-  }
-  c.muzzle.position.set(gx, gy, gz + 0.58); torso.add(c.muzzle);
-  c.height = 2.15;
-}
-
 /** Cabal boss fallback body: Centurion-sized officer with a crest (named bosses use js/bosses.js). */
-function cabalBoss(c, armor, under, metal) {
+function cabalBoss(c) {
   const { B, pivot, accent } = c;
+  const armor = c.bodyMat, under = c.dark, metal = mat(0x4a4440);
   legsBiped(c, 0.9, 0.23, 0.23, under, metal);
   const torso = pivot(0, 0.9, 0);
   c.torso = torso;
@@ -287,6 +148,8 @@ function objNode(c) {
 
 const THRALL_SCALE = 1.15;
 const OGRE_SCALE = 1.3; // U18: Hive Ogres stand well above the other factions' heavies (Bryce, 2026-11-05)
+const PLANT_HOLD = 1.4; // U18: seconds a planting unit (FACTION_PROFILES plant) stands still each time it opens fire
+const LEGIONARY_SCALE = 1.2; // U18: Cabal Legionaries stand bigger than other factions' grunts (Bryce, 2026-11-05)
 
 export class Enemy {
   constructor(typeId, pos, o) {
@@ -307,7 +170,7 @@ export class Enemy {
     const T = TIERS[this.tier] || { hp: 1, dmg: 1, size: 1 };
     this.prof = NEW_PROFILES[faction] || FACTION_PROFILES[faction];
     // H3: Hive Thralls are a little bigger than other rushers
-    this.scale = def.scale * T.size * (faction === 'hollow' ? (typeId === 'rusher' ? THRALL_SCALE : typeId === 'heavy' ? OGRE_SCALE : 1) : 1);
+    this.scale = def.scale * T.size * (faction === 'hollow' ? (typeId === 'rusher' ? THRALL_SCALE : typeId === 'heavy' ? OGRE_SCALE : 1) : faction === 'legion' && typeId === 'grunt' ? LEGIONARY_SCALE : 1);
     this.radius = 0.45 * this.scale;
     this.fly = def.fly || 0; // floating units (Vex, Servitor, Shrieker) hang this high above the floor
     this.large = this.cls === 'heavy' || this.scale >= 1.3; // large units never hop onto ledges or crates; they walk the nav grid's ramps and steps
@@ -552,7 +415,7 @@ export class Enemy {
       : this.isBoss && this.bossPhase === 'push' ? BOSS_PHASE.pushSpeed
       : def.suicide && this.prof.rushAlone ? (this.escort ? SUICIDE_BLAST.escortMul : SUICIDE_BLAST.rushMul)
       : this.jet?.s === 'hover' ? 0.6 : 1;
-    const speed = def.speed * modeMul * (this.burstLeft > 0 && !this.isBoss && !this.rushing ? 0.4 : 1) * (this.status.has('slow') ? SLOW_MULT : 1) * (this.fuse > 0 ? 0.5 : 1);
+    const speed = def.speed * modeMul * (this.plantT > 0 ? 0 : this.burstLeft > 0 && !this.isBoss && !this.rushing ? 0.4 : 1) * (this.status.has('slow') ? SLOW_MULT : 1) * (this.fuse > 0 ? 0.5 : 1);
     if (ml > 0) { mx /= ml; mz /= ml; }
     this.pos.x += (mx * speed + this.knock.x) * dt;
     this.pos.z += (mz * speed + this.knock.z) * dt;
@@ -664,11 +527,13 @@ export class Enemy {
         if (swinging) this.burstLeft = 0;
         else this.grenadeStep(dt, dist, P);
         this.fireT -= dt;
+        if (this.plantT > 0) this.plantT -= dt;
         const jetBusy = this.jet && this.jet.s !== 'ground' && this.jet.s !== 'hover';
         const mayFire = !swinging && !jetBusy && this.throwT <= 0 && !def.snipe && (!this.usesCover || this.ai.state === 'peek' || this.ai.state === 'advance');
         if (mayFire && this.fireT <= 0 && this.los && dist < def.range) {
           const mad = def.berserk && this.hp < this.maxHp * def.berserk.below; // a Cyclops pushed into its berserk rage fires far faster
           this.burstLeft = Math.max(1, Math.round(def.burst * this.prof.burstMul)); this.burstT = 0;
+          if (this.prof.plant?.includes(this.typeId)) this.plantT = PLANT_HOLD; // U18: the Colossus stands its ground to fire
           this.fireT = rand(def.fireCd[0], def.fireCd[1]) * (mad ? def.berserk.cdMul : 1) + def.burst * def.burstGap;
         }
         if (this.burstLeft > 0) {
@@ -1042,6 +907,7 @@ export class Enemy {
     if ((fl & 4) && !this.enraged) { this.enraged = true; ringFx(this.pos, 4 * this.scale, 0xff3a1a, 0.7); sfx.alert(); }
     if (this.jet) this.jetPose(fl & 8 ? 'airborne' : 'ground', dt);
     if (fl & 16) this.remoteAim(); else hideAim(this); // U17d: the leader's sniper is charging
+    if (this.def.frontGuard?.core) guardStep(this, dt); // U18: the leader's Phalanx shield is down (flag 32)
     let dy = this.netYaw - this.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
