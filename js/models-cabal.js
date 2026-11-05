@@ -289,13 +289,13 @@ function centurion(c) {
   c.height = 2.15;
 }
 /** Colossus (after cabal-colossus-1 and -2): the heavy. Plate with red, a pointed shield faceplate, broad vented pauldrons striped red,
- *  a red tabard, a rack of rocket tubes on the back over two fuel cans, a large minigun with a feed hose held in both hands and pointing
- *  straight ahead. It plants its feet to fire (FACTION_PROFILES.legion.plant in tiers.js). */
+ *  a red tabard, a rack of rocket tubes on the back over two fuel cans, a long slug thrower held low across the body in both hands
+ *  (rear at the right hip, barrel forward and to the left), angled down until it fires. It plants its feet and raises the gun to fire (FACTION_PROFILES.legion.plant in tiers.js, `aimLift`). */
 function colossus(c) {
   const M = cm(), plate = plateOf(c);
   cabalLegs(c, 1.0, 0.18, 0.17, plate);
   const torso = c.pivot(0, 1.0, 0);
-  torso.rotation.x = 0.03;
+  torso.rotation.x = 0.1;
   c.torso = torso;
   c.B(0.44, 0.28, 0.32, 0, 0.14, 0, M.under, torso);
   c.B(0.64, 0.56, 0.44, 0, 0.56, 0, plate, torso);
@@ -315,25 +315,32 @@ function colossus(c) {
   }
   for (const sx of [-1, 1]) cyl(c, 0.1, 0.12, 0.42, 8, M.steel, sx * 0.15, 0.45, -0.32, torso); // fuel cans
   helm(c, torso, 0.98, 0.06, 1.15, 'centurion', plate);
-  const l = cabalArm(c, torso, -0.44, 0.72, 0.8, 0.12, -1.6, plate, -0.5, 0.7, false, -0.6);
-  const r = cabalArm(c, torso, 0.44, 0.72, 0.8, 0.12, -1.5, plate, -0.2, 1.7, false, -0.7);
+  const l = cabalArm(c, torso, -0.44, 0.72, 0.8, 0.12, -0.6, plate, -0.3, 0.3, false, 0.0);
+  const r = cabalArm(c, torso, 0.44, 0.72, 0.8, 0.12, -0.4, plate, 0.5, 1.5, false, -0.7);
   c.arms.push(l, r);
-  // minigun pointing ahead: a rear grip in the right fist, a carry handle under the left, a dark receiver with a drum and a feed
-  // hose to the back, six white barrels round a hub with blue bores, a front shroud
-  const g = hand(c, r, -1.5);
-  c.B(0.07, 0.16, 0.08, 0, -0.06, 0, M.gun, g); // rear grip
-  c.B(0.3, 0.3, 0.62, -0.06, 0.12, 0.2, M.gunO, g); // receiver
-  cyl(c, 0.15, 0.15, 0.2, 10, M.steel, -0.06, -0.12, 0.16, g, [0, 0, PI / 2]); // drum
-  c.B(0.05, 0.05, 0.5, 0.06, 0.0, -0.2, M.under, g, false, [0.3, 0, 0]); // feed hose
-  c.B(0.06, 0.1, 0.06, 0, -0.05, 0.3, M.gun, g); // foregrip under the left fist
-  cyl(c, 0.15, 0.15, 0.08, 10, M.steel, -0.06, 0.12, 0.55, g, [PI / 2, 0, 0]); // hub
-  for (let i = 0; i < 6; i++) {
-    const t = (i / 6) * PI * 2, bx = -0.06 + Math.cos(t) * 0.09, by = 0.12 + Math.sin(t) * 0.09;
-    cyl(c, 0.03, 0.03, 0.56, 6, M.white, bx, by, 0.84, g, [PI / 2, 0, 0]);
-    cyl(c, 0.02, 0.02, 0.02, 6, M.blue, bx, by, 1.12, g, [PI / 2, 0, 0]);
+  c.aimLift = -0.28; // both arms come up this much while it stands and fires (enemies.js closeMeleeStep), lifting the gun
+  // slug thrower (after cabal-colossus-1 and -2) held low across the body: the right fist on the rear grip at the hip, the barrel running
+  // forward and across to the left under the left hand on its top handle, angled down; a long dark boxy body with a gold rail, a big
+  // block at the rear, twin barrels, a feed hose to the back
+  const gh = hand(c, r, -0.4);
+  c.g.updateMatrixWorld(true);
+  const lf = gh.worldToLocal(l.userData.elbow.localToWorld(new THREE.Vector3(0, -l.userData.len * 0.5 - 0.05, 0)));
+  lf.y -= 0.1; // the gun runs just under the left fist
+  const d = lf.length();
+  const g = c.pivot(0, 0, 0, gh);
+  g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), lf.normalize());
+  c.B(0.07, 0.16, 0.08, 0, -0.08, 0, M.gun, g); // rear grip
+  c.B(0.22, 0.18, d + 0.5, 0, 0.0, (d + 0.2) / 2, M.gun, g); // body
+  c.B(0.12, 0.05, d + 0.3, 0, 0.11, (d + 0.2) / 2, M.gunO, g); // rail
+  c.B(0.05, 0.06, 0.16, 0, 0.1, d, M.steel, g); // top handle under the left hand
+  c.B(0.24, 0.24, 0.34, -0.02, -0.14, -0.06, M.gunO, g); // rear block
+  c.B(0.2, 0.04, 0.28, -0.02, -0.02, -0.06, M.gun, g);
+  for (const bx of [-0.05, 0.05]) {
+    cyl(c, 0.045, 0.045, 0.5, 7, M.gun, bx, 0.03, d + 0.6, g, [PI / 2, 0, 0]);
+    cyl(c, 0.05, 0.05, 0.04, 7, M.gunO, bx, 0.03, d + 0.86, g, [PI / 2, 0, 0]);
   }
-  cyl(c, 0.14, 0.14, 0.07, 10, M.gun, -0.06, 0.12, 0.98, g, [PI / 2, 0, 0]); // front shroud
-  c.muzzle.position.set(-0.06, 0.12, 1.15); g.add(c.muzzle);
+  c.B(0.05, 0.05, 0.5, 0.06, 0.0, -0.3, M.under, g, false, [0.3, 0, 0]); // feed hose
+  c.muzzle.position.set(0, 0.03, d + 0.9); g.add(c.muzzle);
   c.height = 2.35;
 }
 

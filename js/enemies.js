@@ -72,7 +72,7 @@ export function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, onDeath: c.onDeath, deathStep: c.deathStep };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, aimLift: c.aimLift, onDeath: c.onDeath, deathStep: c.deathStep };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -826,7 +826,9 @@ export class Enemy {
       return this.cmSwing > 0;
     }
     // idle: arms ease back to their rest pose
-    m.arms.forEach((a) => { if (a.userData.rx0 !== undefined) a.rotation.x += (a.userData.rx0 - a.rotation.x) * Math.min(1, dt * 8); });
+    // (a unit with `aimLift` raises its arms by that much while it stands and fires: the Colossus lifts its gun, U18)
+    const lift = m.aimLift && this.plantT > 0 ? m.aimLift : 0;
+    m.arms.forEach((a) => { if (m.aimLift) a.userData.rx0 ??= a.rotation.x; if (a.userData.rx0 !== undefined) a.rotation.x += (a.userData.rx0 + lift - a.rotation.x) * Math.min(1, dt * 8); });
     if (dist < reach && vdy < 2.2 && this.cmCd <= 0 && this.los) {
       this.cmWind = CLOSE_MELEE.windup; this.cmCd = this.enraged ? ENRAGE.cd : CLOSE_MELEE.cooldown;
       sfx.enemyShot(this.pos, this.faction);
