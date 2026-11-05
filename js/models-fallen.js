@@ -249,7 +249,8 @@ function explosiveShank(c) {
 function servitor(c) {
   const M = fm();
   c.hover = true;
-  const b = c.pivot(0, 1.2, 0);
+  const b = c.pivot(0, 1.3, 0);
+  b.scale.setScalar(2.05); // about 2.5 m across, well over a Guardian's 1.8 m (Bryce, 2026-11-05: Servitors are large)
   c.torso = b;
   ico(c, 0.6, 2, M.slate, 0, 0, 0, b);
   c.add(new THREE.TorusGeometry(0.36, 0.08, 6, 14), M.joint, 0, 0, 0.47, b);
@@ -260,10 +261,12 @@ function servitor(c) {
     c.B(0.12, 0.09, 0.08, Math.cos(a) * 0.37, Math.sin(a) * 0.37, 0.53, M.band, b, false, [0, 0, a]);
     c.B(0.04, 0.035, 0.02, Math.cos(a) * 0.37, Math.sin(a) * 0.37, 0.58, M.purple, b);
   }
-  c.add(new THREE.TorusGeometry(0.63, 0.04, 4, 16, PI * 1.1), M.band, 0, 0, 0, b, false, [0, PI / 2 - 0.5, PI * 0.45]);
-  c.add(new THREE.TorusGeometry(0.62, 0.035, 4, 16, PI * 0.8), M.band, 0, 0, 0, b, false, [0.35, 0.3, -0.4]);
+  // two broken bands that never cross the face (Bryce, 2026-11-05): one round the silhouette, one over the back and top,
+  // ending above the eye ring
+  c.add(new THREE.TorusGeometry(0.62, 0.04, 4, 16, PI * 1.1), M.band, 0, 0, 0, b, false, [0, 0, PI * 0.45]);
+  c.add(new THREE.TorusGeometry(0.62, 0.035, 4, 16, PI * 0.7), M.band, 0, 0, 0, b, false, [0, PI / 2, 0]);
   c.muzzle.position.set(0, 0, 0.65); b.add(c.muzzle);
-  c.height = 2.2;
+  c.height = 2.6;
 }
 
 const BUILD = {
