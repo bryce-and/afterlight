@@ -18,6 +18,7 @@ import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, enemyColors } from
 import { taken } from './models-taken.js';
 import { scorn } from './models-scorn.js';
 import { vex, extraModel } from './models-vex.js';
+import { fallen } from './models-fallen.js';
 import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
@@ -57,8 +58,9 @@ export function buildModel(e, C, faction) {
   else if (faction === 'taken') taken(c, e.typeId);
   else if (faction === 'scorn') scorn(c, e.typeId);
   else if (faction === 'vex') vex(c, e.typeId);
-  else if (e.typeId === 'suicide') (faction === 'scrappers' ? shank : cursedThrall)(c);
-  else ({ scrappers: fallen, hollow: hive, legion: cabal })[faction](c, e.typeId);
+  else if (faction === 'scrappers') fallen(c, e.typeId);
+  else if (e.typeId === 'suicide') cursedThrall(c);
+  else ({ hollow: hive, legion: cabal })[faction](c, e.typeId);
   let shield = null;
   if (e.maxShield > 0) {
     shield = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: ELEMENTS[e.shieldEl].hex, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -101,83 +103,6 @@ function arm(c, parent, x, y, len, thick, m, lift = -1.1, rz = 0) {
   p.rotation.x = lift;
   p.rotation.z = rz;
   return p;
-}
-
-// ---------------------------------------------------------------------------
-// FALLEN: four arms, four eyes, cloaks, digitigrade legs
-// ---------------------------------------------------------------------------
-function fallen(c, t) {
-  const { B, add, pivot, bodyMat, dark, accent } = c;
-  const armor = mat(0x6f716a), cloth = mat(0x3c4a5c);
-  if (t === 'heavy') {
-    // Brig: a walking Fallen tank
-    for (const s of [-1, 1]) {
-      const hip = pivot(s * 0.32, 1.0, 0);
-      B(0.26, 0.55, 0.3, 0, -0.25, 0.05, armor, hip, false, [-0.25, 0, 0]);
-      B(0.22, 0.55, 0.26, 0, -0.72, 0.02, dark, hip, false, [0.25, 0, 0]);
-      B(0.36, 0.12, 0.5, 0, -0.96, 0.08, armor, hip);
-      c.legs.push(hip);
-    }
-    const body = pivot(0, 1.0, 0);
-    c.torso = body;
-    B(0.95, 0.55, 0.8, 0, 0.42, 0, bodyMat, body);
-    B(0.8, 0.2, 0.7, 0, 0.78, -0.05, armor, body);
-    B(0.5, 0.18, 0.06, 0, 0.5, 0.41, dark, body, true);
-    B(0.38, 0.06, 0.04, 0, 0.52, 0.44, accent, body, true);
-    for (const s of [-1, 1]) {
-      B(0.26, 0.26, 0.75, s * 0.62, 0.42, 0.1, armor, body);
-      for (const dy of [-0.06, 0.06]) add(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6).rotateX(Math.PI / 2), dark, s * 0.62, 0.42 + dy, 0.62, body);
-      B(0.03, 0.4, 0.03, s * 0.3, 1.05, -0.3, dark, body);
-    }
-    c.muzzle.position.set(0.62, 0.42, 0.8);
-    body.add(c.muzzle);
-    c.height = 2.0;
-    return;
-  }
-  const big = t === 'captain' || t === 'boss';
-  const W = big ? 1.3 : t === 'rusher' ? 0.85 : 1;
-  legsBiped(c, 0.95, 0.15 * W, 0.12 * W, dark, armor, true);
-  const torso = pivot(0, 0.95, 0);
-  torso.rotation.x = t === 'rusher' ? 0.45 : 0.22;
-  c.torso = torso;
-  B(0.26 * W, 0.24, 0.2, 0, 0.12, 0, dark, torso);
-  B(0.42 * W, 0.38, 0.28, 0, 0.45, 0, bodyMat, torso);
-  B(0.36 * W, 0.2, 0.06, 0, 0.5, 0.15, armor, torso);
-  // helmet with mandible fins and four eyes
-  B(0.22, 0.18, 0.26, 0, 0.82, 0.07, armor, torso, true);
-  for (const s of [-1, 1]) {
-    B(0.04, 0.14, 0.12, s * 0.12, 0.74, 0.17, armor, torso, true, [0.3, 0, s * 0.2]);
-    for (const dy of [0, 0.05]) B(0.035, 0.03, 0.03, s * 0.05, 0.84 - dy, 0.205, accent, torso, true);
-  }
-  // hooded cloak hanging off the back
-  add(new THREE.ConeGeometry(0.34 * W, 0.4, 5, 1, true), cloth, 0, 0.8, -0.04, torso);
-  B(0.5 * W, big ? 1.0 : 0.8, 0.03, 0, big ? 0.15 : 0.25, -0.17, cloth, torso, false, [0.15, 0, 0]);
-  // four arms: upper pair holds the weapon, lower pair braces it
-  const up = [arm(c, torso, -0.27 * W, 0.62, 0.48, 0.08, bodyMat, -1.2, 0.1), arm(c, torso, 0.27 * W, 0.62, 0.48, 0.08, bodyMat, -1.2, -0.1)];
-  arm(c, torso, -0.2 * W, 0.36, 0.38, 0.065, bodyMat, -0.9, 0.3);
-  arm(c, torso, 0.2 * W, 0.36, 0.38, 0.065, bodyMat, -0.9, -0.3);
-  c.arms.push(...up);
-  if (t === 'rusher') {
-    // Dreg: shock blades instead of a rifle
-    for (const a of up) B(0.02, 0.05, 0.36, 0, -0.5, 0.12, accent, a);
-    c.muzzle.position.set(0, 0.5, 0.3); torso.add(c.muzzle);
-  } else {
-    gun(c, torso, 0.12, 0.42, 0.45, big ? 0.75 : 0.65, 0.08);
-  }
-  if (big) {
-    for (const s of [-1, 1]) {
-      B(0.26, 0.12, 0.32, s * 0.33, 0.68, 0, armor, torso, false, [0, 0, s * -0.3]);
-      add(new THREE.ConeGeometry(0.03, 0.3, 4), armor, s * 0.08, 1.02, 0.02, torso, true, [-0.4, 0, s * -0.4]);
-    }
-    B(0.1, 0.5, 0.02, 0.1, 0.08, 0.16, mat(c.C.accent), torso);
-  }
-  if (t === 'boss') {
-    // Kell-style banners behind the shoulders
-    for (const s of [-1, 1]) {
-      B(0.03, 1.1, 0.03, s * 0.24, 1.0, -0.2, dark, torso);
-      B(0.22, 0.5, 0.015, s * 0.24 + s * 0.12, 1.3, -0.2, mat(c.C.accent), torso);
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -439,22 +364,6 @@ function cursedThrall(c) {
   const hot = mat(0xff7a1a, { emissive: 0xff7a1a, emissiveIntensity: 2.6 });
   c.B(0.42, 0.4, 0.4, 0, 0.3, -0.28, hot, c.torso, true);
   c.B(0.14, 0.14, 0.14, 0, 0.55, -0.28, c.accent, c.torso);
-}
-
-/** Explosive Shank: a hovering drone with a glowing charge in its nose. */
-function shank(c) {
-  const { B, add, pivot, bodyMat, dark } = c;
-  const hot = mat(0xff4a1a, { emissive: 0xff4a1a, emissiveIntensity: 2.8 });
-  const core = pivot(0, 1.0, 0);
-  c.torso = core;
-  add(new THREE.OctahedronGeometry(0.42, 0), bodyMat, 0, 0, 0, core, true);
-  B(0.55, 0.14, 0.55, 0, 0, 0, dark, core, false, [0, Math.PI / 4, 0]);
-  add(new THREE.IcosahedronGeometry(0.2, 0), hot, 0, 0, 0.3, core, true);
-  for (const sx of [-1, 1]) B(0.5, 0.04, 0.22, sx * 0.5, 0, -0.1, dark, core, false, [0, 0, sx * 0.25]);
-  c.muzzle.position.set(0, 0, 0.4);
-  core.add(c.muzzle);
-  c.hover = true;
-  c.height = 1.5;
 }
 
 const THRALL_SCALE = 1.15;

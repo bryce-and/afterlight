@@ -8,7 +8,7 @@ import { mat } from './world.js';
 // shoulders, Wyvern's shield-wings, Hydra's stacked spine, Cyclops' pedestal and blades, Imps' dome and spider legs.
 // Same builder contract as the other factions: face +z, stand on y = 0 (floating units are lifted by `def.fly`),
 // c.torso / c.legs / c.arms / c.muzzle set per unit.
-// Also here: the Destiny 2 units added to the older factions in v2.9 (Fallen Servitor, Hive Shrieker, Cabal Incendior and Gladiator).
+// Also here: the Destiny 2 units added to the older factions in v2.9 (Hive Shrieker, Cabal Incendior and Gladiator; the Fallen ones moved to models-fallen.js in U18).
 // ---------------------------------------------------------------------------
 const PI = Math.PI;
 let _m = null;
@@ -381,45 +381,6 @@ function armStd(c, parent, x, y, len, thick, m, lift = -1.1, rz = 0) {
 
 // ---- the older factions' new Destiny 2 units ----
 const EXTRA = {
-  fl_shank(c) {
-    // a Fallen drone: a dark angular hull with a blue eye and a short gun under the chin, four splayed brass legs
-    const hull = mat(0x3a3a46), brass = mat(0xa88a4e), eyeM = mat(0x62b4ff, { emissive: 0x62b4ff, emissiveIntensity: 2.6 });
-    c.hover = true;
-    const b = c.pivot(0, 0.9, 0);
-    c.torso = b;
-    ico(c, 0.34, 0, hull, 0, 0, 0, b).scale.set(1.1, 0.8, 1.3);
-    for (const s of [-1, 1]) c.B(0.06, 0.34, 0.5, s * 0.34, 0.08, -0.05, brass, b, false, [0, 0, s * -0.5]);
-    c.add(new THREE.TorusGeometry(0.13, 0.04, 4, 8), brass, 0, 0.02, 0.4, b);
-    ico(c, 0.09, 1, eyeM, 0, 0.02, 0.39, b, true).scale.z = 0.6;
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * PI * 2 + PI / 4;
-      cone(c, 0.04, 0.4, brass, Math.cos(a) * 0.22, -0.3, Math.sin(a) * 0.22 - 0.05, b, [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5], false, 4);
-    }
-    c.B(0.07, 0.07, 0.3, 0, -0.16, 0.3, brass, b);
-    c.muzzle.position.set(0, -0.16, 0.5); b.add(c.muzzle);
-    c.height = 1.0;
-  },
-  fl_servitor(c) {
-    // a floating sphere with one purple eye, plating peeled back to circuitry, Ether tubes below
-    const bone = mat(0xc8c2d2), plate = mat(0x8a8698), purple = mat(0xb26bff, { emissive: 0xb26bff, emissiveIntensity: 2.4 });
-    c.hover = true;
-    const b = c.pivot(0, 1.2, 0);
-    c.torso = b;
-    ico(c, 0.55, 1, plate, 0, 0, 0, b);
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * PI * 2 + 0.4;
-      c.B(0.5, 0.5, 0.04, Math.cos(a) * 0.5, Math.sin(a) * 0.2, Math.sin(a) * 0.5, bone, b, false, [0.4, -a, 0.2]);
-    }
-    c.add(new THREE.TorusGeometry(0.24, 0.07, 5, 10), bone, 0, 0.02, 0.52, b);
-    ico(c, 0.17, 1, purple, 0, 0.02, 0.5, b, true).scale.z = 0.6;
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * PI * 2;
-      c.B(0.05, 0.5, 0.05, Math.cos(a) * 0.22, -0.7, Math.sin(a) * 0.22, bone, b);
-      ico(c, 0.06, 0, purple, Math.cos(a) * 0.22, -0.98, Math.sin(a) * 0.22, b);
-    }
-    c.muzzle.position.set(0, 0.02, 0.65); b.add(c.muzzle);
-    c.height = 2.2;
-  },
   hv_shrieker(c) {
     // Destiny 2 Shrieker: four swept, jagged chitin plates (purple-veined) caging a crackling energy orb, a spiked sigil with a
     // green glyph hanging in the middle (the weak spot). About twice the old size; hovers and swivels to aim.
