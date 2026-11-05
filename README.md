@@ -72,6 +72,7 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/game.js` | Missions, waves, combat, projectiles, pickups, loot cache |
 | `js/player.js` | Movement, weapons, abilities, supers |
 | `js/enemies.js` | Enemy models, AI, boss mechanics, enemy projectiles |
+| `js/models-fallen.js`, `js/models-hive.js`, `js/models-cabal.js`, `js/models-scorn.js` | Enemy models for the Fallen, Hive, Cabal and Scorn, built from Bryce's reference images (v4.0). With the Vex and Taken (v3.6), every faction now has reference-based models |
 | `js/colliders.js`, `js/physics.js` | Collider math (including yawed boxes) and line of sight |
 | `js/nav.js`, `js/ai.js`, `js/navdebug.js` | Enemy navigation grid and A*, leash, cover and melee rules, nav debug overlay |
 | `js/world.js` | Procedural level generation and the orbit planet |

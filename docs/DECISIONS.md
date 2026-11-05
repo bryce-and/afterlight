@@ -238,3 +238,9 @@
 | 2026-11-05 | New Cabal units: the Psion (`lg_psion`), the Cabal sniper with the shared aim line, and the Phalanx (`lg_phalanx`), whose shield block projects an energy panel that cuts hits to 20%; shooting the orange core drops the panel for 5 to 8 s, then it flickers back on (synced in co-op, flag 32). Stats are Claude's first pass. | Bryce (units, shield core); Claude (stats) |
 | 2026-11-05 | Incendiors and Phalanxes are ordinary red-bar units (grunt class, not heavy) and common in Cabal waves, though fewer than Legionaries: about one each per wave. Incendior HP 560 to 240, Phalanx 260 (first pass). | Bryce (class, frequency); Claude (numbers) |
 | 2026-11-05 | The Incendior's crit spot is the pair of fuel tanks on its back (its helmet takes no precision hits). A precision kill bursts them: up to 160 damage (scaled by mission level, falling off over 5 m) to nearby Cabal, credited to the shooter, plus the old blast on players in range. A body kill does not burst them. | Bryce (mechanic); Claude (numbers) |
+| 2026-11-05 | Scorn behaviour changes added to U18 scope. The Ravager is a red-bar melee unit at normal size with 110 HP. It swings its lantern while running, whirls it overhead, slams it down and leaves a fire pool (skill `lampSlam`). | Bryce |
+| 2026-11-05 | The Raider becomes the Scorn sniper, using the shared `snipe` skill. | Bryce |
+| 2026-11-05 | Stalkers and Lurkers are the common Scorn. At most one Wraith per wave, and Ravagers come in packs of one to four. | Bryce |
+| 2026-11-05 | The Lurker is faster (speed 4.6), carries a smaller round shield held in its fist, and has a guard box of 0.72. | Bryce |
+| 2026-11-05 | Scorn models are built in their reference colours (pale veined skin, gold riveted scrap armour, dark wraps), with `c.bodyMat` as the skin. | Bryce |
+| 2026-11-05 | U18 is the last update of its chain, so it gets its own title artwork. | Bryce |
