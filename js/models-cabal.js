@@ -89,10 +89,10 @@ function hand(c, a, lift) {
   return g;
 }
 
-/** A gun held in both hands: a grip in the right fist of arm `r`, and in it a pivot `g` whose +z runs from the right fist to just under
- *  the left fist of arm `l` (`drop` below it), so a gun built along +z rests in both hands and moves with the right arm. `d` is the
- *  distance to the left hand: put the foregrip there. The arm poses are solved offline for the hold wanted (shouldered rifles: raised
- *  near eye level, a little across the body, both elbows hanging low; the Colossus: low across the hips). */
+/** The Colossus's across-the-body hold: a grip in the fist of arm `r`, and in it a pivot `g` whose +z runs from that fist to just under
+ *  the other fist (arm `l`) (`drop` below it), so a gun built along +z rests in both hands and moves with the right arm. `d` is the
+ *  distance to that hand: put the handle there. Shouldered rifles do not use it: their guns point straight ahead from `hand()` and the
+ *  support hand is solved offline onto the foregrip, d ahead, both elbows hanging low. */
 function bothHands(c, r, l, lift, drop) {
   const grip = hand(c, r, lift);
   c.g.updateMatrixWorld(true);
@@ -198,11 +198,11 @@ function legionary(c) {
   for (const sx of [-1, 1]) cyl(c, 0.08, 0.1, 0.36, 8, M.steel, sx * 0.13, 0.5, -0.28, torso);
   if (c.C?.loyalist) for (let i = 0; i < 4; i++) c.B(0.05, 0.5, 0.12, -0.24 + i * 0.16, 1.0, -0.3, plate, torso, false, [-0.15, 0, (i - 1.5) * -0.08]);
   helm(c, torso, 0.86, 0.06, 1.0, 'legion', plate);
-  const l = cabalArm(c, torso, -0.34, 0.6, 0.7, 0.1, -0.5, plate, -0.6, 1.0, false, 1.0);
+  const l = cabalArm(c, torso, -0.34, 0.6, 0.7, 0.1, -0.7, plate, -0.7, 0.7, false, 0.7);
   const r = cabalArm(c, torso, 0.34, 0.6, 0.7, 0.1, -0.3, plate, 0.1, 2.3, false, 0.9);
   c.arms.push(l, r);
   // slug rifle in both hands: a red body, dark receiver, a foregrip under the left fist, a squat front housing with a blue lens
-  const { g, d } = bothHands(c, r, l, -0.3, 0.06); // shouldered: raised near eye level, a little across the body
+  const g = hand(c, r, -0.3), d = 0.3; // shouldered near eye level, pointing ahead; the other hand on the foregrip, d ahead
   c.B(0.08, 0.12, 0.26, 0, 0.02, -0.16, M.gunR, g); // stock back to the shoulder
   c.B(0.1, 0.13, d + 0.17, 0, 0.04, (d - 0.07) / 2, M.gunR, g);
   c.B(0.12, 0.08, 0.3, 0, 0.13, 0.0, M.gun, g);
@@ -377,11 +377,11 @@ function incendior(c) {
   }
   c.B(0.18, 0.22, 0.06, 0.38, 0.6, -0.42, M.ember, torso); // tank gauge
   helm(c, torso, 0.94, 0.08, 1.15, 'incendior', plate, true);
-  const l = cabalArm(c, torso, -0.46, 0.68, 0.78, 0.13, -0.3, plate, -0.8, 0.9, false, 0.9);
-  const r = cabalArm(c, torso, 0.46, 0.68, 0.78, 0.13, 0.0, plate, -0.2, 2.2, false, 0.8);
+  const l = cabalArm(c, torso, -0.46, 0.68, 0.78, 0.13, -0.6, plate, -0.7, 0.8, false, 0.7);
+  const r = cabalArm(c, torso, 0.46, 0.68, 0.78, 0.13, -0.2, plate, -0.2, 2.0, false, 0.6);
   c.arms.push(l, r);
   // flamethrower in both hands: a long copper body with ribbed cooling, a glowing nozzle, a hose back over the shoulder
-  const { g, d } = bothHands(c, r, l, 0.0, 0.06); // shouldered: raised near eye level, a little across the body
+  const g = hand(c, r, -0.2), d = 0.3; // shouldered near eye level, pointing ahead
   c.B(0.08, 0.12, 0.24, 0, 0.02, -0.15, M.gun, g); // stock
   c.B(0.12, 0.14, d + 0.3, 0, 0.06, (d + 0.1) / 2, M.gunO, g);
   for (let i = 0; i < 3; i++) c.B(0.14, 0.03, 0.04, 0, 0.14, 0.05 + i * 0.1, M.gun, g);
@@ -458,18 +458,19 @@ function psion(c) {
   }
   c.B(0.14, 0.12, 0.08, 0.06, -0.02, 0.14, M.redD, torso); // belt pouch
   helm(c, torso, 0.72, 0.07, 0.95, 'psion', plate);
-  const l = cabalArm(c, torso, -0.2, 0.54, 0.62, 0.06, -1.1, M.red, 0.0, 1.1, false, 1.0);
+  const l = cabalArm(c, torso, -0.2, 0.54, 0.62, 0.06, -1.2, M.red, -0.2, 0.9, false, 0.7);
   const r = cabalArm(c, torso, 0.2, 0.54, 0.62, 0.06, -0.8, M.red, 0.5, 2.4, false, 1.0);
   c.arms.push(l, r);
   // sniper rifle in both hands: a long dark frame, a scope with a red lens, a barrel shroud
-  const { g, d } = bothHands(c, r, l, -0.8, 0.05); // shouldered high, the scope near the eye
+  const g = hand(c, r, -0.8), d = 0.3; // shouldered high, the scope near the eye, pointing ahead
   c.B(0.06, 0.1, 0.22, 0, 0.02, -0.13, M.gun, g); // stock
   c.B(0.07, 0.1, d + 0.5, 0, 0.05, (d + 0.2) / 2, M.gun, g);
   c.B(0.05, 0.05, 0.24, 0, 0.13, 0.12, M.steel, g);
   c.B(0.03, 0.03, 0.02, 0, 0.13, 0.25, M.ember, g);
   c.B(0.05, 0.1, 0.05, 0, -0.04, -0.02, M.gun, g); // grip
-  cyl(c, 0.025, 0.025, 0.3, 6, M.steel, 0, 0.04, d + 0.6, g, [PI / 2, 0, 0]);
-  c.muzzle.position.set(0, 0.04, d + 0.76); g.add(c.muzzle);
+  c.B(0.05, 0.08, 0.06, 0, -0.03, d, M.gun, g); // foregrip
+  cyl(c, 0.025, 0.025, 0.3, 6, M.steel, 0, 0.05, d + 0.48, g, [PI / 2, 0, 0]); // barrel shroud, overlapping the frame's front end
+  c.muzzle.position.set(0, 0.05, d + 0.64); g.add(c.muzzle);
   c.height = 1.6;
 }
 
