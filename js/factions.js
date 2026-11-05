@@ -31,6 +31,9 @@ export function isNewFaction(f) { return !!FACTIONS[f]; }
 // Bosses with their own model keep the destination's colours. The rest of the destination's palette (sky, ground...) is untouched.
 export const FACTION_HOME = { scrappers: 'earth', hollow: 'moon', legion: 'mars' };
 const LOOK = ['enemy', 'enemy2', 'eye', 'accent'];
+// U18: the Fallen wear the red and bone of Bryce's references (2026-11-05) instead of the Earth blue: bone plates, dark red
+// undersuit, blue eyes, red cloth. models-fallen.js builds with these; the Servitor keeps its own purple.
+const OWN_LOOK = { scrappers: { enemy: 0xd8ccae, enemy2: 0x5a2622, eye: 0x7fd8ff, accent: 0xa3281f } };
 /** The colours an enemy of `faction` is built and lit with on destination `loc`. */
 export function enemyColors(faction, loc, bossModel = false) {
   const C = loc.colors;
@@ -40,7 +43,8 @@ export function enemyColors(faction, loc, bossModel = false) {
   const home = LOCATIONS.find((l) => l.id === FACTION_HOME[faction]);
   if (!home) throw new Error(`No default look for faction ${faction}`);
   const out = { ...C, loyalist: false };
-  for (const k of LOOK) out[k] = home.colors[k];
+  const look = OWN_LOOK[faction] || home.colors;
+  for (const k of LOOK) out[k] = look[k];
   return out;
 }
 

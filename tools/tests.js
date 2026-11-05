@@ -27,6 +27,8 @@ import { buildTerrain, steepest, routeSlope, MAX_SLOPE } from '../js/terrain.js'
 import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV } from '../js/nav.js';
 import * as AI from '../js/ai.js';
 import * as TR from '../js/tiers.js';
+import { fallen } from '../js/models-fallen.js';
+import * as THREE from 'three';
 import { ENEMY_TYPES } from '../js/data.js';
 import * as FA from '../js/factions.js';
 import * as OB from '../js/objectives.js';
@@ -2092,9 +2094,11 @@ test('U17d: one look per faction on every destination; Loyalists, Taken and Scor
   const at = (id) => LOCATIONS.find((l) => l.id === id), look = (C) => [C.enemy, C.enemy2, C.eye, C.accent];
   for (const [f, home] of Object.entries(FA.FACTION_HOME)) for (const L of LOCATIONS) {
     if (f === 'legion' && L.colors.loyalist) continue;
-    eq(look(FA.enemyColors(f, L)), look(at(home).colors), `${f} on ${L.id} wear the ${home} look`);
+    eq(look(FA.enemyColors(f, L)), look(FA.enemyColors(f, at(home))), `${f} on ${L.id} wear the ${home} look`);
     eq(FA.enemyColors(f, L).sky, L.colors.sky, `${f} on ${L.id}: the scenery colours stay the destination's`);
   }
+  for (const f of ['hollow', 'legion']) eq(look(FA.enemyColors(f, at('io'))), look(at(FA.FACTION_HOME[f]).colors), `${f} take their home destination's colours`);
+  eq(look(FA.enemyColors('scrappers', at('earth'))), [0xd8ccae, 0x5a2622, 0x7fd8ff, 0xa3281f], 'U18: the Fallen wear red and bone, not the Earth blue');
   eq(look(FA.enemyColors('legion', at('leviathan'))), look(at('leviathan').colors), 'the Loyalist Cabal keep the gold');
   ok(FA.enemyColors('legion', at('leviathan')).loyalist && !FA.enemyColors('legion', at('io')).loyalist, 'only the Leviathan has Loyalists');
   for (const f of ['taken', 'scorn', 'vex']) for (const L of LOCATIONS) eq(FA.enemyColors(f, L).enemy, FA.FACTIONS[f].colors.enemy, `${f} on ${L.id}`);
@@ -2357,6 +2361,29 @@ test('U17g: the Sparrow hold is 1 s and the orbit hold 5 s', () => { eq(SPARROW.
 
 // ---------- runner ----------
 const out = document.getElementById('out');
+test('U18: every Fallen unit builds a model with crit meshes, a muzzle and its animation hooks', () => {
+  const units = ['grunt', 'rusher', 'captain', 'heavy', 'suicide', 'boss', 'fl_shank', 'fl_servitor'];
+  for (const t of units) {
+    const g = new THREE.Group(), hit = [];
+    const add = (geo, m, x, y, z, parent = g, crit = false, r = null) => {
+      const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); if (r) mesh.rotation.set(r[0], r[1], r[2]);
+      mesh.userData.crit = crit; parent.add(mesh); hit.push(mesh); return mesh;
+    };
+    const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
+    const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+    const mk = (col) => new THREE.MeshStandardMaterial({ color: col });
+    const c = { g, add, B, pivot, bodyMat: mk(0xd8ccae), dark: mk(0x5a2622), accent: mk(0x7fd8ff), C: { accent: 0xa3281f }, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
+    fallen(c, t);
+    ok(hit.some((m) => m.userData.crit), `${t} has a crit mesh`);
+    ok(c.torso && c.muzzle.parent, `${t} has a torso and a mounted muzzle`);
+    const floats = ['suicide', 'fl_shank', 'fl_servitor'].includes(t);
+    ok(floats ? c.hover && c.legs.length === 0 : c.legs.length === 2, `${t}: ${floats ? 'hovers' : 'walks on two legs'}`);
+    if (t === 'rusher' || t === 'grunt' || t === 'captain') ok(c.arms.length === 2, `${t} has its two animated upper arms`);
+  }
+  let threw = false; try { fallen({}, 'nobody'); } catch { threw = true; }
+  ok(threw, 'an unknown Fallen unit is an error');
+});
+
 let pass = 0, fail = 0;
 for (const t of tests) {
   const row = document.createElement('div');
@@ -2365,7 +2392,11 @@ for (const t of tests) {
   out.appendChild(row);
 }
 
+
+
+
 const sum = document.getElementById('summary');
 sum.textContent = `${pass} passed, ${fail} failed`;
 sum.className = fail ? 'fail' : 'pass';
 window.TEST_RESULTS = { pass, fail };
+

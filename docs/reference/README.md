@@ -117,3 +117,7 @@ In `enemies/`, two images per unit (three for the Hydra), named `<faction>-<unit
 
 - Vex: Harpy, Goblin, Minotaur, Cyclops, Hobgoblin (sniper), Imp Swarm, Fanatic (suicide), Wyvern, Hydra. The Supplicant is retired; the Fanatic replaces it.
 - Taken: Thrall, Shadow Thrall, Acolyte, Vandal (sniper), Psion, Goblin, Wizard, Captain, Centurion, Phalanx, Knight, Ogre. The Taken Hobgoblin (sniper) has no reference: Vex Hobgoblin frame in the Taken style. The Taken Incendior is retired.
+
+## Fallen units (U18, Bryce, 2026-11-05)
+
+In `enemies/`, two images per unit, named `fallen-<unit>-<n>`: Dreg, Vandal, Captain, Brig, Shank, Explosive Shank, Servitor. Shape references. Colour (Bryce, 2026-11-05): every Fallen unit wears the red and bone of `fallen-vandal-*` and `fallen-captain-*` (bone plates, dark red undersuit, red cloth, blue eyes), whatever colour its reference shows; the Servitor keeps its own purple. Two more Captain images were sent in chat and not saved (the attachments were not on disk): a Captain holding a heavy scorch cannon with the upper pair of arms, spiked pauldrons, a fur collar under a scarf. The Captain carries that gun instead of the sword in `fallen-captain-1` and `-2`, because Captains shoot (Bryce, 2026-11-05). Line-up of the built models: `fallen-lineup-u18.png`.
