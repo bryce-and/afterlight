@@ -249,8 +249,8 @@ function explosiveShank(c) {
 function servitor(c) {
   const M = fm();
   c.hover = true;
-  const b = c.pivot(0, 1.3, 0);
-  b.scale.setScalar(2.05); // about 2.5 m across, well over a Guardian's 1.8 m (Bryce, 2026-11-05: Servitors are large)
+  const b = c.pivot(0, 1.2, 0);
+  b.scale.setScalar(1.74); // about 2.1 m across, bigger than a Guardian's 1.8 m; with `fly` 0.3 it hovers about 0.4 m off the ground (Bryce, 2026-11-05)
   c.torso = b;
   ico(c, 0.6, 2, M.slate, 0, 0, 0, b);
   c.add(new THREE.TorusGeometry(0.36, 0.08, 6, 14), M.joint, 0, 0, 0.47, b);
@@ -266,7 +266,7 @@ function servitor(c) {
   c.add(new THREE.TorusGeometry(0.62, 0.04, 4, 16, PI * 1.1), M.band, 0, 0, 0, b, false, [0, 0, PI * 0.45]);
   c.add(new THREE.TorusGeometry(0.62, 0.035, 4, 16, PI * 0.7), M.band, 0, 0, 0, b, false, [0, PI / 2, 0]);
   c.muzzle.position.set(0, 0, 0.65); b.add(c.muzzle);
-  c.height = 2.6;
+  c.height = 2.3;
 }
 
 const BUILD = {
