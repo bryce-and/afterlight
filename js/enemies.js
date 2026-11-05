@@ -19,6 +19,7 @@ import { taken } from './models-taken.js';
 import { scorn } from './models-scorn.js';
 import { vex, extraModel } from './models-vex.js';
 import { fallen } from './models-fallen.js';
+import { hive } from './models-hive.js';
 import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
 
@@ -59,8 +60,9 @@ export function buildModel(e, C, faction) {
   else if (faction === 'scorn') scorn(c, e.typeId);
   else if (faction === 'vex') vex(c, e.typeId);
   else if (faction === 'scrappers') fallen(c, e.typeId);
-  else if (e.typeId === 'suicide') cursedThrall(c);
-  else ({ hollow: hive, legion: cabal })[faction](c, e.typeId);
+  else if (faction === 'hollow') hive(c, e.typeId);
+  else if (faction === 'legion') cabal(c, e.typeId);
+  else throw new Error(`No model for faction ${faction}`);
   let shield = null;
   if (e.maxShield > 0) {
     shield = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: ELEMENTS[e.shieldEl].hex, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -69,7 +71,7 @@ export function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, flames: c.flames, onDeath: c.onDeath, deathStep: c.deathStep };
+  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, onDeath: c.onDeath, deathStep: c.deathStep };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -103,81 +105,6 @@ function arm(c, parent, x, y, len, thick, m, lift = -1.1, rz = 0) {
   p.rotation.x = lift;
   p.rotation.z = rz;
   return p;
-}
-
-// ---------------------------------------------------------------------------
-// HIVE: bone and chitin, green eyes, crowns of spikes
-// ---------------------------------------------------------------------------
-function hive(c, t) {
-  const { B, add, pivot, bodyMat, dark, accent } = c;
-  const chitin = mat(0x2a2a24), bone = bodyMat, cloth = mat(0x4a4436);
-  if (t === 'heavy') {
-    // Ogre: huge, hunched, tiny head with a beam eye
-    legsBiped(c, 0.8, 0.28, 0.26, chitin, chitin);
-    const torso = pivot(0, 0.8, 0);
-    torso.rotation.x = 0.35;
-    c.torso = torso;
-    B(1.0, 0.85, 0.7, 0, 0.5, 0, bone, torso);
-    B(0.9, 0.35, 0.6, 0, 0.9, -0.08, chitin, torso);
-    for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.06, 0.3, 4), bone, -0.32 + i * 0.16, 1.1, -0.2, torso);
-    B(0.3, 0.24, 0.26, 0, 0.82, 0.38, chitin, torso, true);
-    B(0.2, 0.08, 0.04, 0, 0.84, 0.52, accent, torso, true);
-    c.muzzle.position.set(0, 0.84, 0.56); torso.add(c.muzzle);
-    for (const s of [-1, 1]) {
-      const a = arm(c, torso, s * 0.62, 0.8, 0.95, 0.24, bone, -0.4, s * -0.15);
-      B(0.3, 0.2, 0.32, 0, -1.0, 0.05, chitin, a);
-      c.arms.push(a);
-    }
-    c.height = 2.1;
-    return;
-  }
-  if (t === 'rusher') {
-    // Thrall: emaciated, eyeless, all claws
-    legsBiped(c, 0.85, 0.1, 0.08, bone, bone, true);
-    const torso = pivot(0, 0.85, 0);
-    torso.rotation.x = 0.6;
-    c.torso = torso;
-    B(0.24, 0.5, 0.18, 0, 0.3, 0, bone, torso);
-    for (let i = 0; i < 3; i++) B(0.26, 0.025, 0.2, 0, 0.2 + i * 0.1, 0.01, chitin, torso);
-    add(new THREE.ConeGeometry(0.11, 0.34, 6), bone, 0, 0.66, 0.08, torso, true, [0.9, 0, 0]);
-    for (const s of [-1, 1]) {
-      const a = arm(c, torso, s * 0.17, 0.5, 0.62, 0.05, bone, -1.3, s * -0.1);
-      for (let k = -1; k <= 1; k++) add(new THREE.ConeGeometry(0.012, 0.16, 3), chitin, k * 0.025, -0.68, 0.02, a, false, [Math.PI, 0, 0]);
-      c.arms.push(a);
-    }
-    c.muzzle.position.set(0, 0.5, 0.3); torso.add(c.muzzle);
-    c.height = 1.8;
-    return;
-  }
-  const big = t === 'captain' || t === 'boss';
-  const W = big ? 1.25 : 0.9;
-  legsBiped(c, 0.95, 0.13 * W, 0.11 * W, chitin, chitin, true);
-  const torso = pivot(0, 0.95, 0);
-  torso.rotation.x = 0.12;
-  c.torso = torso;
-  B(0.3 * W, 0.24, 0.22, 0, 0.12, 0, chitin, torso);
-  B(0.46 * W, 0.42, 0.3, 0, 0.47, 0, chitin, torso);
-  for (let i = 0; i < 3; i++) B(0.4 * W, 0.04, 0.04, 0, 0.36 + i * 0.1, 0.16, bone, torso);
-  // rounded helmet with a single glowing slit
-  add(new THREE.IcosahedronGeometry(0.15, 0), chitin, 0, 0.84, 0.03, torso, true).scale.set(1, 1.15, 1.2);
-  B(0.16, 0.035, 0.04, 0, 0.84, 0.18, accent, torso, true);
-  for (const s of [-1, 1]) {
-    B(0.2 * W, 0.12, 0.28, s * 0.3 * W, 0.66, 0, bone, torso, false, [0, 0, s * -0.25]);
-    add(new THREE.ConeGeometry(0.04, 0.28, 4), bone, s * 0.36 * W, 0.8, -0.02, torso, false, [0, 0, s * -0.6]);
-  }
-  const arms = [arm(c, torso, -0.32 * W, 0.62, 0.55, 0.09, chitin, -1.15, 0.1), arm(c, torso, 0.32 * W, 0.62, 0.55, 0.09, chitin, -1.15, -0.1)];
-  c.arms.push(...arms);
-  // Acolyte shredder / Knight boomer
-  gun(c, torso, 0.16, 0.42, 0.42, big ? 0.5 : 0.6, big ? 0.13 : 0.08);
-  if (big) {
-    // Knight: crown of spikes and a tattered loincloth
-    for (let i = -2; i <= 2; i++) add(new THREE.ConeGeometry(0.03, 0.22 + (2 - Math.abs(i)) * 0.07, 4), bone, i * 0.06, 1.02, 0, torso, true, [0, 0, -i * 0.15]);
-    B(0.22, 0.5, 0.02, 0, -0.1, 0.17, cloth, torso);
-  }
-  if (t === 'boss') {
-    B(0.2, 0.2, 0.04, 0, 0.55, 0.17, accent, torso);
-    for (const s of [-1, 1]) add(new THREE.ConeGeometry(0.06, 0.6, 4), bone, s * 0.22, 1.2, -0.05, torso, true, [0, 0, s * -0.35]);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -358,15 +285,8 @@ function objNode(c) {
   c.height = 2.4;
 }
 
-/** Cursed Thrall: a Thrall with a swollen, glowing sac strapped to its back. */
-function cursedThrall(c) {
-  hive(c, 'rusher');
-  const hot = mat(0xff7a1a, { emissive: 0xff7a1a, emissiveIntensity: 2.6 });
-  c.B(0.42, 0.4, 0.4, 0, 0.3, -0.28, hot, c.torso, true);
-  c.B(0.14, 0.14, 0.14, 0, 0.55, -0.28, c.accent, c.torso);
-}
-
 const THRALL_SCALE = 1.15;
+const OGRE_SCALE = 1.3; // U18: Hive Ogres stand well above the other factions' heavies (Bryce, 2026-11-05)
 
 export class Enemy {
   constructor(typeId, pos, o) {
@@ -387,7 +307,7 @@ export class Enemy {
     const T = TIERS[this.tier] || { hp: 1, dmg: 1, size: 1 };
     this.prof = NEW_PROFILES[faction] || FACTION_PROFILES[faction];
     // H3: Hive Thralls are a little bigger than other rushers
-    this.scale = def.scale * T.size * (faction === 'hollow' && typeId === 'rusher' ? THRALL_SCALE : 1);
+    this.scale = def.scale * T.size * (faction === 'hollow' ? (typeId === 'rusher' ? THRALL_SCALE : typeId === 'heavy' ? OGRE_SCALE : 1) : 1);
     this.radius = 0.45 * this.scale;
     this.fly = def.fly || 0; // floating units (Vex, Servitor, Shrieker) hang this high above the floor
     this.large = this.cls === 'heavy' || this.scale >= 1.3; // large units never hop onto ledges or crates; they walk the nav grid's ramps and steps
@@ -776,6 +696,7 @@ export class Enemy {
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
     m.group.position.y += this.fly;
     if (m.spin && this.def.spinGuard) m.spin.rotation.y = spinAngle(this);
+    if (m.spinners) for (const sp of m.spinners) sp.obj.rotation.y = G.time * sp.speed + this.seed; // U18: slowly turning parts (Shrieker shell halves)
     m.group.rotation.y = this.yaw;
     // stagger: a quick backward jolt that settles
     m.group.rotation.x = staggered ? -0.28 * Math.sin(Math.PI * (1 - this.staggerT / this.staggerMax)) : 0;
@@ -1141,6 +1062,7 @@ export class Enemy {
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
     m.group.position.y += this.fly;
     if (m.spin && this.def.spinGuard) m.spin.rotation.y = spinAngle(this);
+    if (m.spinners) for (const sp of m.spinners) sp.obj.rotation.y = G.time * sp.speed + this.seed; // U18: slowly turning parts (Shrieker shell halves)
     m.group.rotation.y = this.yaw;
     // the leader's stagger: the same backward jolt as on the leader's screen
     this.staggerT = Math.max(0, this.staggerT - dt);

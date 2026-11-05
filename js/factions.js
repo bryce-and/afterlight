@@ -102,6 +102,7 @@ export const UNITS = {
   fl_shank:     { faction: 'scrappers', base: 'grunt', name: 'Shank', hp: 60, speed: 4.4, prefer: 12, range: 28, burst: 3, burstGap: 0.12, fireCd: [1.2, 1.9], dmg: 4, projSpeed: 24, shotSize: 0.1, shotColor: 0x62b4ff, scale: 0.9, fly: 1.5, skills: [] }, // v3.0.3: the ordinary Fallen drone, sent in groups (game.js spawnWave keeps them together)
   fl_servitor:  { faction: 'scrappers', base: 'grunt', name: 'Servitor', hp: 150, speed: 3.2, prefer: 18, burst: 1, burstGap: 0.2, dmg: 9, projSpeed: 22, fly: 0.3, shotColor: 0xb26bff, skills: ['allyShield', 'blink'], allyShield: { range: 16, retarget: 2.5 }, blink: { cd: [6, 9], range: [6, 10], toward: false, onHit: true } }, // U18: hovers low (fly 0.3), Bryce 2026-11-05
   hv_shrieker:  { faction: 'hollow', base: 'grunt', name: 'Shrieker', hp: 360, stationary: true, fly: 1.0, range: 40, prefer: 25, burst: 10, burstGap: 0.09, fireCd: [1.6, 2.4], dmg: 4, projSpeed: 20, shotSize: 0.13, shotColor: 0xb26bff, spiral: { r: 0.12, turn: 0.9 }, skills: [] },
+  hv_wizard:    { faction: 'hollow', base: 'captain', name: 'Wizard', hp: 240, shield: 140, shieldEl: 'solar', speed: 2.8, fly: 1.2, range: 40, prefer: 22, burst: 3, burstGap: 0.25, fireCd: [1.8, 2.6], dmg: 9, projSpeed: 14, shotSize: 0.2, shotColor: 0xd8b0ff, skills: ['blink'], blink: { cd: [7, 11], range: [5, 8], toward: false, onHit: true } }, // U18: a floating caster that keeps its distance (Bryce, 2026-11-05)
   lg_incendior: { faction: 'legion', base: 'heavy', name: 'Incendior', hp: 560, noShield: true, speed: 2.4, range: 15, prefer: 7, burst: 10, burstGap: 0.07, fireCd: [1.2, 2.0], dmg: 3.5, projSpeed: 17, shotSize: 0.2, splash: 1.5, shotColor: 0xff7a2a, scale: 1.05, skills: ['knockBurst', 'deathBlast'], knockBurst: { range: 4.5, cd: 6, dmg: 12, push: 12 }, deathBlast: { radius: 5, dmg: 40 } },
   lg_gladiator: { faction: 'legion', base: 'rusher', name: 'Gladiator', hp: 700, speed: 6.2, meleeDmg: 40, scale: 1.35, skills: [] },
 };
@@ -181,7 +182,10 @@ export const BASE_EXTRAS = {
     { t: 'fl_shank', wave: 0, n: (zi, g) => (zi >= 1 ? 3 : g >= 2 ? 2 : 0) },
     { t: 'fl_shank', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 3 + (g >= 4 ? 1 : 0) : 0) },
   ],
-  hollow: [{ t: 'hv_shrieker', wave: 0, n: (zi, g) => (zi >= 1 ? 1 + (g >= 4 ? 1 : 0) : 0) }],
+  hollow: [
+    { t: 'hv_shrieker', wave: 0, n: (zi, g) => (zi >= 1 ? 1 + (g >= 4 ? 1 : 0) : 0) },
+    { t: 'hv_wizard', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
+  ],
   legion: [
     { t: 'lg_incendior', wave: 1, n: (zi, g) => (zi >= 1 && g >= 1 ? 1 : 0) },
     { t: 'lg_gladiator', wave: 1, n: (zi, g) => (zi >= 1 && g >= 2 ? 1 : 0) },

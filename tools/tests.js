@@ -28,6 +28,7 @@ import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, neares
 import * as AI from '../js/ai.js';
 import * as TR from '../js/tiers.js';
 import { fallen } from '../js/models-fallen.js';
+import { hive } from '../js/models-hive.js';
 import * as THREE from 'three';
 import { ENEMY_TYPES } from '../js/data.js';
 import * as FA from '../js/factions.js';
@@ -2382,6 +2383,34 @@ test('U18: every Fallen unit builds a model with crit meshes, a muzzle and its a
   }
   let threw = false; try { fallen({}, 'nobody'); } catch { threw = true; }
   ok(threw, 'an unknown Fallen unit is an error');
+});
+
+test('U18: every Hive unit builds a model with crit meshes, a muzzle and its animation hooks; the Wizard floats and casts', () => {
+  const units = ['grunt', 'rusher', 'captain', 'heavy', 'suicide', 'boss', 'hv_shrieker', 'hv_wizard'];
+  for (const t of units) {
+    const g = new THREE.Group(), hit = [];
+    const add = (geo, m, x, y, z, parent = g, crit = false, r = null) => {
+      const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); if (r) mesh.rotation.set(r[0], r[1], r[2]);
+      mesh.userData.crit = crit; parent.add(mesh); hit.push(mesh); return mesh;
+    };
+    const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
+    const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+    const mk = (col) => new THREE.MeshStandardMaterial({ color: col });
+    const c = { g, add, B, pivot, bodyMat: mk(0xd6cfb8), dark: mk(0x3a382f), accent: mk(0x6dff8e), C: {}, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
+    hive(c, t);
+    ok(hit.some((m) => m.userData.crit), `${t} has a crit mesh`);
+    ok(c.torso && c.muzzle.parent, `${t} has a torso and a mounted muzzle`);
+    const floats = ['hv_shrieker', 'hv_wizard'].includes(t);
+    ok(floats ? c.hover && c.legs.length === 0 : c.legs.length === 2, `${t}: ${floats ? 'hovers' : 'walks on two legs'}`);
+    if (t !== 'hv_shrieker' && t !== 'suicide') ok(c.arms.length === 2, `${t} has two animated arms`);
+    if (t === 'suicide') ok(c.arms.length === 0, 'the Cursed Thrall keeps its self-hug (no animated arms)');
+    if (t === 'hv_shrieker') ok(c.spinners?.length === 2 && c.spinners[0].speed === -c.spinners[1].speed && c.spinners[0].speed !== 0, 'the Shrieker shell halves turn in opposite directions');
+  }
+  let threw = false; try { hive({}, 'nobody'); } catch { threw = true; }
+  ok(threw, 'an unknown Hive unit is an error');
+  const w = FA.UNITS.hv_wizard;
+  ok(w.faction === 'hollow' && w.base === 'captain' && w.fly > 0 && w.shieldEl, 'the Wizard is a shielded, floating Hive caster');
+  ok(FA.baseExtras('moon', 1, 1, 1).includes('hv_wizard') && !FA.baseExtras('moon', 1, 0, 0).includes('hv_wizard'), 'Hive reinforcements bring a Wizard from the second zone up');
 });
 
 let pass = 0, fail = 0;
