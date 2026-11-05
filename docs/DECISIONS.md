@@ -223,3 +223,4 @@
 | 2026-11-04 | Folded into U17g: in patrol zones, enemies only notice a player within 60 m; nobody hunts you from across the map. | Bryce |
 | 2026-11-04 | Folded into U17g: a patrol enemy that is damaged notices whoever hurt it from any range, for 8 s after each hit (`PATROL_TUNE.provoke`); its packmates do not. | Bryce |
 | 2026-11-04 | Fixed in U17g: the Ghost's progress dipped from 1 every third frame (`js/sparrow.js` animateGhost compared `want > prev`), so the E and O holds filled at a third of their speed since v3.3 (O took about 15 s). Hold times stay 1 s and 5 s. | Claude |
+| 2026-11-05 | EMR approved as U18 (v4.0): Light and Scaling becomes U19 and every later update moves down one number. The Shrieker gets a new model too. Built one faction at a time, Fallen first, with Bryce's references supplied per faction and a review pause after the Fallen line-up. Only EMR this session. | Bryce |

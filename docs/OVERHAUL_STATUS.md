@@ -8,30 +8,30 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 
 | ID | Requirement | Current (code) | Update | Status |
 |---|---|---|---|---|
-| R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U22 | Planned |
+| R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U23 | Planned |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13b | Complete and published (v2.4) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
 | R41 | Sparrow usable on all levels | Sparrow works in patrol zones (v3.3). Off in campaign missions by design ("Unable to summon.", DECISIONS 2026-10-24) | U17 | Complete and published (v3.3) for patrol zones |
 | R44 | Map collision fix | Oriented colliders since v2.3; partly assessed in v2.6, no new collision bugs reproduced | U15 | Not assessed |
-| R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Missing | U19 | Planned |
-| R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Missing | U19 | Planned |
-| R47 | Same base campaign, harder (not a new campaign) | n/a | U19 | Planned |
-| R48 | Light past 100: base 200, Legendary 300, Ultimate 350 | Base cap 200 and missions rescaled to 10 to 180 (v1.1). 300/350 pending | U1 (200), U19 (300/350) | In progress |
-| R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U19 | Planned |
-| R50 | Non-campaign activities scale to your Light; fireteam brought to leader's Light; loot by own Light | Partial: Horde starts at the player's power | U18 | Planned |
-| R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U20 | Planned |
+| R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Missing | U20 | Planned |
+| R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Missing | U20 | Planned |
+| R47 | Same base campaign, harder (not a new campaign) | n/a | U20 | Planned |
+| R48 | Light past 100: base 200, Legendary 300, Ultimate 350 | Base cap 200 and missions rescaled to 10 to 180 (v1.1). 300/350 pending | U1 (200), U20 (300/350) | In progress |
+| R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U20 | Planned |
+| R50 | Non-campaign activities scale to your Light; fireteam brought to leader's Light; loot by own Light | Partial: Horde starts at the player's power | U19 | Planned |
+| R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U21 | Planned |
 | R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13b (permanent elemental shields, see DECISIONS 2026-10-20; grenades), U14 (models) | Complete and published (v2.4) |
 | R53 | Distinct faction behaviors | Missing (names and models only) | U13b | Complete and published (v2.4) |
-| R54 | Darkness supers and abilities | Missing | U21 | Planned |
+| R54 | Darkness supers and abilities | Missing | U22 | Planned |
 
 ## Optional (nice to have)
 
 | ID | Requirement | Current | Update | Status |
 |---|---|---|---|---|
-| O1 | Roguelike Horde: boons every 5 rounds, game paused, 10 s choice, stacking buffs or weapon swaps (with confirmation), mostly legendaries and some exotics, multiple exotic weapons OK, no exotic armor, AR/shotgun/GL start, run inventory resets but caches pay into real inventory | A 30-wave Horde exists (not roguelike) | U23 | Planned |
-| O2 | PvP: 3 to 5 maps | Missing | U24 | Planned |
-| O3 | Control and Duel | Missing | U24 | Planned |
-| O4 | AI Guardians (not too strong) | Missing | U24 | Planned |
+| O1 | Roguelike Horde: boons every 5 rounds, game paused, 10 s choice, stacking buffs or weapon swaps (with confirmation), mostly legendaries and some exotics, multiple exotic weapons OK, no exotic armor, AR/shotgun/GL start, run inventory resets but caches pay into real inventory | A 30-wave Horde exists (not roguelike) | U24 | Planned |
+| O2 | PvP: 3 to 5 maps | Missing | U25 | Planned |
+| O3 | Control and Duel | Missing | U25 | Planned |
+| O4 | AI Guardians (not too strong) | Missing | U25 | Planned |
 
 ## Master-prompt requirements
 
@@ -43,23 +43,23 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | ID | Requirement | Update | Status |
 |---|---|---|---|
 | V23 | Harder with 3 players (retune) | U13b | Complete and published (v2.4) |
-| V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U21 | Planned |
+| V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U22 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
-| V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U25 (optional) | Planned |
+| V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U26 (optional) | Planned |
 
 ## Future Update Implementation (Bryce, 2026-10-15)
 
 | ID | Requirement | Update | Status |
 |---|---|---|---|
-| F02 | Legendary unlock animation opens a reward menu: 3 exotic armor (your class) and 3 exotic weapons, keep 1 of each | U19 | Planned |
-| F03 | Legendary: a random exotic after the final mission's boss | U19 | Planned |
-| F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U19 | Planned |
-| F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U19 | Planned |
-| F06 | Light rework: enemies up to 50 above you are beatable but extremely hard; 51 or more above, attacks kill almost instantly (today the delta is clamped to -40..+10, `game.js`) | U18 | Planned |
-| F07 | 51 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U18 | Planned |
-| F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U19 | Planned |
-| F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U19 | Planned |
-| F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U19 (difficulty scaling) | Complete and published (v2.4) |
-| F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U27 (optional) | Planned |
-| F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U19 | Planned |
-| F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U18, U19 | Planned |
+| F02 | Legendary unlock animation opens a reward menu: 3 exotic armor (your class) and 3 exotic weapons, keep 1 of each | U20 | Planned |
+| F03 | Legendary: a random exotic after the final mission's boss | U20 | Planned |
+| F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U20 | Planned |
+| F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U20 | Planned |
+| F06 | Light rework: enemies up to 50 above you are beatable but extremely hard; 51 or more above, attacks kill almost instantly (today the delta is clamped to -40..+10, `game.js`) | U19 | Planned |
+| F07 | 51 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U19 | Planned |
+| F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U20 | Planned |
+| F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U20 | Planned |
+| F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U20 (difficulty scaling) | Complete and published (v2.4) |
+| F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U28 (optional) | Planned |
+| F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U20 | Planned |
+| F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U19, U20 | Planned |
