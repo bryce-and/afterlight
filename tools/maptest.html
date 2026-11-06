@@ -26,11 +26,12 @@ f.addEventListener('load', async () => {
       return;
     }
     out.textContent = await f.contentWindow.eval(`(async () => {
-      const T = await import('/tools/leveltest.js'), Z = await import('/tools/zfight.js'), F = await import('/tools/floatcheck.js'), CC = await import('/tools/collidecheck.js'), d = await import('/js/data.js'), { G } = await import('/js/state.js');
+      const T = await import('/tools/leveltest.js'), Z = await import('/tools/zfight.js'), F = await import('/tools/floatcheck.js'), OC = await import('/tools/opencheck.js'), CC = await import('/tools/collidecheck.js'), d = await import('/js/data.js'), { G } = await import('/js/state.js');
       const li = d.LOCATIONS.findIndex((l) => l.id === ${JSON.stringify(LOC)}), lines = [];
       if (li < 0) return 'NO SUCH LOCATION';
-      globalThis.__traceBuild = ${DETAIL} > 0; // tag pieces and colliders with their map line for the collision detail lines
+      globalThis.__traceBuild = true; // tag pieces with their map line and list doorways and decks (opencheck) // tag pieces and colliders with their map line for the collision detail lines
       for (const mi of ${JSON.stringify(MIS)}) {
+        globalThis.__openings = [];
         if (mi === 'p') { // the destination's patrol zone (H17): reachability, floats, collision and z-fights
           globalThis.__noMerge = true; // judge the pieces before they are folded into merged meshes
           const PB = await import('/tools/patrolboot.js');
@@ -46,6 +47,10 @@ f.addEventListener('load', async () => {
         lines.push('  collision: missing ' + au.missing.length + ', diagonal ' + ph('diagonal').length + ', oversize ' + ph('oversize').length + ', invisible ' + ph('invisible').length);
         for (const x of au.missing.slice(0, ${DETAIL})) lines.push('    missing ' + x.n + ' ' + x.what + ' @' + x.at + ' ' + x.src);
         for (const x of au.phantom.filter((p) => p.kind !== 'invisible').slice(0, ${DETAIL})) lines.push('    ' + x.kind + ' ' + x.n + ' ' + x.what + ' @' + x.at + ' ' + x.src);
+        const oc = OC.auditClearance(G);
+        lines.push('  clearance: ' + oc.blocked.length + ' pieces in doorways or on narrow decks, ' + oc.posts.length + ' posts on nothing');
+        for (const x of oc.blocked.slice(0, ${DETAIL})) lines.push('    blocked ' + x.n + ' m ' + x.what + ' @' + x.at + ' ' + x.src + ' in ' + x.in);
+        for (const x of oc.posts.slice(0, ${DETAIL})) lines.push('    post ' + x.n + ' m ' + x.what + ' @' + x.at + ' ' + x.src);
         const t = G.level.terrain;
         lines.push('  zfight pairs: ' + fights.length + (fights.length ? ' e.g. ' + fights.slice(0, 3).map((x) => x.at).join(' | ') : ''));
         if (t) {

@@ -82,8 +82,8 @@ function floater(K, x, y, z, s, chainP = 0.4) {
     if (K.chance(0.5)) { // ground crust on top, lit shanty or banner
       const cap = K.mesh(geo().cyl, C.ground, x, y + s * 0.45, z, { ry: K.R(0, 3) });
       cap.scale.set(s * 0.8, 0.5, s * 0.8);
-      if (K.chance(0.5)) K.box(x, z, s * 0.5, s * 0.35, s * 0.4, K.RP(SCRAP), { y: y + s * 0.6, collide: false });
-      else K.box(x, z, 0.25, 4, 0.25, C.metal, { y: y + s * 0.6, collide: false });
+      if (K.chance(0.5)) K.box(x, z, s * 0.5, s * 0.35, s * 0.4, K.RP(SCRAP), { y: y + s * 0.45 + 0.2, collide: false }); // H19: on the crust (both stood a little over it)
+      else K.box(x, z, 0.25, 4, 0.25, C.metal, { y: y + s * 0.45 + 0.2, collide: false });
     }
   }
   if (K.chance(0.3)) {
@@ -780,7 +780,7 @@ export default {
       // the rope bridge between the ledges at 6 m (a thin deck: the gorge floor stays open under it)
       K.box(0, -124, 32, 0.5, 3.2, 0x5a4a3a, { y: 5.5 });
       for (const rz of [-122.5, -125.5]) cable(K, [-16, 7.2, rz], [16, 7.2, rz], 1.0, 0.07);
-      for (const x of [-16, -8, 0, 8, 16]) for (const rz of [-122.5, -125.5]) K.box(x, rz, 0.14, 1.3, 0.14, ROPE, { y: 6, collide: false });
+      for (const x of [-16, -8, 0, 8, 16]) for (const rz of [-122.5, -125.5]) K.box(x, rz, 0.14, 1.3, 0.14, ROPE, { y: 6 + K.ground(0, -124), abs: true, collide: false }); // H19: on the deck (the end posts stood 4.8 m up over the ledges)
       K.box(0, -124, 1.2, 0.5, 1.2, LANT, { y: 7.5, collide: false, glow: 1.4 });
       // floor cover, placed along the lanes: rocks, scrap plates and a wrecked skiff
       for (const [x, z, s] of [[-12, -92, 2.2], [11, -98, 2.6], [-9, -110, 1.8], [14, -118, 2.2], [-12, -134, 2.4], [-2, -148, 2]]) rock(K, x, z, s);

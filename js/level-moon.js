@@ -213,6 +213,7 @@ function tunnelPath(K, pts, o = {}) {
     for (let a = L.a0 + 1.5; a < L.a1 - 0.5; a += 3) {
       const [cx, cz] = L.az ? [L.c, a] : [a, L.c];
       if (inOther(li, cx, cz)) continue;
+      if ((!L.lo && a < L.a0 + 1.6) || (!L.hi && a > L.a1 - 1.6)) continue; // H19: no rib at an open end (it stood in the doorway the tunnel meets)
       for (const sd of [-1, 1]) {
         if (L.az) K.box(L.c + sd * (hw - 0.2), a, 0.8, h, 0.7, HR, { collide: false }); else K.box(a, L.c + sd * (hw - 0.2), 0.7, h, 0.8, HR, { collide: false });
       }
@@ -548,7 +549,7 @@ export default {
       K.platform(px, pz, 8, 8, 4, { color: HR2 });
       K.box(px, pz - 0.0, 3.6, 0.5, 3.6, GREEN, { y: 4.0, abs: true, collide: false, glow: 0.8 });
       K.box(px, pz + 7.5, 3, 0.6, 13, HR, { y: 3.45, abs: true });
-      for (const s of [-1, 1]) K.box(px + s * 1.6, pz + 7.5, 0.35, 1.0, 13, HR, { y: 4.05, abs: true });
+      for (const s of [-1, 1]) K.box(px + s * 1.6, pz + 9, 0.35, 1.0, 10, HR, { y: 4.05, abs: true }); // H19: the span's rails start at the island's edge (they ran 3 m onto it)
       for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) brazier(K, px + dx, pz + dz, 1.0, 4.05 - K.ground(px + dx, pz + dz));
       for (const [dx, dz] of [[-3.4, 0], [3.4, 0]]) boneSpike(K, px + dx, pz + dz, 5, { y: 4 - K.ground(px + dx, pz + dz) });
       // giant teeth leaning over the pit and spires on its far rim
@@ -856,7 +857,7 @@ export default {
       // the orb over the pit, on chains
       K.mesh(new THREE.IcosahedronGeometry(4.5, 1), GREEN, tc[0], 11.5, pz, { glow: 1.8 });
       K.mesh(new THREE.TorusGeometry(6.5, 0.3, 4, 24), HR, tc[0], 11.5, pz, { rx: Math.PI / 2 + 0.25 });
-      for (const [dx, dz] of [[-4, 0], [4, 0], [0, -4], [0, 4]]) K.box(tc[0] + dx, pz + dz, 0.25, 4, 0.25, CHIT, { y: 14.2, collide: false });
+      for (const [dx, dz] of [[-4, 0], [4, 0], [0, -4], [0, 4]]) K.box(tc[0] + dx, pz + dz, 0.25, 4.5, 0.25, CHIT, { y: 13.7, collide: false }); // H19: the chains reach the orb (they stopped 0.5 m short)
       // six sword spires on the outer ring
       for (let k = 0; k < 6; k++) {
         const a = k * TAU / 6 + 0.5, x = tc[0] + Math.cos(a) * 21.5, z = tc[1] + Math.sin(a) * 21.5;

@@ -57,7 +57,7 @@ function watchtower(K, x, z, h = 8, stairs = ['s']) {
   K.platform(x, z, 6, 6, h, { stairs, stairW: 2.6, color: CAB2, stairColor: CAB });
   MK.vbox(K, x, h + 0.2, z, 6.4, 0.4, 6.4, CAB3, {});
   fixture(K, x, h + 1.1, z, 9);
-  for (const [dx, dz] of [[-2.7, -2.7], [2.7, -2.7], [2.7, 2.7], [-2.7, 2.7]]) K.box(x + dx, z + dz, 0.3, 1.0, 0.3, CAB, { y: h + 0.4, collide: false });
+  for (const [dx, dz] of [[-2.7, -2.7], [2.7, -2.7], [2.7, 2.7], [-2.7, 2.7]]) K.box(x + dx, z + dz, 0.3, 1.0, 0.3, CAB, { y: h + 0.4 + K.ground(x, z), abs: true, collide: false }); // H19: on the pad (measured from the pad's centre, not the slope under each post)
 }
 
 /** A Cabal ship on landing struts: a harvester hull lifted on four legs. */
@@ -150,7 +150,7 @@ export default {
         if (side === 'w' && x === -26 && z === -108) continue;                      // the lobby
         towerAt(K, x, z, k);
       }
-      for (const [x, z, s] of [[-14, -108, 2.2], [16, -116, 2.4], [-12, -148, 2.2], [8, -160, 2], [30, -94, 2], [-40, -122, 2]]) K.rock(x, z, s);
+      for (const [x, z, s] of [[-10, -108, 2.2], [16, -116, 2.4], [-12, -148, 2.2], [8, -160, 2], [30, -94, 2], [-40, -122, 2]]) K.rock(x, z, s);
       MK.fallenStatue(K, 62, -150, 'w', 0.8);
       MK.colossus(K, 0, -186, 1.1, { collide: true });
       // the OWR M-Line transit station: wide steps up to a canopy, a hall with ticket gates and a mezzanine

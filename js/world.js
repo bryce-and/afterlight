@@ -464,6 +464,8 @@ export function buildLevel(loc, def) {
         const len = horiz ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
         const start = horiz ? Math.min(x1, x2) : Math.min(z1, z2), fixed = horiz ? z1 : x1;
         const gaps = (o.gaps || []).slice().sort((a, b) => a[0] - b[0]);
+        // H19: dev tools (tools/opencheck.js) list every doorway so pieces reaching into one can be found
+        if (globalThis.__traceBuild) for (const [a, b] of gaps) (globalThis.__openings ||= []).push({ kind: 'door', horiz, a0: start + a, a1: start + b, fixed, t, h, y, src: src() });
         let from = 0;
         for (const [a, b] of [...gaps, [len, len]]) {
           if (a - from > 0.3) {
@@ -500,6 +502,7 @@ export function buildLevel(loc, def) {
       platform(x, z, w, d, h, o = {}) {
         const m = addBox(x, z, w, h, d, o.color ?? C.wall, o.y ?? 0);
         const top = lift ? gAt(x, z) + (o.y ?? 0) + h : h + (o.y ?? 0); // world height of the deck
+        if (globalThis.__traceBuild) (globalThis.__openings ||= []).push({ kind: 'deck', x, z, w, d, top, mesh: m, src: src() }); // H19: tools/opencheck.js
         const out = (side, n) => ({ n: [x, z - d / 2 - n, 's'], s: [x, z + d / 2 + n, 'n'], e: [x + w / 2 + n, z, 'w'], w: [x - w / 2 - n, z, 'e'] })[side];
         for (const side of o.stairs || []) {
           if (!lift) { const [sx, sz, dir] = out(side, Math.ceil(h / 0.4) * 0.6); K.stairs(sx, sz, dir, o.stairW ?? 2.4, h, { color: o.stairColor ?? C.metal, y: o.y }); continue; }

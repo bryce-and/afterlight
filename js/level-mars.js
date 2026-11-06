@@ -198,7 +198,8 @@ function tower(K, x, z, w, d, len, o = {}) {
     const [cx2, cy2, cz2] = at(len + 3);
     tbox(cx2, cy2, cz2, 0.5, 6, 0.5, 0x6a625a, { rx, rz });
     tbox(cx2 + w * 0.7, cy2 + 3, cz2, w * 1.6, 0.4, 0.4, 0x6a625a, { rx, rz });
-    tbox(cx2 + w * 1.4, cy2 + 1.2, cz2, 0.12, 3.4, 0.12, HAZ, { glow: 1 });
+    const hd = w * 0.7 * Math.sin(rz ?? 0); // H19: the jib leans with the tower, so its tip is this much higher (and shifted in z by the other lean)
+    tbox(cx2 + w * 1.4, cy2 + 1.2 + hd * Math.cos(rx ?? 0), cz2 + hd * Math.sin(rx ?? 0), 0.12, 3.4, 0.12, HAZ, { glow: 1 });
   }
   // sand drift piled against the base
   const s0 = sink / uy; // where the axis meets the ground
@@ -460,14 +461,14 @@ export default {
       tower(K, -17, -208, 10, 9, 36, { lean: 0.12, axis: 'z', sink: 6 });
       tower(K, 17, -209, 10, 9, 30, { lean: -0.1, axis: 'z', sink: 5 });
       // optional roofed interior: the lobby of a buried tower, two doors (the avenue side and the cross street)
-      K.room(31, -203, 14, 18, 6.4, { t: 0.7, color: GA[1], roofColor: GA[0], roof: true, doors: { w: 5, n: 5 } });
-      vbox(K, 31, 0.08, -203, 13, 0.16, 17, PAVE);
-      K.box(31, -208, 7, 1.3, 1.4, STONE2); // reception desk (H17: 1.3 so the top is above the 1.2 m a player reaches)
-      for (const x of [26.5, 35.5]) K.cyl(x, -198, 0.6, 5.8, STONE, { sides: 6 });
-      for (const z of [-199, -207]) vbox(K, 31, 5.9, z, 13, 0.25, 0.4, HAZ, { glow: 1.2 });
-      vbox(K, 37.7, 3.4, -203, 0.15, 2.2, 10, GLASS);
-      supply(K, 35, -198, true);
-      K.light(31, 5.2, -203, HAZ, 8, 18);
+      K.room(33, -203, 14, 18, 6.4, { t: 0.7, color: GA[1], roofColor: GA[0], roof: true, doors: { w: 5, s: 5 } }); // H19: 2 m east, clear of the tower's sand drift; the cross-street door is on the south (the north one opened onto the arena wall)
+      vbox(K, 33, 0.08, -203, 13, 0.16, 17, PAVE);
+      K.box(33, -208, 7, 1.3, 1.4, STONE2); // reception desk (H17: 1.3 so the top is above the 1.2 m a player reaches)
+      for (const x of [28.5, 37.5]) K.cyl(x, -198, 0.6, 5.8, STONE, { sides: 6 });
+      for (const z of [-199, -207]) vbox(K, 33, 5.9, z, 13, 0.25, 0.4, HAZ, { glow: 1.2 });
+      vbox(K, 39.7, 3.4, -203, 0.15, 2.2, 10, GLASS);
+      supply(K, 37, -198, true);
+      K.light(33, 5.2, -203, HAZ, 8, 18);
 
       // ---- Boss: the Sunken Plaza. Entered from above: a ramp drops 4 m from the gate onto a paved square ----
       const cz = -245;
@@ -668,8 +669,9 @@ export default {
       K.door(-28.5, -180, 6, 10, 'x', { zone: 2, t: 0.8, color: CAB3, trim: HAZR });
       vbox(K, -35, 0.08, -180, 18, 0.16, 35, DECK);
       for (const z of [-170, -190]) for (const sx of [-1, 1]) {
-        K.box(-35 + sx * 7, z, 3.4, 1.2, 1.6, CAB3);
-        vbox(K, -35 + sx * 7, 1.35, z, 3, 0.08, 1.2, HAZ, { glow: 1.8 });
+        const cx = -35 + sx * (sx > 0 ? 6 : 7); // H19: the east consoles stand clear of the courtyard door
+        K.box(cx, z, 3.4, 1.2, 1.6, CAB3);
+        vbox(K, cx, 1.35, z, 3, 0.08, 1.2, HAZ, { glow: 1.8 });
       }
       for (const z of [-166, -174, -186, -194]) vbox(K, -35, 9.4, z, 18, 0.3, 0.5, HAZ, { glow: 1.5 });
       supply(K, -41, -170); supply(K, -41, -187, true);

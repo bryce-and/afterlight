@@ -265,10 +265,10 @@ export default {
       // the warehouse on the west road: a big hall with container racks and a raised catwalk
       building(K, -100, 98, 38, 22, 8.4, { doors: { s: 9, n: 7, e: 6 }, doorOffset: { s: -6, n: 8 }, breaks: [['w', 5, 9]], roof: 'full', lamps: 4 });
       for (const [x, z, alongZ, c] of [[-112, 94, true, 0x6a5a4a], [-112, 101, true, 0x4f6a5a], [-96, 92, false, 0x7a4a32], [-108, 104, false, 0x4f6a5a], [-90, 104, true, 0x6a5a4a]]) container(K, x, z, alongZ, 0, c);
-      K.platform(-82, 90, 10, 6, 3.4, { stairs: ['w'], stairW: 2.6, color: 0x4f555c, stairColor: CONC2 });
+      K.platform(-84.2, 90, 5.6, 6, 3.4, { stairs: ['w'], stairW: 2.6, color: 0x4f555c, stairColor: CONC2 }); // H19: ends at the east wall (it ran 4 m through it)
       K.crate(-104, 90); K.crate(-105.3, 90.6); barrel(K, -92, 108); barrel(K, -90.6, 108.4, 0x4f6a5a); shelf(K, -118, 98, false);
       // the admin block east of the road: three rooms in a row, doors between, a rooftop reached by stairs
-      building(K, 62, 8, 26, 14, 4.8, { doors: { w: 4, s: 4 }, doorOffset: { s: -6 }, roof: 'full', lamps: 3 });
+      building(K, 62, 8, 26, 14, 4.8, { doors: { w: 4, s: 4 }, doorOffset: { s: -9 }, roof: 'full', lamps: 3 }); // H19: south door clear of the partition at x 55.5
       K.wall(55.5, 1, 55.5, 15, 4.8, { t: 0.8, color: CONC2, gaps: [[5, 9]] }); K.wall(68.5, 1, 68.5, 15, 4.8, { t: 0.8, color: CONC2, gaps: [[5, 9]] });
       desk(K, 58, 4, false); desk(K, 65, 11, false); shelf(K, 72, 4, false); shelf(K, 50, 12, false); K.crate(66, 3); barrel(K, 72, 13);
       K.stairs(77, 4, 'n', 3, 4.8, { color: CONC2 });
@@ -303,7 +303,7 @@ export default {
       barrel(K, 60, 90); barrel(K, 61.3, 90.6, 0x4f6a5a); K.crate(48, 90); desk(K, 56, 91, true);
 
       // ================================================================ the shipyard: a dry dock with a hull on cradles, cranes and a gantry
-      hull(K, 98, 84, 58, 4.8, 3.2);
+      hull(K, 100, 84, 54, 4.8, 3.2); // H19: shorter at the nose, which reached into the pump house's east door
       crane(K, 66, 54, 30, 34, 1);
       crane(K, 134, 112, 28, 30, -1);
       gantry(K, 128, 62, 7, 30, [-1, 0], 10);

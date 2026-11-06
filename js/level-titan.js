@@ -464,7 +464,7 @@ export default {
 
       // ---- Arcology Plaza: the podium. White towers round a planted square, a lobby you can cut through, a sculpture ----
       arco(K, -14, -148, 12, 42, 26);
-      arco(K, 33, -144, 8, 36, 20);
+      arco(K, 33, -142.8, 8, 33.6, 20); // H19: ends at the lobby's wall (it ran 2 m through the lobby and into its south door)
       arco(K, -12, -176, 16, 6, 18, { cap: false }); arco(K, 26, -176, 16, 6, 18, { cap: false });
       arco(K, -46, -150, 22, 44, 30);   // west of the podium on the lower deck
       arco(K, 54, -134, 12, 26, 14);
@@ -472,7 +472,7 @@ export default {
       K.box(10, -128, 44, 1.6, 5, PALE, { y: 11, collide: false }); // skybridge
       K.box(10, -128, 44, 0.3, 5.2, AMBER, { y: 10.8, collide: false, glow: 1.2 });
       // planters at odd places (not a grid)
-      for (const [px, pz, s] of [[-2, -136, 5], [18, -139, 5], [-1, -162, 4], [28, -154, 5.5], [20, -166, 3.4]]) {
+      for (const [px, pz, s] of [[-2, -136, 5], [18, -139, 5], [-1, -162, 4], [28, -154, 5.5], [16, -173, 3.4]]) {
         K.box(px, pz, s, 0.9, s, PALE);
         K.box(px, pz, s - 0.6, 0.2, s - 0.6, SOIL, { y: 0.9, collide: false }).userData.noCollide = true; // H17: soil and foliage sit on top of the planter wall
         K.cone(px, pz, s * 0.3, s * 0.7, C.foliage, { y: 1.1, collide: false }).userData.noCollide = true;
@@ -492,7 +492,7 @@ export default {
       container(K, 30, -140, true); container(K, 2, -146, false);
       K.light(12, 8, -146, AMBER, 8, 32);
       // the ground-floor lobby: roofed, doors on the plaza side and on the west
-      K.room(27, -165, 14, 10, 6, { doors: { w: 5, s: 5 }, roof: true, color: PALE2 });
+      K.room(27, -165, 14, 10, 6, { doors: { w: 5, s: 5 }, doorOffset: { s: -1 }, roof: true, color: PALE2 }); // H19: south door clear of the tower; the planter moved out of the west door
       K.box(27, -168, 8, 1.1, 1.2, C.metal); K.box(23, -163, 1.2, 0.9, 3, PALE); K.box(31, -162, 3, 0.9, 1.2, PALE);
       K.light(27, 4, -165, AMBER, 7, 18);
       K.platform(25, -130, 6, 4, 2.4, { stairs: ['w'], stairW: 3, color: PALE2 }); // overlook deck
@@ -618,10 +618,10 @@ export default {
 
       // ---- the gangway: out of the hall onto an open causeway down the hull, Saturn overhead ----
       for (const s of [-1, 1]) {
-        rail(K, 22, -34 + 4.8 * s, 46, -34 + 4.8 * s); // H18: the gangway is terrain, so its rails follow it (were 6 m and 3 m over it)
-        rail(K, 46 + 4.8 * s, -34, 46 + 4.8 * s, -80);
+        rail(K, 22, -34 + 4.2 * s, 46 + 4.2 * s, -34 + 4.2 * s); // H19: the gangway is terrain (9 m wide), so its rails follow its top (were 6 m and 3 m over it)
+        rail(K, 46 + 4.2 * s, -34 + 4.2 * s, 46 + 4.2 * s, -80 - 4.2 * s);
       }
-      rail(K, 46 - 4.8, -80 + 4.8, 24 + 4.8, -80 + 4.8); rail(K, 46 - 4.8, -80 - 4.8, 24 + 4.8, -80 - 4.8);
+      rail(K, 46 - 4.2, -80 + 4.2, 24 + 4.8, -80 + 4.2); rail(K, 46 + 4.2, -80 - 4.2, 24 + 4.8, -80 - 4.2);
       for (const [x, z] of [[40, -42], [51, -56], [40, -70], [51, -66]]) lamp(K, x, z, 4.5, AMBER, K.ground(x, z) - K.ground(46, z) + 0.0);
       for (const z of [-44, -58, -72]) K.box(46, z, 11, 0.4, 0.4, K.C.metal, { y: 5.6, collide: false });
       hive(K, 38, -52, 1.2, { y: 0 }); creep(K, 46, -64, 4, 6);
@@ -692,7 +692,7 @@ export default {
         K.mesh(new THREE.BoxGeometry(1.6, 0.5, 1.2), PALE2, 7, 0.3, -156.5, { ry: 1.1, rz: -0.2 }).userData.noCollide = true;
         for (let z = -150; z > -196; z -= 8) K.box(z > -166 ? 24 : -4, z > -166 ? z : z, 0.12, 0.3, 4, LAMP, { y: 7.4, collide: false, glow: 1.4 });
         for (let x = 22; x > -6; x -= 8) K.box(x, -160, 4, 0.3, 0.12, LAMP, { y: 7.4, collide: false, glow: 1.4 });
-        pipeRun(K, 28.4, -148, 28.4, -164, 4.2, 0.35); pipeRun(K, 20, -164.4, 3, -164.4, 5, 0.35);
+        pipeRun(K, 28.4, -149.5, 28.4, -164, 4.2, 0.35); // H19: first support out of the Solarium doorway pipeRun(K, 20, -164.4, 3, -164.4, 5, 0.35);
         hive(K, 22, -150, 0.9); hive(K, -7, -176, 1); hive(K, 20, -162, 0.8); creep(K, 24, -152, 6, 5); creep(K, -4, -182, 6, 7);
         K.light(24, 6, -152, AMBER, 7, 18); K.light(12, 9, -160, 0xbfe8e0, 8, 22); K.light(-4, 3, -186, 0x7fffd0, 7, 20);
       }
@@ -740,7 +740,7 @@ export default {
       K.light(-10, 7, -226, 0x7fffd0, 9, 36); K.light(-10, 6, -204, 0xbfe8e0, 7, 24);
 
       // ---- corridor along the lab's north end, offset east to the Containment Lab ----
-      K.wall(22, -254, 35, -254, 10); K.wall(35, -254, 35, -265, 10); K.wall(7, -254, 7, -265, 10);
+      K.wall(22, -254, 35.5, -254, 10); K.wall(35.5, -254, 35.5, -265, 10); K.wall(6.5, -254, 6.5, -265, 10); // H19: walls just outside the door jambs (were 0.4 m into both doorways)
       K.box(21, -259.5, 29, 0.6, 12, PALE2, { y: 10 });
       K.box(21, -259.5, 1, 0.15, 11, LAMP, { y: 9.8, collide: false, glow: 1.5 });
       K.box(14, -258, 1, 1.1, 5, C.metal);

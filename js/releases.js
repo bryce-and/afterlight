@@ -5,6 +5,17 @@
 
 export const RELEASES = [
   {
+    version: '4.0.3', name: 'Hotfix', date: '2026-11-06', accent: '#ffb547', glyph: '✚',
+    summary: 'Railings sit on their walkways, and doorways and walkways are clear of pieces that reached into them.',
+    notes: [
+      'Titan: the railings on the Hope causeway and the Sunken Labs gangway sit on the walkway now (they floated 2.4 to 6 m above it)',
+      'Doorways and walkways cleared: no more wall ends, towers, planters, pipe supports, rocks or a ship\'s nose poking into doorways. Covers the Titan Hope lobby, the Sunken Labs Solarium and lab corridor, the Cosmodrome patrol pump house, warehouse and admin block, the Meridian Bay lobby, the Dust Palace hall and the Hellmouth tunnel doorways',
+      'Mars Buried City lobby: its second door faces the cross street now instead of opening onto the arena wall',
+      'Railings, posts and chains that floated sit where they belong: the Mindbender rope bridge, the Chamber of Night island bridge rails, the Crota\'s End orb chains, the Mars crane hooks and watchtower posts, and the Tangled Shore rock posts',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.0.2', name: 'Hotfix', date: '2026-11-06', accent: '#ffb547', glyph: '✚',
     summary: 'A buried Mars subway, a new road to Terrabase Charon, a dry Titan gallery, and the last co-op life.',
     notes: [
