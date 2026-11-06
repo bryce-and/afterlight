@@ -7,7 +7,7 @@ import { Player } from './player.js';
 import { initEffects, updateEffects, sparks, clearEffects, basicMat, flashLight, ember, swirl } from './effects.js';
 import { explosionFx } from './effects.js';
 import { pointInColliders, groundAt, footprintHit } from './physics.js';
-import { buildNav, NAV, floodReach, cellIndex } from './nav.js';
+import { buildNav, NAV, floodReach, cellIndex, nearestWalkable } from './nav.js';
 import { updateNavDebug } from './navdebug.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
@@ -177,17 +177,27 @@ function baseWaves(zi, isBoss, g, def, fireteam = 1, loc = null) {
   return waves;
 }
 
+/** H17: a spot a unit can stand on: a walkable nav cell at ground level (not on a crate or inside a wall), with the whole body clear of colliders. */
+export function spawnClear(p) {
+  const n = G.nav;
+  if (n) { const c = cellIndex(n, p.x, p.z); if (c < 0 || n.hgt[c] < 0 || Math.abs(n.hgt[c] - p.y) > 0.4) return false; }
+  return !pointInColliders(_c.copy(p).setY(p.y + 0.5), 0.9) && !pointInColliders(_c.copy(p).setY(p.y + 1.4), 0.9);
+}
+
 export function findSpawn(center, angle, spread, rMin, rMax) {
   const b = G.level.bounds;
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 32; i++) {
     const a = angle + rand(-spread, spread), r = rand(rMin, rMax);
     const p = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
     p.x = clamp(p.x, b.minX + 2, b.maxX - 2);
     p.z = clamp(p.z, b.minZ + 2, b.maxZ - 2);
     if (G.level.voidAt?.(p.x, p.z)) continue; // U17f: never over the abyss
     p.y = groundAt(p.x, p.z);
-    if (!pointInColliders(_c.copy(p).setY(p.y + 0.5), 0.8) && p.distanceTo(G.player.pos) > 8) return p;
+    if (spawnClear(p) && p.distanceTo(G.player.pos) > 8) return p;
   }
+  // H17: no clear spot in the arc: the nearest walkable cell to the centre, not the centre itself (it can be inside a wall)
+  const w = G.nav && nearestWalkable(G.nav, center.x, center.z, 6);
+  if (w) { const p = new THREE.Vector3(w.x, 0, w.z); p.y = groundAt(p.x, p.z); if (spawnClear(p)) return p; }
   return center.clone();
 }
 

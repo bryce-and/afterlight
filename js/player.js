@@ -2032,10 +2032,10 @@ export class Player {
       this.respawnT = 5; // U17a: a patrol has no revive count and cannot fail: you wake at the landing
       ui.showDeath('You Died', 'Your Ghost brings you back to the landing');
     } else {
-      M.revives--;
-      if (M.revives < 0) { M.failing = true; this.respawnT = 2.5; }
+      M.revives--; // H17: the death that spends the last revive ends the run (it used to respawn you with "Revives remaining: 0")
+      if (M.revives <= 0) { M.revives = 0; M.failing = true; this.respawnT = 2.5; }
       else this.respawnT = 5;
-      ui.showDeath('You Died', M.revives < 0 ? 'No revives remaining' : `Revives remaining: ${M.revives}`);
+      ui.showDeath('You Died', M.revives <= 0 ? 'No revives remaining' : `Revives remaining: ${M.revives}`);
     }
     sfx.death();
   }

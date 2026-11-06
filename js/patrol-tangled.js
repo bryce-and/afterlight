@@ -75,7 +75,7 @@ function underside(K, x0, x1, z0, z1, h) {
     let t = (i + K.R(0, 0.6)) / n * per, px, pz;
     if (t < w) { px = x0 + t; pz = z0; } else if ((t -= w) < d) { px = x1; pz = z0 + t; } else if ((t -= d) < w) { px = x1 - t; pz = z1; } else { px = x0; pz = z1 - (t - w); }
     const s = K.R(2.2, 4.2);
-    meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, ROCK), px, h - s - 0.7, pz, { ry: K.R(0, TAU), scale: [1.3, 1, 1.3] });
+    meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, ROCK), px, h - s - 0.7, pz, { ry: K.R(0, TAU), scale: [1.3, 1, 1.3] }).userData.noCollide = true; // H17: hangs below the island, out of reach
   }
   const r0 = Math.min(w, d) * 0.5;
   meshA(K, new THREE.ConeGeometry(r0, r0 * 1.6 + 10, 7), ROCKD, cx, h - 7 - (r0 * 1.6 + 10) / 2, cz, { rx: Math.PI, ry: K.R(0, TAU) });
@@ -374,8 +374,8 @@ function hulk(K) {
   for (const x of [-112, -134]) lampA(K, x, h + 3, -104, 0x9aff7a, 10, 22);
   lampA(K, -96, h + 4, -78, 0x9aff7a, 6, 20);
   // the debris slope under the overhang: fallen plates, rocks, Hive growth, plank walkways with rope rails, a round pad and a dome turret
-  for (const [x, z, s] of [[-146, -86, 3], [-124, -94, 2.4], [-88, -92, 2.8], [-76, -70, 2.2], [-150, -62, 2.6]]) { meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, ROCK), x, h + s * 0.4, z, { ry: K.R(0, TAU), scale: [1.2, 0.7, 1.1] }); solid(K, x - s * 0.8, h, z - s * 0.8, x + s * 0.8, h + s, z + s * 0.8); }
-  for (const [x, z, a] of [[-136, -96, 0.5], [-100, -98, -0.4], [-82, -84, 0.3]]) A(K, x, h - 0.3, z, 7, 0.4, 4, pick(K, HULLC), { ry: a, rz: 0.25 });
+  for (const [x, z, s] of [[-146, -86, 3], [-124, -94, 2.4], [-88, -92, 2.8], [-76, -70, 2.2], [-150, -62, 2.6]]) { const col = pick(K, ROCK), ry = K.R(0, TAU); meshA(K, new THREE.DodecahedronGeometry(s, 0), col, x, h + s * 0.4, z, { ry, scale: [1.2, 0.7, 1.1] }); K.ocollider(x, z, s * 1.9, s * 1.1, s * 1.7, ry, h - K.ground(x, z)); } // H17: collider turned with the rock
+  for (const [x, z, a] of [[-136, -96, 0.5], [-100, -98, -0.4], [-82, -84, 0.3]]) TK.solidTilted(K, A(K, x, h - 0.3, z, 7, 0.4, 4, pick(K, HULLC), { ry: a, rz: 0.25 }), 0.5); // H17: fallen plate, collider follows its tilt
   for (const [x, z, s] of [[-120, -84, 1.2], [-142, -76, 1.4], [-92, -74, 1], [-104, -94, 1.3]]) TK.hiveGrowth(K, x, z, s);
   for (const [x0, z0, x1, z1] of [[-150, -70, -130, -70], [-86, -64, -86, -84]]) {
     const L = Math.hypot(x1 - x0, z1 - z0), ry = Math.atan2(x1 - x0, z1 - z0);
@@ -395,7 +395,7 @@ function hulk(K) {
 function sigilRock(K, x, z, s, ry) {
   const g = G(K, x, z), fx = Math.sin(ry), fz = Math.cos(ry);
   meshA(K, new THREE.DodecahedronGeometry(s, 0), ROCKD, x, g + s * 0.5, z, { ry, scale: [1.4, 0.9, 0.9] });
-  solid(K, x - s, g, z - s, x + s, g + s * 1.2, z + s);
+  K.ocollider(x, z, s * 2.2, s * 1.2, s * 1.5, ry, g - K.ground(x, z)); // H17: turned with the rock (it is 1.4 long by 0.9 across)
   const px = x + fx * s * 0.86, pz = z + fz * s * 0.86, y = g + s * 0.6;
   A(K, px, y - 0.5, pz, 0.14, 1.1, 0.05, 0xeeeae0, { ry, glow: 0.6 });
   meshA(K, new THREE.TorusGeometry(0.32, 0.06, 4, 10), 0xeeeae0, px, y + 0.4, pz, { ry, glow: 0.6 });
@@ -408,10 +408,10 @@ function flats(K) {
   for (let i = 0; i < 70; i++) { // dry scrub
     const x = K.R(44, 148), z = K.R(-146, -54);
     if (Math.hypot(x - 96, z + 104) < 18 || (x > 126 && z > -94 && z < -70)) continue;
-    for (let k = 0; k < 3; k++) meshA(K, new THREE.ConeGeometry(K.R(0.3, 0.6), K.R(0.5, 1.1), 4), pick(K, SCRUB), x + K.R(-0.6, 0.6), h + 0.4, z + K.R(-0.6, 0.6), { rz: K.R(-0.4, 0.4) });
+    for (let k = 0; k < 3; k++) meshA(K, new THREE.ConeGeometry(K.R(0.3, 0.6), K.R(0.5, 1.1), 4), pick(K, SCRUB), x + K.R(-0.6, 0.6), h + 0.4, z + K.R(-0.6, 0.6), { rz: K.R(-0.4, 0.4) }).userData.noCollide = true; // H17: scrub tufts
   }
   for (const [x, z, s, ry] of [[60, -64, 2.4, 0.6], [104, -70, 2.8, 2.6], [70, -118, 2.6, -1.2], [140, -110, 2.2, -2.2], [118, -140, 2.6, 0.2], [52, -96, 2.2, 1.4]]) sigilRock(K, x, z, s, ry);
-  for (const [x, z, s] of [[86, -66, 1.6], [56, -132, 2], [146, -140, 1.8], [120, -118, 1.4], [76, -92, 1.2]]) { meshA(K, new THREE.DodecahedronGeometry(s, 0), ROCKD, x, h + s * 0.35, z, { ry: K.R(0, TAU), scale: [1.3, 0.6, 1] }); solid(K, x - s, h, z - s, x + s, h + s * 0.8, z + s); }
+  for (const [x, z, s] of [[86, -66, 1.6], [56, -132, 2], [146, -140, 1.8], [120, -118, 1.4], [76, -92, 1.2]]) { const ry = K.R(0, TAU); meshA(K, new THREE.DodecahedronGeometry(s, 0), ROCKD, x, h + s * 0.35, z, { ry, scale: [1.3, 0.6, 1] }); K.ocollider(x, z, s * 2.1, s * 0.9, s * 1.6, ry, h - K.ground(x, z)); } // H17: collider turned with the rock
   for (const [x, z, ry] of [[62, -140, 0.4], [132, -126, -0.9], [88, -136, 1.8]]) TK.ribs(K, x, z, ry, 10, 7, 3, 4);
   // the totem ring the Scorn haul their ether to (the event), cans stacked round it
   for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + 0.3; TK.totem(K, 96 + Math.cos(a) * 15, -104 + Math.sin(a) * 15, 6.5); }
@@ -422,8 +422,12 @@ function flats(K) {
   // Trapper's Cave: a low rock den on the east of the flats, its mouth facing west
   const cx = 138, cz = -82, w = 20, d = 18, ch = 5;
   hall(K, cx, cz, w, d, ch, { doors: { w: 6 }, color: ROCK[1], roofColor: ROCKD, ceil: 0x2a2434, lamp: 0xb46bff, lamps: 2, windows: false });
-  for (let i = 0; i < 9; i++) meshA(K, new THREE.DodecahedronGeometry(K.R(3, 6), 0), pick(K, ROCK), cx + K.R(-9, 9), h + ch + K.R(0, 2), cz + K.R(-8, 8), { ry: K.R(0, TAU), scale: [1.3, 0.6, 1.2] });
-  for (const s of [-1, 1]) meshA(K, new THREE.DodecahedronGeometry(4, 0), pick(K, ROCK), cx - w / 2 - 1, h + 2.5, cz + s * 6, { ry: K.R(0, TAU), scale: [0.8, 1.2, 0.9] });
+  for (let i = 0; i < 9; i++) meshA(K, new THREE.DodecahedronGeometry(K.R(3, 6), 0), pick(K, ROCK), cx + K.R(-9, 9), h + ch + K.R(0, 2), cz + K.R(-8, 8), { ry: K.R(0, TAU), scale: [1.3, 0.6, 1.2] }).userData.noCollide = true; // H17: rubble on the cave roof, out of reach
+  for (const s of [-1, 1]) { // the two big rocks either side of the mouth: solid, and clear of the 6 m doorway
+    const col = pick(K, ROCK), ry = K.R(0, TAU);
+    meshA(K, new THREE.DodecahedronGeometry(4, 0), col, cx - w / 2 - 1, h + 2.5, cz + s * 6, { ry, scale: [0.8, 1.2, 0.9] });
+    K.ocollider(cx - w / 2 - 1, cz + s * 6, 5.1, 6.5, 5.6, ry, h - K.ground(cx - w / 2 - 1, cz + s * 6)); // H17
+  }
   for (const [x, z] of [[cx + 6, cz - 5], [cx + 7, cz + 5]]) TK.etherCan(K, x, z);
   TK.totem(K, cx + 7, cz, 4);
   for (let i = 0; i < 6; i++) beamA(K, [cx + K.R(-6, 6), h + 0.1, cz + K.R(-6, 6)], [cx + K.R(-6, 6), h + 0.3, cz + K.R(-6, 6)], 0.08, BONE);

@@ -34,6 +34,8 @@ import { scorn } from '../js/models-scorn.js';
 import * as THREE from 'three';
 import { ENEMY_TYPES } from '../js/data.js';
 import * as FA from '../js/factions.js';
+import { findFloats } from './floatcheck.js';
+import { laid } from '../js/patrol-kit.js';
 import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as Q from '../js/quests.js';
@@ -2485,6 +2487,38 @@ test('U18: Scorn roster: Stalkers and Lurkers are common, Wraiths rare, Ravagers
   const pool = U.sc_ravager.lampSlam.pool, at = { x: 0, z: 0 };
   eq(FA.poolTickDmg(pool, at, pool.radius - 0.1, 0), pool.dps * FA.SKILL.lampSlam.tick, 'standing in the fire burns');
   eq(FA.poolTickDmg(pool, at, pool.radius + 0.1, 0), 0, 'outside it does not');
+});
+
+test('H17 float check: a flat slab on a slope is caught, a grounded, leaned or carried one is not', () => {
+  const ground = (x) => Math.max(0, x * 0.25); // 1 in 4 rising east of x = 0
+  const sc = new THREE.Scene(), box = (w, h, d, x, y, z, o = {}) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial());
+    m.position.set(x, y, z); if (o.rz) m.rotation.z = o.rz; sc.add(m); return m;
+  };
+  const slab = box(8, 0.2, 2, 8, ground(4) + 0.1, 0); // bottom on the ground at its west end (x = 4), east end sunk into the slope: it hangs nowhere
+  const hang = box(8, 0.2, 2, 8, ground(12) + 0.1, 10); // bottom meets the ground at its east end (x = 12): the west end hangs 2 m over the slope
+  const tilted = box(8, 0.2, 2, 8, 2, 20, { rz: Math.atan(0.25) }); // leaned with the slope on purpose
+  const strip = box(6, 0.1, 0.4, -10, 0.6, 30);       // lifted 0.55 m off flat ground with nothing under it
+  const deck = box(6, 0.2, 2, -10, 1.1, 40); box(0.5, 1, 0.5, -10, 0.5, 40); // carried by a post
+  const hits = findFloats(sc, ground);
+  const of = (m) => hits.find((h) => h.mesh === m);
+  ok(of(hang)?.kind === 'slope', 'slab hanging off the slope is a slope float');
+  ok(of(strip)?.kind === 'hover', 'lifted strip is a hover float');
+  ok(!of(slab) && !of(tilted) && !of(deck), 'grounded, leaned and carried pieces are fine');
+  hang.userData.floatOk = true;
+  ok(!findFloats(sc, ground).some((h) => h.mesh === hang), 'floatOk marks a deliberate overhang');
+});
+
+test('H17 laid(): every piece of a strip meets the ground at both ends on a slope', () => {
+  const sc = new THREE.Scene(), ground = (x, z) => 2 + x * 0.2 + z * 0.05 + (x > 10 ? (x - 10) * 0.3 : 0); // a plane with a bend at x = 10
+  const K = { ground, mesh: (geo, color, x, y, z, o) => { const m = new THREE.Mesh(geo); m.position.set(x, y + ground(x, z), z); m.rotation.set(0, o.ry, o.rz); sc.add(m); return m; } };
+  laid(K, -4, 0, 26, 9, 2, 0, { y: 0, h: 0.05 });
+  sc.updateMatrixWorld(true);
+  ok(sc.children.length >= 11 && sc.children.length <= 13, `about 3 m pieces, the one over the bend halved (${sc.children.length})`);
+  for (const m of sc.children) for (const sx of [-1, 1]) {
+    const p = new THREE.Vector3(sx * m.geometry.parameters.width / 2, -0.025, 0).applyMatrix4(m.matrixWorld);
+    ok(Math.abs(p.y - ground(p.x, p.z)) < 0.12, `end at ${p.x.toFixed(1)},${p.z.toFixed(1)} is ${(p.y - ground(p.x, p.z)).toFixed(2)} off the ground`);
+  }
 });
 
 let pass = 0, fail = 0;

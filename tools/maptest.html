@@ -5,12 +5,12 @@
 <title>Afterlight map test</title>
 </head>
 <body>
-<!-- Headless per-map check, run by tools/maptest.sh: ?loc=moon&mi=0,1,2. Loads the real game in an iframe, then for each mission runs
-     tools/leveltest.js testLevel (zones cleared, spawns, reachability) and tools/zfight.js, and prints terrain facts. -->
+<!-- Headless per-map check, run by tools/maptest.sh: ?loc=moon&mi=0,1,2 (mi=p is the patrol zone). Loads the real game in an iframe, then for each mission runs
+     tools/leveltest.js testLevel (zones cleared, spawns, reachability) tools/zfight.js and tools/floatcheck.js, and prints terrain facts. -->
 <pre id="result">running</pre>
 <iframe id="f" src="../index.html" style="position:fixed;inset:0;width:100%;height:100%;border:0"></iframe>
 <script>
-const q = new URLSearchParams(location.search), LOC = q.get('loc'), MIS = (q.get('mi') || '0,1,2').split(',').map(Number), VIEWS = q.get('views');
+const q = new URLSearchParams(location.search), DETAIL = Number(q.get('detail') ?? 0), LOC = q.get('loc'), MIS = (q.get('mi') || '0,1,2').split(',').map((m) => (m === 'p' ? m : Number(m))), VIEWS = q.get('views');
 const f = document.getElementById('f');
 f.addEventListener('load', async () => {
   const out = document.getElementById('result');
@@ -26,12 +26,26 @@ f.addEventListener('load', async () => {
       return;
     }
     out.textContent = await f.contentWindow.eval(`(async () => {
-      const T = await import('/tools/leveltest.js'), Z = await import('/tools/zfight.js'), d = await import('/js/data.js'), { G } = await import('/js/state.js');
+      const T = await import('/tools/leveltest.js'), Z = await import('/tools/zfight.js'), F = await import('/tools/floatcheck.js'), CC = await import('/tools/collidecheck.js'), d = await import('/js/data.js'), { G } = await import('/js/state.js');
       const li = d.LOCATIONS.findIndex((l) => l.id === ${JSON.stringify(LOC)}), lines = [];
       if (li < 0) return 'NO SUCH LOCATION';
+      globalThis.__traceBuild = ${DETAIL} > 0; // tag pieces and colliders with their map line for the collision detail lines
       for (const mi of ${JSON.stringify(MIS)}) {
-        lines.push(await T.testLevel(li, mi));
+        if (mi === 'p') { // the destination's patrol zone (H17): reachability, floats, collision and z-fights
+          globalThis.__noMerge = true; // judge the pieces before they are folded into merged meshes
+          const PB = await import('/tools/patrolboot.js');
+          await PB.boot(li); // starts the patrol and sets up the reachability check
+          const bad = await PB.check();
+          lines.push(d.LOCATIONS[li].name + ' patrol: ' + G.scene.children.length + ' scene objects, ' + G.colliders.length + ' colliders');
+          lines.push('  reach: ' + (bad.length ? bad.length + ' PROBLEMS ' + bad.join(', ') : 'every beacon, site, event, camp and NPC reachable'));
+        } else lines.push(await T.testLevel(li, mi));
         const fights = Z.findZFights(G.scene);
+        const fl = F.findFloats(G.scene, G.level.groundAt, G.level.bounds);
+        lines.push('  floats: ' + fl.length + ' (slope ' + fl.filter((x) => x.kind === 'slope').length + ', hover ' + fl.filter((x) => x.kind === 'hover').length + ')' + (fl.length ? ' e.g. ' + fl.slice(0, 4).map((x) => x.kind + ' ' + x.gap + ' @' + x.at).join(' | ') : ''));
+        const au = CC.auditCollision(G), ph = (k) => au.phantom.filter((x) => x.kind === k);
+        lines.push('  collision: missing ' + au.missing.length + ', diagonal ' + ph('diagonal').length + ', oversize ' + ph('oversize').length + ', invisible ' + ph('invisible').length);
+        for (const x of au.missing.slice(0, ${DETAIL})) lines.push('    missing ' + x.n + ' ' + x.what + ' @' + x.at + ' ' + x.src);
+        for (const x of au.phantom.filter((p) => p.kind !== 'invisible').slice(0, ${DETAIL})) lines.push('    ' + x.kind + ' ' + x.n + ' ' + x.what + ' @' + x.at + ' ' + x.src);
         const t = G.level.terrain;
         lines.push('  zfight pairs: ' + fights.length + (fights.length ? ' e.g. ' + fights.slice(0, 3).map((x) => x.at).join(' | ') : ''));
         if (t) {

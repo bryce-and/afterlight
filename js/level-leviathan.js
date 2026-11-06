@@ -105,7 +105,9 @@ function lwall(K, x1, z1, x2, z2, top, o = {}) {
     for (let i = 0; i < n; i++) {
       const c = r0 + L * (i + 0.5), g = at(c);
       if (horiz) K.box(c, fixed, L, top - g, t, color); else K.box(fixed, c, t, top - g, L, color);
-      V(c, g + 0.5, L - 0.1, 0.5, t + 0.25, MARB3); // plinth (a little short so no face lines up with the wall's)
+      const hw = (t + 0.25) / 2, gr = (a, o) => (horiz ? K.ground(a, fixed + o) : K.ground(fixed + o, a));
+      const pBot = Math.min(...[c - L / 2, c, c + L / 2].flatMap((a) => [-hw, 0, hw].map((o) => gr(a, o)))) - 0.02, pTop = g + 0.75; // H17: the plinth stands on the floor (it hung 0.25 m above it), down to the low end on a slope
+      V(c, (pBot + pTop) / 2, L - 0.1, pTop - pBot, t + 0.25, MARB3); // plinth (a little short so no face lines up with the wall's)
     }
   }
   for (const [g0, g1] of gaps) {
@@ -137,8 +139,8 @@ function bpillar(K, x, z, top, face, o = {}) {
 
 // life-size gilded statue on a plinth
 function statue(K, x, z) {
-  K.box(x, z, 1.6, 1.2, 1.6, MARB3);
-  vbox(K, x, 1.25, z, 1.8, 0.2, 1.8, GOLD, { glow: 0.3 });
+  K.box(x, z, 1.6, 1.4, 1.6, MARB3); // H17: the plinth is as tall as its gold plate (a 1.2 m box left the plate walk-through)
+  vbox(K, x, 1.45, z, 1.8, 0.2, 1.8, GOLD, { glow: 0.3 });
   vbox(K, x, 2.6, z, 0.9, 2.6, 0.6, CREAM);
   vbox(K, x, 4.1, z, 0.55, 0.55, 0.55, CREAM);
   vbox(K, x + 0.65, 3.3, z, 0.3, 1.4, 0.3, CREAM, { rz: -0.5 });
@@ -194,6 +196,7 @@ function pen(K, cx, cz, w, d, openSide) {
   for (const [bx, bz, s] of [[cx - w * 0.2, cz - d * 0.15, 1], [cx + w * 0.15, cz + d * 0.2, 0.85]]) {
     vbox(K, bx, 0.9 * s, bz, 2.8 * s, 1.1 * s, 1.1 * s, MARB3);
     vbox(K, bx + 1.5 * s, 1.1 * s, bz, 0.9 * s, 0.8 * s, 0.9 * s, MARB2);
+    K.collider(bx - 1.4 * s, 0.2 * s, bz - 0.55 * s, bx + 1.95 * s, 1.45 * s, bz + 0.55 * s, null); // H17: the beast is solid (body and head)
     vbox(K, bx + 2.0 * s, 1.15 * s, bz, 0.1, 0.18, 0.5, GOLDL, { glow: 1.6 });
     for (const lx of [-0.9, 0.9]) vbox(K, bx + lx * s, 0.3 * s, bz, 0.35, 0.6 * s, 0.9 * s, MARB);
   }
@@ -231,7 +234,7 @@ function pad(K, x, z, s) {
 // Loyalist barge parked on a pad (one solid hull, rest is dressing)
 function barge(K, x, z, dir = 1) {
   K.box(x, z, 15, 3.2, 6.5, MARB2, { y: 0.4 });
-  vbox(K, x + dir * 8.5, 1.9, z, 5, 2.2, 4.5, MARB3, { rz: dir * -0.35 });
+  K.mesh(UB(), MARB3, x + dir * 8.5, 1.9, z, { rz: dir * -0.35, scale: [5, 2.2, 4.5], collide: 0.85 }); // H17: the sloped prow is solid (its collider is tilted with it)
   vbox(K, x - dir * 1, 3.9, z, 7, 0.8, 5, GOLDD);
   vbox(K, x, 2.1, z + 3.3, 13, 0.3, 0.1, GOLDL, { glow: 1.2 });
   vbox(K, x, 2.1, z - 3.3, 13, 0.3, 0.1, GOLDL, { glow: 1.2 });

@@ -138,7 +138,8 @@ export default {
       hall(K, -118, -58, 16, 12, 6, { color: 0x7a4a36, roofColor: 0x6a3e2c, ceil: 0x4a2a1e, lamp: 0xe08a50, windows: false, doors: { e: 4 }, lamps: 2, props: (k, cx, cz) => {
         MK.supply(k, cx - 4, cz - 2, false); MK.supply(k, cx - 4, cz + 2, true); MK.supply(k, cx + 1, cz - 3, true); k.crate(cx + 4, cz + 2);
       } });
-      for (const [x, z, s] of [[-110, -66, 4.4], [-110, -50, 4], [-126, -58, 5]]) K.rock(x, z, s, { collide: false });   // rock round the cave mouth
+      // rock round the cave mouth. H17: solid, with a collider turned and shrunk to the boulder (K.rock's square box is much smaller than rocks this size)
+      for (const [x, z, s] of [[-110, -66, 4.4], [-110, -50, 4], [-126, -58, 5]]) { const sy = K.R(0.6, 1.1); K.mesh(new THREE.DodecahedronGeometry(s, 0), K.RP([K.C.rock, K.C.rock2]), x, s * sy * 0.45, z, { scale: [K.R(0.9, 1.2), sy, K.R(0.9, 1.2)], ry: K.R(0, 6.28), collide: 0.85 }); }
 
       // ================================================================ the Buried City: a grid of towers, canyon streets between them
       const cols = { e: [24, 48, 72, 96], w: [-26, -48, -84, -104] }, rows = [-80, -108, -136, -164];
@@ -199,7 +200,7 @@ export default {
       K.light(SX, 3, -115, 0xffe2b0, 9, 24);
 
       // ================================================================ the skyline
-      for (const [x, z, w, h, lean] of [[-140, -150, 12, 70, 0.1], [140, -170, 14, 80, -0.12], [-146, 90, 10, 46, 0.14], [146, 80, 12, 52, -0.1]]) MK.tower(K, x, z, w, w, h, { lean, axis: 'z', sink: 8, collide: false });
+      for (const [x, z, w, h, lean] of [[-140, -150, 12, 70, 0.1], [140, -170, 14, 80, -0.12], [-146, 90, 10, 46, 0.14], [146, 80, 12, 52, -0.1]]) MK.tower(K, x, z, w, w, h, { lean, axis: 'z', sink: 8 }); // H17: these stand inside the bounds, so they are solid at their feet
       MK.thresher(K, 100, 28, -60, -0.8); MK.thresher(K, -100, 22, -140, 0.6);
       K.scatter((x, z) => MK.supply(K, x, z, K.chance(0.5)), 0, 30, 20, 120, 8, 2);
       K.scatter((x, z) => K.rock(x, z, K.R(1, 2.4)), 0, 20, 10, 120, 12, 2);

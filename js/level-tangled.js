@@ -232,38 +232,88 @@ function skiff(K, x, z, ry, s = 1, glow = 0) {
   let [px, pz] = P(0, 0);
   const hull = K.box(px, pz, 2.6 * s, 1.3 * s, 7 * s, col, { y: 0.1, collide: false });
   hull.rotation.set(0, ry, K.R(-0.12, 0.12));
+  K.ocollider(px, pz, 2.6 * s, 1.5 * s, 7 * s, ry, 0); // H17: the hull is a box turned with the skiff (the old squares round it blocked the empty corners)
   [px, pz] = P(0, -4.4 * s);
   K.box(px, pz, 1.5 * s, 0.9 * s, 2.4 * s, col, { y: 0.35 * s, collide: false }).rotation.set(0.25, ry, 0);
+  K.ocollider(px, pz, 1.5 * s, 1.1 * s, 2.4 * s, ry, 0.15 * s); // the nose
   [px, pz] = P(0, -1.6 * s);
-  K.box(px, pz, 1.3 * s, 0.55 * s, 2 * s, 0xc37aff, { y: 1.35 * s, collide: false, glow: 0.4 });
+  K.box(px, pz, 1.3 * s, 0.55 * s, 2 * s, 0xc37aff, { y: 1.35 * s, collide: false, glow: 0.4 }).userData.noCollide = true; // canopy on top of the hull collider
   for (const sd of [-1, 1]) {
     [px, pz] = P(sd * 2.5 * s, 0.6 * s);
     K.box(px, pz, 2.6 * s, 0.2 * s, 3 * s, col, { y: 0.7 * s, collide: false }).rotation.set(0, ry, sd * 0.28);
+    K.ocollider(px, pz, 2.4 * s, 0.8 * s, 2.8 * s, ry, 0.45 * s); // wing plate (one box over its tilt)
     [px, pz] = P(sd * 0.9 * s, 3.65 * s);
-    K.box(px, pz, 0.8 * s, 0.8 * s, 0.5 * s, glow ? LANT : 0x2a2a30, { y: 0.4 * s, collide: false, glow: glow || undefined });
-  }
-  for (const t of [-2.6, 0, 2.6]) {
-    [px, pz] = P(0, t * s);
-    K.collider(px - 1.25 * s, 0, pz - 1.25 * s, px + 1.25 * s, 1.5 * s, pz + 1.25 * s, t === 0 ? hull : null);
+    K.box(px, pz, 0.8 * s, 0.8 * s, 0.5 * s, glow ? LANT : 0x2a2a30, { y: 0.4 * s, collide: false, glow: glow || undefined }).userData.noCollide = true; // tail lamp at the hull's end
   }
 }
 
 // decorative Fallen mine pod
 function minePod(K, x, z, col = 0xff5a2a) {
-  const m = K.mesh(geo().ico, 0x2a2630, x, 0.55, z, { ry: K.R(0, 3) });
-  m.scale.set(0.6, 0.55, 0.6);
+  K.mesh(geo().ico, 0x2a2630, x, 0.55, z, { ry: K.R(0, 3), scale: [0.6, 0.55, 0.6], collide: 0.75 }); // H17: the mine itself is solid (scale goes in the options so the collider fits it)
   const b = K.mesh(geo().cyl, col, x, 0.6, z, { glow: 2 });
   b.scale.set(0.66, 0.14, 0.66);
+  b.userData.noCollide = true; // the glowing band round the mine
   K.box(x, z, 0.12, 0.5, 0.12, IRON, { y: 1.0, collide: false });
+}
+
+
+// H17: a boulder like K.rock, but its collider is turned with the rock and sits inside it (K.rock's square leaves empty corners and misses the bulges)
+function rock(K, x, z, s) {
+  const col = K.RP([K.C.rock, K.C.rock2]), sy = K.R(0.6, 1.1), sx = K.R(0.9, 1.2), sz = K.R(0.9, 1.2), ry = K.R(0, 6.28);
+  return K.mesh(new THREE.DodecahedronGeometry(s, 0), col, x, s * sy * 0.45, z, { ry, scale: [sx, sy, sz], collide: 0.72 });
+}
+
+// H17: a collider for a tilted box mesh (a leaning plate, a buried bow): a stack of turned slabs, one per height band, each sized to the real cross-section
+// of the box at that height, so the empty corners above and below a lean do not block. Bands start at the ground under the box's centre.
+const _EDGES = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+function solidTilted(K, m, bandH = 1.6) {
+  m.updateMatrixWorld(true);
+  const bb = m.geometry.boundingBox || (m.geometry.computeBoundingBox(), m.geometry.boundingBox), P = [];
+  for (let i = 0; i < 8; i++) P.push(new THREE.Vector3(i & 1 ? bb.max.x : bb.min.x, i & 2 ? bb.max.y : bb.min.y, i & 4 ? bb.max.z : bb.min.z).applyMatrix4(m.matrixWorld));
+  // the bands start at the lowest ground under the box (or its own underside, if that is higher), so the downhill end is closed too
+  let base = Math.min(K.ground(m.position.x, m.position.z), ...P.map((p) => K.ground(p.x, p.z)));
+  base = Math.max(base, Math.min(...P.map((p) => p.y)));
+  const top = Math.max(...P.map((p) => p.y)), n = Math.max(1, Math.ceil((top - base) / bandH)), bh = (top - base) / n;
+  for (let k = 0; k < n; k++) {
+    const y = base + (k + 0.5) * bh, pts = [];
+    for (const [a, b] of _EDGES) {
+      const A = P[a], B = P[b];
+      if ((A.y - y) * (B.y - y) <= 0 && A.y !== B.y) { const t = (y - A.y) / (B.y - A.y); pts.push([A.x + (B.x - A.x) * t, A.z + (B.z - A.z) * t]); }
+    }
+    if (pts.length < 3) continue;
+    let mx = 0, mz = 0; for (const p of pts) { mx += p[0] / pts.length; mz += p[1] / pts.length; }
+    let best = null; // the turned rectangle of least area round the cross-section
+    for (let a = 0; a < 18; a++) {
+      const yaw = (a * Math.PI) / 18, c = Math.cos(yaw), sn = Math.sin(yaw);
+      let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
+      for (const p of pts) { const u = (p[0] - mx) * c + (p[1] - mz) * sn, w = -(p[0] - mx) * sn + (p[1] - mz) * c; u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
+      if (!best || (u1 - u0) * (w1 - w0) < best.area) best = { area: (u1 - u0) * (w1 - w0), yaw, c, sn, u0, u1, w0, w1 };
+    }
+    const { yaw, c, sn, u0, u1, w0, w1 } = best, cu = (u0 + u1) / 2, cw = (w0 + w1) / 2, cx = mx + cu * c - cw * sn, cz = mz + cu * sn + cw * c;
+    K.ocollider(cx, cz, Math.max(0.3, u1 - u0), bh + 0.04, Math.max(0.3, w1 - w0), -yaw, base + k * bh - K.ground(cx, cz));
+  }
+}
+
+// H17: K.obox with the skirt on a slope: its mesh reaches down to the lowest ground under the footprint, but K.obox's own collider starts at the centre, so the
+// downhill part of the piece could be walked through. Same look, collider made to match.
+function obox(K, x, z, w, h, d, ry, color, o = {}) {
+  const gc = K.ground(x, z), c = Math.cos(ry), sn = Math.sin(ry);
+  let low = gc;
+  if (!o.y) for (const sx of [-0.5, 0, 0.5]) for (const sz of [-0.5, 0, 0.5]) low = Math.min(low, K.ground(x + sx * w * c + sz * d * sn, z - sx * w * sn + sz * d * c));
+  const m = K.obox(x, z, w, h, d, ry, color, { ...o, collide: false });
+  K.ocollider(x, z, w, h + (gc - low), d, ry, (o.y ?? 0) - (gc - low));
+  return m;
 }
 
 // heap of scrap
 function junkPile(K, x, z, r) {
-  K.cone(x, z, r, r * K.R(0.8, 1.25), K.RP(SCRAP), { sides: 5 });
+  const ch = r * K.R(0.8, 1.25); // H17: the heap is a cone with a collider close to its footprint (K.cone shrinks it to half)
+  K.mesh(new THREE.ConeGeometry(r, ch, 5), K.RP(SCRAP), x, ch / 2, z, { collide: 0.8 });
   for (let i = 0; i < 2; i++) {
     const a = K.R(0, 6.28), rr = r * K.R(0.3, 0.8);
     const m = K.box(x + Math.sin(a) * rr, z + Math.cos(a) * rr, K.R(1, 2.5), K.R(0.4, 1.4), K.R(1, 2.5), K.RP(SCRAP), { y: K.R(0, r * 0.4), collide: false });
     m.rotation.set(K.R(-0.6, 0.6), K.R(0, 3), K.R(-0.6, 0.6));
+    m.userData.noCollide = true; // loose scrap lying on the heap
   }
   if (K.chance(0.4)) beam(K, [x, 0, z], [x + K.R(-2, 2), r * 1.7, z + K.R(-2, 2)], 0.12, K.C.metal);
 }
@@ -314,13 +364,14 @@ function cliffRun(K, face, z0, z1, dir, hMin, hMax, o = {}) {
 
 // Hive growth: chitin lump with glowing green crystals
 function hiveGrowth(K, x, z, s = 1, y = 0, collide = false) {
-  const m = K.mesh(geo().rock, CHITIN, x, y + s * 0.4, z, { ry: K.R(0, 3) });
-  m.scale.set(s * 1.3, s * 0.8, s * 1.2);
+  // H17: a lump on the ground is solid (turned collider inside the rock); one up on a roof is out of reach and the audit skips it
+  const solidLump = y < 1.5, m = K.mesh(geo().rock, CHITIN, x, y + s * 0.4, z, { ry: K.R(0, 3), scale: [s * 1.3, s * 0.8, s * 1.2], collide: solidLump ? 0.75 : undefined });
+  if (!solidLump) m.userData.noCollide = true;
   for (let i = 0; i < 3; i++) {
     const c = K.mesh(geo().cone, HIVE, x + K.R(-s, s), y + s * 1.1, z + K.R(-s, s), { rx: K.R(-0.5, 0.5), rz: K.R(-0.5, 0.5), glow: 1.1 });
     c.scale.set(s * 0.3, s * K.R(1.2, 2.2), s * 0.3);
+    c.userData.noCollide = true; // crystals on the lump
   }
-  if (collide) K.collider(x - s, y, z - s, x + s, y + s * 1.6, z + s, m);
 }
 
 // big Hive crystal cluster (boss cavern)
@@ -329,19 +380,18 @@ function hiveCrystals(K, x, z, s = 1) {
     const h = s * K.R(3.5, 8), r = s * K.R(0.6, 1.2);
     const c = K.mesh(geo().cone, i ? HIVE : 0xb8ff9a, x + K.R(-1.4, 1.4) * s, h / 2 - 0.3, z + K.R(-1.4, 1.4) * s, { rx: K.R(-0.35, 0.35), rz: K.R(-0.35, 0.35), glow: 0.9 });
     c.scale.set(r, h, r);
+    c.userData.noCollide = true; // the collider below stands for the whole cluster
   }
   const base = K.mesh(geo().rock, CHITIN, x, 0.3, z, { ry: K.R(0, 3) });
   base.scale.set(2.2 * s, 1 * s, 2.2 * s);
-  K.collider(x - 1.8 * s, 0, z - 1.8 * s, x + 1.8 * s, 5 * s, z + 1.8 * s, base);
+  K.collider(x - 1.55 * s, 0, z - 1.55 * s, x + 1.55 * s, 5 * s, z + 1.55 * s, base); // H17: inside the round base, not its corners
 }
 
 // tilted crashed hull plate, mostly along x (ry small) or along z (ry ~ PI/2)
 function plate(K, x, z, w, h, t, alongX, lean, color) {
   const m = K.box(x, z, alongX ? w : t, h, alongX ? t : w, color ?? K.RP(HULL), { y: -0.6, collide: false });
   if (alongX) m.rotation.x = lean; else m.rotation.z = lean;
-  const sway = Math.abs(Math.sin(lean)) * h * 0.35 + t / 2 + 0.3;
-  if (alongX) K.collider(x - w / 2, 0, z - sway, x + w / 2, h * 0.8, z + sway, m);
-  else K.collider(x - sway, 0, z - w / 2, x + sway, h * 0.8, z + w / 2, m);
+  solidTilted(K, m, 1.2); // H17: slabs that follow the lean (a plate's square collider blocked its empty corners)
   if (K.chance(0.5)) { // orange Fallen stripe
     const s = K.box(x, z, alongX ? w * 0.7 : t + 0.08, 0.35, alongX ? t + 0.08 : w * 0.7, LANT, { y: h * 0.45, collide: false, glow: 0.8 });
     if (alongX) s.rotation.x = lean; else s.rotation.z = lean;
@@ -359,14 +409,14 @@ function ribs(K, x, z, ry, span, h, n = 3, gap = 4) {
       const [ax, az] = P(sd * span / 2, lz), [bx, bz] = P(sd * (span / 2 + 1.2), lz), [cx, cz] = P(sd * span / 5, lz);
       beam(K, [ax, -0.5, az], [bx, h * 0.6, bz], 0.4, HULL[0]);
       beam(K, [bx, h * 0.6, bz], [cx, h, cz], 0.32, HULL[1]);
-      K.collider(ax - 0.6, 0, az - 0.6, ax + 0.6, h * 0.5, az + 0.6, null);
+      K.collider(ax - 0.5, 0, az - 0.5, ax + 0.5, h * 0.4, az + 0.5, null);
     }
   }
 }
 
 // Scorn totem of bone and scrap with an ether glow
 function totem(K, x, z, h = 6) {
-  K.box(x, z, 1.4, 1.2, 1.4, K.RP(SCRAP));
+  K.box(x, z, 1.4, 1.3, 1.4, K.RP(SCRAP)); // H17: 1.3 not 1.2, so the top is clear of the 1.2 m body-height sample
   K.box(x, z, 0.45, h, 0.45, BONE, { collide: false });
   beam(K, [x - 1.3, h * 0.55, z - 0.3], [x + 1.3, h * 0.78, z + 0.3], 0.12, BONE);
   beam(K, [x - 1.3, h * 0.78, z + 0.3], [x + 1.3, h * 0.55, z - 0.3], 0.12, BONE);
@@ -443,7 +493,7 @@ function interior(K, x, z, w, d, lamp = LANT) {
 
 /** U17f: the helpers and tones the Tangled Shore patrol zone (js/patrol-tangled.js) builds with. */
 export const TANGLED_KIT = {
-  beam, cable, chainSpan, chain, floater, shanty, banner, lanternString, skiff, minePod, junkPile, holedWall, hiveGrowth, hiveCrystals, plate, ribs, totem, etherCan, spikes, crane, hullWall, crateHeap,
+  beam, cable, chainSpan, chain, floater, shanty, banner, lanternString, skiff, minePod, junkPile, holedWall, hiveGrowth, hiveCrystals, plate, solidTilted, ribs, totem, etherCan, spikes, crane, hullWall, crateHeap,
   C: { SCRAP, CLOTH, HULL, LANT, ROPE, DARK, IRON, BONE, ETHER, HIVE, CHITIN, PAPER },
 };
 
@@ -498,7 +548,7 @@ export default {
       shanty(K, 32, 22, 6, 7, 5, 'w', { poster: 1 });
       banner(K, -5, 9, 7); banner(K, 5, 9, 7);
       for (const [x, z] of [[-55, -4], [-60, -22], [56, -6], [62, -24], [-52, 26], [55, 28]]) K.prop(x, z);
-      K.rock(-62, 8, 4.5); K.rock(64, 10, 5);
+      rock(K, -62, 8, 4.5); rock(K, 64, 10, 5);
 
       // --- Cutpurse Row: shanty rows up the hillside, the main alley x -5.5..5.5, side alleys beyond
       packBlock(K, -19, -5.5, -22, 6, { face: 'e', poster: 0.35 });
@@ -552,7 +602,7 @@ export default {
       // the shelf's back edge and the descent
       for (const [x, z, w, d] of [[-30, -88, 22, 16], [-8, -90, 20, 14], [12, -88, 14, 14], [-52, -86, 20, 20]]) K.box(x, z, w, K.R(8, 13), d, K.RP([C.rock, C.rock2]));
       cliffRun(K, -62, -60, -98, -1, 8, 14, { jog: 2 });
-      for (const [x, z] of [[-58, -34], [-60, -70]]) K.rock(x, z, K.R(3.5, 5));
+      for (const [x, z] of [[-58, -34], [-60, -70]]) rock(K, x, z, K.R(3.5, 5));
       for (const [x, z, w, d] of [[17, -90, 12, 22], [47, -90, 12, 24], [52, -66, 12, 14]]) K.box(x, z, w, K.R(9, 13), d, K.RP([C.rock, C.rock2]));
       for (const [x, z] of [[56, -36], [62, -54], [60, -80], [64, -20]]) junkPile(K, x, z, K.R(3.5, 5.5));
       for (const [x, z] of [[-50, -30], [40, -70]]) banner(K, x, z, 6);
@@ -562,13 +612,13 @@ export default {
       K.box(32, -98, 20, 4, 4.5, C.rock, { y: 11 });
       K.rock(32, -98, 3, { y: 13.5, collide: false });
       K.box(46, -122, 22, 0.2, 20, 0x2c3448, { collide: false }); // dark tide pool
-      for (const [x, z] of [[40, -126], [52, -132], [28, -134]]) K.rock(x, z, K.R(1.8, 2.8));
+      for (const [x, z] of [[40, -126], [52, -132], [28, -134]]) rock(K, x, z, K.R(1.8, 2.8));
       skiff(K, 52, -108, 1.2, 1.1);
       for (const [x, z, w, d] of [[34, -134, 7, 1.2], [14, -122, 1.2, 6], [26, -112, 5, 1.2], [44, -140, 6, 1.2]]) K.box(x, z, w, 1.4, d, K.RP(SCRAP)); // cover walls of scrap plate
       for (const [x, z] of [[30, -128], [46, -110], [18, -136]]) crateHeap(K, x, z);
       shanty(K, 10, -108, 6, 5, 4, 'e', { poster: 1 }); // smuggler hut
       cliffRun(K, -22, -100, -146, -1, 10, 18, { jog: 4 }); // rock mass west of the cove
-      for (const [x, z] of [[-10, -108], [2, -128], [-4, -118]]) K.rock(x, z, K.R(2, 3.5));
+      for (const [x, z] of [[-10, -108], [2, -128], [-4, -118]]) rock(K, x, z, K.R(2, 3.5));
       // the great holed wall closing the cove (four holes; the door hole is the way on, the east hole is a smugglers' tunnel)
       holedWall(K, 'x', -147, -22, 75, 15, 5, [[-8, -2, 5, 10], [16, 24, 0, 8.5], [42, 48, 6, 11], [57, 64, 0, 9.5]]);
       lanternString(K, [16, 6, -143], [24, 6, -143], 3, 0.5);
@@ -595,8 +645,8 @@ export default {
       K.light(20, 6, -153, LANT, 8, 20);
       // wreck rows: two broken lines of stacked hulls make three lanes (west scrap lane, the centre minefield lane, the east lane)
       const stack = (x, z, w, d, h, ry) => {
-        K.obox(x, z, w, h, d, ry, K.RP(HULL));
-        K.obox(x + K.R(-0.6, 0.6), z + K.R(-1, 1), w * 0.7, h * 0.6, d * 0.45, ry, K.RP(SCRAP), { y: h });
+        obox(K, x, z, w, h, d, ry, K.RP(HULL));
+        obox(K, x + K.R(-0.6, 0.6), z + K.R(-1, 1), w * 0.7, h * 0.6, d * 0.45, ry, K.RP(SCRAP), { y: h });
         K.box(x, z, w + 0.1, 0.3, 0.1, LANT, { y: h * 0.5, collide: false, glow: 0.8 });
       };
       for (const [x, z, w, d, h, ry] of [[-3, -163, 6, 12, 3.2, 0.05], [-4, -184, 6.5, 18, 4.4, -0.04], [-2, -206, 6, 13, 3.2, 0.08],
@@ -613,9 +663,9 @@ export default {
       crateHeap(K, 36, -160); crateHeap(K, 35, -212);
       for (const [x, z] of [[-9, -172], [-9, -198], [17, -158]]) K.crate(x, z);
       // Araskes's stage: the raised scrap dais at the north end with banners and a bounty board
-      for (const sx of [-1, 1]) K.box(bx + sx * 11.6, -209, 0.6, 2.2, 12, K.C.metal, { collide: false, y: 0 });
+      for (const sx of [-1, 1]) K.box(bx + sx * 11.6, -209, 0.6, 2.2, 12, K.C.metal, { y: 0 }); // H17: the stage flanks are solid panels
       banner(K, bx - 8, bz - 21, 7); banner(K, bx + 8, bz - 21, 7);
-      K.box(bx, -214.3, 12, 3.4, 0.4, 0x4a3a30);
+      K.box(bx, -214.3, 12, 3.4, 0.6, 0x4a3a30); // H17: 0.6 thick (was 0.4)
       for (const dx of [-4, -1.4, 1.4, 4]) poster(K, bx + dx, 1.6, -214.0, false, 1);
       // scrap crane and its magnet over the yard
       crane(K, -18, -208, 24, -2.16, 21.6);
@@ -677,7 +727,7 @@ export default {
       cliffRun(K, -46, 30, -14, -1, 16, 26);
       K.box(-52, -48, 6, 16, 70, C.rock2); // seals the strip beyond the camp's west rim
       for (const [x, z, w, d] of [[44, -36, 22, 56], [44, -4, 20, 24], [50, -72, 12, 22], [-52, -86, 6, 24]]) K.box(x, z, w, K.R(12, 16), d, K.RP([C.rock, C.rock2]));
-      for (const [x, z] of [[40, 18], [-30, 12], [-44, 20], [26, -8]]) K.rock(x, z, K.R(3, 5));
+      for (const [x, z] of [[40, 18], [-30, 12], [-44, 20], [26, -8]]) rock(K, x, z, K.R(3, 5));
       for (const [x, z] of [[-12, 4], [18, 8]]) K.crate(x, z);
       banner(K, 2, 4, 7); banner(K, 11, 4, 7);
 
@@ -692,13 +742,13 @@ export default {
       K.light(-38, 4, -52, LANT, 8, 18);
       K.light(-38, 4, -45, HIVE, 4, 10);
       // the camp, packed round its fire; the east half of the ledge stays an open firing lane with a few rocks and cages
-      K.cone(-20, -40, 0.8, 1.2, LANT, { glow: 2, collide: false });
+      K.cone(-20, -40, 0.8, 1.2, LANT, { glow: 2, collide: false }).userData.noCollide = true; // H17: flame
       for (let i = 0; i < 6; i++) K.box(-20 + Math.sin(i) * 1.2, -40 + Math.cos(i) * 1.2, 0.5, 0.35, 0.5, C.rock2, { collide: false });
       for (const [x, z] of [[-29, -33], [-29, -46], [-17, -29], [-25, -56]]) K.cone(x, z, 2.6, 3.2, K.RP(CLOTH), { sides: 4 });
       for (const [x, z] of [[-27, -40], [-14, -50]]) { // pelt and net racks
         K.box(x, z - 1.6, 0.2, 2.6, 0.2, C.metal); K.box(x, z + 1.6, 0.2, 2.6, 0.2, C.metal);
         K.box(x, z, 0.1, 0.12, 3.4, C.metal, { y: 2.5, collide: false });
-        K.box(x, z, 0.05, 1.6, 2.8, 0x6a5a4a, { y: 0.8, collide: false });
+        K.box(x, z, 0.05, 1.6, 3.2, 0x6a5a4a, { y: 0.8, collide: false }).userData.noCollide = true; // H17: reaches its posts (hung in the air between them); a pelt, walked through
       }
       for (const [x, z] of [[2, -24], [-6, -60], [8, -56]]) { // trapper's cages
         K.box(x, z, 2, 0.15, 2, IRON, { y: 2.2, collide: false });
@@ -708,7 +758,7 @@ export default {
       for (const sx of [-1.4, 1.4]) for (const sz of [-1.4, 1.4]) K.box(16 + sx, -34 + sz, 0.4, 7, 0.4, C.metal); // a trapper's watchtower, the camp's landmark
       K.box(16, -34, 4.4, 0.3, 4.4, K.RP(SCRAP), { y: 7, collide: false }); K.box(16, -34, 3, 1.8, 3, 0x5a4a44, { y: 7.3, collide: false });
       K.box(16, -32.4, 0.5, 0.5, 0.2, LANT, { y: 8.4, collide: false, glow: 1.8 }); chain(K, 17.6, 7, -34, 3, 'cage');
-      for (const [x, z, s] of [[-6, -33, 1.8], [2, -46, 2.2], [10, -37, 1.6], [16, -48, 2], [-1, -20, 1.5]]) K.rock(x, z, s);
+      for (const [x, z, s] of [[-6, -33, 1.8], [2, -46, 2.2], [10, -37, 1.6], [16, -48, 2], [-1, -20, 1.5]]) rock(K, x, z, s);
       banner(K, -33, -34, 7, true); banner(K, -33, -48, 7, true);
       shanty(K, 22, -30, 6, 5, 4, 'w', { poster: 1, hive: 0 });
       shanty(K, 21, -56, 5, 6, 4.5, 'w');
@@ -719,8 +769,9 @@ export default {
       for (let z = -84; z > -150; z -= K.R(8, 11)) { // rock crowns and overhanging lips along both rims
         K.box(-31, z, K.R(7, 12), K.R(2, 6), 8, K.RP([C.rock, C.rock2]));
         K.box(32, z - 2, K.R(7, 12), K.R(2, 6), 8, K.RP([C.rock, C.rock2]));
-        K.box(-21.8, z - 4, 3.2, 3, 7, C.rock2, { y: 12.5, abs: true, collide: false });
-        K.box(21.8, z - 1, 3.2, 3, 7, C.rock, { y: 14.5, abs: true, collide: false });
+        // H17: overhanging lips set into the gorge wall above the ledges, out of reach
+        K.box(-21.8, z - 4, 3.2, 3, 7, C.rock2, { y: 12.5, abs: true, collide: false }).userData.noCollide = true;
+        K.box(21.8, z - 1, 3.2, 3, 7, C.rock, { y: 14.5, abs: true, collide: false }).userData.noCollide = true;
       }
       for (const z of [-86, -100, -120, -142]) {
         chainSpan(K, [-22, K.R(17, 20), z], [22, K.R(17, 20), z + K.R(-4, 4)], K.R(3, 5));
@@ -732,14 +783,14 @@ export default {
       for (const x of [-16, -8, 0, 8, 16]) for (const rz of [-122.5, -125.5]) K.box(x, rz, 0.14, 1.3, 0.14, ROPE, { y: 6, collide: false });
       K.box(0, -124, 1.2, 0.5, 1.2, LANT, { y: 7.5, collide: false, glow: 1.4 });
       // floor cover, placed along the lanes: rocks, scrap plates and a wrecked skiff
-      for (const [x, z, s] of [[-12, -92, 2.2], [11, -98, 2.6], [-9, -110, 1.8], [14, -118, 2.2], [-12, -134, 2.4], [-2, -148, 2]]) K.rock(x, z, s);
+      for (const [x, z, s] of [[-12, -92, 2.2], [11, -98, 2.6], [-9, -110, 1.8], [14, -118, 2.2], [-12, -134, 2.4], [-2, -148, 2]]) rock(K, x, z, s);
       for (const [x, z, w, d] of [[-5, -96, 5, 0.8], [6, -108, 0.8, 5], [-4, -126, 4, 0.8], [8, -136, 5, 0.8]]) K.box(x, z, w, 1.6, d, K.RP(SCRAP));
       skiff(K, -13, -144, 0.3, 1);
       for (const [x, z] of [[-18, -92], [18, -108], [-17, -146]]) { // wall lamps
         K.box(x, z, 0.3, 4, 0.3, C.metal); K.box(x, z, 0.5, 0.5, 0.5, LANT, { y: 4, collide: false, glow: 2 });
       }
       // the ledges: a sniper nest on the west, a brazier and cages on the east
-      K.crate(-21, -127); K.crate(-22.4, -125.8); K.box(-22.5, -120, 0.4, 3, 6, 0x5a3a7a, { collide: false });
+      K.crate(-21, -127); K.crate(-22.4, -125.8); K.box(-22.5, -120, 0.4, 3, 6, 0x5a3a7a, { collide: false }).userData.noCollide = true; // H17: hung cloth
       K.cyl(21, -127, 0.7, 1, IRON, { sides: 6 }); K.cone(21, -127, 0.5, 1, LANT, { y: 1, glow: 2, collide: false });
       chain(K, 21, 14, -120, 4, 'cage');
       K.light(0, 12, -112, LANT, 8, 34);
@@ -785,7 +836,7 @@ export default {
       }
       K.box(-20, -223.5, 12, 18, 3, C.rock); K.box(20, -223.5, 12, 18, 3, C.rock2);
       K.box(0, -223.5, 14, 4, 3, C.rock, { y: 14 });
-      K.box(-6.6, -221.8, 0.2, 9, 0.6, HIVE, { glow: 1, collide: false }); K.box(6.6, -221.8, 0.2, 9, 0.6, HIVE, { glow: 1, collide: false });
+      K.box(-6.6, -221.8, 0.2, 9, 0.6, HIVE, { glow: 1, collide: false }).userData.noCollide = true; K.box(6.6, -221.8, 0.2, 9, 0.6, HIVE, { glow: 1, collide: false }).userData.noCollide = true; // H17: glow strips on the wall
       // the walls bulge inward in a few big masses; the shelf at the back is lined with tall stalagmites
       for (const [x, z, w, d, h] of [[-22.5, -238, 7, 9, 10], [-23.5, -262, 5, 11, 9], [23, -246, 6, 12, 11], [21, -268, 9, 7, 10], [-13, -272.5, 8, 4, 8]]) K.box(x, z, w, h, d, K.RP([C.rock, C.rock2]));
       for (const [x, z, h] of [[-4, -269, 6], [3, -268, 4.5], [-13, -267, 7]]) K.cone(x, z, 1.4, h, C.rock2, { sides: 5 });
@@ -806,7 +857,7 @@ export default {
       }
       for (const [x, z, s] of [[-17, -238, 1.1], [18, -242, 1], [-19, -253, 1.3], [17, -265, 1.2], [9, -232, 0.8]]) hiveCrystals(K, x, z, s);
       for (const [x, z, ry] of [[-11, -256, 0.2], [12, -238, -0.3]]) { // two consoles, at odd angles
-        K.obox(x, z, 2, 1.3, 1.2, ry, 0x3a3848);
+        obox(K, x, z, 2, 1.3, 1.2, ry, 0x3a3848);
         K.box(x, z + 0.62, 1.6, 0.6, 0.06, 0xc37aff, { y: 0.6, collide: false, glow: 1.6 }).rotation.y = ry;
       }
       K.box(-14, -246, 1, 9, 1, 0x3a3848); K.box(-14, -246, 0.5, 0.5, 0.5, 0x7ab8ff, { y: 9, glow: 2, collide: false }); // a shock pylon
@@ -875,6 +926,7 @@ export default {
       // the listing ketch along the west edge, with a roofed passage through its hull (a flank with a catwalk)
       const ketch = K.box(-71, -55, 10, 12, 58, 0x4e4a5c, { y: -2, collide: false });
       ketch.rotation.z = 0.32;
+      solidTilted(K, ketch, 2); // H17: the listing hull is solid, to its lean
       K.room(-62, -56, 10, 34, 7, { t: 1, doors: { s: 4, n: 4 }, roof: true, color: 0x4e4a5c, roofColor: 0x3e3a48 });
       K.platform(-64.2, -56, 2.6, 20, 2.4, { stairs: ['s'], stairW: 2.4, color: 0x5c5a66 });
       K.box(-62, -56, 8, 0.12, 31, 0x2a2630, { collide: false });
@@ -883,15 +935,15 @@ export default {
       K.light(-62, 4, -62, 0xc37aff, 6, 14);
       for (const z of [-40, -48, -64, -72]) K.box(-56.8, z, 0.3, 1.2, 2.4, 0xc37aff, { y: 4, collide: false, glow: 1.2 });
       const prow = K.box(-64, -92, 10, 10, 10, 0x3e3a48, { y: -1, collide: false }); prow.rotation.set(0.3, 0.78, 0.32);
-      K.collider(-70, 0, -97, -59, 7, -87, prow);
+      solidTilted(K, prow, 1.5); // H17: collider follows the tilt
       ribs(K, -64, -14, 0, 16, 14, 3, 4.5);
       // freighter bow buried nose-first on its own hill
       const bow = K.box(8, -26, 9, 30, 9, 0x6a6a70, { y: -4, collide: false }); bow.rotation.set(0.55, 0.3, 0);
-      K.collider(2, 0, -34, 14, 9, -20, bow);
+      solidTilted(K, bow, 1.5); // H17: collider follows the tilt
       K.box(8, -26, 9.2, 1.2, 9.2, 0xb8a060, { y: 6, collide: false }).rotation.set(0.55, 0.3, 0);
       // engine section on its side
       const eng = K.mesh(geo().cyl, 0x5c5a66, -44, 5, -92, { rz: Math.PI / 2 }); eng.scale.set(5, 15, 5);
-      K.collider(-51.5, 0, -97, -36.5, 9, -87, eng);
+      K.collider(-51.5, 1.2, -96.3, -36.5, 8.8, -87.7, eng); // H17: a round hull on its side: the belly, inside the circle (the old box was the full square)
       K.mesh(geo().cyl, LANT, -36.4, 5, -92, { rz: Math.PI / 2, glow: 0.8 }).scale.set(3.6, 0.3, 3.6);
       skiff(K, 56, -30, 0.7, 2.4);
       ribs(K, 46, -58, 1.2, 12, 10, 2, 5);
@@ -901,7 +953,7 @@ export default {
         [-48, -36, 6, true, -0.4], [-40, -64, 6, true, -0.5], [-20, -60, 6, true, 0.4], [-8, -76, 7, true, -0.3], [28, -4, 6, true, 0.3], [38, -16, 7, false, 0.35], [26, -56, 6, false, -0.35]]) plate(K, x, z, w, K.R(3, 5), 0.5, al, ln);
       for (const [x, z] of [[-41, -30], [-22, -42], [-34, -56]]) plate(K, x, z, K.R(3, 4), K.R(1.6, 2.4), 0.4, K.chance(0.5), K.R(-0.4, 0.4)); // low cover in the fight area
       for (const [x, z] of [[-22, -32], [-38, -42], [-26, -58], [8, -12], [-50, -22]]) K.cone(x, z, 0.5, 1.1, LANT, { glow: 2, collide: false }); // small fires
-      for (const [x, z, s] of [[-18, 0, 1.6], [-40, -18, 1.4], [-22, -18, 1.2], [4, -58, 1.6], [24, -18, 1.4]]) K.rock(x, z, s);
+      for (const [x, z, s] of [[-18, 0, 1.6], [-40, -18, 1.4], [-22, -18, 1.2], [4, -58, 1.6], [24, -18, 1.4]]) rock(K, x, z, s);
       crane(K, -14, -70, 16, 0.6, 10); crane(K, 30, -8, 14, -1.2, 10); // salvage cranes working the wrecks
       skiff(K, -12, -14, 0.9, 2); skiff(K, 20, -66, -0.6, 1.8);
       K.light(-30, 4, -45, LANT, 8, 26);

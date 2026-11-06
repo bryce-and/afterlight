@@ -16,6 +16,27 @@ function vbox(K, x, y, z, w, h, d, color, o = {}) {
   return K.mesh(UB(), color, x, y, z, { rx: o.rx, ry: o.ry, rz: o.rz, scale: [w, h, d], glow: o.glow });
 }
 
+// H17: marks a piece as walk-through on purpose (decals, plates hugging a solid piece, scenery out of reach) so tools/collidecheck.js skips it
+function soft(m) { m.userData.noCollide = true; return m; }
+
+// H17: stacked axis-aligned colliders that follow a box leaning in the x-y plane (axis 'z') or the z-y plane (axis 'x'); one box round the whole lean is a wide
+// diamond of air. (cx, cy, cz) is the box centre (cy above the ground at cx, cz), T its thickness in the lean plane, D its other horizontal width, Hh its length along
+// the lean axis, a the lean angle. o.s0 / o.s1: the stretch to cover, measured from the centre along the axis; o.maxY: stop once a slice starts above this height.
+function leanColliders(K, cx, cy, cz, T, D, Hh, a, axis, o = {}) {
+  const step = o.step ?? 3, ca = Math.cos(a), sa = Math.sin(a), g0 = o.g0 ?? K.ground(cx, cz); // o.g0: the ground that cy is measured from
+  const s0 = o.s0 ?? -Hh / 2, s1 = o.s1 ?? Hh / 2;
+  for (let s = s0; s < s1 - 0.05; s += step) {
+    const l = Math.min(step, s1 - s), sc = s + l / 2;
+    const hx = Math.abs(ca) * T / 2 + Math.abs(sa) * l / 2, hy = Math.abs(sa) * T / 2 + Math.abs(ca) * l / 2;
+    const px = axis === 'z' ? cx - sa * sc : cx, pz = axis === 'x' ? cz + sa * sc : cz, py = cy + ca * sc;
+    const gs = K.ground(px, pz), lo = g0 + py - hy - gs, hi = g0 + py + hy - gs;
+    if (lo > (o.maxY ?? 99)) break;
+    if (g0 + py + hy < (o.floor ?? -Infinity)) continue; // o.floor: slices that end below this world height are under the ground
+    if (axis === 'z') K.collider(px - hx, lo, pz - D / 2, px + hx, hi, pz + D / 2, null);
+    else K.collider(px - D / 2, lo, pz - hx, px + D / 2, hi, pz + hx, null);
+  }
+}
+
 // several boxes as one rotated group (ship hulls, statues). parts: [w, h, d, px, py, pz, color, { rx, ry, rz, glow }]
 function group(K, parts, x, y, z, rot = {}) {
   const g = new THREE.Group();
@@ -68,11 +89,11 @@ function bulwark(K, x1, z1, x2, z2, h, o = {}) {
     B(mid, 0, L, h * 0.3, t, col, 0);
     B(mid, -face * t * 0.15, L - 0.06, h * 0.4, t * 0.68, col2, h * 0.3);
     B(mid, -face * t * 0.27, L - 0.12, h * 0.3, t * 0.4, col, h * 0.7);
-    V(mid, (zf + zc) / 2, h * 0.65, L - 0.03, plen, 0.45, col, horiz ? { rx: -face * ang } : { rz: face * ang });
+    soft(V(mid, (zf + zc) / 2, h * 0.65, L - 0.03, plen, 0.45, col, horiz ? { rx: -face * ang } : { rz: face * ang })); // H17: the plate hugs the plinth's edge (the solid blocks below carry the collision)
     V(mid, -face * t * 0.07 + face * 0.1, h * 0.88, L - 0.09, 0.3, 0.2, HAZ, { glow: 1.3 });
     if (L > rib * 1.2) {
       for (let s = a + rib / 2, k = 0; s < b - 1; s += rib, k++) {
-        V(start + s, face * t * 0.5, h * 0.4, 0.9, h * 0.8, 0.9, col2);
+        soft(V(start + s, face * t * 0.5, h * 0.4, 0.9, h * 0.8, 0.9, col2)); // H17: ribs sit on the plinth's edge
         if (k % 2 === 0) V(start + s, face * (t * 0.5 + 0.5), h * 0.3, 0.5, 0.5, 0.2, HAZ, { glow: 1.6 });
       }
     }
@@ -91,11 +112,12 @@ function pylon(K, x, z, h, o = {}) {
 // Cabal drop pod, slightly tilted where it slammed in, hazard ring at its foot
 function dropPod(K, x, z, o = {}) {
   const y = o.y ?? 0, tilt = o.tilt ?? K.R(-0.18, 0.18), collide = o.collide ?? true;
-  K.mesh(new THREE.CylinderGeometry(1.0, 1.7, 4.6, 6), CAB2, x, y + 2.1, z, { rz: tilt, collide: collide ? 0.72 : false });
+  K.mesh(new THREE.CylinderGeometry(1.0, 1.7, 4.6, 6), CAB2, x, y + 2.1, z, { rz: tilt });
+  if (collide) leanColliders(K, x, y + 2.1, z, 2.9, 2.9, 4.6, tilt, 'z', { step: 1.6 }); // H17: slices along the tilt instead of one box round the whole lean
   K.mesh(new THREE.ConeGeometry(1.0, 1.4, 6), CAB3, x - Math.sin(tilt) * 4.9, y + 5.0, z, { rz: tilt });
   K.mesh(new THREE.CylinderGeometry(1.78, 1.78, 0.35, 6), HAZ, x - Math.sin(tilt) * 0.6, y + 0.6, z, { rz: tilt, glow: 1.4 });
-  vbox(K, x + 2.1, y + 0.25, z + 0.4, 1.5, 0.3, 2.4, CAB, { ry: K.R(-0.6, 0.6), rz: 0.2 });
-  K.mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.05, 8), 0x3b2117, x, y + 0.14, z);
+  soft(vbox(K, x + 2.1, y + 0.25, z + 0.4, 1.5, 0.3, 2.4, CAB, { ry: K.R(-0.6, 0.6), rz: 0.2 })); // H17: loose plate and scorch mark on the ground, nothing to bump into
+  soft(K.mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.05, 8), 0x3b2117, x, y + 0.14, z));
 }
 
 // visual landing pad (no collider so it never lifts enemies off y = 0), with corner lamp posts
@@ -134,7 +156,8 @@ function bunker(K, x, z, w, d, h, o = {}) {
   K.box(x, z, w, h, d, o.color ?? CAB);
   K.box(x, z, w * 0.7, h * 0.35, d * 0.7, CAB2, { y: h });
   vbox(K, x, h * 0.72, z, w + 0.12, 0.3, d + 0.12, HAZ, { glow: 1.2 });
-  vbox(K, x, h * 0.32, z + (d / 2 + 0.05) * (o.door ?? 1), w * 0.35, h * 0.6, 0.1, CAB3);
+  const dz = z + (d / 2 + 0.05) * (o.door ?? 1), drop = K.ground(x, dz) - Math.min(K.ground(x - w * 0.175, dz), K.ground(x + w * 0.175, dz)); // H17: down to the ground on a slope
+  vbox(K, x, h * 0.32 - drop / 2, dz, w * 0.35, h * 0.6 + drop, 0.1, CAB3);
 }
 
 // stacked Cabal supply containers (cover)
@@ -153,39 +176,42 @@ function tower(K, x, z, w, d, len, o = {}) {
   const ux = axis === 'z' ? -Math.sin(lean) : 0, uz = axis === 'x' ? Math.sin(lean) : 0, uy = Math.cos(lean);
   const rx = axis === 'x' ? lean : 0, rz = axis === 'z' ? lean : 0;
   const at = (s) => [x + ux * s, y0 + uy * s, z + uz * s];
+  // H17: every part is placed at a height measured from the ground under the tower's foot (vbox alone would measure it from the ground under the part, which floats the
+  // bands and the crown of a tower that leans out over rising ground)
+  const G0 = K.ground(x, z), tbox = (px, py, pz, ...r) => vbox(K, px, py + G0 - K.ground(px, pz), pz, ...r);
   const m = K.mesh(new THREE.BoxGeometry(w, len, d).translate(0, len / 2, 0), color, x, y0, z, { rx, rz });
   const step = o.bandStep ?? 3.4;
   for (let s = sink + 1.5; s < len - 1.2; s += step) {
     const [px, py, pz] = at(s);
-    vbox(K, px, py, pz, w + 0.14, 1.1, d + 0.14, GLASS, { rx, rz });
+    soft(tbox(px, py, pz, w + 0.14, 1.1, d + 0.14, GLASS, { rx, rz })); // H17: glass band hugging the tower
   }
   // broken crown and a stub of exposed frame
   const [tx, ty, tz] = at(len + 0.9);
-  vbox(K, tx + w * 0.15, ty, tz, w * 0.55, 1.8, d * 0.7, color, { rx: rx + 0.15, rz: rz - 0.1 });
+  tbox(tx + w * 0.15, ty, tz, w * 0.55, 1.8, d * 0.7, color, { rx: rx + 0.15, rz: rz - 0.1 });
   const [fx, fy, fz] = at(len + 2.4);
-  vbox(K, fx - w * 0.2, fy, fz + d * 0.2, 0.4, 3, 0.4, 0x6a625a, { rx: rx - 0.2, rz: rz + 0.25 });
+  tbox(fx - w * 0.2, fy, fz + d * 0.2, 0.4, 3, 0.4, 0x6a625a, { rx: rx - 0.2, rz: rz + 0.25 });
   // distinct crowns so the avenue's towers do not read as one primitive: a sloped roof or a crane stub
   if (o.crown === 'slope') {
     const [sx, sy, sz] = at(len + 0.2);
-    vbox(K, sx, sy, sz, w * 1.02, 2.6, d * 1.02, 0xa89c8c, { rx: rx + (axis === 'x' ? 0.55 : 0), rz: rz + (axis === 'z' ? 0.55 : 0) });
+    tbox(sx, sy, sz, w * 1.02, 2.6, d * 1.02, 0xa89c8c, { rx: rx + (axis === 'x' ? 0.55 : 0), rz: rz + (axis === 'z' ? 0.55 : 0) });
   } else if (o.crown === 'crane') {
     const [cx2, cy2, cz2] = at(len + 3);
-    vbox(K, cx2, cy2, cz2, 0.5, 6, 0.5, 0x6a625a, { rx, rz });
-    vbox(K, cx2 + w * 0.7, cy2 + 3, cz2, w * 1.6, 0.4, 0.4, 0x6a625a, { rx, rz });
-    vbox(K, cx2 + w * 1.4, cy2 + 1.2, cz2, 0.12, 3.4, 0.12, HAZ, { glow: 1 });
+    tbox(cx2, cy2, cz2, 0.5, 6, 0.5, 0x6a625a, { rx, rz });
+    tbox(cx2 + w * 0.7, cy2 + 3, cz2, w * 1.6, 0.4, 0.4, 0x6a625a, { rx, rz });
+    tbox(cx2 + w * 1.4, cy2 + 1.2, cz2, 0.12, 3.4, 0.12, HAZ, { glow: 1 });
   }
   // sand drift piled against the base
   const s0 = sink / uy; // where the axis meets the ground
   const [bx, , bz] = at(s0);
   K.mesh(new THREE.SphereGeometry(1, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2), o.sand ?? K.C.ground2, bx, base, bz, { scale: [w * 0.95, 1.6, d * 0.95] });
   if (o.collide !== false) {
-    const maxS = s0 + (o.colH ?? 18) / uy;
-    let first = true;
-    for (let s = s0; s < Math.min(len, maxS); s += 3) {
-      const [px, py, pz] = at(s + 1.5);
-      K.collider(px - w / 2, Math.max(0, py - 1.7), pz - d / 2, px + w / 2, py + 1.7, pz + d / 2, first ? m : null);
-      first = false;
-    }
+    // H17: stacked slices along the lean (tight round the tilted box, measured from the ground under the tower), from where its low edge meets the ground
+    const tl = axis === 'z' ? w : d, oth = axis === 'z' ? d : w;
+    // from the foot (the terrain may fall away under one corner) to colH above the ground; slices that end below the lowest ground under the footprint are skipped; the broken crown is covered too
+    let low = Infinity;
+    for (const sx of [-0.5, 0, 0.5]) for (const sz of [-0.5, 0, 0.5]) low = Math.min(low, K.ground(x + sx * w, z + sz * d));
+    const hi = Math.min(len + 1.8, s0 + (o.colH ?? 18) / uy);
+    leanColliders(K, x + ux * len / 2, y0 + uy * len / 2, z + uz * len / 2, tl, oth, len, lean, axis, { s0: -len / 2, s1: hi - len / 2, maxY: o.colH ?? 18, g0: K.ground(x, z), floor: low });
   }
   return m;
 }
@@ -211,8 +237,9 @@ function harvester(K, x, z, o = {}) {
     [W * 1.9, 0.5, L * 0.18, 0, H * 0.7, L * 0.22, CAB, { rz: 0 }],
   ], x, y, z, { rx: o.rx ?? 0, ry: o.ry ?? 0, rz: o.rz ?? 0 });
   if (o.collide) {
-    // yawed hull: exact oriented footprint (U13a)
-    K.ocollider(x, z, W * 1.6, y + H * 1.2, L * 0.84, o.ry ?? 0);
+    // yawed hull: exact oriented footprint (U13a). H17: a hull lifted on struts (y over 2 m) is solid only from its belly up, so you can walk under it
+    const belly = y > 2 ? y - 0.3 : 0;
+    K.ocollider(x, z, W * 1.6, y + H * 1.2 - belly, L * 0.84, o.ry ?? 0, belly);
   }
 }
 
@@ -272,7 +299,9 @@ function traveler(K, x, y, z, r) {
 
 // tall rock column / cliff piece
 function cliff(K, x, z, r, h, o = {}) {
-  return K.cyl(x, z, r, h, o.color ?? K.RP([K.C.rock, K.C.rock2]), { r2: r * (o.taper ?? 0.72), sides: 7, y: o.y, collide: o.collide });
+  const m = K.cyl(x, z, r, h, o.color ?? K.RP([K.C.rock, K.C.rock2]), { r2: r * (o.taper ?? 0.72), sides: 7, y: o.y, collide: o.collide });
+  if (o.collide === false) soft(m); // H17: rim and wall scenery on terrain nobody can climb
+  return m;
 }
 
 // The Red War siege berms: [cx, cz, length, yaw]. Plain data shared by the terrain list and the parapets built on top.
@@ -433,7 +462,7 @@ export default {
       // optional roofed interior: the lobby of a buried tower, two doors (the avenue side and the cross street)
       K.room(31, -203, 14, 18, 6.4, { t: 0.7, color: GA[1], roofColor: GA[0], roof: true, doors: { w: 5, n: 5 } });
       vbox(K, 31, 0.08, -203, 13, 0.16, 17, PAVE);
-      K.box(31, -208, 7, 1.2, 1.4, STONE2); // reception desk
+      K.box(31, -208, 7, 1.3, 1.4, STONE2); // reception desk (H17: 1.3 so the top is above the 1.2 m a player reaches)
       for (const x of [26.5, 35.5]) K.cyl(x, -198, 0.6, 5.8, STONE, { sides: 6 });
       for (const z of [-199, -207]) vbox(K, 31, 5.9, z, 13, 0.25, 0.4, HAZ, { glow: 1.2 });
       vbox(K, 37.7, 3.4, -203, 0.15, 2.2, 10, GLASS);
@@ -681,7 +710,7 @@ export default {
       }
       vbox(K, 28, 12.6, hz, 2.0, 1.4, 26, CAB3);
       vbox(K, 27.1, 12.1, hz, 0.3, 0.3, 24, HAZ, { glow: 1.6 });
-      vbox(K, 37, 2.7, hz, 18, 5.4, 22, CAB3, { }); // the dock deck outside (visual)
+      soft(vbox(K, 37, 2.7, hz, 18, 5.4, 22, CAB3, { })); // the dock deck outside (visual; H17: beyond the sealed bay, nobody can stand on it)
       vbox(K, 37, 5.45, hz, 17, 0.1, 21, DECK2);
       harvester(K, 38, hz, { L: 26, ry: Math.PI / 2, y: 5.5 });
       // interior: wall ribs, hazard strips, overhead gantries, support pillars
@@ -817,8 +846,8 @@ export default {
       fallenStatue(K, 26, -62, 'e', 0.9);
       // a colossal head half in the sand
       K.mesh(new THREE.BoxGeometry(6, 6.5, 6), STONE, 15, 2.6, -48, { ry: 0.5, rz: 0.35 });
+      K.ocollider(15, -48, 6.6, 6, 5.6, 0.5); // H17: turned with the head (the old axis-aligned box left its corners open and fenced the air)
       K.mesh(new THREE.ConeGeometry(4.6, 4, 4), STONE2, 15.6, 6.4, -48.4, { ry: 0.5 + Math.PI / 4, rz: 0.35 });
-      K.collider(12.3, 0, -50.7, 17.7, 5.4, -45.3, null);
       // broken legs on a plinth
       K.box(-20, -8, 9, 2, 6, STONE2);
       for (const sx of [-1, 1]) K.box(-20 + sx * 2.2, -8, 2.4, 8 + sx, 3, STONE, { y: 2 });
@@ -833,7 +862,7 @@ export default {
       for (const [x, z] of [[-34, -108], [28, -108]]) {
         K.cyl(x, z, 1.0, 1.3, CAB3, { sides: 8 });
         vbox(K, x, 2.0, z + 0.4, 0.7, 2.6, 0.7, CAB2, { rx: -0.6 });
-        vbox(K, x, 0.7, z - 1.6, 1.4, 0.5, 1.0, HAZ, { glow: 1.2 });
+        K.box(x, z - 1.6, 1.4, 0.95, 1.0, HAZ, { glow: 1.2 }); // H17: stands on the ground (it hovered 0.45 m) and is solid
       }
       dropPod(K, -19, -84, { tilt: 0.3 }); // landed on the line and broke it
       for (const [x, z] of [[-40, -92], [14, -92], [-56, -124], [-28, -124], [44, -124], [4, -124], [34, -108]]) {
@@ -888,7 +917,7 @@ export default {
         }
         if (k % 2 === 0) vbox(K, 0, 0.27, zc, 12, 0.05, 0.8, HAZ, { glow: 0.9, rx: rtilt });
       }
-      for (const sx of [-1, 1]) K.mesh(new THREE.CylinderGeometry(0.9, 0.9, 3, 8), CAB3, sx * 6, 0.9, -258.6, { rz: Math.PI / 2 });
+      for (const sx of [-1, 1]) K.mesh(new THREE.CylinderGeometry(0.9, 0.9, 3, 8), CAB3, sx * 6, 0.9, -258.6, { rz: Math.PI / 2, collide: 0.85 }); // H17: solid
       // forward hull prows either side of the ramp
       for (const sx of [-1, 1]) {
         K.box(sx * 44, -246, 22, 10, 22, DECK2);

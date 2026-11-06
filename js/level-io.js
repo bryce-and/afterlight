@@ -22,9 +22,27 @@ const UB = () => _ub || (_ub = new THREE.BoxGeometry(1, 1, 1));
 function vbox(K, x, y, z, w, h, d, color, o = {}) {
   return K.mesh(UB(), color, x, y, z, { rx: o.rx, ry: o.ry, rz: o.rz, scale: [w, h, d], glow: o.glow });
 }
+// H17: marks a piece as walk-through on purpose (decals, plates hugging a solid piece, scenery out of reach) so tools/collidecheck.js skips it
+function soft(m) { m.userData.noCollide = true; return m; }
+// H17: stacked axis-aligned colliders that follow a box leaning in the x-y plane (axis 'z') or the z-y plane (axis 'x'); one box round the whole lean is a wide
+// diamond of air. (cx, cy, cz) is the box centre (cy above the ground at cx, cz), T its thickness in the lean plane, D its other horizontal width, Hh its length along
+// the lean axis, a the lean angle. o.s0 / o.s1: the stretch to cover, measured from the centre along the axis; o.maxY: stop once a slice starts above this height.
+function leanColliders(K, cx, cy, cz, T, D, Hh, a, axis, o = {}) {
+  const step = o.step ?? 2, ca = Math.cos(a), sa = Math.sin(a), g0 = o.g0 ?? K.ground(cx, cz);
+  const s0 = o.s0 ?? -Hh / 2, s1 = o.s1 ?? Hh / 2;
+  for (let s = s0; s < s1 - 0.05; s += step) {
+    const l = Math.min(step, s1 - s), sc = s + l / 2;
+    const hx = Math.abs(ca) * T / 2 + Math.abs(sa) * l / 2, hy = Math.abs(sa) * T / 2 + Math.abs(ca) * l / 2;
+    const px = axis === 'z' ? cx - sa * sc : cx, pz = axis === 'x' ? cz + sa * sc : cz, py = cy + ca * sc;
+    const gs = K.ground(px, pz), lo = g0 + py - hy - gs, hi = g0 + py + hy - gs;
+    if (lo > (o.maxY ?? 99)) break;
+    if (axis === 'z') K.collider(px - hx, lo, pz - D / 2, px + hx, hi, pz + D / 2, null);
+    else K.collider(px - D / 2, lo, pz - hx, px + D / 2, hi, pz + hx, null);
+  }
+}
 // thin flat slab lying on the ground (decals: cracks, channels, markings)
 function flat(K, x, z, w, d, color, o = {}) {
-  return vbox(K, x, o.y ?? 0.03, z, w, o.h ?? 0.05, d, color, { ry: o.ry, glow: o.glow });
+  return soft(vbox(K, x, o.y ?? 0.03, z, w, o.h ?? 0.05, d, color, { ry: o.ry, glow: o.glow }));
 }
 // flat strip from (x1, z1) to (x2, z2)
 function strip(K, x1, z1, x2, z2, w, color, o = {}) {
@@ -32,8 +50,8 @@ function strip(K, x1, z1, x2, z2, w, color, o = {}) {
   return flat(K, (x1 + x2) / 2, (z1 + z2) / 2, Math.hypot(dx, dz) + (o.ext ?? 0.5), w, color, { y: o.y, ry: Math.atan2(-dz, dx), glow: o.glow });
 }
 // jagged polyline of strips
-function crack(K, pts, w, color, o = {}) {
-  for (let i = 1; i < pts.length; i++) strip(K, pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], w * K.R(0.8, 1.15), color, o);
+function crack(K, pts, w, color, o = {}) { // H17: pitched to the slope (tstrip) instead of flat pieces
+  for (let i = 1; i < pts.length; i++) tstrip(K, pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], w * K.R(0.8, 1.15), color, o);
 }
 // translucent effect mesh (steam, light beams, gate film); no collider
 const _fx = {};
@@ -79,9 +97,11 @@ function runs(len, gaps = []) {
 // white mineral spire with a leaning side shard and a crust collar
 function spire(K, x, z, h, o = {}) {
   const r = o.r ?? h * 0.15, y = o.y ?? 0, col = o.collide ?? true;
-  K.cone(x, z, r, h, SPIRE, { sides: 5, y, collide: col });
-  K.mesh(new THREE.ConeGeometry(r * 0.5, h * 0.5, 5), SPIRE2, x + r * 0.75, y + h * 0.22, z + r * 0.3, { rz: -0.32, rx: 0.12 });
-  K.mesh(new THREE.CylinderGeometry(r * 1.25, r * 1.6, 0.6, 6), K.C.ground2, x, y + 0.2, z);
+  const main = K.cone(x, z, r, h, SPIRE, { sides: 5, y, collide: col });
+  const shard = K.mesh(new THREE.ConeGeometry(r * 0.5, h * 0.5, 5), SPIRE2, x + r * 0.75, y + h * 0.22, z + r * 0.3, { rz: -0.32, rx: 0.12 });
+  const collar = K.mesh(new THREE.CylinderGeometry(r * 1.25, r * 1.6, 0.6, 6), K.C.ground2, x, y + 0.2, z);
+  soft(shard); soft(collar); // H17: the side shard and the crust collar hug the solid spire
+  if (!col) soft(main); // H17: rim spires on the far slopes and crater walls, out of reach
 }
 // teal sulfur pool with a white mineral rim (visual only, enemies wade through)
 function pool(K, x, z, r) {
@@ -101,7 +121,9 @@ function mound(K, x, z, w, d, h) {
 }
 // rust-rock column (canyon rims, mesas)
 function cliff(K, x, z, r, h, o = {}) {
-  return K.cyl(x, z, r, h, o.color ?? K.RP([K.C.rock, K.C.rock2]), { r2: r * (o.taper ?? 0.72), sides: 7, y: o.y, collide: o.collide });
+  const m = K.cyl(x, z, r, h, o.color ?? K.RP([K.C.rock, K.C.rock2]), { r2: r * (o.taper ?? 0.72), sides: 7, y: o.y, collide: o.collide });
+  if (o.collide === false) soft(m); // H17: rim columns on canyon walls and mesa edges nobody can climb
+  return m;
 }
 // flat-topped mesa plateau with strata and a sulfur stain band
 function mesa(K, x, z, w, d, h) {
@@ -137,9 +159,16 @@ function bulwark(K, x1, z1, x2, z2, h, o = {}) {
     B(mid, 0, L, h * 0.45, t, CAB2, 0);
     B(mid, -face * t * 0.2, L, h * 0.55, t * 0.55, CAB, h * 0.45);
     V(mid, face * (t * 0.5 + 0.3), h * 0.32, L - 0.1, h * 0.68, 0.5, CAB, horiz ? { rx: -face * 0.36 } : { rz: face * 0.36 });
+    // H17: the sloped plate's foot stands out in front of the block; an invisible collider as deep as the plate at knee height keeps you out of it
+    const reach = 1.0 + Math.max(0, h * 0.32 - 0.5) * 0.376, c0 = face * t * 0.5, c1 = face * (t * 0.5 + reach);
+    if (horiz) K.collider(mid - L / 2, 0, fixed + Math.min(c0, c1), mid + L / 2, 1.6, fixed + Math.max(c0, c1), null);
+    else K.collider(fixed + Math.min(c0, c1), 0, mid - L / 2, fixed + Math.max(c0, c1), 1.6, mid + L / 2, null);
     V(mid, -face * t * 0.2, h + 0.15, L + 0.2, 0.3, t * 0.62, CAB3);
     V(mid, face * (t * 0.075 + 0.08), h * 0.8, L * 0.98, 0.35, 0.1, HAZ, { glow: 1.4 });
-    for (let s = a + 4; s < b - 2; s += 8) V(start + s, face * (t * 0.5 + 0.7), h * 0.38, 1.2, h * 0.76, 0.6, CAB3);
+    for (let s = a + 4; s < b - 2; s += 8) { // H17: buttresses stand on the ground (skirted boxes)
+      const p = start + s, q = fixed + face * (t * 0.5 + 0.7);
+      if (horiz) K.box(p, q, 1.2, h * 0.76, 0.6, CAB3); else K.box(q, p, 0.6, h * 0.76, 1.2, CAB3); // H17: solid buttresses
+    }
     if (o.banners) for (let s = a + 8; s < b - 4; s += 16) V(start + s, face * (t * 0.075 + 0.12), h * 0.62, 1.8, h * 0.4, 0.1, LEGION);
   }
 }
@@ -147,14 +176,14 @@ function bulwark(K, x1, z1, x2, z2, h, o = {}) {
 function hazardPost(K, x, z, h = 4) {
   K.box(x, z, 0.5, h, 0.5, CAB3);
   vbox(K, x, h + 0.3, z, 0.7, 0.6, 0.7, HAZ, { glow: 2 });
-  vbox(K, x, 0.3, z, 1.2, 0.6, 1.2, CAB2);
+  K.box(x, z, 1.2, 0.6, 1.2, CAB2, { collide: false }); // H17: skirted to the ground
 }
 // low Cabal barrier with a hazard stripe (cover)
 function barricade(K, x, z, rot = false) {
   const w = rot ? 1.2 : 4.6, d = rot ? 4.6 : 1.2;
   K.box(x, z, w, 1.5, d, CAB2);
-  vbox(K, x, 1.6, z, w * 0.9, 0.3, d * 0.9, CAB3);
-  vbox(K, x, 1.0, z, w + 0.06, 0.22, d + 0.06, HAZ, { glow: 1 });
+  soft(vbox(K, x, 1.6, z, w * 0.9, 0.3, d * 0.9, CAB3)); // H17: cap and stripe sit on the solid block
+  soft(vbox(K, x, 1.0, z, w + 0.06, 0.22, d + 0.06, HAZ, { glow: 1 }));
 }
 // stacked Cabal supply containers
 function supply(K, x, z, rot = false) {
@@ -209,7 +238,7 @@ function pipe(K, along, a, b, c, y, r, step = 8) {
   const L = Math.abs(b - a), mid = (a + b) / 2;
   const geo = new THREE.CylinderGeometry(r, r, L, 8).rotateZ(Math.PI / 2);
   if (along === 'z') geo.rotateY(Math.PI / 2);
-  K.mesh(geo, RUST, along === 'x' ? mid : c, y, along === 'x' ? c : mid);
+  K.mesh(geo, RUST, along === 'x' ? mid : c, y, along === 'x' ? c : mid, { collide: y - r < 2.2 ? 0.9 : false }); // H17: a pipe low enough to bump into is solid
   for (let s = Math.min(a, b) + 2; s < Math.max(a, b) - 1; s += step) {
     const px = along === 'x' ? s : c, pz = along === 'x' ? c : s;
     K.box(px, pz, 0.6, y, 0.6, CAB3);
@@ -271,7 +300,7 @@ function hab(K, x, z, w, d, h) {
 // floodlight on a pole aimed by ry
 function floodlight(K, x, z, h, ry) {
   K.box(x, z, 0.5, h, 0.5, STEEL);
-  vbox(K, x, 0.3, z, 1.6, 0.6, 1.6, CAB3);
+  K.box(x, z, 1.6, 0.6, 1.6, CAB3, { collide: false }); // H17: skirted to the ground
   vbox(K, x, h + 0.2, z, 2.9, 0.3, 0.3, STEEL, { ry });
   for (const s of [-0.8, 0.8]) vbox(K, x + Math.cos(ry) * s, h + 0.7, z - Math.sin(ry) * s, 1.0, 0.8, 0.5, FLOOD, { ry, rx: 0.35, glow: 2.2 });
 }
@@ -313,7 +342,9 @@ function vexGate(K, x, y, z, r, ry) {
   K.mesh(new THREE.TorusGeometry(r * 0.86, 0.22, 4, 20), VW, x, y, z, { ry });
   K.mesh(new THREE.CircleGeometry(r * 0.8, 20), MILK, x + Math.sin(ry) * 0.05, y, z + Math.cos(ry) * 0.05, { ry, glow: 1.1 });
   vbox(K, x + Math.sin(ry) * 0.3, y + r + 0.9, z + Math.cos(ry) * 0.3, 0.7, 0.7, 0.5, VRED, { ry, glow: 2.4 });
-  vbox(K, x, y - r - 1.2, z, r * 1.2, 1.4, 0.8, VBR, { ry });
+  const pb = y - r - 1.9; // H17: the plinth under the ring stands on the ground when the ring is low enough: then it is a solid obox, else it hangs on the wall
+  if (pb < 0.6) K.obox(x, z, r * 1.2, y - r - 0.5 - Math.max(0, pb), 0.8, ry, VBR, { y: Math.max(0, pb) });
+  else vbox(K, x, y - r - 1.2, z, r * 1.2, 1.4, 0.8, VBR, { ry });
 }
 
 
@@ -331,7 +362,7 @@ function tstrip(K, x1, z1, x2, z2, w, color, o = {}) {
   for (let i = 0; i < n; i++) {
     const ax = x1 + ((x2 - x1) * i) / n, az = z1 + ((z2 - z1) * i) / n, bx = x1 + ((x2 - x1) * (i + 1)) / n, bz = z1 + ((z2 - z1) * (i + 1)) / n;
     const len = Math.hypot(bx - ax, bz - az), dh = K.ground(bx, bz) - K.ground(ax, az);
-    vbox(K, (ax + bx) / 2, o.y ?? 0.07, (az + bz) / 2, len + 0.3, o.h ?? 0.06, w, color, { ry: Math.atan2(-(bz - az), bx - ax), rz: Math.atan2(dh, len), glow: o.glow });
+    soft(vbox(K, (ax + bx) / 2, o.y ?? 0.07, (az + bz) / 2, len + 0.3, o.h ?? 0.06, w, color, { ry: Math.atan2(-(bz - az), bx - ax), rz: Math.atan2(dh, len), glow: o.glow }));
   }
 }
 function tcrack(K, pts, w, color, o = {}) {
@@ -345,7 +376,7 @@ function rib(K, xa, xb, z, peak, th = 2.6, color = SPIRE2) {
   for (let i = 1; i <= N; i++) {
     const s = i / N, x = xa + (xb - xa) * s, y = ya + (yb - ya) * s + peak * 4 * s * (1 - s);
     const dx = x - px, dy = y - py, len = Math.hypot(dx, dy), t = th * (0.7 + 0.6 * Math.abs(2 * s - 1));
-    vabs(K, (x + px) / 2, (y + py) / 2, z, len + 0.45, t, 3.4 + t * 0.5, i % 2 ? color : SPIRE, { rz: Math.atan2(dy, dx) });
+    soft(vabs(K, (x + px) / 2, (y + py) / 2, z, len + 0.45, t, 3.4 + t * 0.5, i % 2 ? color : SPIRE, { rz: Math.atan2(dy, dx) })); // H17: the ribs arch from the canyon wall tops, above anything a player can reach
     if (i === Math.round(N / 2)) tip.push(x, y);
     px = x; py = y;
   }
@@ -480,13 +511,13 @@ export default {
       const tips = [[-92, -36, 42, 20], [-104, -20, 28, 17], [-116, -18, 26, 15], [-130, -18, 24, 13]].map(([z, xa, xb, pk]) => { const t = rib(K, xa, xb, z, pk, 2.8); return [t[0], t[1], z]; });
       for (let i = 1; i < tips.length; i++) {
         const [x1, y1, z1] = tips[i - 1], [x2, y2, z2] = tips[i], dy = y1 - y2, dz = z1 - z2, len = Math.hypot(dy, dz);
-        vabs(K, (x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2, 2.6, 2.4, len + 1, SPIRE2, { rx: Math.atan2(-dy, dz), ry: Math.atan2(x2 - x1, z1 - z2) * 0.2 });
+        soft(vabs(K, (x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2, 2.6, 2.4, len + 1, SPIRE2, { rx: Math.atan2(-dy, dz), ry: Math.atan2(x2 - x1, z1 - z2) * 0.2 }));
       }
       // fallen slabs leaning on the walls, rocks, spires on the floor
       vbox(K, -9.5, 5.2, -104, 2.2, 12, 8, C.rock, { rz: 0.4 });
-      K.collider(-11, 0, -108, -7.4, 5, -100, null);
+      leanColliders(K, -9.5, 5.2, -104, 2.2, 8, 12, 0.4, 'z', { maxY: 5 }); // H17: slices along the lean (the old box was a wide wedge of air)
       vbox(K, 20.5, 5.2, -124, 2.2, 12, 8, C.rock2, { rz: -0.4 });
-      K.collider(18.4, 0, -128, 22, 5, -120, null);
+      leanColliders(K, 20.5, 5.2, -124, 2.2, 8, 12, -0.4, 'z', { maxY: 5 });
       for (const [x, z, s] of [[-4, -90, 2.6], [14, -130, 3], [-6, -122, 2.2], [16, -92, 2.2], [10, -102, 1.6]]) K.rock(x, z, s);
       spire(K, -7, -112, 9); spire(K, 15, -108, 7); spire(K, 12, -86, 6);
       // rim columns on the wall tops
@@ -525,11 +556,10 @@ export default {
       spire(K, -13, -178, 11, { r: 1.9 }); spire(K, -15, -200, 8, { r: 1.5 }); spire(K, 11, -174, 6.5, { r: 1.3 });
       K.rock(-4, -206, 2.4); K.rock(14, -208, 2); K.rock(-20, -190, 2.2);
       // the fallen rib that is the ramp to the east shelf: two bone arches over the climb
-      for (const x of [10, 19]) {
-        vbox(K, x, 2.6, -196, 1.4, 5.2, 9, SPIRE2, { rz: 0.02 });
+      for (const x of [10, 19]) { // H17: arches, as described: two posts and a lintel, with the climb left open between the posts (the old slab filled the whole ramp)
+        for (const s of [-1, 1]) K.box(x, -196 + s * 3.9, 1.4, 5.2, 1.6, SPIRE2);
         vbox(K, x, 5.4, -196, 3.2, 1, 9.4, SPIRE);
       }
-      K.collider(9.2, 0, -199, 10.8, 3, -193, null); K.collider(18.2, 0, -199, 19.8, 3, -193, null);
       // crystal clusters on the rim, a rock shelf lit gold
       cluster(K, 0, -222, [[-14, 0, 24, 2.2], [0, 4, 30, 2.6], [12, -2, 21, 2]], { collide: false });
       cluster(K, -42, -190, [[0, 0, 15, 1.8], [-3, 10, 20, 2], [4, -9, 12, 1.5]], { collide: false });
@@ -621,8 +651,8 @@ export default {
       vbox(K, -19, 6.4, -30, 2, 0.4, 20, STEEL); // one catwalk over the alley
       // courtyard
       flat(K, -34, -34, 24, 26, CONC2, { y: 0.03 });
-      K.box(-31, -26, 3, 0.9, 3, CONC2); vbox(K, -31, 1.4, -26, 2.4, 1, 2.4, 0x6a8a5a);
-      K.box(-44, -46, 3, 0.9, 3, CONC2); vbox(K, -44, 1.4, -46, 2.4, 1, 2.4, 0x6a8a5a);
+      K.box(-31, -26, 3, 0.9, 3, CONC2); K.box(-31, -26, 2.4, 1, 2.4, 0x6a8a5a, { y: 0.9 });
+      K.box(-44, -46, 3, 0.9, 3, CONC2); K.box(-44, -46, 2.4, 1, 2.4, 0x6a8a5a, { y: 0.9 });
       // the Legion line coming in from the east
       bulwark(K, 6, -62, 6, -24, 5, { t: 2, face: -1, gaps: [[14, 22]], banners: true });
       barricade(K, -12, -38, true); barricade(K, -8, -28); barricade(K, -14, -50); barricade(K, -40, -24, true);
@@ -664,6 +694,7 @@ export default {
       padMarks(K, -48, -152, 20, 22);
       dropship(K, -48, 0, -152, 18);
       K.collider(-51.4, 0, -161, -44.6, 5, -143, null);
+      for (const sx of [-1, 1]) K.collider(-48 + (sx < 0 ? -5.25 : 3.05), 0, -156.9, -48 + (sx < 0 ? -3.05 : 5.25), 4, -145.4, null); // H17: the side pods
       flat(K, -14, -152, 0.6, 9, HAZ, { glow: 0.7, y: 0.04 });
       flat(K, -14, -152, 9, 0.6, HAZ, { glow: 0.7, y: 0.04 });
       K.mesh(new THREE.TorusGeometry(6, 0.3, 3, 24).rotateX(Math.PI / 2), HAZ, -14, 0.05, -152, { glow: 0.8 });
@@ -727,7 +758,7 @@ export default {
       scaffold(K, 30, -196.5, 12, 3, 7);
       pipe(K, 'x', 30, -4, -234, 7, 0.8);
       gunNest(K, 38, -212, -1.57);
-      vbox(K, 33.4, 0.1, -212, 0.3, 0.1, 20, HAZ, { glow: 1.6 });
+      tstrip(K, 33.4, -222, 33.4, -202, 0.3, HAZ, { y: 0.1, h: 0.1, glow: 1.6 }); // H17: follows the ground
       // cover around the boss floor, off the mirror
       barricade(K, 9, -208); barricade(K, 28, -222, true); barricade(K, 2, -226, true);
       supply(K, 24, -204); supply(K, 4, -214, true);
@@ -790,7 +821,7 @@ export default {
       // exposed Vex relics in the pit, a half-dug Vex gate on the bench at the north end
       vexCube(K, 10, 0, -46, 2.4); vexCube(K, -10, 0, -32, 1.8);
       K.box(-4, -50, 1.6, 3, 1.6, VW); vbox(K, -4, 3.2, -50, 2, 0.4, 2, VB); vbox(K, -4, 2.2, -50, 1.66, 0.3, 1.66, MILK, { glow: 1.2 });
-      vbox(K, 14, 0.4, -34, 4, 0.8, 1.2, VW2, { ry: 0.4 });
+      K.obox(14, -34, 4, 0.8, 1.2, 0.4, VW2); // H17: a solid slab (oriented collider)
       vexGate(K, 24, 8.2, -63, 6.2, 0);
       K.light(24, 6, -60, MILK, 6, 22);
       // scaffolds in the pit, floodlights and cranes on the arms

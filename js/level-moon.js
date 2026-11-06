@@ -2,6 +2,7 @@
 // The Moon is the one destination with Hive castle architecture: grey moon-rock walls, ribbed tiers,
 // pointed spires, bone spikes and green fire.
 import * as THREE from 'three';
+import { slopedBar } from './level-earth.js';
 
 const HR = 0x5a5d63, HR2 = 0x404349, BONE = 0xcfc8b2, CHIT = 0x26282c, VOID = 0x040506;
 const GA = 0xc9cdd2, GA2 = 0x9aa0a7, ORANGE = 0xd9822b, GREEN = 0x58ff9c, PALE = 0xbfe4ff, WARD = 0x7affd8;
@@ -20,8 +21,10 @@ const crystalGeo = () => unit('crystal', () => new THREE.OctahedronGeometry(1, 0
 function spire(K, x, z, r, h, o = {}) {
   const y = o.y ?? 0, col = o.collide ?? true;
   const bh = h * 0.2, sh = h * 0.5, th = h - bh * 1.5 - sh;
-  K.box(x, z, r * 2.2, bh, r * 2.2, HR2, { y, collide: col });
-  K.box(x, z, r * 1.7, bh * 0.5, r * 1.7, HR, { y: y + bh, collide: false });
+  const plinth = K.box(x, z, r * 2.2, bh, r * 2.2, HR2, { y, collide: col });
+  if (!col) plinth.userData.noCollide = true; // H17: a backdrop spire out on the massifs, walk-through on purpose
+  const tier = K.box(x, z, r * 1.7, bh * 0.5, r * 1.7, HR, { y: y + bh, collide: col }); // H17: the upper tier collides with the plinth
+  if (!col) tier.userData.noCollide = true;
   K.mesh(new THREE.CylinderGeometry(r * 0.45, r * 0.8, sh, 4), HR, x, y + bh * 1.5 + sh / 2, z, { ry: Math.PI / 4 });
   K.mesh(new THREE.ConeGeometry(r * 0.45, th, 4), HR2, x, y + bh * 1.5 + sh + th / 2, z, { ry: Math.PI / 4 });
   if (o.glow !== false) K.box(x, z + r * 0.5, 0.3, sh * 0.55, 0.25, GREEN, { y: y + bh * 1.5 + sh * 0.2, collide: false, glow: 1.6 });
@@ -53,7 +56,7 @@ function hiveWall(K, a1, a2, at, h, o = {}) {
   const step = o.rib ?? 7;
   for (let a = a1 + step / 2; a < a2; a += step) {
     if (open(a, 1.2)) continue;
-    box(a, face * (t / 2 + 0.55), 1.1, h + 2, 1.1, HR2, 0);
+    box(a, face * (t / 2 + 0.55), 1.1, h + 2, 1.1, HR2, 0, true); // H17: the ribs are solid
     const [x, z] = P(a, face * (t / 2 + 0.55));
     K.mesh(spikeGeo(), BONE, x, h + 3.2, z, { scale: [0.5, 2.4, 0.5] });
   }
@@ -68,19 +71,21 @@ function hiveWall(K, a1, a2, at, h, o = {}) {
 // green-fire brazier
 function brazier(K, x, z, s = 1, y = 0) {
   K.cyl(x, z, 0.55 * s, 1.0 * s, HR2, { r2: 0.35 * s, sides: 6, y });
-  K.cyl(x, z, 0.5 * s, 0.5 * s, CHIT, { r2: 1.0 * s, sides: 6, y: y + 1.0 * s, collide: false });
+  K.cyl(x, z, 0.5 * s, 0.5 * s, CHIT, { r2: 1.0 * s, sides: 6, y: y + 1.0 * s }); // H17: the bowl is wider than the stem, so it collides too
   K.cone(x, z, 0.7 * s, 1.5 * s, GREEN, { y: y + 1.4 * s, sides: 5, collide: false, glow: 2.2 });
 }
 
 function boneSpike(K, x, z, h, o = {}) {
-  K.mesh(spikeGeo(), BONE, x, (o.y ?? 0) + h * 0.45, z, { scale: [h * 0.11, h, h * 0.11], rx: o.rx ?? K.R(-0.2, 0.2), rz: o.rz ?? K.R(-0.2, 0.2) });
+  const low = (o.y ?? 0) < 2.2 && h >= 2; // H17: a spike you can walk into collides (a small one, or one on a pillar top out of reach, does not)
+  K.mesh(spikeGeo(), BONE, x, (o.y ?? 0) + h * 0.45, z, { scale: [h * 0.11, h, h * 0.11], rx: o.rx ?? K.R(-0.2, 0.2), rz: o.rz ?? K.R(-0.2, 0.2), collide: low ? 0.5 : false });
 }
 
 function crystals(K, x, z, s = 1, o = {}) {
   const col = o.color ?? GREEN, n = o.n ?? 4, y = o.y ?? 0;
   for (let k = 0; k < n; k++) {
     const r = s * K.R(0.5, 1.0), a = (k / n) * TAU + K.R(0, 1), off = k === 0 ? 0 : s * 0.9, sy = K.R(1.8, 2.8);
-    K.mesh(crystalGeo(), col, x + Math.sin(a) * off, y + r * sy * 0.6, z + Math.cos(a) * off, { glow: o.glow ?? 1.1, scale: [r, r * sy, r], rx: K.R(-0.3, 0.3), rz: K.R(-0.3, 0.3) });
+    const cr = K.mesh(crystalGeo(), col, x + Math.sin(a) * off, y + r * sy * 0.6, z + Math.cos(a) * off, { glow: o.glow ?? 1.1, scale: [r, r * sy, r], rx: K.R(-0.3, 0.3), rz: K.R(-0.3, 0.3) });
+    if (o.collide === false) cr.userData.noCollide = true; // H17: a cluster set to collide: false is walk-through on purpose
   }
   if (o.collide !== false) K.collider(x - s * 1.3, y, z - s * 1.3, x + s * 1.3, y + s * 3, z + s * 1.3, null);
 }
@@ -88,7 +93,7 @@ function crystals(K, x, z, s = 1, o = {}) {
 // pointed Hive arch outline (glow) over a gateway centred at x, facing +z/-z, of width w, starting at height y
 function pointedArch(K, x, z, w, y, o = {}) {
   const s = w / Math.SQRT2;
-  K.mesh(new THREE.BoxGeometry(s, s, 0.5), o.fill ?? VOID, x, y, z, { rz: Math.PI / 4 });
+  K.mesh(new THREE.BoxGeometry(s, s, 0.5), o.fill ?? VOID, x, y, z, { rz: Math.PI / 4 }).userData.noCollide = true; // H17: the dark fill of a doorway, never a block
   for (const sgn of [-1, 1]) K.mesh(new THREE.BoxGeometry(s + 0.4, 0.35, 0.3), GREEN, x + sgn * w / 4, y + w / 4, z + (o.face ?? 1) * 0.3, { rz: -sgn * Math.PI / 4, glow: 1.6 });
 }
 
@@ -109,8 +114,8 @@ function dome(K, x, z, r) {
   K.mesh(new THREE.SphereGeometry(r, 10, 5, 0, TAU, 0, Math.PI / 2), GA, x, 0, z, { collide: 0.72 });
   K.mesh(new THREE.TorusGeometry(r * 1.0, 0.25, 4, 16), ORANGE, x, 0.6, z, { rx: Math.PI / 2 });
   K.mesh(new THREE.TorusGeometry(r * 0.75, 0.16, 4, 16), PALE, x, r * 0.66, z, { rx: Math.PI / 2, glow: 0.9 });
-  K.box(x, z + r - 0.4, 2.2, 2.6, 1.6, GA2, { collide: false });
-  K.box(x, z + r + 0.45, 1.4, 2.0, 0.1, PALE, { collide: false, glow: 0.6 });
+  K.box(x, z + r - 0.4, 2.2, 2.6, 1.6, GA2); // H17: the entrance porch is solid
+  K.box(x, z + r + 0.45, 1.4, 2.0, 0.1, PALE, { collide: false, glow: 0.6 }).userData.noCollide = true;
   K.cyl(x + r * 0.3, z - r * 0.2, 0.08, 3, GA2, { y: r * 0.9, collide: false, sides: 4 });
 }
 
@@ -123,7 +128,11 @@ function gaModule(K, x, z, w, d, h = 3.4) {
 
 function tube(K, x1, z1, x2, z2, r = 1.1) { // axis-aligned corridor tube
   const alongX = Math.abs(x2 - x1) > Math.abs(z2 - z1), L = alongX ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
-  K.mesh(new THREE.CylinderGeometry(r, r, L, 8), GA2, (x1 + x2) / 2, r + 0.2, (z1 + z2) / 2, alongX ? { rz: Math.PI / 2, collide: true } : { rx: Math.PI / 2, collide: true });
+  const m = K.mesh(new THREE.CylinderGeometry(r, r, L, 8), GA2, (x1 + x2) / 2, r + 0.2, (z1 + z2) / 2, alongX ? { rz: Math.PI / 2 } : { rx: Math.PI / 2 });
+  // H17: an oriented collider 70 percent as wide as the tube and clear of its curved underside (a square box round a round pipe blocked 1 m of air each side)
+  const cx = (x1 + x2) / 2, cz = (z1 + z2) / 2;
+  K.ocollider(cx, cz, L, 1.8 * r, 1.4 * r, alongX ? 0 : Math.PI / 2, 0.2 + 0.2 * r);
+  K.collider(cx - 0.05, r + 0.15, cz - 0.05, cx + 0.05, r + 0.25, cz + 0.05, m); // H17: a speck inside the tube so shots and sight lines still hit its mesh
 }
 
 function rover(K, x, z, alongX = true) {
@@ -137,7 +146,7 @@ function rover(K, x, z, alongX = true) {
     K.mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.35, 8), CHIT, wx, 0.48, wz, alongX ? { rx: Math.PI / 2 } : { rz: Math.PI / 2 });
   }
   K.cyl(x + (alongX ? 1.4 : 0.6), z + (alongX ? 0.6 : 1.4), 0.06, 2.2, GA2, { y: 1.4, collide: false, sides: 4 });
-  K.collider(x - w / 2, 0, z - d / 2, x + w / 2, 2.4, z + d / 2, null);
+  K.collider(x - w / 2, 0.5, z - d / 2, x + w / 2, 2.4, z + d / 2, null); // H17: from the underside of the body, not from the ground (the wheels carry it)
 }
 
 function antenna(K, x, z, h) {
@@ -245,10 +254,10 @@ function lamp(K, x, z, h = 3.4, y = 0) {
 
 // downed Golden Age lander: a tilted hull with a snapped leg and a dish
 function lander(K, x, z, ry) {
-  K.mesh(new THREE.BoxGeometry(8, 3.4, 5.5), GA, x, 2.4, z, { ry, rz: 0.1 });
+  const hull = K.mesh(new THREE.BoxGeometry(8, 3.4, 5.5), GA, x, 2.4, z, { ry, rz: 0.1 });
   K.mesh(new THREE.BoxGeometry(8.1, 0.4, 5.6), ORANGE, x, 2.7, z, { ry, rz: 0.1 });
   K.mesh(new THREE.BoxGeometry(3.4, 1.4, 3.2), GA2, x, 4.5, z, { ry, rz: 0.1 });
-  K.ocollider(x, z, 8, 4.1, 5.5, ry);
+  slopedBar(K, x, z, 2.4, 8, 5.5, 3.4, 0.1, ry, hull); // H17: follows the hull's tilt (was a block from the ground, under a hull whose underside is 0.7 m up)
   const c = Math.cos(ry), s = Math.sin(ry);
   for (const [lx, lz, tilt] of [[-3.4, 2.4, 0.2], [3.4, 2.4, -0.2], [-3.4, -2.4, 0.25]]) {
     K.mesh(new THREE.CylinderGeometry(0.14, 0.28, 3.4, 5), GA2, x + lx * c + lz * s, 1.3, z - lx * s + lz * c, { rz: tilt, rx: 0.1 });
@@ -524,7 +533,7 @@ export default {
       const ringR = pr + 1.6, N = 36;
       for (let k = 0; k < N; k++) {
         const a = (k / N) * TAU, x = px + Math.sin(a) * ringR, z = pz + Math.cos(a) * ringR;
-        K.mesh(new THREE.BoxGeometry(3.1, 2.4, 1.4), HR, x, 1.2, z, { ry: a });
+        K.obox(x, z, 3.1, 2.4, 1.4, a, HR); // H17: the rim blocks are solid (an oriented box with its own collider)
         if (k % 2 === 0) K.mesh(spikeGeo(), BONE, x + Math.sin(a) * 0.3, 3.4, z + Math.cos(a) * 0.3, { scale: [0.45, 2.8, 0.45], rx: Math.cos(a) * 0.35, rz: -Math.sin(a) * 0.35 });
       }
       // fill the bowl with colliders so nothing walks or spawns in it: tall rows, with a low strip under the span and a hole for the island
@@ -545,7 +554,7 @@ export default {
       // giant teeth leaning over the pit and spires on its far rim
       for (let k = 0; k < 7; k++) {
         const a = Math.PI * 0.1 + (k / 6) * Math.PI * 0.9, r = ringR + 2.5, x = px + Math.sin(a) * r, z = pz + Math.cos(a) * r;
-        K.mesh(spikeGeo(), BONE, x, 5, z, { scale: [1.0, 12, 1.0], rx: -Math.cos(a) * 0.45, rz: Math.sin(a) * 0.45 });
+        K.mesh(spikeGeo(), BONE, x, 5, z, { scale: [1.0, 12, 1.0], rx: -Math.cos(a) * 0.45, rz: Math.sin(a) * 0.45, collide: 0.45 }); // H17: the leaning teeth collide
       }
       spire(K, 52, -150, 3.5, 30);
       spire(K, 56, -170, 4, 36);
@@ -618,7 +627,7 @@ export default {
       for (let dz = 24; dz > -30; dz -= 10) K.box(-10, cz + dz, 48, 1.0, 1.0, HR, { y: 14.4, collide: false }); // vault ribs
       for (let dz = 22; dz > -24; dz -= 10) for (const s of [-1, 1]) { // green slit windows
         K.box(-10 + s * 24.1, cz + dz + 5, 0.3, 6, 0.8, GREEN, { y: 6, collide: false, glow: 1.3 });
-        K.box(-10 + s * 23.9, cz + dz, 0.9, 16, 1.4, HR, { collide: false });
+        K.box(-10 + s * 23.9, cz + dz, 0.9, 16, 1.4, HR); // H17: the wall ribs are solid
       }
       for (const [x, dz] of [[-18, 16], [-2, 16], [-18, -12], [-2, -12]]) brazier(K, x, cz + dz, 1.1);
       for (const [x, dz, h] of [[-20, 5, 3], [0, -8, 2.4]]) broken(K, x, cz + dz, h);
@@ -747,11 +756,11 @@ export default {
       K.mesh(flat(new THREE.RingGeometry(6.2, 6.8, 24)), GREEN, 0, 0.1, -118, { glow: 0.8 });
       // parapets with bone spikes, following the slope in short pieces
       for (const s of [-1, 1]) {
-        along(s * 10.5, -78, s * 10.5, -98, 3.4, (x, z) => K.box(x, z, 0.6, 1.0, 3.6, HR, { collide: false }));
-        along(s * 10.5, -138, s * 10.5, -166, 3.4, (x, z) => K.box(x, z, 0.6, 1.0, 3.6, HR, { collide: false }));
-        along(s * 22.5, -98, s * 22.5, -138, 3.4, (x, z) => K.box(x, z, 0.6, 1.0, 3.6, HR, { collide: false }));
-        K.box(s * 16.3, -98, 12.6, 1.0, 0.6, HR, { collide: false });
-        K.box(s * 16.3, -138, 12.6, 1.0, 0.6, HR, { collide: false });
+        along(s * 10.5, -78, s * 10.5, -98, 3.4, (x, z) => K.box(x, z, 0.6, 1.0, 3.6, HR)); // H17: the parapets are waist-high walls, solid
+        along(s * 10.5, -138, s * 10.5, -166, 3.4, (x, z) => K.box(x, z, 0.6, 1.0, 3.6, HR));
+        along(s * 22.5, -98, s * 22.5, -138, 3.4, (x, z) => K.box(x, z, 0.6, 1.0, 3.6, HR));
+        K.box(s * 16.3, -98, 12.6, 1.0, 0.6, HR);
+        K.box(s * 16.3, -138, 12.6, 1.0, 0.6, HR);
         for (let z = -80; z > -165; z -= 7) { const x = z < -98 && z > -138 ? s * 22.5 : s * 10.5; boneSpike(K, x, z, 1.8, { y: 1.0, rz: s * 0.35, rx: 0 }); }
         spire(K, s * 23, -96, 1.4, 16, { pinnacles: false });
         spire(K, s * 23, -140, 1.4, 16, { pinnacles: false });

@@ -22,22 +22,37 @@ const WET = [0x5a5870, 0x626078, 0x555468, 0x6a6a86];
 
 /** A box with its base at absolute height y0. Not solid unless asked; a solid one must not be turned. */
 function A(K, x, y0, z, w, h, d, color, o = {}) {
+  // H17: a solid piece with a yaw only gets a collider turned with it
+  if (o.collide && o.ry && !o.rx && !o.rz && !o.glow) return K.obox(x, z, w, h, d, o.ry, color, { y: y0 - K.ground(x, z) });
   const m = K.box(x, z, w, h, d, color, { y: y0, abs: true, collide: o.collide ?? false, glow: o.glow });
   if (o.rx || o.ry || o.rz) m.rotation.set(o.rx ?? 0, o.ry ?? 0, o.rz ?? 0, 'YXZ');
+  if (o.noCollide) m.userData.noCollide = true; // H17: scenery you cannot reach (cliff undersides, sky rocks) or walk through on purpose
   return m;
 }
 /** Any geometry at an absolute position. */
 function meshA(K, geo, color, x, y, z, o = {}) {
+  // H17: o.collide hands the piece to K.mesh, which makes a collider turned with it (a number shrinks it for a round shape)
+  if (o.collide) return K.mesh(geo, color, x, y - K.ground(x, z), z, { rx: o.rx, ry: o.ry, rz: o.rz, scale: o.scale, glow: o.glow, collide: o.collide });
   const m = new THREE.Mesh(geo, K.mat(color, o.glow));
   m.position.set(x, y, z);
   m.rotation.set(o.rx ?? 0, o.ry ?? 0, o.rz ?? 0, o.order ?? 'XYZ');
   if (o.scale) m.scale.set(...[].concat(o.scale, o.scale, o.scale).slice(0, 3));
   m.castShadow = true;
+  if (o.noCollide) m.userData.noCollide = true;
   K.scene.add(m);
   return m;
 }
 /** An invisible collider at absolute heights. */
 const solid = (K, x0, y0, z0, x1, y1, z1) => { const g = K.ground((x0 + x1) / 2, (z0 + z1) / 2); K.collider(x0, y0 - g, z0, x1, y1 - g, z1, null); };
+/** H17: runs fn and marks everything it adds to the scene as walk-through scenery for the collision audit (far towers, foliage, pieces high above the ground). */
+const scenery = (K, fn) => { const n = K.scene.children.length; fn(); for (let i = n; i < K.scene.children.length; i++) K.scene.children[i].userData.noCollide = true; };
+/** H17: an invisible oriented collider at an absolute base height (a yawed piece gets a collider turned with it, not an axis-aligned box round it). */
+const osolid = (K, x, z, w, h, d, ry, y0) => K.ocollider(x, z, w, h, d, ry, y0 - K.ground(x, z));
+/** H17: a round solid (tower, dome, well) as an octagon: four crossed oriented slabs, so the corners of a square no longer block. Rm is the radius of the visible piece; the octagon sits a little inside it. */
+function roundSolid(K, x, z, Rm, y0, h) {
+  const R = Math.min(Rm * 0.97, (Rm * 0.7 + 0.5) / Math.cos(Math.PI / 8)), a = R * Math.cos(Math.PI / 8), t = 2 * a * Math.tan(Math.PI / 8);
+  for (let i = 0; i < 4; i++) osolid(K, x, z, 2 * a, h, t, i * Math.PI / 4, y0);
+}
 let CYL = null;
 /** A round bar from point a to point b ([x, y, z], absolute). */
 function beamA(K, a, b, r, color, glow) {
@@ -84,20 +99,20 @@ function rail(K, x0, z0, x1, z1, h = 1.1, color = IVORY2, cap = CYAN) {
 /** The rock under an island: a slab whose sides are the cliff, boulders round the lip, and a hanging mass of rock cones tapering down into the clouds. */
 function underside(K, x0, x1, z0, z1, h) {
   const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-  A(K, cx, h - 7, cz, w, 6.85, d, ROCK[0]);
+  A(K, cx, h - 7, cz, w, 6.85, d, ROCK[0], { noCollide: true }); // H17: the cliff face under an island is scenery (the abyss is out of play)
   const per = 2 * (w + d), n = Math.max(6, Math.round(per / 9));
   for (let i = 0; i < n; i++) {
     let t = (i + K.R(0, 0.6)) / n * per, px, pz;
     if (t < w) { px = x0 + t; pz = z0; } else if ((t -= w) < d) { px = x1; pz = z0 + t; } else if ((t -= d) < w) { px = x1 - t; pz = z1; } else { px = x0; pz = z1 - (t - w); }
     const s = K.R(2.2, 4.4);
-    meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, ROCK), px, h - s - 0.7, pz, { ry: K.R(0, TAU), scale: [1.3, 1, 1.3] });
+    meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, ROCK), px, h - s - 0.7, pz, { ry: K.R(0, TAU), scale: [1.3, 1, 1.3], noCollide: true });
   }
   const r0 = Math.min(w, d) * 0.5;
-  meshA(K, new THREE.ConeGeometry(r0, r0 * 1.6 + 10, 7), ROCKD, cx, h - 7 - (r0 * 1.6 + 10) / 2, cz, { rx: Math.PI, ry: K.R(0, TAU) });
+  meshA(K, new THREE.ConeGeometry(r0, r0 * 1.6 + 10, 7), ROCKD, cx, h - 7 - (r0 * 1.6 + 10) / 2, cz, { rx: Math.PI, ry: K.R(0, TAU), noCollide: true });
   const k = Math.max(2, Math.round(w * d / 600));
   for (let i = 0; i < k; i++) {
     const r = Math.min(w, d) * K.R(0.2, 0.32), len = K.R(12, 30), x = cx + K.R(-0.5, 0.5) * (w - 2 * r), z = cz + K.R(-0.5, 0.5) * (d - 2 * r);
-    meshA(K, new THREE.ConeGeometry(r, len, 6), pick(K, [ROCKD, ROCK[1]]), x, h - 7 - len / 2, z, { rx: Math.PI, ry: K.R(0, TAU) });
+    meshA(K, new THREE.ConeGeometry(r, len, 6), pick(K, [ROCKD, ROCK[1]]), x, h - 7 - len / 2, z, { rx: Math.PI, ry: K.R(0, TAU), noCollide: true });
   }
 }
 
@@ -141,19 +156,21 @@ function span(K, r) {
 
 /** A floating rock in the sky (scenery): a flattened boulder with a hanging cone, sometimes with a tuft of green on top. */
 function floatRock(K, x, y, z, s, moss = false) {
-  meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, ROCK), x, y, z, { rx: K.R(0, 0.4), ry: K.R(0, TAU), scale: [K.R(1, 1.4), K.R(0.5, 0.7), K.R(0.9, 1.3)] });
-  meshA(K, new THREE.ConeGeometry(s * 0.7, s * 1.1, 6), ROCK[1], x, y - s * 0.8, z, { rx: Math.PI, ry: K.R(0, TAU) });
-  if (moss) meshA(K, new THREE.DodecahedronGeometry(s * 0.7, 0), MOSS, x, y + s * 0.3, z, { scale: [1.1, 0.35, 1] });
+  meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, ROCK), x, y, z, { rx: K.R(0, 0.4), ry: K.R(0, TAU), scale: [K.R(1, 1.4), K.R(0.5, 0.7), K.R(0.9, 1.3)], noCollide: true });
+  meshA(K, new THREE.ConeGeometry(s * 0.7, s * 1.1, 6), ROCK[1], x, y - s * 0.8, z, { rx: Math.PI, ry: K.R(0, TAU), noCollide: true });
+  if (moss) meshA(K, new THREE.DodecahedronGeometry(s * 0.7, 0), MOSS, x, y + s * 0.3, z, { scale: [1.1, 0.35, 1], noCollide: true });
 }
 
 /** A tall slender Awoken tower rising out of the cloud sea (scenery, no collider): a tapering ivory shaft, lit bands, a pointed crown. */
 function distantTower(K, x, z, top, r) {
   const base = 6, h = top - base;
-  meshA(K, new THREE.CylinderGeometry(r * 0.55, r, h, 8), pick(K, [IVORY, 0xcfc9d8]), x, base + h / 2, z);
-  for (const f of [0.3, 0.52, 0.74]) meshA(K, new THREE.CylinderGeometry(r * (1 - f * 0.45) + 0.1, r * (1 - f * 0.45) + 0.1, 0.9, 8), GOLD, x, base + h * f, z, { glow: 0.6 });
-  meshA(K, new THREE.BoxGeometry(0.5, h * 0.7, 0.1), ICE, x, base + h * 0.5, z + r * 0.8, { glow: 1.6 });
-  meshA(K, new THREE.ConeGeometry(r * 0.62, h * 0.2, 8), LAV, x, top + h * 0.1, z);
-  meshA(K, new THREE.OctahedronGeometry(r * 0.3, 0), ICE, x, top + h * 0.22, z, { glow: 1.6, scale: [1, 2.2, 1] });
+  scenery(K, () => { // H17: far scenery out in the cloud sea
+    meshA(K, new THREE.CylinderGeometry(r * 0.55, r, h, 8), pick(K, [IVORY, 0xcfc9d8]), x, base + h / 2, z);
+    for (const f of [0.3, 0.52, 0.74]) meshA(K, new THREE.CylinderGeometry(r * (1 - f * 0.45) + 0.1, r * (1 - f * 0.45) + 0.1, 0.9, 8), GOLD, x, base + h * f, z, { glow: 0.6 });
+    meshA(K, new THREE.BoxGeometry(0.5, h * 0.7, 0.1), ICE, x, base + h * 0.5, z + r * 0.8, { glow: 1.6 });
+    meshA(K, new THREE.ConeGeometry(r * 0.62, h * 0.2, 8), LAV, x, top + h * 0.1, z);
+    meshA(K, new THREE.OctahedronGeometry(r * 0.3, 0), ICE, x, top + h * 0.22, z, { glow: 1.6, scale: [1, 2.2, 1] });
+  });
 }
 
 function sky(K) {
@@ -178,8 +195,7 @@ function sky(K) {
 /** A boulder (rock with a collider): a squashed dodecahedron on the ground at the given absolute height. */
 function boulder(K, x, z, s, o = {}) {
   const g = G(K, x, z), sy = o.sy ?? K.R(0.6, 0.95);
-  meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, o.colors ?? ROCK), x, g + s * sy * 0.55, z, { ry: K.R(0, TAU), scale: [K.R(1, 1.3), sy, K.R(0.9, 1.2)] });
-  if (o.collide !== false) solid(K, x - s * 0.8, g, z - s * 0.8, x + s * 0.8, g + s * sy * 1.1, z + s * 0.8);
+  meshA(K, new THREE.DodecahedronGeometry(s, 0), pick(K, o.colors ?? ROCK), x, g + s * sy * 0.55, z, { ry: K.R(0, TAU), scale: [K.R(1, 1.3), sy, K.R(0.9, 1.2)], collide: o.collide === false ? 0 : 0.72 }); // H17: a collider turned with the rock
   if (o.moss) meshA(K, new THREE.DodecahedronGeometry(s * 0.7, 0), MOSS2, x, g + s * sy * 1.0, z, { scale: [1.2, 0.3, 1.1] });
 }
 
@@ -194,7 +210,8 @@ function skiff(K, x, z, ry) {
   A(K, bx, g + 0.4, bz, 2.4, 1.4, 1.2, IVORY2, { ry });
   const [lx, lz] = P(0.9, 2.6);
   A(K, lx, g + 1.0, lz, 0.2, 0.55, 0.2, GOLD, { glow: 1.8 });
-  solid(K, x - 1.5, g, z - 4, x + 1.5, g + 1.5, z + 4);
+  osolid(K, x, z, 2.6, 1.1, 9, ry, g); // H17: turned with the hull, and the raised stern block
+  osolid(K, bx, bz, 2.4, 1.4, 1.2, ry, g + 0.4);
 }
 
 /** The colossal pointed arch-spire behind the shore: two ogive ribs of dark metal round a lit lattice of glass, and a gold-lit crown. The road runs through its opening. */
@@ -241,8 +258,7 @@ function strand(K) {
   // the cliffs at either side, tall angular rock, and a ring of boulders round the shore
   for (const s of [-1, 1]) for (const [dz, sc, hh] of [[0, 8, 1.6], [14, 7, 1.3], [-12, 6.5, 1.2], [26, 6, 1.0], [-24, 5.5, 1.1]]) {
     const x = s * 46, z = 146 + dz, g = G(K, x, z);
-    meshA(K, new THREE.DodecahedronGeometry(sc, 0), pick(K, ROCK), x, g + sc * hh * 0.7, z, { ry: K.R(0, TAU), scale: [1.1, hh, 1.2] });
-    solid(K, x - sc * 0.8, g, z - sc * 0.8, x + sc * 0.8, g + sc * hh * 1.2, z + sc * 0.8);
+    meshA(K, new THREE.DodecahedronGeometry(sc, 0), pick(K, ROCK), x, g + sc * hh * 0.7, z, { ry: K.R(0, TAU), scale: [1.1, hh, 1.2], collide: 0.72 }); // H17: collider turned with the rock
   }
   for (const [x, z, s] of [[-34, 172, 3.4], [-20, 174, 2.6], [-6, 175, 3.8], [12, 174, 3], [26, 172, 3.6], [38, 170, 2.8], [-40, 122, 3], [38, 122, 3.4], [-44, 160, 3.2], [44, 164, 3]]) boulder(K, x, z, s, { moss: K.chance(0.3) });
   for (const [x, z, s] of [[-22, 150, 1.2], [20, 156, 1.4], [-28, 128, 1.6], [34, 140, 1.2], [4, 138, 1], [-12, 168, 1.3]]) boulder(K, x, z, s);
@@ -254,7 +270,7 @@ function strand(K) {
   for (const [dx, dz] of [[-4, -3], [4, -3], [-4, 3], [4, 3]]) A(K, px + dx, gp + 0.4, pz + dz, 0.4, 3.4, 0.4, LAV2, { collide: true });
   A(K, px, gp + 3.8, pz, 10, 0.2, 8, CLOTH, { rz: 0.06 });
   for (const [dx, dz] of [[-2.4, 0], [2.6, 1.4]]) A(K, px + dx, gp + 0.4, pz + dz, 1.2, 1.0, 1.2, pick(K, [IVORY2, LAV]), { collide: true });
-  A(K, px, gp + 0.4, pz - 2.4, 5, 0.9, 0.5, GOLD, { glow: 0.4 });
+  A(K, px, gp + 0.4, pz - 2.4, 5, 0.9, 0.5, GOLD, { glow: 0.4, collide: true }); // H17: the bench is solid
   lampA(K, px, gp + 3.2, pz, GOLD, 7, 22);
   for (const [x, z] of [[-18, 128], [18, 128], [-40, 150], [40, 150]]) DK.banner(K, x, z, 6.5);
   for (const [x, z] of [[-14, 160], [26, 150]]) DK.brazier(K, x, z, VIOLET, 0.9);
@@ -265,8 +281,8 @@ function strand(K) {
 // ------------------------------------------------------------------ the Divalian Mists and the court of the Blind Well
 
 /** A thin pale spire with a glowing tip, on the palace wall. */
-function wallSpire(K, x, y, z, h) {
-  A(K, x, y, z, 1.3, h * 0.55, 1.3, IVORY2);
+function wallSpire(K, x, y, z, h, solidBase = false) {
+  A(K, x, y, z, 1.3, h * 0.55, 1.3, IVORY2, { collide: solidBase });
   meshA(K, new THREE.ConeGeometry(0.85, h * 0.6, 5), IVORY, x, y + h * 0.55 + h * 0.3, z);
   meshA(K, new THREE.OctahedronGeometry(0.4, 0), ICE, x, y + h * 0.55 + h * 0.62, z, { glow: 1.6, scale: [1, 2, 1] });
 }
@@ -275,7 +291,7 @@ function mists(K) {
   const h = 33;
   slab(K, 0, 76, 120, 44, 0x587a56, 0.05); // grass
   slab(K, 0, 76, 8, 48, IVORY2, 0.07); slab(K, -32, 76, 62, 6, IVORY2, 0.07); slab(K, 34, 66, 62, 6, IVORY2, 0.09); // the paths: north-south, west to the gorge, east to the bridge
-  for (let i = 0; i < 44; i++) { const x = K.R(-62, 62), z = K.R(54, 98); if (Math.abs(x) < 6 || (Math.abs(z - 76) < 4 && x < 0) || (Math.abs(z - 66) < 4 && x > 0)) continue; meshA(K, new THREE.ConeGeometry(K.R(0.25, 0.5), K.R(0.5, 1.1), 4), pick(K, [MOSS, MOSS2, 0x7a9a5a]), x, G(K, x, z) + 0.4, z, { rz: K.R(-0.4, 0.4) }); }
+  for (let i = 0; i < 44; i++) { const x = K.R(-62, 62), z = K.R(54, 98); if (Math.abs(x) < 6 || (Math.abs(z - 76) < 4 && x < 0) || (Math.abs(z - 66) < 4 && x > 0)) continue; meshA(K, new THREE.ConeGeometry(K.R(0.25, 0.5), K.R(0.5, 1.1), 4), pick(K, [MOSS, MOSS2, 0x7a9a5a]), x, G(K, x, z) + 0.4, z, { rz: K.R(-0.4, 0.4), noCollide: true }); }
   // the pale palace wall along the east edge, with the gate for the bridge, and along the north edge with the gate for the descent to the court
   wallA(K, 65, 52, 65, 100, h, 7, 1.4, IVORY2, [[7, 21]], GOLD);
   wallA(K, -66, 53, 66, 53, h, 5.5, 1.4, IVORY2, [[56, 76]], GOLD);
@@ -288,7 +304,7 @@ function mists(K) {
   meshA(K, new THREE.SphereGeometry(7.5, 14, 7, 0, TAU, 0, Math.PI / 2), LAV, dx, h + 3, dz, { scale: [1, 0.85, 1] });
   for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; beamA(K, [dx + Math.cos(a) * 7.6, h + 3, dz + Math.sin(a) * 7.6], [dx, h + 9.5, dz], 0.16, IVORY); }
   meshA(K, new THREE.OctahedronGeometry(0.7, 0), ICE, dx, h + 10.2, dz, { glow: 1.6, scale: [1, 2, 1] });
-  solid(K, dx - 6, h, dz - 6, dx + 6, h + 5, dz + 6);
+  roundSolid(K, dx, dz, 7.8, h, 5); // H17: round, like the drum under the dome
   meshA(K, new THREE.CylinderGeometry(2.6, 2.6, 0.3, 16), 0x2a2440, 64.2, h + 3.6, 84, { rz: Math.PI / 2, glow: 0.1 });
   meshA(K, new THREE.TorusGeometry(2.7, 0.22, 6, 20), GOLD, 64.0, h + 3.6, 84, { ry: Math.PI / 2, glow: 1.4 });
   meshA(K, new THREE.TorusGeometry(1.4, 0.12, 6, 16), CYAN, 63.9, h + 3.6, 84, { ry: Math.PI / 2, glow: 1.8 });
@@ -323,7 +339,7 @@ function court(K) {
     beamA(K, [wx + Math.cos(a) * 5.0, h + 10.9, wz + Math.sin(a) * 5.0], [wx, h + 12.1, wz], 0.1, 0x3a3262);
   }
   meshA(K, new THREE.SphereGeometry(0.35, 8, 6), CYAN, wx, h + 12.3, wz, { glow: 2.4 });
-  solid(K, wx - 2.2, h, wz - 2.2, wx + 2.2, h + 9, wz + 2.2);
+  roundSolid(K, wx, wz, 2.1, h, 9); // H17: round, like the column
   lampA(K, wx, h + 6, wz, CYAN, 12, 40);
   lampA(K, wx + 12, h + 3, wz + 6, 0x8a9aff, 6, 30);
   // the ring of dark needle spires round the court, and a low curved wall between them with a gate on the south, north and east
@@ -334,7 +350,7 @@ function court(K) {
     if (gate) continue;
     meshA(K, new THREE.ConeGeometry(1.5, hh, 5), 0x1c1830, x, g + hh / 2, z, { ry: K.R(0, 3) });
     meshA(K, new THREE.OctahedronGeometry(0.45, 0), CYAN, x, g + hh + 0.5, z, { glow: 1.3, scale: [1, 2, 1] });
-    solid(K, x - 1, g, z - 1, x + 1, g + hh * 0.8, z + 1);
+    roundSolid(K, x, z, 1.5, g, hh * 0.8); // H17: round, like the cone
   }
   const skip = (a) => { const x = Math.cos(a), z = Math.sin(a); return (Math.abs(x) < 0.34 && Math.abs(z) > 0.9) || (x > 0.9 && Math.abs(z) < 0.34); };
   const N = 28;
@@ -357,8 +373,8 @@ function gorge(K) {
   for (const s of [-1, 1]) {
     const z = 76 + s * 5.1;
     A(K, -78, 8, z, 25, 48, 3, pick(K, ROCK), { collide: true });
-    for (let x = -66; x >= -90; x -= 5) meshA(K, new THREE.DodecahedronGeometry(K.R(2.2, 3.6), 0), pick(K, ROCK), x - 1, 55 + K.R(-2, 2), z + s * 0.4, { ry: K.R(0, TAU), scale: [1.3, 1.1, 1] });
-    for (let x = -68; x > -90; x -= 7) meshA(K, new THREE.ConeGeometry(0.9, K.R(3, 6), 5), 0x4a6a42, x, 58 + K.R(0, 2), z - s * 0.5, { rz: K.R(-0.3, 0.3) });
+    for (let x = -66; x >= -90; x -= 5) meshA(K, new THREE.DodecahedronGeometry(K.R(2.2, 3.6), 0), pick(K, ROCK), x - 1, 55 + K.R(-2, 2), z + s * 0.4, { ry: K.R(0, TAU), scale: [1.3, 1.1, 1], noCollide: true }); // H17: on top of the cliff, out of reach
+    for (let x = -68; x > -90; x -= 7) meshA(K, new THREE.ConeGeometry(0.9, K.R(3, 6), 5), 0x4a6a42, x, 58 + K.R(0, 2), z - s * 0.5, { rz: K.R(-0.3, 0.3), noCollide: true });
   }
   const ax = -74, y = r.h0 + (r.h1 - r.h0) * 8 / 24;
   for (const s of [-1, 1]) { A(K, ax, y - 0.3, 76 + s * 4.3, 1.9, 11, 1.6, IVORY2); A(K, ax, y + 10.7, 76 + s * 4.3, 2.4, 0.5, 2.0, MOSS); }
@@ -381,8 +397,8 @@ function planter(K, x, z, r, o = {}) {
   const g = G(K, x, z);
   meshA(K, new THREE.CylinderGeometry(r, r * 1.04, 0.9, 12), IVORY2, x, g + 0.45, z);
   meshA(K, new THREE.CylinderGeometry(r * 0.88, r * 0.88, 0.1, 12), 0x3a4a34, x, g + 0.92, z);
-  solid(K, x - r * 0.82, g, z - r * 0.82, x + r * 0.82, g + 0.95, z + r * 0.82);
-  meshA(K, new THREE.DodecahedronGeometry(r * 0.45, 0), pick(K, [ROCK[0], 0x5a6a48]), x + r * 0.25, g + 1.2, z - r * 0.1, { ry: K.R(0, 3), scale: [1.1, 0.8, 1] });
+  roundSolid(K, x, z, r * 1.04, g, 0.95); // H17: round, like the rim
+  meshA(K, new THREE.DodecahedronGeometry(r * 0.45, 0), pick(K, [ROCK[0], 0x5a6a48]), x + r * 0.25, g + 1.2, z - r * 0.1, { ry: K.R(0, 3), scale: [1.1, 0.8, 1], collide: 0.72 });
   meshA(K, new THREE.DodecahedronGeometry(r * 0.3, 0), MOSS2, x + r * 0.25, g + 1.55, z - r * 0.1, { scale: [1.2, 0.35, 1.1] });
   if (o.tree !== false) bonsai(K, x - r * 0.28, g + 0.95, z + r * 0.15, r * 0.6);
 }
@@ -420,8 +436,7 @@ function dome(K, cx, cz, r) {
   meshA(K, new THREE.TorusGeometry(2.7, 0.2, 6, 24), CYAN, cx, g + 7.8, dz + 0.6, { glow: 2 });
   meshA(K, new THREE.TorusGeometry(1.6, 0.12, 6, 20), TEAL, cx, g + 7.8, dz + 0.62, { glow: 1.6 });
   for (const s of [-1, 1]) A(K, cx + s * 1.95, g + 1.4, dz + 0.7, 0.14, 4.4, 0.1, CYAN, { glow: 1.6 });
-  solid(K, cx - r * 0.82, g, cz - r * 0.6, cx + r * 0.82, g + 8, cz + r * 0.6);
-  solid(K, cx - r * 0.6, g, cz - r * 0.82, cx + r * 0.6, g + 8, cz + r * 0.82);
+  roundSolid(K, cx, cz, r + 0.7, g, 8); // H17: round, like the ring under the dome
   lampA(K, cx, g + 4, dz + 3, 0xcfffe0, 7, 24);
 }
 
@@ -463,8 +478,8 @@ function tower(K, x, z, r, h) {
   const g = G(K, x, z);
   meshA(K, new THREE.CylinderGeometry(r * 1.3, r * 1.4, 2, 10), IVORY2, x, g + 1, z);
   meshA(K, new THREE.CylinderGeometry(r * 0.62, r, h, 10), pick(K, [IVORY, 0xd8d2e4]), x, g + 2 + h / 2, z);
-  solid(K, x - r * 1.2, g, z - r * 1.2, x + r * 1.2, g + 2, z + r * 1.2);
-  solid(K, x - r * 0.75, g, z - r * 0.75, x + r * 0.75, g + 2 + h, z + r * 0.75);
+  roundSolid(K, x, z, r * 1.4, g, 2); // H17: round, like the ring base and shaft
+  roundSolid(K, x, z, r, g, 2 + h);
   for (const f of [0.28, 0.55, 0.8]) meshA(K, new THREE.CylinderGeometry(r * (1 - f * 0.38) + 0.15, r * (1 - f * 0.38) + 0.15, 0.7, 10), GOLD, x, g + 2 + h * f, z, { glow: 0.6 });
   for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.4, rr = r * 0.86; A(K, x + Math.cos(a) * rr, g + 6, z + Math.sin(a) * rr, 0.3, h * 0.7, 0.3, CYAN, { glow: 1.4, ry: -a }); }
   for (let i = 0; i < 3; i++) { const a = i / 3 * TAU + 1.2, rr = r * 0.82; A(K, x + Math.cos(a) * rr, g + 12 + i * 4, z + Math.sin(a) * rr, 1.4, 3.2, 0.2, 0x1e2440, { ry: -a + Math.PI / 2 }); }
@@ -547,7 +562,7 @@ function palace(K) {
   // the strip beside the palace: rails along the east edge, spires, a lit lamp or two
   rail(K, 129.2, -108, 129.2, -52, 1.1);
   for (const z of [-100, -80, -60]) DK.lamp(K, 123, z, 4.2);
-  for (const z of [-106, -90, -74, -58]) wallSpire(K, 128, h, z, 9);
+  for (const z of [-106, -90, -74, -58]) wallSpire(K, 128, h, z, 9, true); // H17: the strip spires stand on the walkway
 }
 
 // ------------------------------------------------------------------ the crystal cavern
@@ -586,8 +601,8 @@ function cavern(K) {
     const x = side === 0 ? x0 + 3 : side === 1 ? x1 - 3 : x0 + 5 + t * 58, z = side < 2 ? z0 + 4 + t * 50 : side === 2 ? z0 + 3 : z1 - 3;
     if (side === 3 && Math.abs(x) < 11) continue;
     const g = G(K, x, z), s = K.R(1.2, 2.4), col = pick(K, CRYS);
-    for (const [dx, dz, k, hh] of [[0, 0, 1, 3.4], [0.9, 0.5, 0.65, 2.2], [-0.8, 0.6, 0.55, 1.8]]) meshA(K, new THREE.ConeGeometry(0.6 * s * k + 0.1, hh * s, 5), col, x + dx * s, g + hh * s / 2, z + dz * s, { glow: 1.5, rz: dx * 0.2 });
-    solid(K, x - s * 0.9, g, z - s * 0.9, x + s * 0.9, g + 2.6 * s, z + s * 0.9);
+    for (const [dx, dz, k, hh] of [[0, 0, 1, 3.4], [0.9, 0.5, 0.65, 2.2], [-0.8, 0.6, 0.55, 1.8]]) meshA(K, new THREE.ConeGeometry(0.6 * s * k + 0.1, hh * s, 5), col, x + dx * s, g + hh * s / 2, z + dz * s, { glow: 1.5, rz: dx * 0.2, noCollide: k < 1 });
+    roundSolid(K, x, z, 0.6 * s + 0.1, g, 2.2 * s); // H17: inside the big crystal (the small leaning shards are walk-through decoration)
   }
   for (let i = 0; i < 8; i++) { const x = K.R(-30, 30), z = K.R(-94, -42), len = K.R(5, 11); meshA(K, new THREE.ConeGeometry(K.R(0.8, 1.6), len, 5), pick(K, CRYS), x, h + H - len / 2, z, { rx: Math.PI, glow: 1.3 }); }
   // dark pillars wrapped in green lattice lamps, either side of the way up
@@ -626,8 +641,7 @@ function cavern(K) {
 /** A dark boulder with a white Scorn sigil painted on its face. */
 function sigilRock(K, x, z, s, ry) {
   const g = G(K, x, z), fx = Math.sin(ry), fz = Math.cos(ry);
-  meshA(K, new THREE.DodecahedronGeometry(s, 0), ROCKD, x, g + s * 0.5, z, { ry, scale: [1.4, 0.9, 0.9] });
-  solid(K, x - s, g, z - s, x + s, g + s * 1.2, z + s);
+  meshA(K, new THREE.DodecahedronGeometry(s, 0), ROCKD, x, g + s * 0.5, z, { ry, scale: [1.4, 0.9, 0.9], collide: 0.72 }); // H17: collider turned with the rock
   const px = x + fx * s * 0.86, pz = z + fz * s * 0.86, y = g + s * 0.6;
   A(K, px, y - 0.5, pz, 0.14, 1.1, 0.05, 0xeeeae0, { ry, glow: 0.6 });
   meshA(K, new THREE.TorusGeometry(0.32, 0.06, 4, 10), 0xeeeae0, px, y + 0.4, pz, { ry, glow: 0.6 });
@@ -643,7 +657,7 @@ function rest(K) {
     const hh = HS[i % HS.length], nx = HS[(i + 1) % HS.length];
     A(K, x, h, -134, 1.6, hh, 1.6, i % 3 ? IVORY2 : IVORY, { collide: true });
     if (hh === 10 && nx === 10 && x + 7 <= 132) A(K, x + 3.5, h + 10, -134, 8.6, 1.0, 1.8, IVORY2); // a lintel carried on two standing pillars
-    else if (hh < 5) A(K, x + 1.8, h, -135.2, 2.4, 0.8, 1.2, IVORY2, { ry: 0.5 });
+    else if (hh < 5) A(K, x + 1.8, h, -135.2, 2.4, 0.8, 1.2, IVORY2, { ry: 0.5, collide: true });
   }
   const HZ = [10, 10, 7, 4, 10, 10];
   for (let z = -172, i = 0; z <= -142; z += 6, i++) {

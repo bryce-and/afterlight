@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { PATROL_DATA } from './patrol-data.js';
 import {
   ROAD, PAINT, CONC, CONC2, RUST, WHITE, F_BLUE, car, pine, container, barrier, banner, fuselageX, gantry, crane, sphereTank, hTank, fence, ruinWall,
-  carPile, latticeTower, sandbags, pylon, wires, fcrate, shield, skiff, rocket, stairTo, rail, pier,
+  carPile, latticeTower, sandbags, pylon, wires, fcrate, shield, skiff, rocket, stairTo, rail, pier, slopedBar, tube,
 } from './level-earth.js';
 
 const WALLC = 0x4e5762, WALLC2 = 0x5d6670, DARK = 0x25272b, TEAL = 0x5f8a86, SPIRE = 0x12161c, GLOW = 0x4dff9a, FANC = 0x2c3038, ROOFC = 0x3a3c42;
@@ -143,7 +143,14 @@ function spire(K, x, z, h, lean, yaw = 0, width = 4.2) {
     const along = t * h - h / 2, px = x + up.x * along, pz = z + up.z * along, py = h / 2 - 0.5 + up.y * along; // measured from the blade's centre
     K.mesh(geo('band', () => new THREE.BoxGeometry(1, 1, 1)), GLOW, px, py + 0.2, pz, { rz: lean, ry: yaw, scale: [width * 1.06, 0.55, width * 0.85], glow: 1.6 });
   }
-  K.collider(x - width * 0.7, 0, z - width * 0.7, x + width * 0.7, 7, z + width * 0.7, m);
+  // H17: the blade leans, so its footprint walks sideways as it rises: stacked oriented colliders, each placed where the blade is at that height
+  // (was one square box 1.4 widths wide that missed the blade and held air). `up` is the blade's axis, cy its centre height above the ground.
+  const cy = h / 2 - 0.5, cl = Math.cos(lean);
+  K.collider(x - 0.05, cy - 0.05, z - 0.05, x + 0.05, cy + 0.05, z + 0.05, m); // a speck inside the blade so shots and sight lines still hit its mesh
+  for (let y0 = 0; y0 < 7; y0 += 1) {
+    const s = (y0 + 0.5 - cy) / up.y;
+    K.ocollider(x + up.x * s, z + up.z * s, width / cl + Math.abs(Math.tan(lean)) * 1, 1, width * 0.8, yaw, y0);
+  }
   return m;
 }
 
@@ -169,7 +176,7 @@ function valveCluster(K, x, z) {
 /** A shipyard hull in the dry dock: a big cylinder on cradle legs, a nose cap, ribs, fins. `axisY` is the world height of its axis. */
 function hull(K, x, z, L, r, axisY) {
   const gy = K.ground(x, z), y = axisY - gy;
-  K.mesh(cyl12(), 0xbdb6a8, x, y, z, { rz: Math.PI / 2, scale: [r, L, r], collide: true });
+  tube(K, x, z, y, L, r, 0, K.mesh(cyl12(), 0xbdb6a8, x, y, z, { rz: Math.PI / 2, scale: [r, L, r] })); // H17: a tube collider hugs the curve
   K.mesh(hemi12(), 0xbdb6a8, x - L / 2, y, z, { rz: Math.PI / 2, scale: [r, r * 1.5, r] });
   K.mesh(cyl12(), 0x8f8a80, x + L / 2 + 1.5, y, z, { rz: Math.PI / 2, scale: [r * 0.55, 3, r * 0.55], collide: false });
   for (let dx = -L / 2 + 6; dx < L / 2; dx += 9) K.mesh(geo('hullrib', () => new THREE.TorusGeometry(1, 0.04, 6, 24)), RUST, x + dx, y, z, { ry: Math.PI / 2, scale: [r * 1.02, r * 1.02, r * 1.02], collide: false });
@@ -192,12 +199,12 @@ export default {
 
       // ================================================================ roads
       // the launch road: from the landing north to the Wall, under the elevated highway
-      K.box(0, 20, 18, 0.05, 340, ROAD, { collide: false });
+      K.box(0, 20, 18, 0.05, 340, ROAD, { collide: false }).userData.noCollide = true;
       for (let z = 172; z > -128; z -= 7) K.box(0, z, 0.3, 0.06, 3, PAINT, { collide: false });
       for (const [x, z, ry] of [[3, -92, 0.15], [-4, -104, -0.25]]) K.mesh(new THREE.BoxGeometry(12, 0.3, 9), ROAD, x, 0.05, z, { ry, rx: 0.02 });   // the road ends in tilted slabs
       // a cross road east to the dock, and one west to the warehouse and the on-ramp
-      K.box(60, 112, 124, 0.05, 12, ROAD, { collide: false }); K.box(-70, 112, 140, 0.05, 12, ROAD, { collide: false });
-      K.box(-138, 70, 12, 0.05, 80, ROAD, { collide: false });
+      K.box(60, 112, 124, 0.05, 12, ROAD, { collide: false }).userData.noCollide = true; K.box(-70, 112, 140, 0.05, 12, ROAD, { collide: false }).userData.noCollide = true;
+      K.box(-138, 70, 12, 0.05, 80, ROAD, { collide: false }).userData.noCollide = true; // H17: paving; its skirt down a bank is not a wall
       for (let x = -140; x < 120; x += 8) if (x < -9 || x > 9) K.box(x, 112, 3, 0.06, 0.3, PAINT, { collide: false });
       // lamp posts along the roads: both sides, a few dead
       for (let z = 164, i = 0; z > -118; z -= 22, i++) {
@@ -232,7 +239,7 @@ export default {
       for (const px of [-12, 4, 20]) for (const s of [-1, 1]) pier(K, px, HZ + s * 4.5, 2.2, 2.2, DB);
       // the fallen slab: the west span's end dropped onto the road, a ramp of broken concrete
       const slab = K.mesh(new THREE.BoxGeometry(18, 1.3, 13.4), CONC, -39, 3.5, HZ, { rz: 0.4 });
-      K.collider(-47.5, 0, HZ - 6.7, -30.5, 4.6, HZ + 6.7, slab);
+      slopedBar(K, -39, HZ, 3.5, 18, 13.4, 1.3, 0.4, 0, slab); // H17: stepped along its slope (a ramp up from the road), the air under the high end is open
       for (const dz of [-3, 0, 3]) { K.box(-50, HZ + dz, 1.4, 0.1, 0.1, RUST, { y: DT + 0.6, abs: true, collide: false }); K.box(-21, HZ + dz, 1.4, 0.1, 0.1, RUST, { y: DT + 0.4, abs: true, collide: false }); }
       stairTo(K, 6, HZ - 7.9, 's', 3, DT);                                                    // the way up onto the stranded span, off the north side
       stairTo(K, -82, HZ + 7.9, 'n', 3, DT);
@@ -351,7 +358,7 @@ export default {
       const BX = HX + HW / 2 - 2.4, BL = HD * 0.8;
       K.mesh(new THREE.BoxGeometry(0.4, 15, BL), 0xd98d4a, BX, 8.5, HZ2 + 2, { rz: 0.5, glow: 1.1, collide: false });
       for (let dz = -BL / 2 + 2; dz < BL / 2; dz += 5) K.mesh(new THREE.BoxGeometry(0.3, 15.4, 0.35), DARK, BX - 0.3, 8.5, HZ2 + 2 + dz, { rz: 0.5, collide: false });
-      K.box(HX + HW / 2 - 0.5, HZ2 + 2, 1.2, 2.5, BL, 0x5a4a3a, { collide: false });
+      K.box(HX + HW / 2 - 0.5, HZ2 + 2, 1.2, 2.5, BL, 0x5a4a3a); // H17: the bench along the hangar wall is solid
       // trusses with strip lights hung from them
       for (let z = HZ2 - HD / 2 + 4; z < HZ2 + HD / 2; z += 8) {
         K.box(HX, z, HW, 0.9, 0.9, DARK, { y: HH - 3, collide: false });

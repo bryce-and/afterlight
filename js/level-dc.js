@@ -4,6 +4,7 @@
 // dc3 The Wishing Chamber: a descent. Harbinger's Seclude court on the heights -> stair viaduct to the Gardens of Esila -> a gorge into the Taken Blight Hollow -> up into the Ahamkara's nest.
 // Awoken ivory and lavender stone, crystal and gold, with Taken blight (black growths, orange veins) and torn banners spreading over it.
 import * as THREE from 'three';
+import { laid } from './patrol-kit.js';
 
 const IVORY = 0xe6dfcf, IVORY2 = 0xcfc7b4, LAV = 0xb8aed0, LAV2 = 0x8f84ad, DUSK = 0x5a5078, GOLD = 0xffd36b;
 const ICE = 0x9fe8ff, BLIGHT = 0x15101c, BLIGHT2 = 0x2a1a2e, VEIN = 0xff7a1c, MOSS = 0x4f7a5c, MOSS2 = 0x6f9a6c;
@@ -70,7 +71,7 @@ function arch(K, x, z, span, h, axis = 'x', o = {}) {
     K.box(x, z, px ? span + 1.7 : 1.5, 1.3, px ? 1.5 : span + 1.7, col, { y: h - 0.2, collide: false });
     K.mesh(g().octa, GOLD, x, h + 1.3, z, { scale: [0.5, 0.8, 0.5], glow: 1.4 });
   } else {
-    K.box(a[0] + (px ? span * 0.25 : 0), a[1] + (px ? 0 : span * 0.25), 2.6, 1.0, 1.4, col, { y: 0, collide: false }).rotation.y = 0.4;
+    K.obox(a[0] + (px ? span * 0.25 : 0), a[1] + (px ? 0 : span * 0.25), 2.6, 1.0, 1.4, 0.4, col); // H17: the fallen block is solid, with a collider turned like it
   }
   if (o.light) K.light(x, h * 0.8, z, o.light, 6, 20);
 }
@@ -78,15 +79,16 @@ function arch(K, x, z, span, h, axis = 'x', o = {}) {
 // pale blue crystal cluster with a small collider
 function crystal(K, x, z, s = 1, col = ICE) {
   for (const [dx, dz, k, hh] of [[0, 0, 1, 2.8], [0.7, 0.4, 0.6, 1.8], [-0.6, 0.5, 0.5, 1.5]]) {
-    K.mesh(g().cone5, col, x + dx * s, hh * s / 2, z + dz * s, { scale: [0.5 * s * k + 0.1, hh * s, 0.5 * s * k + 0.1], glow: 0.7, rz: dx * 0.25 });
+    const m = K.mesh(g().cone5, col, x + dx * s, hh * s / 2, z + dz * s, { scale: [0.5 * s * k + 0.1, hh * s, 0.5 * s * k + 0.1], glow: 0.7, rz: dx * 0.25 });
+    if (k < 1) m.userData.noCollide = true; // H17: the small leaning shards are decoration inside the collided cluster
   }
-  K.collider(x - 0.8 * s, 0, z - 0.8 * s, x + 0.8 * s, 2.5 * s, z + 0.8 * s, null);
+  K.collider(x - 0.5 * s, 0, z - 0.4 * s, x + 0.5 * s, 2.5 * s, z + 0.7 * s, null); // H17: inside the cluster (the cones lean, a wider box blocked empty corners)
 }
 
 // Taken blight growth: black lump with glowing orange veins
 function blight(K, x, z, s = 1.6, o = {}) {
   K.mesh(g().rock, BLIGHT, x, s * 0.7, z, { scale: [s, s * 1.3, s * 0.9], ry: K.R(0, 6), collide: o.collide === false ? false : 0.7 });
-  K.mesh(g().rock, BLIGHT2, x + s * 0.7, s * 0.35, z + s * 0.3, { scale: [s * 0.5, s * 0.6, s * 0.5], ry: 1 });
+  K.mesh(g().rock, BLIGHT2, x + s * 0.7, s * 0.35, z + s * 0.3, { scale: [s * 0.5, s * 0.6, s * 0.5], ry: 1, collide: o.collide === false ? false : 0.7 }); // H17: the small lump is solid too
   for (let i = 0; i < 3; i++) {
     const a = K.R(0, 6.28);
     K.mesh(g().octa, VEIN, x + Math.cos(a) * s * 0.7, s * K.R(0.4, 1.3), z + Math.sin(a) * s * 0.7, { scale: [s * 0.12, s * 0.45, s * 0.12], glow: 1.8, rz: K.R(-0.4, 0.4) });
@@ -124,8 +126,8 @@ function run(K, x0, z0, x1, z1, h, o = {}) {
   for (let i = 0; i < n; i++) {
     const f = (i + 0.5) / n, x = x0 + (x1 - x0) * f, z = z0 + (z1 - z0) * f, l = L / n + 0.05;
     K.box(x, z, alongX ? l : t, h, alongX ? t : l, o.color ?? IVORY2, { collide: o.collide ?? true });
+    if (o.cap) K.box(x, z, alongX ? l : t + 0.3, 0.25, alongX ? t + 0.3 : l, o.cap, { y: h, collide: false, glow: 0.5 }).userData.noCollide = true; // H17: a cap per piece, on that piece (one long cap hung over the slope)
   }
-  if (o.cap) K.box((x0 + x1) / 2, (z0 + z1) / 2, alongX ? Math.abs(x1 - x0) : t + 0.3, 0.25, alongX ? t + 0.3 : Math.abs(z1 - z0), o.cap, { y: h, collide: false, glow: 0.5 });
 }
 
 // a door set in a lane with a pylon on either side. The lane is a gully, so the cliffs close the rest of the gap.
@@ -211,7 +213,7 @@ function tunnel(K, x, za, zb, o = {}) {
 // hedge row (collides, climbable-height cover)
 function hedge(K, x, z, w, d, h = 1.4) {
   K.box(x, z, w, h, d, MOSS);
-  K.box(x, z, w * 0.96, 0.35, d * 0.96, MOSS2, { y: h, collide: false });
+  K.box(x, z, w * 0.96, 0.35, d * 0.96, MOSS2, { y: h, collide: false }).userData.noCollide = true; // H17: leafy top, walk-through
 }
 
 // small pale flowers, glowing a little
@@ -222,6 +224,12 @@ function flowers(K, cx, cz, r, n) {
   }
 }
 
+// H17: a boulder like K.rock (same random draws, so the layout is unchanged) whose collider is turned with it instead of an axis-aligned box round a yawed rock
+function rock(K, x, z, s) {
+  const col = K.RP([K.C.rock, K.C.rock2]), sy = K.R(0.6, 1.1), sx = K.R(0.9, 1.2), sz = K.R(0.9, 1.2), ry = K.R(0, 6.28);
+  return K.mesh(g().rock, col, x, s * sy * 0.45, z, { scale: [s * sx, s * sy, s * sz], ry, collide: 0.72 });
+}
+
 // fallen column
 function fallen(K, x, z, len, ry, r = 0.8) {
   K.mesh(g().cyl6, IVORY2, x, r, z, { scale: [r, len, r], rz: Math.PI / 2, ry, collide: 0.9 });
@@ -229,8 +237,8 @@ function fallen(K, x, z, len, ry, r = 0.8) {
 
 // stone ruin wall stub with a crumbled top
 function stub(K, x, z, w, d, h, col = IVORY2) {
-  K.box(x, z, w, h, d, col);
-  K.box(x + w * 0.2, z, w * 0.4, 0.5, d * 0.9, col, { y: h, collide: false });
+  K.box(x, z, w, h + 0.4, d, col); // H17: 0.4 m taller, so the top is still at body height where the ground rises beside it
+  K.box(x + w * 0.2, z, w * 0.4, 0.5, d * 0.9, col, { y: h + 0.4, collide: false });
 }
 
 /** U17g: the helpers and tones the Dreaming City patrol zone (js/patrol-dreaming.js) builds with. The campaign maps below are unchanged. */
@@ -309,7 +317,7 @@ export default {
       for (const [x, z] of [[-50, -22], [46, -44], [44, -88]]) blight(K, x, z, R(2.4, 3.2), { light: true });
       for (const [x, z] of [[-10, -14], [14, -36], [-8, -64], [30, -10]]) banner(K, x, z, R(5.5, 7));
       for (const [x, z] of [[-6, 8], [8, -24], [-22, -54], [22, -52]]) lamp(K, x, z, 3.6, ICE);
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), 12, -50, 8, 19, 5, 2.4);
+      K.scatter((x, z) => rock(K, x, z, R(1, 2)), 12, -50, 8, 19, 5, 2.4);
       crystal(K, -60, -26, 1.6); crystal(K, 58, -22, 1.4); crystal(K, 56, -60, 1.2);
       for (const [x, z] of [[-62, 6], [60, 2], [-66, -30], [64, -58], [-62, -88], [58, -90]]) spire(K, x, z, R(16, 26), 2.2);
 
@@ -332,11 +340,11 @@ export default {
       arcWall(K, -44, -128, 15, 2.5, 3.9, 4, 1.7, { vary: true, skip: [2] });
       arcWall(K, -36, -128, 25, -0.75, 0.75, 5, 1.5, { vary: true, skip: [1, 3] });
       ruin(K, 2, -112, 0.2, 1.1, LAV); ruin(K, 6, -148, 2.9, 1.0, LAV);
-      for (const [x, z] of [[-6, -102], [18, -142]]) K.rock(x, z, R(2, 3));
+      for (const [x, z] of [[-6, -102], [18, -142]]) rock(K, x, z, R(2, 3));
       for (const [x, z] of [[-12, -150], [12, -126], [-44, -104]]) blight(K, x, z, R(2, 3), { light: true });
       for (const [x, z] of [[-22, -108], [0, -138], [30, -150]]) lamp(K, x, z, 4, GOLD);
       for (const [x, z] of [[-50, -150], [10, -102], [38, -104]]) banner(K, x, z, R(5.5, 7));
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), -14, -130, 8, 19, 4, 2.6);
+      K.scatter((x, z) => rock(K, x, z, R(1, 2)), -14, -130, 8, 19, 4, 2.6);
       crystal(K, -54, -106, 1.5); crystal(K, -54, -152, 1.3);
       mist(K, -20, -112, 14, 0.7, 0.26); mist(K, 14, -146, 12, 0.7, 0.24);
       // the north lip: a parapet, open where the second gully drops away
@@ -380,7 +388,7 @@ export default {
       for (const [x, z] of [[-14, -176], [34, -194], [-48, -190], [18, -186]]) banner(K, x, z, R(6, 8));
       for (const [x, z] of [[-4, -184], [-34, -184], [26, -204], [8, -196]]) lamp(K, x, z, 4.2, ICE);
       mist(K, -30, -172, 18, 0.5, 0.22); mist(K, 40, -180, 14, 0.5, 0.2);
-      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), 6, -194, 11, 19, 3, 2.4);
+      K.scatter((x, z) => rock(K, x, z, R(1, 1.8)), 6, -194, 11, 19, 3, 2.4);
       crystal(K, 62, -196, 1.6); crystal(K, -56, -214, 1.5);
 
       // ---- Gate of the Mists: a walled courtyard on the high plateau, a raised dais before the sealed gate ----
@@ -481,7 +489,7 @@ export default {
       for (const [x, z] of [[-40, -30], [14, -10]]) blight(K, x, z, R(2, 2.8), { light: true });
       for (const [x, z] of [[-8, -8], [24, -44], [-30, -44]]) banner(K, x, z, R(5.5, 7));
       for (const [x, z] of [[-4, 8], [14, -16], [-8, -44]]) lamp(K, x, z, 3.6, GOLD);
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), 6, -48, 8, 19, 5, 2.4);
+      K.scatter((x, z) => rock(K, x, z, R(1, 2)), 6, -48, 8, 19, 5, 2.4);
       flowers(K, -20, -20, 14, 14);
       for (const [x, z] of [[-62, 8], [64, 12], [64, -76]]) spire(K, x, z, R(18, 26), 2.2);
       // the ridge face rises across the map: crystals and rock teeth, and the gully gate
@@ -506,13 +514,13 @@ export default {
       K.cyl(-6, -132, 3.4, 1.0, IVORY2, { sides: 10 });
       K.mesh(g().cyl28, ICE, -6, 1.0, -132, { scale: [2.9, 0.15, 2.9], glow: 0.5, collide: false });
       crystal(K, -6, -132, 1.0);
-      for (const [x, z] of [[-20, -120], [8, -120], [-20, -144], [8, -144]]) { K.box(x, z, 5, 0.9, 2.2, IVORY2); K.box(x, z, 4.6, 0.4, 1.8, MOSS2, { y: 0.9, collide: false }); }
+      for (const [x, z] of [[-20, -120], [8, -120], [-20, -144], [8, -144]]) { K.box(x, z, 5, 0.9, 2.2, IVORY2); K.box(x, z, 4.6, 0.4, 1.8, MOSS2, { y: 0.9 }); }
       hedge(K, -40, -126, 1.1, 10); hedge(K, 28, -140, 1.1, 10); hedge(K, 34, -122, 12, 1.1);
       for (const [x, z] of [[-2, -116], [-18, -140], [20, -132]]) banner(K, x, z, R(5.5, 7));
       for (const [x, z] of [[-6, -120], [-6, -144], [-20, -132], [8, -132]]) lamp(K, x, z, 3.8, PINK);
       for (const [x, z] of [[40, -122], [-50, -146]]) blight(K, x, z, R(2.2, 3), { light: true });
       flowers(K, -6, -132, 22, 26);
-      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), -6, -132, 12, 19, 3, 2.4);
+      K.scatter((x, z) => rock(K, x, z, R(1, 1.8)), -6, -132, 12, 19, 3, 2.4);
       // terrace 3: the crown. An ivy pavilion with a deck above the lawn, ivy-wrapped spires
       K.platform(-36, -164, 12, 10, 3.2, { stairs: ['e'], stairW: 4, color: IVORY2, stairColor: LAV });
       for (const [x, z] of [[-40, -168], [-32, -168], [-40, -160], [-32, -160]]) K.box(x, z, 1.1, 4.2, 1.1, IVORY, { y: 3.2 });
@@ -555,7 +563,7 @@ export default {
       for (const [x, z, h] of [[-10, zh + 17, 12], [10, zh + 16, 9], [-11, zh - 19, 12], [9, zh - 20, 12]]) { K.box(x, z, 2.4, h, 2.4, IVORY); K.box(x, z, 3.2, 0.7, 3.2, GOLD, { y: h - 1, collide: false, glow: 0.6 }); }
       // cover for a big room: toppled ribs and fallen stone across the nave
       K.obox(-4, zh + 4, 11, 1.8, 1.5, 0.5, IVORY2); K.obox(7, zh - 6, 9, 1.4, 1.4, -0.4, IVORY2); K.obox(-6, zh - 13, 7, 2.2, 1.4, 1.2, IVORY2);
-      for (const [x, z] of [[-7, zh - 2], [8, zh + 8], [-3, zh + 12], [5, zh - 16]]) K.rock(x, z, R(1, 1.5));
+      for (const [x, z] of [[-7, zh - 2], [8, zh + 8], [-3, zh + 12], [5, zh - 16]]) rock(K, x, z, R(1, 1.5));
       pad(K, 0, zh, 6, ICE, { glow: 0.45 });
       K.box(0, zh, 1.0, 0.1, 50, ICE, { y: 0.34, collide: false, glow: 1.2 });
       for (const [x, z] of [[-24, zh + 24], [24, zh + 24], [-24, zh - 24]]) crystal(K, x, z, 1.6);
@@ -639,7 +647,7 @@ export default {
       const { R, C } = K;
 
       // ---- Harbinger's Seclude: a cloister court on the heights, a pool and statues, the ring tower ----
-      K.box(0, -30, 5, 0.12, 110, IVORY2, { y: 0.1, collide: false });                      // the processional strip
+      laid(K, 0, -85, 0, 25, 5, IVORY2, { y: 0.16, h: 0.12 });                               // the processional strip (H17: laid on the slope)
       // a colonnade that has lost some of its pillars
       for (const z of [-4, -14, -23, -41, -50, -59, -77]) {
         K.box(-34, z, 1.7, 8, 1.7, IVORY); K.box(-34, z, 2.4, 0.7, 2.4, GOLD, { y: 8, collide: false, glow: 0.4 });
@@ -674,7 +682,7 @@ export default {
       for (const [x, z] of [[-30, -36], [30, -34], [-14, -8], [14, -76]]) blight(K, x, z, R(2.4, 3.2), { light: true });
       for (const [x, z] of [[-10, -64], [12, -16], [-30, -8], [30, -60]]) banner(K, x, z, R(6, 8));
       for (const [x, z] of [[-6, -30], [8, -58], [-20, -52]]) crystal(K, x, z, 1.2);
-      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), 0, -44, 9, 19, 3, 2.4);
+      K.scatter((x, z) => rock(K, x, z, R(1, 1.8)), 0, -44, 9, 19, 3, 2.4);
       mist(K, -16, -30, 12, 0.5, 0.2);
       for (const [x, z] of [[-64, 6], [64, 4], [-66, -24], [66, -28], [-68, -82], [70, -80]]) spire(K, x, z, R(16, 24), 2.2);
       // the north lip: a balustrade above the drop, the gate where the stairs leave
@@ -717,7 +725,7 @@ export default {
       for (const [x, z] of [[-14, -112], [16, -130]]) lamp(K, x, z, 4, VIOLET);
       for (const [x, z] of [[-66, -96], [68, -98], [-66, -142], [68, -140]]) spire(K, x, z, R(16, 22), 2.0);
       mist(K, 0, -126, 20, 0.5, 0.18);
-      K.scatter((x, z) => K.rock(x, z, R(1, 1.8)), -4, -122, 8, 19, 3, 2.4);
+      K.scatter((x, z) => rock(K, x, z, R(1, 1.8)), -4, -122, 8, 19, 3, 2.4);
       // the ridge's face, vein-lit, and the gate where the gorge begins
       faceWall(K, -80, 80, -148.5, 10, [[-12, 0]], { color: BLIGHT2, cap: VEIN });
       for (const x of [-60, -40, -22, 12, 30, 50, 66]) blight(K, x, -146.4, R(1.6, 2.4), { light: true });
@@ -727,7 +735,7 @@ export default {
       for (const [x, z, a, l] of [[-5, -178, 0.25, 14], [-2, -188, -0.1, 14], [2, -199, 0.2, 14], [0, -209, 0, 10]]) K.box(x, z, R(0.3, 0.5), 0.1, l, VEIN, { y: 0.1, collide: false, glow: 1.4 }).rotation.y = a;
       pad(K, -1, -192, 13, BLIGHT);
       // the walls: black rock and growths, the Taken spire on the west rim
-      for (const [x, z] of [[-30, -178], [-34, -194], [-30, -208], [30, -176], [30, -212], [-44, -216]]) K.rock(x, z, R(4, 6));
+      for (const [x, z] of [[-30, -178], [-34, -194], [-30, -208], [30, -176], [30, -212], [-44, -216]]) rock(K, x, z, R(4, 6));
       for (const [x, z, s] of [[-28, -186, 4.2], [28, -184, 3.8], [-28, -214, 4.6], [28, -208, 3.6], [-17, -197, 2.2], [14, -178, 2.4]]) blight(K, x, z, s, { light: true });
       K.cone(-44, -196, 4.6, 34, BLIGHT, { sides: 5 });
       for (const a of [0, 2.1, 4.2]) K.mesh(g().octa, VEIN, -44 + Math.cos(a) * 3.4, 12 + a * 3, -196 + Math.sin(a) * 3.4, { scale: [0.5, 2.6, 0.5], glow: 1.9, collide: false });
@@ -739,10 +747,10 @@ export default {
       for (const [x, z] of [[-18, -176], [20, -190], [-16, -202]]) banner(K, x, z, R(5, 6.5));
       for (const x of [-34, 36]) for (const z of [-188, -204]) crystal(K, x + R(-2, 2), z, 1.2, VEIN);
       for (const [x, z] of [[-6, -180], [10, -194], [-12, -206]]) K.light(x, 7, z, VEIN, 8, 26);
-      K.scatter((x, z) => K.rock(x, z, R(1, 2)), -1, -192, 8, 16, 4, 2.6);
+      K.scatter((x, z) => rock(K, x, z, R(1, 2)), -1, -192, 8, 16, 4, 2.6);
       mist(K, -1, -192, 18, 0.5, 0.1);
       // the choke: two jaws of rock either side of the ramp up
-      for (const [x, z, s] of [[-10, -212, 3.4], [10, -212, 3.2]]) blight(K, x, z, s, { light: true, collide: false });
+      for (const [x, z, s] of [[-10, -212, 3.4], [10, -212, 3.2]]) blight(K, x, z, s, { light: true }); // H17: the jaws are solid
       for (const s of [-1, 1]) K.light(s * 7, 5, -206, VEIN, 8, 24);
 
       // ---- The Wishing Chamber: the Ahamkara's nest, a vast roofed hall, up from the dark ----
@@ -780,7 +788,7 @@ export default {
       // wells of orange wish-light with growths around them
       for (const [x, z] of [[-30, -258], [30, -258], [-30, -280], [30, -280]]) {
         K.cyl(x, z, 2.4, 1.1, IVORY2, { sides: 8 });
-        K.mesh(g().cyl28, VEIN, x, 1.15, z, { scale: [1.9, 0.12, 1.9], glow: 1.5, collide: false });
+        K.mesh(g().cyl28, VEIN, x, 1.15, z, { scale: [1.9, 0.12, 1.9], glow: 1.5, collide: false }).userData.noCollide = true; // H17: a glow pool on the well rim
         K.light(x, 3, z, VEIN, 8, 26);
       }
       for (const [x, z] of [[-40, -240], [40, -240], [-40, -296], [40, -296], [-24, -302], [24, -302]]) blight(K, x, z, R(2.6, 3.6), { light: true });

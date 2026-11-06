@@ -11,11 +11,15 @@ export function road(K, pts, o = {}) {
   let run = gap / 2, side = 1;
   for (let i = 1; i < pts.length; i++) {
     const [x0, z0] = pts[i - 1], [x1, z1] = pts[i], L = Math.hypot(x1 - x0, z1 - z0), ry = Math.atan2(x1 - x0, z1 - z0), nx = Math.cos(ry), nz = -Math.sin(ry);
-    const n = Math.max(1, Math.round(L / 6));
+    // H17: 3 m pieces, each pitched to the slope between its ends (as Io's tstrip), so the track lies on the ground instead of stepping off it
+    const n = Math.max(1, Math.ceil(L / 3)), seg = L / n;
     for (let k = 0; k < n; k++) {
-      const t = (k + 0.5) / n, x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t;
-      K.mesh(new THREE.BoxGeometry(w, 0.05, L / n + 0.4), color, x, 0.04, z, { ry, collide: false });
-      if (k % 2 === 0) for (const e of [-1, 1]) K.mesh(new THREE.BoxGeometry(0.22, 0.07, L / n * 0.5), edge, x + nx * e * (w / 2 - 0.3), 0.07, z + nz * e * (w / 2 - 0.3), { ry, collide: false });
+      const ax = x0 + (x1 - x0) * k / n, az = z0 + (z1 - z0) * k / n, bx = x0 + (x1 - x0) * (k + 1) / n, bz = z0 + (z1 - z0) * (k + 1) / n;
+      laid(K, ax, az, bx, bz, w, color, { y: 0.04, h: 0.05, over: 0.3 });
+      if (k % 2 === 0) for (const e of [-1, 1]) {
+        const ox = nx * e * (w / 2 - 0.3), oz = nz * e * (w / 2 - 0.3);
+        laid(K, ax + ox, az + oz, bx + ox, bz + oz, 0.22, edge, { y: 0.07, h: 0.07 });
+      }
     }
     for (let d = run; d < L; d += gap) {
       const t = d / L;
@@ -24,6 +28,21 @@ export function road(K, pts, o = {}) {
     }
     run = gap - ((L - run) % gap);
   }
+}
+
+/**
+ * H17: a flat strip from (x0, z0) to (x1, z1) laid on the terrain: 3 m pieces, each pitched to the ground between its ends, so it never steps
+ * off a slope. For roads, cracks, seams and painted lines. o: y (height above the ground), h (thickness), over (extra length per piece), glow.
+ */
+export function laid(K, x0, z0, x1, z1, w, color, o = {}) {
+  const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(L / 3)), yaw = Math.atan2(-(z1 - z0), x1 - x0);
+  const piece = (ax, az, bx, bz) => {
+    const seg = Math.hypot(bx - ax, bz - az), ga = K.ground(ax, az), gb = K.ground(bx, bz), mx = (ax + bx) / 2, mz = (az + bz) / 2, gm = K.ground(mx, mz);
+    const bend = Math.max(...[0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875].map((f) => Math.abs(K.ground(ax + (bx - ax) * f, az + (bz - az) * f) - (ga + (gb - ga) * f))));
+    if (bend > 0.12 && seg > 0.8) { piece(ax, az, mx, mz); piece(mx, mz, bx, bz); return; } // the ground bends here: halve it
+    K.mesh(new THREE.BoxGeometry(seg + (o.over ?? 0), o.h ?? 0.05, w), color, mx, (o.y ?? 0.04) + (ga + gb) / 2 - gm, mz, { ry: yaw, rz: Math.atan2(gb - ga, seg), collide: false, glow: o.glow }).userData.noCollide = true; // a decal on the ground
+  };
+  for (let k = 0; k < n; k++) piece(x0 + (x1 - x0) * k / n, z0 + (z1 - z0) * k / n, x0 + (x1 - x0) * (k + 1) / n, z0 + (z1 - z0) * (k + 1) / n);
 }
 
 /** A standing torch: a pole with a basket of fire on top, lighting what is round it. For Fallen and Scorn camps and other firelit places. */

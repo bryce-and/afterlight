@@ -148,13 +148,17 @@ export function buildLevel(loc, def) {
   let lift = !!gAt;
   const gy = (x, z) => (lift ? gAt(x, z) : 0);
   /** Lowest ground under a footprint: a box on a slope gets a skirt down to it so it never floats. */
-  const lowest = (x, z, w, d) => {
+  const lowest = (x, z, w, d, ry = 0) => { // H17: ry turns the footprint with a yawed box, so its corners are sampled where they are
     let m = Infinity;
-    for (const sx of [-0.5, 0, 0.5]) for (const sz of [-0.5, 0, 0.5]) m = Math.min(m, gAt(x + sx * w, z + sz * d));
+    const c = Math.cos(ry), s = Math.sin(ry);
+    for (const sx of [-0.5, 0, 0.5]) for (const sz of [-0.5, 0, 0.5]) m = Math.min(m, gAt(x + sx * w * c + sz * d * s, z - sx * w * s + sz * d * c));
     return m;
   };
+  // H17: dev tools (tools/collidecheck.js) set globalThis.__traceBuild to tag each piece and collider with the map line that made it
+  const src = () => { const st = new Error().stack.split('\n').slice(2).find((l) => /level-|patrol-/.test(l)); return st ? st.trim().replace(/^at .*?\(?(?=http)/, '').replace(/\?v=\d+/, '').replace(/^.*\/js\//, '').replace(/\)$/, '') : ''; };
+  const tag = (o) => { if (globalThis.__traceBuild && o) o.src = src(); return o; };
   const rawCollider = (minX, minY, minZ, maxX, maxY, maxZ, mesh) => {
-    colliders.push({ min: new THREE.Vector3(minX, minY, minZ), max: new THREE.Vector3(maxX, maxY, maxZ) });
+    colliders.push(tag({ min: new THREE.Vector3(minX, minY, minZ), max: new THREE.Vector3(maxX, maxY, maxZ) }));
     if (mesh) staticMeshes.push(mesh);
   };
   const addCollider = (minX, minY, minZ, maxX, maxY, maxZ, mesh) => {
@@ -163,17 +167,18 @@ export function buildLevel(loc, def) {
   };
   // yawed box collider (diagonal walls block only where they are); see physics.orientedCollider
   const addOriented = (cx, y0, cz, w, h, d, ry, mesh) => {
-    colliders.push(orientedCollider(cx, y0 + gy(cx, cz), cz, w, h, d, ry));
+    colliders.push(tag(orientedCollider(cx, y0 + gy(cx, cz), cz, w, h, d, ry)));
     if (mesh) staticMeshes.push(mesh);
   };
-  const addBox = (x, z, w, h, d, color, y = 0, collide = true, matOpts, abs = false) => {
+  const addBox = (x, z, w, h, d, color, y = 0, collide = true, matOpts, abs = false, ry = 0) => {
     let base = y, hh = h;
     if (lift && !abs) {
       const g = gAt(x, z);
       base = y + g;
-      if (y === 0) { const skirt = g - lowest(x, z, w, d); base -= skirt; hh += skirt; }
+      if (y === 0) { const skirt = g - lowest(x, z, w, d, ry); base -= skirt; hh += skirt; }
     }
     const m = new THREE.Mesh(BOX, mat(color, matOpts));
+    if (globalThis.__traceBuild) m.userData.src = src();
     m.scale.set(w, hh, d);
     m.position.set(x, base + hh / 2, z);
     m.castShadow = true; m.receiveShadow = true;
@@ -183,6 +188,7 @@ export function buildLevel(loc, def) {
   };
   const addRock = (x, z, s, y = 0, collide = true) => {
     const m = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), mat(RP([C.rock, C.rock2])));
+    if (globalThis.__traceBuild) m.userData.src = src();
     const sy = R(0.6, 1.1);
     m.scale.set(R(0.9, 1.2), sy, R(0.9, 1.2));
     m.rotation.y = R(0, 6.28);
@@ -190,11 +196,13 @@ export function buildLevel(loc, def) {
     m.position.set(x, yy + s * sy * 0.45, z);
     m.castShadow = true; m.receiveShadow = true;
     scene.add(m);
-    const hw = s * 0.75;
-    if (collide) rawCollider(x - hw, yy, z - hw, x + hw, yy + s * sy * 1.25, z + hw, m);
+    // H17: turned with the rock and sized by its stretch (a square round a turned, stretched rock blocked air at two corners)
+    if (collide) { colliders.push(tag(orientedCollider(x, yy, z, s * 1.5 * m.scale.x, s * sy * 1.25, s * 1.5 * m.scale.z, m.rotation.y))); staticMeshes.push(m); }
+    return m; // H17: so a map can tag it (userData.noCollide)
   };
   const addMesh = (geo, color, x, y, z, matOpts) => {
     const m = new THREE.Mesh(geo, mat(color, matOpts));
+    if (globalThis.__traceBuild) m.userData.src = src();
     m.position.set(x, y + gy(x, z), z);
     m.castShadow = true; m.receiveShadow = true;
     scene.add(m);
@@ -394,9 +402,11 @@ export function buildLevel(loc, def) {
       ocollider: (x, z, w, h, d, ry, y0 = 0) => addOriented(x, y0, z, w, h, d, ry, null),
       // box yawed by ry, with an exact collider
       obox: (x, z, w, h, d, ry, color = C.wall, o = {}) => {
-        const m = addBox(x, z, w, h, d, color, o.y ?? 0, false, glow(color, o.glow));
+        const m = addBox(x, z, w, h, d, color, o.y ?? 0, false, glow(color, o.glow), false, ry);
         m.rotation.y = ry;
-        if (o.collide ?? true) addOriented(x, o.y ?? 0, z, w, h, d, ry, m);
+        // H17: the collider reaches down with the mesh's slope skirt, so the downhill side of a yawed box on a slope is solid too
+        const sk = lift && !(o.y) ? gAt(x, z) - lowest(x, z, w, d, ry) : 0;
+        if (o.collide ?? true) addOriented(x, (o.y ?? 0) - sk, z, w, h + sk, d, ry, m);
         return m;
       },
       box: (x, z, w, h, d, color = C.wall, o = {}) => addBox(x, z, w, h, d, color, o.y ?? 0, o.collide ?? true, glow(color, o.glow), !!o.abs),
@@ -410,10 +420,29 @@ export function buildLevel(loc, def) {
           addOriented(x, y - gp.height * sc.y / 2, z, gp.width * sc.x, gp.height * sc.y, gp.depth * sc.z, o.ry, m);
         } else if (o.collide) {
           m.updateMatrixWorld(true);
-          const bb = new THREE.Box3().setFromObject(m);
           const k = o.collide === true ? 1 : o.collide; // shrink factor for round shapes
-          const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
-          rawCollider(cx - (cx - bb.min.x) * k, bb.min.y, cz - (cz - bb.min.z) * k, cx + (bb.max.x - cx) * k, bb.max.y, cz + (bb.max.z - cz) * k, m);
+          if (!geo.boundingBox) geo.computeBoundingBox();
+          const lb = geo.boundingBox, el = m.matrixWorld.elements, size = [lb.max.x - lb.min.x, lb.max.y - lb.min.y, lb.max.z - lb.min.z];
+          // H17: the yaw of the piece is its longest axis on the ground; a diagonal or tilted piece gets a collider turned with it, so its
+          // empty corners no longer block (an axis-aligned box round a diagonal piece is a staircase to walk along)
+          let yaw = 0, best = -1;
+          for (let i = 0; i < 3; i++) { const hx = el[i * 4] * size[i], hz = el[i * 4 + 2] * size[i], L = Math.hypot(hx, hz); if (L > best + 1e-6) { best = L; yaw = Math.atan2(-hz, hx); } }
+          if (Math.abs(Math.sin(2 * yaw)) < 0.05) {
+            const bb = new THREE.Box3().setFromObject(m);
+            const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+            rawCollider(cx - (cx - bb.min.x) * k, bb.min.y, cz - (cz - bb.min.z) * k, cx + (bb.max.x - cx) * k, bb.max.y, cz + (bb.max.z - cz) * k, m);
+          } else {
+            const c = Math.cos(yaw), sn = Math.sin(yaw), v = new THREE.Vector3();
+            let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+            for (const X of [lb.min.x, lb.max.x]) for (const Y of [lb.min.y, lb.max.y]) for (const Z of [lb.min.z, lb.max.z]) {
+              v.set(X, Y, Z).applyMatrix4(m.matrixWorld);
+              const u = v.x * c - v.z * sn, w = v.x * sn + v.z * c; // along the piece, and across it (orientedCollider's frame)
+              u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+            }
+            const cu = (u0 + u1) / 2, cw = (w0 + w1) / 2;
+            colliders.push(tag(orientedCollider(cu * c + cw * sn, y0, -cu * sn + cw * c, (u1 - u0) * k, y1 - y0, (w1 - w0) * k, yaw)));
+            staticMeshes.push(m);
+          }
         }
         return m;
       },
@@ -454,7 +483,8 @@ export function buildLevel(loc, def) {
         const [dx, dz] = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[dir];
         for (let i = 0; i < n; i++) {
           const hh = Math.min(rise, (i + 1) * step), cxs = x + dx * (i + 0.5) * run, czs = z + dz * (i + 0.5) * run;
-          addBox(cxs, czs, dx ? run : w, hh, dz ? run : w, color, y0, true, undefined, abs);
+          const sw = dx ? run : w, sd = dz ? run : w, lo = lift ? lowest(cxs, czs, sw, sd) : y0; // H17: a step over falling ground reaches down to it
+          addBox(cxs, czs, sw, hh + Math.max(0, y0 - lo), sd, color, Math.min(y0, lo), true, undefined, abs);
         }
         return [x + dx * n * run, z + dz * n * run];
       },
@@ -545,7 +575,8 @@ export function buildLevel(loc, def) {
   // U17f: a map of islands over an abyss (`voidBelow`): ground under that height has no floor either
   const voidAt = set.voidBelow != null ? (x, z) => !!edgeVoid?.(x, z) || GY(x, z) < set.voidBelow : edgeVoid;
 
-  if (set.merge) mergeDecor(scene, buildFrom, new Set(staticMeshes)); // U17a: a packed map folds its scenery into few draw calls
+  // U17a: a packed map folds its scenery into few draw calls. H17: dev tools that judge single pieces (tools/floatcheck.js) set globalThis.__noMerge
+  if (set.merge && !globalThis.__noMerge) mergeDecor(scene, buildFrom, new Set(staticMeshes));
 
   // ---- light pool: the 6 nearest lamps get a real light, so a map can hold dozens (U15) ----
   const pool = [];

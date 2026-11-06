@@ -20,11 +20,29 @@ const CAB_HALL = { color: CAB, roofColor: CAB2, ceil: 0x3a332e, lamp: HAZ, windo
 
 // ------------------------------------------------------------------ helpers
 
-/** A box with its base at an absolute height y0 (no ground lift). Not solid unless asked. */
-const ab = (K, x, y0, z, w, h, d, color, o = {}) => K.box(x, z, w, h, d, color, { y: y0, abs: true, collide: o.collide ?? false, glow: o.glow });
+/** A box with its base at an absolute height y0 (no ground lift). H17: solid when asked, or when it is a block you can bump into (0.9 m tall or more, standing on or near the ground,
+ *  not a glow); thinner floor stone, seams and trim, and cladding that hides the terrain's steep edge from far below, are walk-over and marked so the collision audit skips them. */
+const ab = (K, x, y0, z, w, h, d, color, o = {}) => {
+  const solid = o.collide ?? (h >= 0.9 && !o.glow && y0 - K.ground(x, z) > -2.2);
+  const m = K.box(x, z, w, h, d, color, { y: y0, abs: true, collide: solid, glow: o.glow });
+  if (!solid) m.userData.noCollide = true;
+  return m;
+};
 /** A visual box centred at an absolute height, any rotation. */
 const vb = (K, x, y, z, w, h, d, color, o = {}) => IK.vabs(K, x, y, z, w, h, d, color, o);
 const pick = (K, a) => K.RP(a);
+/** H17: where a beacon, site, event, camp or NPC stands; solid scenery within a few metres would shut it in (the patrol reach check fails on an object inside a collider). */
+const KEEP = (() => {
+  const p = PATROL_DATA.i_patrol.patrol, out = [];
+  for (const b of p.beacons) { out.push([b.x, b.z]); if (b.site) out.push([b.site.x, b.site.z]); }
+  for (const e of p.events) out.push([e.x, e.z]);
+  for (const c of p.camps) out.push([c.x, c.z]);
+  for (const n of Object.values(p.npcs || {})) out.push([n.x, n.z]);
+  return out;
+})();
+const keepClear = (x, z, r) => KEEP.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < r);
+/** A collision-free walk-through piece: marked so the collision audit leaves it out. */
+const soft = (m) => { m.userData.noCollide = true; return m; };
 /** A thin bar from one point to another (arms, stays), merged with the scenery. */
 function beam(K, x0, y0, z0, x1, y1, z1, t, color, o = {}) {
   const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
@@ -50,7 +68,8 @@ function road(K, pts, w = 8, kind = 'dirt') {
   let run = 5;
   for (let i = 1; i < pts.length; i++) {
     const [x0, z0] = pts[i - 1], [x1, z1] = pts[i], L = Math.hypot(x1 - x0, z1 - z0), nx = -(z1 - z0) / L, nz = (x1 - x0) / L;
-    IK.tstrip(K, x0, z0, x1, z1, w, color, { y: 0.1, h: 0.08 });
+    const lanes = Math.ceil(w / 3.5); // H17: in lanes, each pitched along its own line, so a wide road across a slope does not hang off it
+    for (let j = 0; j < lanes; j++) { const off = -w / 2 + (j + 0.5) * w / lanes; IK.tstrip(K, x0 + nx * off, z0 + nz * off, x1 + nx * off, z1 + nz * off, w / lanes + 0.15, color, { y: 0.1, h: 0.08 }); }
     for (let d = run; d < L; d += 10) for (const s of [-1, 1]) {
       const x = x0 + (x1 - x0) * d / L + nx * s * (w / 2 + 0.5), z = z0 + (z1 - z0) * d / L + nz * s * (w / 2 + 0.5);
       if (kind === 'cabal') { K.box(x, z, 0.5, 0.9, 0.5, CAB2); K.box(x, z, 0.6, 0.15, 0.6, HAZ, { y: 0.9, collide: false, glow: 1.6 }); } else K.box(x, z, 0.7, 0.45, 0.7, edge, { collide: false });
@@ -82,7 +101,7 @@ function slabStack(K, x, z, w, d, n = 3) {
 /** A dark rock spire. */
 function darkSpire(K, x, z, h) {
   K.cone(x, z, h * 0.16, h, DARKR, { sides: 5 });
-  K.cone(x + h * 0.1, z + h * 0.05, h * 0.09, h * 0.62, 0x4a4940, { sides: 4, collide: false });
+  K.cone(x + h * 0.1, z + h * 0.05, h * 0.09, h * 0.62, 0x4a4940, { sides: 4, collide: false }).userData.noCollide = true; // H17: the side shard hugs the solid spire
 }
 /** Scatters `fn` over a rectangle, away from roads. */
 function scatter(K, x0, x1, z0, z1, n, fn, keep = 7) {
@@ -97,7 +116,7 @@ function scatter(K, x0, x1, z0, z1, n, fn, keep = 7) {
 /** The Lost Oasis: a still lake, the huge pale petrified tree on its far shore with twisted roots, a rock arch over the east road, and mossy teal rock. */
 function oasis(K) {
   const LX = -48, LZ = 150;
-  K.mesh(new THREE.CylinderGeometry(23.6, 23.6, 0.06, 32), 0x4aa4a8, LX, 2.9 - K.ground(LX, LZ), LZ, { glow: 0.4 });
+  K.mesh(new THREE.CylinderGeometry(23.6, 23.6, 0.06, 32), 0x4aa4a8, LX, 2.9 - K.ground(LX, LZ), LZ, { glow: 0.4 }).userData.noCollide = true; // H17: water
   for (let i = 0; i < 26; i++) { const a = K.R(0, TAU), r = K.R(24, 31); const x = LX + Math.cos(a) * r, z = LZ + Math.sin(a) * r; if (z < 176 - 6 && roadDist(x, z) > 6) mossRock(K, x, z, K.R(0.8, 2.2)); }
   for (const [x, z] of [[-30, 132], [-70, 128], [-78, 160], [-20, 168]]) mossRock(K, x, z, 2.8);
   // the petrified tree: a vast pale trunk that splits into four limbs, a crown of snapped branches, twisted roots splaying from its foot
@@ -112,13 +131,16 @@ function oasis(K) {
   for (let i = 0; i < 9; i++) {
     const a = i * TAU / 9 + K.R(-0.2, 0.2), r1 = 12, r2 = 24;
     const bx = TX + Math.cos(a) * r1, bz = TZ + Math.sin(a) * r1, ex = TX + Math.cos(a + 0.35) * r2, ez = TZ + Math.sin(a + 0.35) * r2;
-    K.mesh(new THREE.BoxGeometry(3.4, 2.6, 16), pick(K, [PALE, PALE2]), bx, 1.1, bz, { ry: -a - 0.1 + Math.PI / 2 * 0, collide: false });
-    K.mesh(new THREE.BoxGeometry(2.4, 1.8, 14), pick(K, [PALE, PALE2]), (bx + ex) / 2 + Math.cos(a + 0.2) * 3, 0.8, (bz + ez) / 2 + Math.sin(a + 0.2) * 3, { ry: -(a + 0.35) + 0.2, collide: false });
+    const r0 = -a - 0.1, h0x = Math.sin(r0) * 8, h0z = Math.cos(r0) * 8, drop0 = K.ground(bx, bz) - Math.min(K.ground(bx + h0x, bz + h0z), K.ground(bx - h0x, bz - h0z)); // H17: settled
+    { const m = K.mesh(new THREE.BoxGeometry(3.4, 2.6, 16), pick(K, [PALE, PALE2]), bx, 1.1 - drop0, bz, { ry: r0, collide: !keepClear(bx, bz, 10) }); if (keepClear(bx, bz, 10)) soft(m); } // H17: roots are solid (oriented collider), except over a camp or site
+    const cx = (bx + ex) / 2 + Math.cos(a + 0.2) * 3, cz = (bz + ez) / 2 + Math.sin(a + 0.2) * 3, r = -(a + 0.35) + 0.2, hx = Math.sin(r) * 7, hz = Math.cos(r) * 7;
+    const drop = K.ground(cx, cz) - Math.min(K.ground(cx + hx, cz + hz), K.ground(cx - hx, cz - hz)); // H17: settled so its low end rests on the ground
+    { const m = K.mesh(new THREE.BoxGeometry(2.4, 1.8, 14), pick(K, [PALE, PALE2]), cx, 0.8 - drop, cz, { ry: r, collide: !keepClear(cx, cz, 10) }); if (keepClear(cx, cz, 10)) soft(m); }
   }
   for (let i = 0; i < 5; i++) { const a = i * TAU / 5 + 0.7; mossRock(K, TX + Math.cos(a) * K.R(14, 20), TZ + Math.sin(a) * K.R(14, 20), K.R(1.4, 2.6)); }
   // the arch over the east road
   const AX = 46, AZ = 144;
-  for (const s of [-1, 1]) { K.box(AX + s * 9, AZ, 6, 16, 8, PALE2); K.box(AX + s * 9, AZ, 7, 3, 9, pick(K, MOSS), { y: 0, collide: false }); }
+  for (const s of [-1, 1]) { K.box(AX + s * 9, AZ, 6, 16, 8, PALE2); K.box(AX + s * 9, AZ, 7, 3, 9, pick(K, MOSS), { y: 0, collide: false }).userData.noCollide = true; } // H17: moss over the pier's foot
   K.box(AX, AZ, 28, 4, 8.4, PALE, { y: 14 });
   K.box(AX, AZ, 20, 3, 7, PALE2, { y: 11, collide: false });
   for (const [dx, dy] of [[-7, 0], [7, 0], [0, 1.5]]) K.box(AX + dx, AZ + 0.2, 6, 1.4, 7.6, pick(K, MOSS), { y: 17.6 + dy, collide: false });
@@ -172,7 +194,7 @@ function whiteTree(K) {
   K.mesh(new THREE.IcosahedronGeometry(6.5, 1), 0xfff2b8, X, 41, Z, { glow: 1.1, collide: false });
   K.mesh(new THREE.IcosahedronGeometry(3.4, 0), 0xffffff, X, 41, Z, { glow: 1.8, collide: false });
   K.light(X, 40, Z, 0xfff0c0, 14, 70);
-  for (let i = 0; i < 9; i++) { const a = i * TAU / 9; K.mesh(new THREE.BoxGeometry(2.6, i % 2 ? 1.7 : 1.6, 13), i % 2 ? 0xf0ecdc : 0xe0dcc8, X + Math.cos(a) * 9, 0.6, Z + Math.sin(a) * 9, { ry: -a, collide: false }); }
+  for (let i = 0; i < 9; i++) { const a = i * TAU / 9; K.mesh(new THREE.BoxGeometry(2.6, i % 2 ? 1.7 : 1.6, 13), i % 2 ? 0xf0ecdc : 0xe0dcc8, X + Math.cos(a) * 9, 0.6, Z + Math.sin(a) * 9, { ry: -a, collide: false }).userData.noCollide = true; } // H17: stays walk-through, the White Tree Bounty site is inside this ring
   // sand
   for (const [x, z, w, d] of [[-146, 22, 22, 14], [-172, -14, 26, 16], [-140, -8, 18, 12], [-186, 20, 16, 12], [-122, 6, 14, 10]]) IK.flat(K, x, z, w, d, SAND, { y: 0.08, h: 0.1 });
   // the stream, from the canyon head to the south wall
@@ -187,14 +209,14 @@ function whiteTree(K) {
 function scar(K) {
   const X = 142, Z = 12, TOP = 38;
   for (const [dx, dz, w, d, h] of [[-22, -10, 11, 8, 0.5], [20, -14, 9, 7, 0.7], [-14, 18, 12, 9, 0.5], [24, 14, 8, 8, 0.6], [-26, 10, 8, 6, 0.9], [4, -22, 10, 6, 0.5], [12, 24, 9, 7, 0.4], [-4, 26, 7, 6, 0.8]]) {
-    K.box(X + dx, Z + dz, w, h, d, pick(K, [SULF, 0xd8c23c, 0xe9d86a]), { collide: false });
+    K.box(X + dx, Z + dz, w, h, d, pick(K, [SULF, 0xd8c23c, 0xe9d86a]), { collide: false }).userData.noCollide = true; // H17: flat sulfur slabs, walk over them
   }
   // the ringed base
   K.cyl(X, Z, 12.5, 0.5, CAB3, { sides: 16, collide: false });
   K.cyl(X, Z, 10.5, 0.7, CAB2, { sides: 16, y: 0.5, collide: false });
   K.mesh(new THREE.TorusGeometry(11.6, 0.35, 5, 28).rotateX(Math.PI / 2), HAZ, X, 0.9, Z, { glow: 1.5 });
   K.mesh(new THREE.TorusGeometry(8.5, 0.25, 5, 24).rotateX(Math.PI / 2), 0xff6a24, X, 1.5, Z, { glow: 1.8 });
-  K.mesh(new THREE.CylinderGeometry(7.4, 7.4, 0.9, 16), 0xff5a1a, X, 1.3, Z, { glow: 1.4, collide: false });
+  K.mesh(new THREE.CylinderGeometry(7.4, 7.4, 0.9, 16), 0xff5a1a, X, 1.3, Z, { glow: 1.4, collide: false }).userData.noCollide = true; // H17: glow disc
   for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + 0.2; IK.hazardPost(K, X + Math.cos(a) * 14.5, Z + Math.sin(a) * 14.5, 4); }
   // the column: stacked drums, dark and gold, a collar and the great crown
   const segs = [[4.6, 5, CAB3], [4.4, 4, 0xc99a2a], [4.7, 5, CAB2], [4.4, 4, CAB3], [4.6, 5, 0xc99a2a], [4.3, 5, CAB2], [4.6, 4, CAB3], [4.4, 5, 0xc99a2a]];
@@ -335,8 +357,8 @@ function blight(K) {
     const x = X + Math.cos(a) * Math.cos(b) * r, y = Y + Math.sin(b) * r, z = Z + Math.sin(a) * Math.cos(b) * r;
     beam(K, x, y, z, x + K.R(-3, 3), y + K.R(-2, 3) * len / 4, z + K.R(-3, 3), 0.14, 0xe6f0ff, { glow: 2.2 });
   }
-  K.mesh(new THREE.CylinderGeometry(2.4, 5.4, 6, 8), TAKEN, X, 2.6, Z, { collide: false });
-  for (let i = 0; i < 9; i++) { const a = i * TAU / 9 + 0.2, r = 9 + K.R(0, 3); K.cone(X + Math.cos(a) * r, Z + Math.sin(a) * r, 0.9, K.R(3, 6), TAKEN, { sides: 4, collide: false, rx: Math.sin(a) * 0.4, rz: -Math.cos(a) * 0.4 }); }
+  K.mesh(new THREE.CylinderGeometry(2.4, 5.4, 6, 8), TAKEN, X, 2.6, Z, { collide: false }).userData.noCollide = true; // H17: the pedestal stands where the blight event is centred, so it stays walk-through
+  for (let i = 0; i < 9; i++) { const a = i * TAU / 9 + 0.2, r = 9 + K.R(0, 3); K.cone(X + Math.cos(a) * r, Z + Math.sin(a) * r, 0.9, K.R(3, 6), TAKEN, { sides: 4, collide: false, rx: Math.sin(a) * 0.4, rz: -Math.cos(a) * 0.4 }).userData.noCollide = true; } // H17: thin crackling spikes
   for (let i = 0; i < 18; i++) { const a = K.R(0, TAU), r = K.R(9, 24); boulder(K, X + Math.cos(a) * r, Z + Math.sin(a) * r, K.R(1.2, 3), pick(K, [0xd8cc7a, 0xc9bd68, 0xe6dc9a])); }
   K.light(X, Y + 1, Z, 0xcfe0ff, 14, 56);
   K.light(X, 3, Z, 0xa8b8ff, 8, 30);
@@ -467,9 +489,11 @@ function block(K) {
   K.light(-60, IO.plinth + 4, -96, 0xff5a2a, 60, 110); K.light(60, IO.plinth + 4, -96, 0xff5a2a, 60, 110);
   K.light(0, 20, -60, 0xff7a3a, 70, 110);                                      // up under the lifted edge, so the underside glows warm
   bb(K, 0, -BLK.H / 2 - 0.45, BLK.L / 2 - 3, 148, 0.8, 4, 0xff6a30, { glow: 2.4 }); // a seam of light along the lifted edge
-  for (const q of [-1, 1]) ab(K, q * 40, IO.plinth + 0.3, -81.4, 60, 1.1, 0.8, 0xff7a3a, { glow: 2.2 });
+  for (const q of [-1, 1]) ab(K, q * 40, IO.plinth, -81.4, 60, 1.1, 0.8, 0xff7a3a, { glow: 2.2 }); // H17: on the floor (it hung 0.3 m above it)
   // solid where the block meets the ground beside and behind the hall (its underside is high overhead everywhere else a player can go)
-  for (const sx of [-1, 1]) { K.ocollider(sx * (78 + hw) / 2, -248, hw - 78, 90, 228, 0); K.ocollider(sx * 81, -119, 6, 90, 32, 0); } // the ground at 4 m, and the plinth's lip
+  for (const sx of [-1, 1]) {
+    K.ocollider(sx * (78 + hw) / 2, -248, hw - 78, 90, 228, 0); K.ocollider(sx * 81, -119, 6, 90, 32, 0); // the ground at 4 m, and the plinth's lip
+  }
   K.ocollider(0, -300, W, 90, 124, 0);
 }
 
@@ -493,8 +517,8 @@ function interior(K) {
     course(false, x1, -1, seam, depth + 0.05, 0.18, MILK, z0 + 6, z1 - 6);
   }
   // vertical piers on the walls between the courses
-  for (const px of [-56, -36, -16, 16, 36, 56]) { vb(K, px, 34, z0 + 2.4, 5, 56, 4.8, INT[(px / 10 | 0) & 1 ? 0 : 2]); }
-  for (const pz of [-210, -190, -170, -150, -130, -110]) for (const sx of [-1, 1]) vb(K, sx * 67.6, 34, pz, 4.8, 56, 5, INT[(pz / 10 | 0) & 1 ? 1 : 2]);
+  for (const px of [-56, -36, -16, 16, 36, 56]) { ab(K, px, FLOOR, z0 + 2.4, 5, 56, 4.8, INT[(px / 10 | 0) & 1 ? 0 : 2], { collide: true }); } // H17: the piers are solid
+  for (const pz of [-210, -190, -170, -150, -130, -110]) for (const sx of [-1, 1]) ab(K, sx * 67.6, FLOOR, pz, 4.8, 56, 5, INT[(pz / 10 | 0) & 1 ? 1 : 2], { collide: true });
   // the stairways and their landings
   const ILH = IO.plinth;
   IK.flat(K, 0, -97, 30, 13, INTF, { y: 0.1, h: 0.08 });
@@ -518,7 +542,8 @@ function interior(K) {
   levels.forEach(([w, h], i) => {
     const wi = levels[i + 1]?.[0] ?? 0, band = (w - wi) / 2;
     if (!wi) { ab(K, 0, h + 0.02, -172, w, 0.08, w, INTF); return; }
-    for (const s of [-1, 1]) { ab(K, 0, h + 0.02, -172 + s * (w - band) / 2, w, 0.08, band, INTF); ab(K, s * (w - band) / 2, h + 0.02, -172, band, 0.08, wi, INTF); }
+    // H17: each terrace's stone runs to its lip, a short ledge over the falling edge of the step below (floatOk)
+    for (const s of [-1, 1]) { ab(K, 0, h + 0.02, -172 + s * (w - band) / 2, w, 0.08, band, INTF).userData.floatOk = true; ab(K, s * (w - band) / 2, h + 0.02, -172, band, 0.08, wi, INTF).userData.floatOk = true; }
   });
   for (const [x0, x1, z0, z1] of [[PY.x0, PY.x1, PY.z0, -197], [PY.x0, PY.x1, -147, PY.z1], [PY.x0, -25, -197, -147], [25, PY.x1, -197, -147]]) ab(K, (x0 + x1) / 2, FLOOR + 0.02, (z0 + z1) / 2, x1 - x0, 0.08, z1 - z0, INTF);
   for (const [w, h] of levels) for (const [dx, dz, ww, dd] of [[0, -w / 2 - 0.4, w + 1, 0.3], [0, w / 2 + 0.4, w + 1, 0.3], [-w / 2 - 0.4, 0, 0.3, w + 1], [w / 2 + 0.4, 0, 0.3, w + 1]]) ab(K, dx, h + 0.1, -172 + dz, ww, 0.5, dd, 0xff4a2a, { glow: 1.4 });

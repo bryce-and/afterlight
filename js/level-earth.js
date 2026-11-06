@@ -28,6 +28,39 @@ export function dsMesh(K, g, color, x, y, z, rx = 0, ry = 0, rz = 0, order = 'XY
   return mesh;
 }
 
+// ---------------------------------------------------------------- H17 collision helpers
+
+// H17: a bar tilted along its own length (a fallen slab, a wing, a half-buried hull) gets a run of short oriented colliders that follow its
+// slope, so the air under the high end is open and a slab reads as a ramp. (x, z) is the bar's centre, y the centre height above the ground
+// there, L/W/T its length/width/thickness, tilt the rise along its length (rz of a box), ry its yaw (the local x axis runs along the length).
+export function slopedBar(K, x, z, y, L, W, T, tilt, ry = 0, owner = null, step = 1.2) {
+  const c = Math.cos(tilt), tn = Math.tan(tilt), Lh = L * c, n = Math.max(1, Math.ceil(Lh / step)), sl = Lh / n;
+  for (let i = 0; i < n; i++) {
+    const t = -Lh / 2 + (i + 0.5) * sl, yc = y + t * tn, half = T / 2 / c + Math.abs(tn) * sl / 2, y0 = yc - half;
+    K.ocollider(x + t * Math.cos(ry), z - t * Math.sin(ry), sl + 0.05, 2 * half, W, ry, y0);
+  }
+  if (owner) K.collider(x - 0.05, y - 0.05, z - 0.05, x + 0.05, y + 0.05, z + 0.05, owner); // H17: a speck inside the piece so shots and sight lines still hit its mesh
+}
+
+// H17: a round tube lying on the ground (fuselage, tank, pipe): one oriented collider 70 percent as wide as the tube and clear of its curved underside, so it hugs the curve at
+// body height instead of a square box (K.mesh collide on a cylinder). y is the axis height above the ground, ry the yaw (0 along x, PI/2 along z).
+export function tube(K, x, z, y, L, r, ry = 0, owner = null) {
+  K.ocollider(x, z, L, 1.8 * r, 1.4 * r, ry, y - 0.8 * r); // starts 0.2 r above the tube's lowest line, where its curve is already narrow
+  if (owner) K.collider(x - 0.05, y - 0.05, z - 0.05, x + 0.05, y + 0.05, z + 0.05, owner); // H17: a speck inside the tube so shots and sight lines still hit its mesh
+}
+
+// H17: a round column that leans (a tilted tank, a fallen pylon end): short stacked oriented colliders, each placed where the column is at that height,
+// so the footprint walks sideways as it rises instead of one tall box round the whole lean. (x, z) centre, yc centre height above the ground, h height,
+// r radius, tilt = rz of the mesh, ry its yaw.
+export function leaning(K, x, z, yc, h, r, tilt, ry = 0, owner = null, step = 2) {
+  const tn = Math.tan(tilt), cl = Math.cos(tilt), bot = Math.max(0, yc - h / 2), top = yc + h / 2, n = Math.max(1, Math.ceil((top - bot) / step)), ds = (top - bot) / n;
+  for (let i = 0; i < n; i++) {
+    const y0 = bot + i * ds, off = -(y0 + ds / 2 - yc) * tn;
+    K.ocollider(x + off * Math.cos(ry), z - off * Math.sin(ry), 1.6 * r / cl + Math.abs(tn) * ds, ds, 1.6 * r, ry, y0);
+  }
+  if (owner) K.collider(x - 0.05, yc - 0.05, z - 0.05, x + 0.05, yc + 0.05, z + 0.05, owner); // H17: a speck inside the piece so shots and sight lines still hit its mesh
+}
+
 // ---------------------------------------------------------------- props
 
 export function car(K, x, z, alongZ = true, color) {
@@ -43,9 +76,9 @@ export function pine(K, x, z, h = K.R(5, 8.5)) {
   K.mesh(geo('trunk', () => new THREE.CylinderGeometry(0.6, 1, 1, 5)), 0x4a3a2a, x, h * 0.25, z, { scale: [0.3, h * 0.5, 0.3] });
   for (let k = 0; k < 3; k++) {
     const r = (2.0 - k * 0.55) * (h / 7);
-    K.mesh(geo('cone6', () => new THREE.ConeGeometry(1, 1, 6)), k === 1 ? 0x35502f : K.C.foliage, x, h * (0.42 + k * 0.18), z, { scale: [r, h * 0.4, r], ry: k });
+    K.mesh(geo('cone6', () => new THREE.ConeGeometry(1, 1, 6)), k === 1 ? 0x35502f : K.C.foliage, x, h * (0.42 + k * 0.18), z, { scale: [r, h * 0.4, r], ry: k }).userData.noCollide = true; // H17: foliage, the trunk collider stands for the tree
   }
-  K.collider(x - 0.4, 0, z - 0.4, x + 0.4, h, z + 0.4, null);
+  K.collider(x - 0.3, 0, z - 0.3, x + 0.3, h, z + 0.3, null); // H17: trunk width (was 0.8 wide round a 0.5 trunk)
 }
 
 // steel power pylon (line runs along z, arms along x)
@@ -55,7 +88,10 @@ export function pylon(K, x, z, h = 24) {
   K.box(x, z, 13, 0.5, 0.6, M, { y: h * 0.84, collide: false });
   K.box(x, z, 9, 0.5, 0.6, M, { y: h * 0.68, collide: false });
   K.box(x, z, 0.35, 3.5, 0.35, M, { y: h, collide: false });
-  K.collider(x - 1.6, 0, z - 1.6, x + 1.6, h, z + 1.6, null);
+  // H17: the legs taper from 2.8 m radius at the foot (flat faces 2 m out) to a thin mast, so three stepped colliders, not one 3.2 m box
+  K.collider(x - 1.95, 0, z - 1.95, x + 1.95, Math.min(3, h), z + 1.95, null);
+  K.collider(x - 1.2, 0, z - 1.2, x + 1.2, Math.min(10, h), z + 1.2, null);
+  K.collider(x - 0.8, 0, z - 0.8, x + 0.8, h, z + 0.8, null);
 }
 export function wires(K, x, z1, z2, h = 24) {
   const L = Math.abs(z2 - z1), zc = (z1 + z2) / 2;
@@ -112,22 +148,24 @@ export function dish(K, x, z, r, standH, tilt = 0.5, yaw = 0, pad = true, up = 0
 // crashed Fallen skiff, nose buried toward -x
 export function skiff(K, x, z) {
   const H = 0x3a4658, T = 0x262c36;
-  K.mesh(new THREE.BoxGeometry(17, 2.6, 5), H, x, 2.0, z, { rz: 0.14 });
-  K.mesh(new THREE.BoxGeometry(9, 1.6, 3.4), T, x + 1.5, 3.7, z, { rz: 0.14 });
+  const hull = K.mesh(new THREE.BoxGeometry(17, 2.6, 5), H, x, 2.0, z, { rz: 0.14 }); hull.userData.floatOk = true; // H17: tail up off the ground on purpose (nose buried)
+  const cabin = K.mesh(new THREE.BoxGeometry(9, 1.6, 3.4), T, x + 1.5, 3.7, z, { rz: 0.14 });
   for (const s of [-1, 1]) {
     K.mesh(new THREE.BoxGeometry(8, 0.9, 0.9), H, x - 11.5, 0.5, z + s * 1.7, { rz: 0.14 });
     K.mesh(cyl8(), T, x + 8.6, 3.3, z + s * 3.0, { rz: Math.PI / 2 + 0.14, scale: [1.0, 4, 1.0] });
     K.box(x + 10.7, z + s * 3.0, 0.3, 1.3, 1.3, F_BLUE, { y: 3.0, collide: false, glow: 2 });
     K.mesh(new THREE.BoxGeometry(4, 0.3, 3), H, x + 6, 4.9, z + s * 2.6, { rx: s * 0.6 });
   }
-  K.collider(x - 8.5, 0, z - 4, x + 10.8, 3.9, z + 4, null);
-  K.collider(x - 15.5, 0, z - 2.3, x - 8.5, 1.2, z + 2.3, null);
+  // H17: the hull and cabin are tilted (tail up), so their colliders follow the slope instead of one box 3.9 m high over the whole length
+  slopedBar(K, x, z, 2.0, 17, 5, 2.6, 0.14, 0, hull);
+  slopedBar(K, x + 1.5, z, 3.7, 9, 3.4, 1.6, 0.14, 0, cabin);
+  for (const s of [-1, 1]) slopedBar(K, x - 11.5, z + s * 1.7, 0.5, 8, 0.9, 0.9, 0.14, 0);
 }
 
 // airliner fuselage hulk lying along z, nose toward -z
 export function fuselage(K, x, z, L, o = {}) {
   const r = 2.4, col = o.color ?? HULLW, y = r + 0.15;
-  K.mesh(cyl10(), col, x, y, z, { rx: Math.PI / 2, scale: [r, L, r], collide: true });
+  tube(K, x, z, y, L, r, Math.PI / 2, K.mesh(cyl10(), col, x, y, z, { rx: Math.PI / 2, scale: [r, L, r] })); // H17: a tube collider hugs the curve
   if (o.nose !== false) K.mesh(hemi(), col, x, y, z - L / 2, { rx: -Math.PI / 2, scale: [r, r * 1.6, r] });
   for (const s of [-1, 1]) K.box(x + s * (r - 0.05), z, 0.2, 0.5, L * 0.85, 0x3d5a80, { y: y + 0.5, collide: false });
   if (o.tail !== false) {
@@ -137,7 +175,7 @@ export function fuselage(K, x, z, L, o = {}) {
   if (o.wing) {
     for (const s of o.wing === 2 ? [-1, 1] : [o.wing]) {
       K.box(x + s * (r + 6), z + 1, 12, 0.45, 5, col, { y: 2.0 });
-      K.mesh(cyl10(), 0x8f8a80, x + s * (r + 4.5), 1.2, z - 0.5, { rx: Math.PI / 2, scale: [1.0, 3.6, 1.0], collide: true });
+      tube(K, x + s * (r + 4.5), z - 0.5, 1.2, 3.6, 1.0, Math.PI / 2, K.mesh(cyl10(), 0x8f8a80, x + s * (r + 4.5), 1.2, z - 0.5, { rx: Math.PI / 2, scale: [1.0, 3.6, 1.0] }));
     }
   }
   K.box(x, z + K.R(-L / 3, L / 3), r * 2.3, 1.4, 2.4, RUST, { y: y - 0.2, collide: false });
@@ -146,7 +184,7 @@ export function fuselage(K, x, z, L, o = {}) {
 // airliner fuselage hulk lying along x, nose toward -x
 export function fuselageX(K, x, z, L, o = {}) {
   const r = 2.4, col = o.color ?? HULLW, y = r + 0.15;
-  K.mesh(cyl10(), col, x, y, z, { rz: Math.PI / 2, scale: [r, L, r], collide: true });
+  tube(K, x, z, y, L, r, 0, K.mesh(cyl10(), col, x, y, z, { rz: Math.PI / 2, scale: [r, L, r] }));
   if (o.nose !== false) K.mesh(hemi(), col, x - L / 2, y, z, { rz: Math.PI / 2, scale: [r, r * 1.6, r] });
   for (const s of [-1, 1]) K.box(x, z + s * (r - 0.05), L * 0.85, 0.5, 0.2, 0x3d5a80, { y: y + 0.5, collide: false });
   if (o.tail !== false) {
@@ -156,7 +194,7 @@ export function fuselageX(K, x, z, L, o = {}) {
   if (o.wing) {
     for (const s of o.wing === 2 ? [-1, 1] : [o.wing]) {
       K.box(x + 1, z + s * (r + 6), 5, 0.45, 12, col, { y: 2.0 });
-      K.mesh(cyl10(), 0x8f8a80, x - 0.5, 1.2, z + s * (r + 4.5), { rz: Math.PI / 2, scale: [1.0, 3.6, 1.0], collide: true });
+      tube(K, x - 0.5, z + s * (r + 4.5), 1.2, 3.6, 1.0, 0, K.mesh(cyl10(), 0x8f8a80, x - 0.5, 1.2, z + s * (r + 4.5), { rz: Math.PI / 2, scale: [1.0, 3.6, 1.0] }));
     }
   }
   K.box(x + K.R(-L / 3, L / 3), z, 2.4, 1.4, r * 2.3, RUST, { y: y - 0.2, collide: false });
@@ -167,9 +205,16 @@ export function hangar(K, x, z, r, L, full = true, color = 0x858a8e) {
   const rib = geo('rib' + r, () => new THREE.TorusGeometry(r, 0.35, 4, 14, Math.PI));
   if (full) {
     const shell = dsMesh(K, new THREE.CylinderGeometry(r, r, L, 14, 1, true, Math.PI / 2, Math.PI), color, x, 0, z, Math.PI / 2, 0, 0);
+    shell.userData.noCollide = true; // H17: an open arch (you walk inside it), the wall colliders stand for it
     for (const dz of [-L / 2, 0, L / 2]) K.mesh(rib, RUST, x, 0, z + dz);
     // the shell mesh rides on the first collider so it also blocks enemy line of sight
-    for (const s of [-1, 1]) K.collider(x + s * r - 0.6, 0, z - L / 2, x + s * r + 0.6, r * 0.6, z + L / 2, s < 0 ? shell : null);
+    // H17: the wall follows the arch, so the colliders are stacked bands that lean in with it (one upright strip was 3 m off the curve at the top)
+    const top = r * 0.6, bands = Math.ceil(top / 2);
+    for (let b = 0; b < bands; b++) {
+      const h0 = b * top / bands, h1 = (b + 1) * top / bands, xa = Math.sqrt(r * r - h1 * h1), xb = Math.sqrt(r * r - h0 * h0);
+      K.collider(x - xb - 0.5, h0, z - L / 2, x - xa + 0.5, h1, z + L / 2, b === 0 ? shell : null);
+      K.collider(x + xa - 0.5, h0, z - L / 2, x + xb + 0.5, h1, z + L / 2, null);
+    }
   } else {
     for (let dz = -L / 2; dz <= L / 2 + 0.01; dz += 6) {
       K.mesh(rib, RUST, x, 0, z + dz);
@@ -195,13 +240,12 @@ export function rocket(K, x, z) {
 
 // launch gantry tower: open frame of decks, elevator core, service arms toward armDir
 export function gantry(K, x, z, w, h, armDir, armLen) {
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * w / 2, z + sz * w / 2, 0.7, h, 0.7, GANTRY, { collide: false });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * w / 2, z + sz * w / 2, 0.7, h, 0.7, GANTRY); // H17: the corner posts and the core block, the frame between them is open (was one solid block round all of it)
   for (let y = 5; y < h; y += 5) K.box(x, z, w + 0.95, 0.35, w + 0.95, K.C.metal, { y, collide: false });
   K.box(x, z, w * 0.45, h, w * 0.45, K.C.metal);
   const [dx, dz] = armDir;
   for (const yy of [h * 0.55, h * 0.8]) K.box(x + dx * (w / 2 + armLen / 2), z + dz * (w / 2 + armLen / 2), dx ? armLen : 1.4, 0.9, dz ? armLen : 1.4, GANTRY, { y: yy, collide: false });
   K.box(x, z, w * 0.6, 3, w * 0.6, GANTRY, { y: h, collide: false });
-  K.collider(x - w / 2 - 0.4, 0, z - w / 2 - 0.4, x + w / 2 + 0.4, h, z + w / 2 + 0.4, null);
 }
 
 export function crane(K, x, z, h, jib, dir = 1) {
@@ -217,18 +261,17 @@ export function crane(K, x, z, h, jib, dir = 1) {
 
 export function sphereTank(K, x, z, r) {
   const legH = r * 0.7;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * r * 0.6, z + sz * r * 0.6, 0.5, legH + r * 0.3, 0.5, K.C.metal, { collide: false });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * r * 0.6, z + sz * r * 0.6, 0.5, legH + r * 0.3, 0.5, K.C.metal); // H17: the legs collide, the space between them is open (was one block under the sphere)
   K.mesh(geo('sph', () => new THREE.SphereGeometry(1, 12, 8)), WHITE, x, legH + r, z, { scale: r, collide: 0.75 });
-  K.collider(x - r * 0.7, 0, z - r * 0.7, x + r * 0.7, legH, z + r * 0.7, null);
 }
 
 export function hTank(K, x, z, r, L) {
-  K.mesh(cyl10(), WHITE, x, r + 0.7, z, { rx: Math.PI / 2, scale: [r, L, r], collide: true });
+  tube(K, x, z, r + 0.7, L, r, Math.PI / 2, K.mesh(cyl10(), WHITE, x, r + 0.7, z, { rx: Math.PI / 2, scale: [r, L, r] }));
   for (const s of [-1, 1]) {
     K.mesh(hemi(), WHITE, x, r + 0.7, z + s * L / 2, { rx: s * Math.PI / 2, scale: [r, r * 0.5, r] });
     K.box(x, z + s * L * 0.3, r * 1.6, r * 0.9, 1, CONC2);
   }
-  K.box(x, z, r * 2.06, r * 2.06, 0.8, K.C.accent, { y: 0.7, collide: false });
+  K.box(x, z, r * 2.06, r * 2.06, 0.8, K.C.accent, { y: 0.7, collide: false }).userData.noCollide = true; // H17: a painted band round the tank, not a block
 }
 
 export function bunker(K, x, z, w, d, h, glowC) {
@@ -366,7 +409,7 @@ export function latticeTower(K, x, z, h, w0 = 7) {
   const M = 0x6c727a, bays = Math.round(h / 6), bh = h / bays;
   for (let b = 0; b < bays; b++) {
     const wa = w0 * (1 - 0.7 * b / bays), wb = w0 * (1 - 0.7 * (b + 1) / bays), y0 = b * bh;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * (wa + wb) / 4, z + sz * (wa + wb) / 4, 0.4, bh, 0.4, M, { y: y0, collide: false });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) K.box(x + sx * (wa + wb) / 4, z + sz * (wa + wb) / 4, 0.4, bh, 0.4, M, { y: y0 }); // H17: the four legs collide, the lattice between them is open (was one block)
     for (const s of [-1, 1]) {
       K.box(x, z + s * wb / 2, wb, 0.25, 0.25, M, { y: y0 + bh, collide: false });
       K.box(x + s * wb / 2, z, 0.25, 0.25, wb, M, { y: y0 + bh, collide: false });
@@ -375,7 +418,6 @@ export function latticeTower(K, x, z, h, w0 = 7) {
       K.mesh(BG, M, x + s * wm / 2, y0 + bh / 2, z, { rx: -s * ang });
     }
   }
-  K.collider(x - w0 * 0.35, 0, z - w0 * 0.35, x + w0 * 0.35, h, z + w0 * 0.35, null);
   K.box(x, z, 2.2, 0.4, 2.2, M, { y: h, collide: false });
   K.box(x, z, 0.5, 0.5, 0.5, F_RED, { y: h + 0.4, collide: false, glow: 2.2 });
   K.box(x, z, 0.12, 4, 0.12, M, { y: h + 0.4, collide: false });
@@ -457,7 +499,7 @@ export default {
       for (const px of [16, 36, 54]) pier(K, px, OZ, 2.2, 5, DB);
       for (const px of [-62, -42, -29]) pier(K, px, OZ, 2.2, 5, DB);
       const slab = K.mesh(new THREE.BoxGeometry(16, 1.3, 7.6), CONC, -18, 3.4, OZ, { rz: 0.42 });
-      K.collider(-25.5, 0, OZ - 3.8, -11.5, 4.4, OZ + 3.8, slab);
+      slopedBar(K, -18, OZ, 3.4, 16, 7.6, 1.3, 0.42, 0, slab); // H17: the fallen slab is a ramp (stepped colliders along its slope), the air under its high end is open
       for (const dz of [-2.5, 0, 2.5]) { K.box(-10.4, OZ + dz, 1.6, 0.1, 0.1, RUST, { y: DT + 0.6, abs: true, collide: false }); K.box(-24.6, OZ + dz, 1.4, 0.1, 0.1, RUST, { y: DT + 0.4, abs: true, collide: false }); }
       stairTo(K, 14, OZ - 4, 's', 3, DT);                                      // way down the north side, off the road
       // the abutment: a rest stop on the high ground with cover and a lamp
@@ -474,7 +516,8 @@ export default {
       pylon(K, 74, 80); pylon(K, 74, 20); wires(K, 74, 80, 20);
       // a toppled pylon lying across the grass
       const top = K.mesh(geo('pyl', () => new THREE.CylinderGeometry(0.3, 1, 1, 4)), 0x5c6168, -40, 2.0, 12, { rz: Math.PI / 2 - 0.08, ry: 0, scale: [2.4, 22, 2.4] });
-      K.collider(-51, 0, 10.4, -29, 3.4, 13.6, top);
+      // H17: it tapers from a thin tip at x -51 to a 2.4 m foot at x -29: four short colliders sized to each stretch (was one 3.2 m wide box)
+      for (let i = 0; i < 4; i++) { const t = (i + 0.5) / 4, rr = 2.4 * (0.3 + 0.7 * t) * 0.75; slopedBar(K, -51 + 22 * t, 12, 2.0 - 22 * (t - 0.5) * 0.08, 5.5, 2 * rr, 2 * rr, -0.08, 0, i === 3 ? top : null, 6); }
 
       // ---- pine stands, thin on the open steppe ----
       for (const [cx, cz, n] of [[-34, 150, 5], [-58, 112, 4], [64, 90, 4], [-56, 6, 5], [-30, -60, 5], [66, -36, 4], [-60, -80, 4]]) {
@@ -536,8 +579,8 @@ export default {
       K.box(DX, WZ + 0.2, 0.8, 27, 0.4, 0xffc27a, { glow: 1.5, collide: false });
       for (const yy of [9, 18]) K.box(DX, WZ + 1.3, 44, 0.8, 0.3, DARK, { y: yy, collide: false });
       K.box(DX, WZ + 1.3, 44, 1.2, 0.3, C.accent, { y: 0.2, collide: false });
-      K.mesh(cyl10(), C.metal, -48, 1.2, WZ + 2.2, { rz: Math.PI / 2, scale: [0.9, 54, 0.9], collide: true });
-      K.mesh(cyl10(), C.metal, 60, 1.2, WZ + 2.2, { rz: Math.PI / 2, scale: [0.9, 50, 0.9], collide: true });
+      tube(K, -48, WZ + 2.2, 1.2, 54, 0.9, 0, K.mesh(cyl10(), C.metal, -48, 1.2, WZ + 2.2, { rz: Math.PI / 2, scale: [0.9, 54, 0.9] }));  // H17: tube collider
+      tube(K, 60, WZ + 2.2, 1.2, 50, 0.9, 0, K.mesh(cyl10(), C.metal, 60, 1.2, WZ + 2.2, { rz: Math.PI / 2, scale: [0.9, 50, 0.9] }));
 
       // ---- boss yard: raised, walled, one gate behind a roofed vestibule; the crashed skiff on the west, one firing deck on the east ----
       K.wall(-26, -115, -26, -60, 8, { t: 1.4, color: CONC2 });
@@ -644,9 +687,7 @@ export default {
       K.light(0, 10, 126, 0xffd27a, 5, 24);
 
       // ---- Rocketyard: a flat bowl with a launch pad, gantries, tanks and a launch bunker ----
-      K.box(0, -13, 110, 0.04, 54, 0x8f8a80, { collide: false });
-      K.box(30, -14, 22, 0.2, 22, 0x5a5650, { collide: false });
-      K.box(30, -14, 6, 0.22, 30, DARK, { collide: false });
+      for (const m of [K.box(0, -13, 110, 0.04, 54, 0x8f8a80, { collide: false }), K.box(30, -14, 22, 0.2, 22, 0x5a5650, { collide: false }), K.box(30, -14, 6, 0.22, 30, DARK, { collide: false })]) m.userData.noCollide = true; // H17: paving laid on the ground (the skirt on a slope is not a wall)
       rocket(K, 30, -14);
       gantry(K, 30, -2.5, 6, 40, [0, -1], 4.5);
       gantry(K, 21, -14, 4, 28, [1, 0], 3);
@@ -774,14 +815,15 @@ export default {
       fuselage(K, -66, 152, 10, { nose: false });
       fuselageX(K, -16, 130, 24, { wing: 1 });
       fuselageX(K, 22, 150, 26, { wing: 2 });
-      K.mesh(cyl10(), HULLW, 24, 3.0, 118, { rx: Math.PI / 2 - 0.5, scale: [2.4, 20, 2.4], collide: 0.55 }); // a tail section nose-first in the ground
+      const tail = K.mesh(cyl10(), HULLW, 24, 3.0, 118, { rx: Math.PI / 2 - 0.5, scale: [2.4, 20, 2.4] }); // a tail section nose-first in the ground
+      slopedBar(K, 24, 118, 3.0, 20, 3.4, 4.1, 0.5, -Math.PI / 2, tail); // H17: it rises toward +z at 0.5 rad, so the collider follows it (was a 0.55 box that missed the low end)
       container(K, -50, 128, true); K.crate(-32, 104); shield(K, -36, 122, true); fcrate(K, -50, 104);
       fcrate(K, -33, 119); banner(K, -46, 100, CLOTH_B);
       K.box(-28, 116, 2.2, 1.2, 5, YELLOW);
       K.mesh(new THREE.BoxGeometry(1.8, 0.4, 6), C.metal, -28, 2.6, 113.5, { rx: 0.45 });
-      K.mesh(cyl10(), 0x8f8a80, -44, 1.3, 126, { rz: Math.PI / 2, scale: [1.3, 3.5, 1.3], collide: true });
+      tube(K, -44, 126, 1.3, 3.5, 1.3, 0, K.mesh(cyl10(), 0x8f8a80, -44, 1.3, 126, { rz: Math.PI / 2, scale: [1.3, 3.5, 1.3] }));
       const wing = K.mesh(new THREE.BoxGeometry(14, 0.5, 4.5), HULLW, -54, 0.9, 118, { rz: 0.12 });
-      K.collider(-61, 0, 115.8, -47, 1.8, 120.2, wing);
+      slopedBar(K, -54, 118, 0.9, 14, 4.5, 0.5, 0.12, 0, wing); // H17: a thin tilted wing, not a block from the ground to 1.8 m
       // the one high lane of the yard: a jet bridge deck over the broken-off hull, a 5 m wide stair at each end
       const JB = 5.5;
       K.platform(-35, 130, 6, 6, JB + 0.6, { stairs: ['w'], stairW: 5, color: CONC2, stairColor: CONC });
@@ -869,7 +911,8 @@ export default {
       K.box(10, -33.4, 15.5, 0.6, 14.8, ROOF, { y: 8 });
       // the light shaft: broken ceiling, rubble and a slab that came down with it
       K.rock(1.5, -12, 1.8); K.rock(7, -16, 1.4); K.rock(-0.5, -17, 1.1);
-      K.mesh(new THREE.BoxGeometry(6, 0.8, 4), ROOF, 4, 1.5, -13, { rz: 0.25, ry: 0.3, collide: 0.8 });
+      const fall = K.mesh(new THREE.BoxGeometry(6, 0.8, 4), ROOF, 4, 1.5, -13, { rz: 0.25, ry: 0.3 });
+      slopedBar(K, 4, -13, 1.5, 6, 4, 0.8, 0.25, 0.3, fall); // H17: follows the slab's tilt and yaw
       const beam = new THREE.Mesh(new THREE.BoxGeometry(11.5, 12.6, 11.5), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       beam.position.set(4, K.ground(4, -14) + 6.3, -14); K.scene.add(beam);
       K.light(4, 8, -14, 0xffd9a0, 12, 28);
@@ -902,7 +945,9 @@ export default {
       const CT = TT + 9;
       for (let z = -41; z > -69; z -= 4) for (const x of [3.25, 16.75]) K.box(x, z - 2, 1.5, CT - K.ground(x, z - 2), 4, CONC2);
       K.box(10, -55, 15.5, 0.6, 28.5, ROOF, { y: CT, abs: true });
-      for (const x of [4.4, 15.6]) for (let z = -43; z > -69; z -= 8) K.box(x, z - 3, 0.15, 0.1, 6, F_BLUE, { y: 1.4, glow: 1.5, collide: false });
+      for (const x of [4.075, 15.925]) for (let z = -43; z > -69; z -= 8) { // H17: on the wall face (was 0.3 m off it), pitched with the floor
+        K.mesh(new THREE.BoxGeometry(0.15, 0.1, 6), F_BLUE, x, 1.45, z - 3, { rx: -Math.atan2(K.ground(x, z) - K.ground(x, z - 6), 6), glow: 1.5 });
+      }
       for (const z of [-46, -58, -66]) K.light(10, 6.5, z, z % 4 ? F_BLUE : F_RED, 4, 14);
       shield(K, 6.5, -52, true); fcrate(K, 13.5, -61, 1.2);
 

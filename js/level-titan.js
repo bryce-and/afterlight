@@ -11,6 +11,16 @@ const YELLOW = 0xd2a032, TRUNK = 0x5a5048, SOIL = 0x3a3128, LAMP = 0xfff1d0, FLO
 const CONT = [0xa8562a, 0x3f7a78, 0x8a8f8c, 0xb08a38, 0x56688a];
 const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 
+// H17: a slab leaning on something. Its collider is a run of short turned boxes that follow the slope, so the air under the high end is open
+function leanSlab(K, w, h, d, color, x, y, z, ry, rz, n = 3) {
+  K.mesh(new THREE.BoxGeometry(w, h, d), color, x, y, z, { ry, rz });
+  const c = Math.cos(rz), sn = Math.sin(rz), ls = w / n;
+  for (let i = 0; i < n; i++) {
+    const t = -w / 2 + ls * (i + 0.5), ext = ls * Math.abs(sn) + h * c;
+    K.ocollider(x + t * c * Math.cos(ry), z - t * c * Math.sin(ry), ls * c + 0.1, ext, d, ry, y + t * sn - ext / 2);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // shared pieces
 // ---------------------------------------------------------------------------
@@ -23,8 +33,12 @@ function rail(K, ax, az, bx, bz, y = 0) {
   for (let k = 0; k < n; k++) {
     const x0 = ax + ((bx - ax) * k) / n, z0 = az + ((bz - az) * k) / n, x1 = ax + ((bx - ax) * (k + 1)) / n, z1 = az + ((bz - az) * (k + 1)) / n;
     const l = L / n, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-    K.mesh(new THREE.BoxGeometry(0.5, 0.3, l), PALE2, cx, y + 0.15, cz, { ry });
-    K.mesh(new THREE.BoxGeometry(0.1, 0.1, l), K.C.metal, cx, y + 1.05, cz, { ry });
+    // H17: a rail on the ground is pitched with it, so a ramp's rail climbs instead of stepping
+    const rx = y === 0 ? -Math.atan2(K.ground(x1, z1) - K.ground(x0, z0), l) : 0, mid = y === 0 ? (K.ground(x0, z0) + K.ground(x1, z1)) / 2 - K.ground(cx, cz) : 0;
+    for (const [w, hh, yy, col] of [[0.5, 0.3, 0.15, PALE2], [0.1, 0.1, 1.05, K.C.metal]]) {
+      const m = K.mesh(new THREE.BoxGeometry(w, hh, l), col, cx, y + yy + mid, cz, { ry, rx });
+      m.rotation.order = 'YXZ'; // yaw, then pitch along the rail
+    }
     K.mesh(new THREE.BoxGeometry(0.16, 1.05, 0.16), K.C.metal, x0, y + 0.525, z0);
   }
   K.mesh(new THREE.BoxGeometry(0.16, 1.05, 0.16), K.C.metal, bx, y + 0.525, bz);
@@ -33,8 +47,8 @@ function rail(K, ax, az, bx, bz, y = 0) {
 // rig leg standing in the sea: reaches down to the water from whatever height the deck is
 function pylon(K, x, z) {
   const g = K.ground(x, z);
-  K.cyl(x, z, 1.1, g + 2.4, K.C.rock2, { y: -g - 1.4, collide: false, sides: 8 });
-  K.cyl(x, z, 1.4, 0.35, K.C.metal, { y: 0.95, collide: false, sides: 8 });
+  K.cyl(x, z, 1.1, g + 2.4, K.C.rock2, { y: -g - 1.4, collide: false, sides: 8 }).userData.noCollide = true; // H17: legs stand in the sea beyond the deck rim
+  K.cyl(x, z, 1.4, 0.35, K.C.metal, { y: 0.95, collide: false, sides: 8 }).userData.noCollide = true;
 }
 
 // the whole play area is one deck: rail its rim, give it a thick edge and legs into the sea
@@ -83,7 +97,7 @@ function seaScenery(K, n = 22, near = 20, far = 85) {
 function arco(K, x, z, w, d, h, o = {}) {
   const y = o.y ?? 0;
   K.box(x, z, w, h, d, o.color ?? PALE, { y, collide: o.collide ?? true });
-  for (let yy = y + 2.2; yy < y + h - 1; yy += o.every ?? 4) K.box(x, z, w + 0.1, 0.45, d + 0.1, AMBER, { y: yy, collide: false, glow: 1.1 });
+  for (let yy = y + 2.2; yy < y + h - 1; yy += o.every ?? 4) K.box(x, z, w + 0.1, 0.45, d + 0.1, AMBER, { y: yy, collide: false, glow: 1.1 }).userData.floatOk = true; // H17: a band round the tower (it runs into the ground uphill)
   K.box(x, z, w + 0.6, 0.5, d + 0.6, K.C.metal, { y: y + h, collide: false });
   if (o.cap !== false) K.box(x + w * 0.15, z - d * 0.1, w * 0.4, 1.6, d * 0.35, K.C.metal, { y: y + h + 0.5, collide: false });
 }
@@ -93,23 +107,24 @@ function hive(K, x, z, s = 1, o = {}) {
   const y = o.y ?? 0, n = 3 + Math.floor(K.rng() * 2);
   for (let i = 0; i < n; i++) {
     const r = K.R(0.35, 0.8) * s, h = K.R(1.6, 4.2) * s;
-    K.cone(x + K.R(-1, 1) * s, z + K.R(-1, 1) * s, r, h, K.RP([CHITIN, CHITIN2]), { y, sides: 5, collide: false, rx: K.R(-0.35, 0.35), rz: K.R(-0.35, 0.35) });
+    K.cone(x + K.R(-1, 1) * s, z + K.R(-1, 1) * s, r, h, K.RP([CHITIN, CHITIN2]), { y, sides: 5, collide: false, rx: K.R(-0.35, 0.35), rz: K.R(-0.35, 0.35) }).userData.noCollide = true; // H17: the cluster collider below stands for the spikes
   }
-  for (let i = 0; i < 2; i++) K.mesh(new THREE.OctahedronGeometry(K.R(0.35, 0.7) * s, 0), GREEN, x + K.R(-1.2, 1.2) * s, y + K.R(0.4, 1.2) * s, z + K.R(-1.2, 1.2) * s, { glow: 1.6, scale: [1, 1.8, 1] });
-  if (o.collide !== false) K.collider(x - 1.1 * s, y, z - 1.1 * s, x + 1.1 * s, y + 2.4 * s, z + 1.1 * s, null);
+  for (let i = 0; i < 2; i++) K.mesh(new THREE.OctahedronGeometry(K.R(0.35, 0.7) * s, 0), GREEN, x + K.R(-1.2, 1.2) * s, y + K.R(0.4, 1.2) * s, z + K.R(-1.2, 1.2) * s, { glow: 1.6, scale: [1, 1.8, 1] }).userData.noCollide = true;
+  if (o.collide !== false) K.collider(x - 0.7 * s, y, z - 0.7 * s, x + 0.7 * s, y + 2.4 * s, z + 0.7 * s, null); // H17: inside the visible mass, not its leaning corners
 }
 
 // tall green Hive crystal cluster
 function crystals(K, x, z, s = 1, collide = true, y = 0) {
-  for (let i = 0; i < 4; i++) K.mesh(new THREE.OctahedronGeometry(K.R(0.4, 0.8) * s, 0), GREEN, x + K.R(-0.9, 0.9) * s, y + K.R(0.6, 1.4) * s, z + K.R(-0.9, 0.9) * s, { glow: 1.5, scale: [1, K.R(1.8, 2.8), 1], rx: K.R(-0.3, 0.3), rz: K.R(-0.3, 0.3) });
-  if (collide) K.collider(x - s, y, z - s, x + s, y + 2.6 * s, z + s, null);
+  for (let i = 0; i < 4; i++) K.mesh(new THREE.OctahedronGeometry(K.R(0.4, 0.8) * s, 0), GREEN, x + K.R(-0.9, 0.9) * s, y + K.R(0.6, 1.4) * s, z + K.R(-0.9, 0.9) * s, { glow: 1.5, scale: [1, K.R(1.8, 2.8), 1], rx: K.R(-0.3, 0.3), rz: K.R(-0.3, 0.3) }).userData.noCollide = true; // H17: the cluster collider stands for them
+  if (collide) K.collider(x - 0.7 * s, y, z - 0.7 * s, x + 0.7 * s, y + 2.6 * s, z + 0.7 * s, null); // H17: inside the visible mass
 }
 
 // dark Hive stain on the floor with glowing veins
 function creep(K, x, z, w, d, y = 0) {
-  K.box(x, z, w, 0.26, d, CHITIN, { y, collide: false });
-  K.box(x, z, w * 0.8, 0.28, 0.2, GREEN, { y, collide: false, glow: 1.2 });
-  K.box(x + w * 0.15, z, 0.2, 0.28, d * 0.7, GREEN, { y, collide: false, glow: 1.2 });
+  // H17: a stain on the floor, walked over
+  K.box(x, z, w, 0.26, d, CHITIN, { y, collide: false }).userData.noCollide = true;
+  K.box(x, z, w * 0.8, 0.28, 0.2, GREEN, { y, collide: false, glow: 1.2 }).userData.noCollide = true;
+  K.box(x + w * 0.15, z, 0.2, 0.28, d * 0.7, GREEN, { y, collide: false, glow: 1.2 }).userData.noCollide = true;
 }
 
 // shipping container (rot = long side along z)
@@ -146,7 +161,11 @@ function crane(K, x, z, h = 20, dir = 1, alongX = true) {
 // axis-aligned pipe on supports (bottom of pipe at y)
 function pipeRun(K, x1, z1, x2, z2, y = 2.6, r = 0.6, color) {
   const alongX = Math.abs(x2 - x1) > Math.abs(z2 - z1), L = alongX ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
-  K.mesh(new THREE.CylinderGeometry(r, r, L, 8), color ?? K.C.metal, (x1 + x2) / 2, y + r, (z1 + z2) / 2, alongX ? { rz: Math.PI / 2 } : { rx: Math.PI / 2 });
+  // H17: a low pipe blocks (a collider a little narrower than the round pipe); one above head height is walked under
+  const pipe = K.mesh(new THREE.CylinderGeometry(r, r, L, 8), color ?? K.C.metal, (x1 + x2) / 2, y + r, (z1 + z2) / 2, alongX ? { rz: Math.PI / 2 } : { rx: Math.PI / 2 });
+  if (y >= 1.6) pipe.userData.noCollide = true;
+  else if (alongX) K.collider(Math.min(x1, x2), y + r * 0.5, z1 - r * 0.6, Math.max(x1, x2), y + 2 * r, z1 + r * 0.6, null);
+  else K.collider(x1 - r * 0.6, y + r * 0.5, Math.min(z1, z2), x1 + r * 0.6, y + 2 * r, Math.max(z1, z2), null);
   const n = Math.max(1, Math.round(L / 12));
   for (let k = 0; k <= n; k++) {
     const px = x1 + ((x2 - x1) * k) / n, pz = z1 + ((z2 - z1) * k) / n;
@@ -180,7 +199,7 @@ function archRib(K, x, z, R, h, alongX, color = CHITIN, tube = 0.7, y = 0) {
   K.mesh(new THREE.TorusGeometry(R, tube, 5, 14, Math.PI), color, x, y, z, { ry: alongX ? 0 : Math.PI / 2, scale: [1, h / R, 1] });
   for (const s of [-1, 1]) {
     const fx = alongX ? x + s * R : x, fz = alongX ? z : z + s * R;
-    K.collider(fx - 1, y, fz - 1, fx + 1, y + 3, fz + 1, null);
+    K.collider(fx - 0.75, y, fz - 0.75, fx + 0.75, y + 3, fz + 0.75, null); // H17: hugs the foot of the rib
   }
 }
 
@@ -226,7 +245,7 @@ function derrick(K, x, z, h = 34, y0 = 0) {
     K.box(x - s, z, 0.3, 0.3, 2 * s, YELLOW, { y: yy, collide: false });
   }
   K.cyl(x, z, 0.5, h, K.C.metal, { y: y0, sides: 6, collide: false });
-  K.cyl(x, z, 1.4, 1.4, K.C.metal, { y: y0 + 0.3, sides: 8, collide: false });
+  K.cyl(x, z, 1.4, 1.4, K.C.metal, { y: y0 + 0.3, sides: 8 }); // H17: the derrick's foot is solid
   K.box(x, z, 3.2, 2.2, 3.2, YELLOW, { y: y0 + h, collide: false });
   K.box(x, z, 1.4, 5, 1.4, K.C.metal, { y: y0 + h + 2.2, collide: false });
   K.box(x, z, 0.9, 0.5, 0.9, 0xff4a2a, { y: y0 + h + 7.2, collide: false, glow: 1.8 });
@@ -392,7 +411,7 @@ export default {
       pipeRun(K, 46, -47, 46, -62, 2.6, 0.7, YELLOW); // north to the flare
       pipeRun(K, 37, -38, 33, -38, 2.6, 0.7);
       flare(K, 52, -62, 38);
-      K.box(52, -62, 8, 0.4, 8, 0xff8a2a, { y: 0.05, collide: false, glow: 0.6 });
+      K.box(52, -62, 8, 0.45, 8, 0xff8a2a, { collide: false, glow: 0.6 }).userData.noCollide = true; // H17: skirted to the ground
       crane(K, 66, -12, 20, -1, true);
       crane(K, -6, -26, 18, 1, false);
       arco(K, 70, -62, 10, 12, 9);
@@ -455,8 +474,8 @@ export default {
       // planters at odd places (not a grid)
       for (const [px, pz, s] of [[-2, -136, 5], [18, -139, 5], [-1, -162, 4], [28, -154, 5.5], [20, -166, 3.4]]) {
         K.box(px, pz, s, 0.9, s, PALE);
-        K.box(px, pz, s - 0.6, 0.2, s - 0.6, SOIL, { y: 0.9, collide: false });
-        K.cone(px, pz, s * 0.3, s * 0.7, C.foliage, { y: 1.1, collide: false });
+        K.box(px, pz, s - 0.6, 0.2, s - 0.6, SOIL, { y: 0.9, collide: false }).userData.noCollide = true; // H17: soil and foliage sit on top of the planter wall
+        K.cone(px, pz, s * 0.3, s * 0.7, C.foliage, { y: 1.1, collide: false }).userData.noCollide = true;
       }
       // the sculpture at the heart of the square: a pale ring on a plinth, a lit sphere inside it
       K.cyl(12, -158, 3.4, 1.1, PALE, { sides: 12 });
@@ -464,7 +483,7 @@ export default {
       K.mesh(new THREE.OctahedronGeometry(1.1, 0), AMBER, 12, 5.5, -158, { glow: 1.6 });
       K.box(12, -158, 0.5, 4.4, 0.5, PALE2, { y: 1.1, collide: false });
       lamp(K, -6, -150, 7); lamp(K, 34, -150, 7); lamp(K, 14, -130, 7); lamp(K, 4, -170, 7);
-      K.box(18, -138, 4, 0.5, 1, C.metal); K.box(-4, -150, 1, 0.5, 4, C.metal);
+      K.box(18, -138, 4, 0.5, 1, C.metal); K.box(-4, -150, 1, 0.5, 4, C.metal).userData.noCollide = true; // H17: a curb on the slope, stepped over
       // Hive creep climbing the west tower
       K.box(-7.8, -148, 0.3, 12, 14, CHITIN, { collide: false });
       K.box(-7.6, -148, 0.2, 9, 0.3, GREEN, { y: 1, collide: false, glow: 1.3 });
@@ -494,8 +513,9 @@ export default {
       K.box(3, bz, 1.2, 0.08, 8, PALE, { y: 0.3, collide: false });
       K.box(0, bz, 6, 0.08, 1.2, PALE, { y: 0.3, collide: false });
       for (const [x, z, h, lx, lz] of [[-25, -231, 13, 0.2, 0.1], [-13, -242, 9.5, 0.1, -0.2], [3, -243.5, 15.5, -0.1, 0.1], [19, -240, 11, -0.2, -0.1], [-26, -213, 10, 0.25, 0], [-27, -197, 7.5, 0.2, 0.1], [14, -197, 6.5, 0, 0.2]]) {
-        K.cone(x, z, K.R(1.6, 2.4), h, CHITIN, { sides: 5, collide: false, rx: lz, rz: lx });
-        K.collider(x - 1.3, 0, z - 1.3, x + 1.3, h * 0.6, z + 1.3, null);
+        const r = K.R(1.6, 2.4);
+        K.cone(x, z, r, h, CHITIN, { sides: 5, collide: false, rx: lz, rz: lx }).userData.noCollide = true; // H17: a base collider that hugs the cone, not a square box
+        K.collider(x - r * 0.55, 0, z - r * 0.55, x + r * 0.55, Math.min(h * 0.5, 3), z + r * 0.55, null);
       }
       crystals(K, -21, -236, 0.9); crystals(K, 8, -240, 1);
       for (const [x, z] of [[-12, -205], [11, -219], [-6, -226], [14, -203]]) hive(K, x, z, 1.1);
@@ -565,7 +585,7 @@ export default {
       }
       K.box(-8, -6, 16, 0.5, 6, C.metal, { y: 7, collide: false }); // entrance canopy
       lamp(K, -15, 2, 5); lamp(K, -1, 2, 5);
-      for (const [x, z] of [[-30, 14], [20, 22]]) { K.box(x, z, 6, 0.9, 6, PALE); K.cone(x, z, 1.6, 3, C.foliage, { y: 0.9, collide: false }); }
+      for (const [x, z] of [[-30, 14], [20, 22]]) { K.box(x, z, 6, 0.9, 6, PALE); K.cone(x, z, 1.6, 3, C.foliage, { y: 0.9, collide: false }).userData.noCollide = true; }
       container(K, -36, 24, true); container(K, 26, 4, true);
       // the tall hull rising beside the gangway and along the west flank of the complex, so the drop has walls to it
       arco(K, -58, -40, 14, 70, 30); arco(K, -58, -150, 14, 90, 34);
@@ -578,7 +598,7 @@ export default {
         K.box(x, z, 1.7, 0.3, 1.7, AMBER, { y: 6.5, collide: false, glow: 1.3 });
       }
       for (const [x, z, w] of [[-20, -16, 6], [4, -30, 5], [-14, -44, 7], [10, -22, 4]]) K.box(x, z, w, 0.15, 1.2, LAMP, { y: 9.6, collide: false, glow: 1.5 });
-      K.box(-26, -13.4, 12, 1.2, 1.6, C.metal); K.box(-26, -13.4, 12.2, 0.12, 1.8, PALE, { y: 1.2, collide: false }); // reception counter, off the doorway
+      K.box(-26, -13.4, 12, 1.2, 1.6, C.metal); K.box(-26, -13.4, 12.2, 0.12, 1.8, PALE, { y: 1.2, collide: false }).userData.noCollide = true; // reception counter, off the doorway
       // the stairwell: a railed well with the lower floors glowing below it
       K.box(-4, -44, 10.4, 0.22, 7, 0x1a2e2c, { collide: false });
       K.box(-4, -44, 8, 0.2, 5, 0x7fffd0, { y: 0.22, collide: false, glow: 1 });
@@ -586,10 +606,9 @@ export default {
       K.light(-4, 0.8, -44, 0x7fffd0, 6, 16);
       // lobby furniture clusters
       for (const [x, z] of [[-24, -34], [14, -48], [-12, -22]]) { K.box(x, z, 3.2, 0.7, 1.2, 0x56688a); K.box(x, z - 1.6, 3.2, 0.7, 1.2, 0x56688a); K.box(x + 2.4, z - 0.8, 1.2, 0.5, 1.2, PALE); }
-      for (const [x, z] of [[-16, -52], [-24, -52]]) { K.box(x, z, 4, 0.8, 4, PALE); K.cone(x, z, 1.2, 2.4, C.foliage, { y: 0.8, collide: false }); }
+      for (const [x, z] of [[-16, -52], [-24, -52]]) { K.box(x, z, 4, 0.8, 4, PALE); K.cone(x, z, 1.2, 2.4, C.foliage, { y: 0.8, collide: false }).userData.noCollide = true; }
       // ceiling fallen across the east side
-      K.mesh(new THREE.BoxGeometry(9, 0.6, 5), PALE2, 14, 1.4, -30, { rz: 0.28, ry: 0.4 });
-      K.collider(10, 0, -33, 18, 2.4, -27, null);
+      leanSlab(K, 9, 0.6, 5, PALE2, 14, 1.4, -30, 0.4, 0.28, 4); // H17: the slab carries its own turned collider
       K.platform(-33, -34, 8, 22, 3.2, { stairs: ['e'], stairW: 3, color: PALE2 }); // one mezzanine, on the west wall
       rail(K, -29, -45, -29, -23, 3.2);
       hive(K, -28, -9.6 - 3, 1.1); hive(K, 18, -14, 1); hive(K, 14, -52, 1.2); hive(K, -34, -55, 0.9);
@@ -647,9 +666,7 @@ export default {
         const g = K.ground(46, -112), pane = new THREE.Mesh(new THREE.BoxGeometry(12, 0.3, 7), gm);
         pane.position.set(46, g + 3.2, -112); pane.rotation.set(0.1, 0.5, 0.5);
         K.scene.add(pane);
-        K.mesh(new THREE.BoxGeometry(12, 0.5, 0.5), C.metal, 46, 3.4, -112, { ry: 0.5, rz: 0.5 });
-        K.collider(44.5, 0, -113.5, 47.5, 2.6, -110.5, null);
-        K.collider(41, 0, -108, 43.5, 1.2, -105.5, null);
+        leanSlab(K, 12, 0.5, 0.5, C.metal, 46, 3.4, -112, 0.5, 0.5, 5); // H17: the leaning frame bar is the solid part (the glass is not)
       }
       hive(K, 14, -138, 1.1); hive(K, 38, -90, 1); hive(K, 52, -134, 1.3); creep(K, 48, -132, 7, 5);
       K.light(24, 8, -116, 0xbfe8e0, 9, 40);
@@ -669,10 +686,10 @@ export default {
         K.box(21.5, -160, 6, 0.6, 10.8, PALE2, { y: H });
         for (let z = -166; z > -198; z -= 6) K.box(-4, z - 3, 10.8, 0.6, 6.1, PALE2, { y: H }); // roof, leg 3
         // the collapse: a slab fallen across the middle of the dogleg and daylight through the hole
-        K.mesh(new THREE.BoxGeometry(8, 0.7, 5), PALE2, 11, 1.6, -160, { rz: 0.45, ry: 0.3 });
-        K.collider(8, 0, -162.4, 14, 2.4, -157.6, null);
-        K.mesh(new THREE.BoxGeometry(2, 0.5, 1.4), PALE2, 14.5, 0.3, -163.5, { ry: 0.6, rz: 0.2 });
-        K.mesh(new THREE.BoxGeometry(1.6, 0.5, 1.2), PALE2, 7, 0.3, -156.5, { ry: 1.1, rz: -0.2 });
+        leanSlab(K, 8, 0.7, 5, PALE2, 11, 1.6, -160, 0.3, 0.45, 4); // H17: turned collider
+        // H17: knee-high rubble beside the slab is stepped over (a collider on it closes the corridor round the slab)
+        K.mesh(new THREE.BoxGeometry(2, 0.5, 1.4), PALE2, 14.5, 0.3, -163.5, { ry: 0.6, rz: 0.2 }).userData.noCollide = true;
+        K.mesh(new THREE.BoxGeometry(1.6, 0.5, 1.2), PALE2, 7, 0.3, -156.5, { ry: 1.1, rz: -0.2 }).userData.noCollide = true;
         for (let z = -150; z > -196; z -= 8) K.box(z > -166 ? 24 : -4, z > -166 ? z : z, 0.12, 0.3, 4, LAMP, { y: 7.4, collide: false, glow: 1.4 });
         for (let x = 22; x > -6; x -= 8) K.box(x, -160, 4, 0.3, 0.12, LAMP, { y: 7.4, collide: false, glow: 1.4 });
         pipeRun(K, 28.4, -148, 28.4, -164, 4.2, 0.35); pipeRun(K, 20, -164.4, 3, -164.4, 5, 0.35);
@@ -688,12 +705,12 @@ export default {
       K.box(-10, -226, 62, 0.45, 54, FLOOD, { collide: false, glow: 0.18 }); // knee-deep water over the floor
       // walkways: planked decks just above the water
       for (const [x, z, w, d] of [[-4, -214, 4, 32], [-4, -248, 4, 12], [-24, -222, 28, 3.2], [8, -232, 24, 3.2], [-24, -246, 20, 3.2]]) {
-        K.box(x, z, w, 0.62, d, 0x59625e, { collide: false });
-        K.box(x, z, w + 0.3, 0.12, d + 0.3, C.metal, { y: 0.6, collide: false });
+        K.box(x, z, w, 0.62, d, 0x59625e, { collide: false }).userData.noCollide = true; // H17: planked decks are walked on, not into
+        K.box(x, z, w + 0.3, 0.12, d + 0.3, C.metal, { y: 0.6, collide: false }).userData.noCollide = true;
       }
       for (const [x, z, rot] of [[-34, -208, 0], [-20, -211, 1], [-35, -232, 0], [4, -206, 0], [16, -212, 1], [15, -240, 0], [-30, -246, 0], [-14, -248, 1], [5, -246, 0]]) {
         K.box(x, z, rot ? 1.6 : 8, 1.1, rot ? 8 : 1.6, C.metal);
-        K.box(x, z, rot ? 1.8 : 8.2, 0.12, rot ? 8.2 : 1.8, 0xe8ecea, { y: 1.1, collide: false });
+        K.box(x, z, rot ? 1.8 : 8.2, 0.12, rot ? 8.2 : 1.8, 0xe8ecea, { y: 1.1, collide: false }).userData.noCollide = true; // H17: cap on top of the machine
       }
       glassBox(K, gm, -25, -233, 0.2, 2.6, 14); glassBox(K, gm, 5, -208, 14, 2.6, 0.2); glassBox(K, gm, 14, -226, 0.2, 2.6, 10);
       for (const [x, z, broken] of [[-38, -203, false], [-38, -214, true], [18, -251, false], [-38, -250, false], [19, -203, true]]) {
@@ -706,7 +723,7 @@ export default {
         else { K.cyl(x, z, 1.0, 3.2, GREEN, { y: 0.6, glow: 0.7, collide: false, sides: 10 }); K.cyl(x, z, 1.5, 0.4, C.metal, { y: 4, collide: false, sides: 10 }); }
       }
       // the landmark: a huge cracked specimen tank with the Hive growing out of it
-      K.cyl(-18, -240, 6.4, 1.2, C.metal, { sides: 14 });
+      K.mesh(new THREE.CylinderGeometry(6.4, 6.4, 1.2, 14), C.metal, -18, 0.6, -240, { collide: 0.7 }); // H17: collider inside the round base
       {
         const g = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 5.6, 11, 14, 1, true), gm);
         g.position.set(-18, K.ground(-18, -240) + 1.2 + 5.5, -240);
@@ -716,8 +733,7 @@ export default {
       K.cyl(-18, -240, 6.4, 1.2, C.metal, { y: 12.2, collide: false, sides: 14 });
       for (let k = 0; k < 5; k++) { const a = k * 1.3 + 0.4; K.cone(-18 + Math.sin(a) * 3.6, -240 + Math.cos(a) * 3.6, 0.8, K.R(5, 9), CHITIN, { y: 12.4, sides: 5, collide: false, rx: Math.cos(a) * 0.5, rz: -Math.sin(a) * 0.5 }); }
       K.collider(-23, 0, -245, -13, 5, -235, null);
-      K.mesh(new THREE.BoxGeometry(9, 0.6, 5), PALE2, 7, 1.4, -218, { rz: 0.28 }); // fallen ceiling panel
-      K.collider(2.5, 0, -220.5, 11.5, 2.4, -215.5, null);
+      leanSlab(K, 9, 0.6, 5, PALE2, 7, 1.4, -218, 0, 0.28, 4); // fallen ceiling panel (H17: tilted collider)
       K.platform(-10, -250, 14, 5, 2.4, { stairs: ['s'], stairW: 3, color: PALE2 }); // control deck over the tanks
       rail(K, -17, -247.5, -3, -247.5, 2.4);
       hive(K, -28, -222, 1.1); hive(K, 8, -224, 1.2); hive(K, -2, -238, 1);
@@ -740,8 +756,7 @@ export default {
       for (const [x, z] of [[12, -272], [50, -275], [8, -318], [51, -314], [5, -299], [55, -302]]) crystals(K, x, z, 1.3);
       for (const [x, z] of [[19, -283], [43, -309], [17, -309], [44, -284]]) hive(K, x, z, 1.1);
       K.box(18, -297, 0.9, 1.3, 5, C.metal); K.box(43, -300, 0.9, 1.3, 5, C.metal);
-      K.mesh(new THREE.BoxGeometry(5, 1.1, 1.6), C.metal, 30, 0.7, -283, { rz: 0.35 });
-      K.collider(27.5, 0, -284, 32.5, 1.6, -282, null);
+      leanSlab(K, 5, 1.1, 1.6, C.metal, 30, 0.7, -283, 0, 0.35, 2); // H17: tilted collider
       // ruptured containment vessel at the back, Hive bursting out
       K.cyl(30, -320, 4.2, 1.2, C.metal, { sides: 12 });
       K.cyl(30, -320, 3, 6, GREEN, { y: 1.2, glow: 1.1, collide: false, sides: 12 });
@@ -836,7 +851,7 @@ export default {
       lamp(K, -16, -20); lamp(K, -66, -72);
       K.light(-62, 4, -68, 0xff8a3a, 10, 50);
       // pontoon dock on the west side: floats, bollards, a hoist
-      for (const z of [-60, -52, -44, -38]) for (const x of [-79, -71]) K.cyl(x, z, 1.1, 2, 0x2f5a8a, { y: -1.3, collide: false, sides: 8 });
+      for (const z of [-60, -52, -44, -38]) for (const x of [-79, -71]) K.cyl(x, z, 1.1, 2, 0x2f5a8a, { y: -1.3, collide: false, sides: 8 }).userData.noCollide = true; // H17: floats under the dock
       for (const z of [-56, -40]) K.cyl(-79, z, 0.45, 0.9, K.C.metal, { sides: 6 });
       K.box(-76, -49, 2, 5, 2, YELLOW); K.box(-76, -49, 7, 0.8, 0.8, YELLOW, { y: 5, collide: false });
       K.box(-75, -41, 5, 1.6, 2.4, K.RP(CONT)); K.box(-75, -57, 4, 1.4, 2, K.RP(CONT));
@@ -850,7 +865,7 @@ export default {
           K.cone(20, z, 0.8, 2.6, PALE2, { y: h + 0.5, collide: false, sides: 4 });
         } else { // the far leg and half the beam are on the deck
           K.box(25.5, z, 0.9, h * 0.35, 0.9, PALE2);
-          K.mesh(new THREE.BoxGeometry(8, 0.9, 1.2), PALE2, 21.5, 0.5, z + 1.2, { ry: 0.4, rz: 0.1 });
+          leanSlab(K, 6, 0.9, 1.2, PALE2, 22.2, 0.5, z + 1.2, 0.4, 0.1, 2); // H17: shortened a little so the bridge keeps a clear lane beside it
           K.mesh(new THREE.BoxGeometry(5, 1, 1.2), PALE2, 16.5, h * 0.8, z, { rz: -0.45 });
         }
       };
@@ -890,25 +905,24 @@ export default {
       }
       // lift shaft with a lit cage
       K.box(-14, -183, 6, 14, 6, C.metal);
-      glassBox(K, gm, -14, -179.6, 4, 3.4, 0.4, 0.8, false);
+      glassBox(K, gm, -14, -179.8, 4, 3.4, 0.4, 0.8, false); // H17: against the shaft face (was 0.2 m off it)
       K.box(-14, -179.4, 3.6, 0.3, 0.3, GREEN, { y: 4.4, collide: false, glow: 1.6 });
       for (const [x, z] of [[-26, -156], [-22, -154], [-24, -158]]) K.cyl(x, z, 0.9, 10, C.rock2, { y: 4, sides: 6, collide: false }); // a hanging pipe bundle
       // the central maintenance catwalk, 3.6 m up (a perch; the lanes below are the route)
       K.platform(-27, -168, 32, 4.5, 3.6, { stairs: ['e', 'w'], stairW: 3.5, color: PALE2 });
       rail(K, -43, -170.25, -11, -170.25, 3.6); rail(K, -43, -165.75, -11, -165.75, 3.6);
       // a walkway that came down across the east side
-      K.mesh(new THREE.BoxGeometry(15, 0.6, 3.6), PALE2, 8, 2.2, -154, { rz: 0.3, ry: 0.15 });
-      K.collider(3.5, 0, -156, 12.5, 3.4, -152, null);
+      leanSlab(K, 15, 0.6, 3.6, PALE2, 8, 2.2, -154, 0.15, 0.3, 7); // H17: turned, tilted collider
       stack(K, -24, -139, false, 1); stack(K, -48, -184, false, 1); stack(K, 22, -150, true, 1);
-      K.box(-32, -156, 0.8, 1.2, 5, PALE2); K.box(0, -184, 5, 1.2, 0.8, PALE2); K.box(-12, -150, 4, 1.2, 0.8, PALE2);
+      K.box(-32, -156, 0.8, 1.2, 5, PALE2); K.box(0, -184, 5, 1.3, 0.8, PALE2); K.box(-12, -150, 4, 1.2, 0.8, PALE2);
       for (const [x, z] of [[-45, -150], [-12, -172], [-2, -176], [-28, -150]]) hive(K, x, z, 1.1);
       creep(K, -36, -150, 8, 6); creep(K, 0, -165, 8, 6);
       K.light(-20, 10, -160, AMBER, 10, 40); K.light(-14, 6, -178, GREEN, 8, 26);
       K.door(-35, -194, 14, 8, 'x', { zone: 2, color: CHITIN2, trim: GREEN }); // sealed Hive door on the nest bridge
 
       // ---- The Hive Nest: a pit inside a rim, ribs in procession along the rim toward the throne, a tomb ----
-      for (let z = -252; z <= -208; z += 4) K.cone(-72, z, K.R(1.6, 2.2), K.R(5, 9), K.RP([CHITIN, CHITIN2]), { sides: 5, collide: false, rz: K.R(-0.2, 0.2) });
-      for (let x = -66; x <= -22; x += 5) K.cone(x, -252.5, K.R(1.4, 2), K.R(4, 7), CHITIN, { sides: 5, collide: false, rx: K.R(-0.2, 0.2) });
+      for (let z = -252; z <= -208; z += 4) K.cone(-72, z, K.R(1.6, 2.2), K.R(5, 9), K.RP([CHITIN, CHITIN2]), { sides: 5, rz: K.R(-0.2, 0.2) }); // H17: rim spikes are solid
+      for (let x = -66; x <= -22; x += 5) K.cone(x, -252.5, K.R(1.4, 2), K.R(4, 7), CHITIN, { sides: 5, rx: K.R(-0.2, 0.2) });
       for (const z of [-213, -221, -229, -237, -245]) archRib(K, -5, z, 7, 9 + (z % 3), true, CHITIN, 0.8, 2.4); // the procession (along the rim)
       for (const [x, z] of [[-39, -237], [-44, -224], [-27, -239], [-46, -235], [-25, -222]]) { // egg sacs in the pit
         for (let i = 0; i < 3; i++) K.mesh(new THREE.SphereGeometry(K.R(0.7, 1.1), 6, 5), 0x8a9a5a, x + K.R(-1, 1), K.R(0.5, 0.9), z + K.R(-1, 1), { glow: 0.5, scale: [1, 1.3, 1] });

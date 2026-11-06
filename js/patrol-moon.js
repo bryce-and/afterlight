@@ -5,9 +5,9 @@
 // canyons, and marked roads (dark track, lamps) run from the landing to every area: lamps are white in the colony and green in Hive ground.
 import * as THREE from 'three';
 import { PATROL_DATA } from './patrol-data.js';
-import { road as kitRoad, torch, firePit, lantern, hall as kitHall, desk, console_, shelf } from './patrol-kit.js';
+import { road as kitRoad, laid, torch, firePit, lantern, hall as kitHall, desk, console_, shelf } from './patrol-kit.js';
 import { MOON_KIT as MK } from './level-moon.js';
-import { sandbags, fcrate, shield, banner, skiff, stairTo, CLOTH_B, CLOTH_R, F_BLUE } from './level-earth.js';
+import { sandbags, fcrate, shield, banner, skiff, stairTo, leaning, CLOTH_B, CLOTH_R, F_BLUE } from './level-earth.js';
 
 const { HR, HR2, BONE, CHIT, VOID, GA, GA2, ORANGE, GREEN, PALE } = MK.C;
 const TAU = Math.PI * 2;
@@ -70,9 +70,8 @@ function spireRing(K, cx, cz, r, n, h, open) {
 
 /** A rocky crag on a massif: a few big rocks and spikes of broken stone, visual only. */
 function crag(K, x, z, s) {
-  K.rock(x, z, s, { collide: false });
-  K.rock(x + s * 0.8, z + s * 0.4, s * 0.6, { collide: false });
-  K.rock(x - s * 0.7, z - s * 0.5, s * 0.5, { collide: false });
+  // H17: on the cliff tops of the massifs, out of reach, so the audit skips them (K.rock adds its mesh last and returns nothing)
+  for (const [dx, dz, k] of [[0, 0, 1], [0.8, 0.4, 0.6], [-0.7, -0.5, 0.5]]) { K.rock(x + s * dx, z + s * dz, s * k, { collide: false }); K.scene.children[K.scene.children.length - 1].userData.noCollide = true; }
 }
 
 export default {
@@ -94,7 +93,8 @@ export default {
       for (let i = 0; i < 34; i++) {
         const x = K.R(-140, 140), z = K.R(-170, 160);
         if (!K.clear(x, z, 4)) continue;
-        K.mesh(new THREE.BoxGeometry(K.R(0.25, 0.5), 0.04, K.R(8, 22)), 0x3f4349, x, 0.06, z, { ry: K.R(0, TAU), collide: false });
+        const w = K.R(0.25, 0.5), L = K.R(8, 22), a = K.R(0, TAU), hx = Math.sin(a) * L / 2, hz = Math.cos(a) * L / 2;
+        laid(K, x - hx, z - hz, x + hx, z + hz, w, 0x3f4349, { y: 0.06, h: 0.04 }); // H17: the fissure follows the ground
       }
       for (const [x, z, s] of [[-40, 100, 2], [30, 88, 1.8], [-86, 134, 2.6], [90, 142, 2.2], [12, 44, 1.6], [70, -20, 2], [-22, -90, 2.2], [120, 22, 2.6], [-20, 60, 2]]) K.rock(x, z, s);
       for (const [x, z, s] of [[-130, 80, 6], [-132, 30, 7], [-128, -10, 5.5], [-134, 56, 5], [38, 56, 5], [40, 76, 4.5], [32, 46, 4], [130, 90, 6], [132, 50, 6.5], [128, 20, 5.5], [-92, -50, 5], [-98, -44, 4]]) crag(K, x, z, s);
@@ -184,14 +184,15 @@ export default {
       } });
       MK.tunnelPath(K, [[-110, -68], [-110, -104], [-92, -104]], { w: 7, h: 9 });
       MK.brazier(K, -110, -78, 0.9); MK.brazier(K, -110, -94, 0.9);
-      K.rock(-117, -66, 4.4, { collide: false }); K.rock(-103, -66, 4, { collide: false });             // the cave mouth
+      K.rock(-117, -66, 4.4); K.rock(-103, -66, 4);             // the cave mouth
       hiveNest(K, -60, -84, 0.9);
 
       // ================================================================ the silo cavern: a Hive-held hall of tilted Golden Age cylinders
       const SX = 118, SZ = -132;
       hall(K, SX, SZ, 44, 30, 18, { color: HR2, roofColor: CHIT, ceil: 0x1f2226, lamp: GREEN, doors: { s: 12 }, doorOffset: { s: 0 }, lamps: 4, props: (k) => {
         for (const [dx, dz, ry, tilt] of [[-12, -6, 0.3, 0.38], [-2, -9, 1.2, -0.34], [9, -6, 2.0, 0.4], [14, 4, 0.7, -0.36], [-10, 6, 2.6, 0.32], [2, 2, 3.4, 0.28]]) {
-          k.mesh(new THREE.CylinderGeometry(2.4, 2.6, 13, 10), GA2, SX + dx, 6, SZ + dz, { ry, rz: tilt, collide: 0.5 });
+          const cyl = k.mesh(new THREE.CylinderGeometry(2.4, 2.6, 13, 10), GA2, SX + dx, 6, SZ + dz, { ry, rz: tilt });
+          leaning(k, SX + dx, SZ + dz, 6, 13, 2.5, tilt, ry, cyl); // H17: stacked colliders along the lean (was one box round the whole tilt)
           k.mesh(new THREE.TorusGeometry(2.6, 0.2, 4, 12), 0x5a5f66, SX + dx, 11.4, SZ + dz, { ry, rz: tilt, rx: Math.PI / 2, collide: false });
         }
         for (const [dx, dz] of [[-16, -10], [16, -10], [0, -12]]) { MK.crystals(k, SX + dx, SZ + dz, 1.4); k.light(SX + dx, 4, SZ + dz, GREEN, 9, 26); }

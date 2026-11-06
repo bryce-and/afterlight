@@ -57,14 +57,14 @@ function plant(K, x, z, s = 1, y = 0) {
   const n = 4 + Math.floor(K.rng() * 2);
   for (let i = 0; i < n; i++) {
     const a = (i / n) * TAU + K.R(0, 0.6);
-    K.cone(x + Math.cos(a) * 0.35 * s, z + Math.sin(a) * 0.35 * s, 0.34 * s, K.R(1.4, 2.2) * s, leaf(K), { y, sides: 4, collide: false, rx: Math.sin(a) * 0.7, rz: -Math.cos(a) * 0.7 });
+    K.cone(x + Math.cos(a) * 0.35 * s, z + Math.sin(a) * 0.35 * s, 0.34 * s, K.R(1.4, 2.2) * s, leaf(K), { y, sides: 4, collide: false, rx: Math.sin(a) * 0.7, rz: -Math.cos(a) * 0.7 }).userData.noCollide = true; // H17: fern leaves are walked through
   }
 }
 function palm(K, x, z, h = 6, y = 0) {
   K.cyl(x, z, 0.28, h, 0x6b5a46, { y, r2: 0.18, sides: 5, collide: false });
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * TAU;
-    K.cone(x + Math.cos(a) * 0.9, z + Math.sin(a) * 0.9, 0.4, 2.6, leaf(K), { y: y + h - 0.4, sides: 4, collide: false, rx: Math.sin(a) * 1.0, rz: -Math.cos(a) * 1.0 });
+    K.cone(x + Math.cos(a) * 0.9, z + Math.sin(a) * 0.9, 0.4, 2.6, leaf(K), { y: y + h - 0.4, sides: 4, collide: false, rx: Math.sin(a) * 1.0, rz: -Math.cos(a) * 1.0 }).userData.noCollide = true;
   }
 }
 /** A hanging vine: a thin dark strip dropping from a ledge at height y. */
@@ -77,7 +77,7 @@ function eggs(K, x, z, s = 1, y = 0) {
     const ex = x + K.R(-1.1, 1.1) * s, ez = z + K.R(-1.1, 1.1) * s, e = K.R(0.5, 0.8) * s;
     K.mesh(new THREE.SphereGeometry(e, 7, 5), EGG, ex, y + e * 1.2, ez, { glow: 0.6, scale: [1, 1.4, 1] });
   }
-  K.collider(x - 1.4 * s, y, z - 1.4 * s, x + 1.4 * s, y + 1.6 * s, z + 1.4 * s, null);
+  K.collider(x - 0.95 * s, y, z - 0.95 * s, x + 0.95 * s, y + 1.6 * s, z + 0.95 * s, null); // H17: inside the clutch of eggs, not the stain round it
 }
 
 const road = (K, pts, kind = 'deck', w) => kitRoad(K, pts, kind === 'boulevard'
@@ -164,8 +164,10 @@ const plate = (K, r, color) => K.box((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, r.x1 
  */
 function hull(K, r, cut) {
   const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, W = r.x1 - r.x0, D = r.z1 - r.z0, pad = 1.5, y = DECK - 3.4;
-  const strip = (x, z, w, d) => { A(K, x, y, z, w, 3.2, d, HULL); A(K, x, y, z, w + 0.1, 0.5, d + 0.1, RED); A(K, x, y + 2.2, z, w + 0.06, 0.4, d + 0.06, YELLOW); };
-  const under = (x0, x1, z0, z1) => A(K, (x0 + x1) / 2, y, (z0 + z1) / 2, x1 - x0, 3.1, z1 - z0, HULL2);
+  // H17: the fascia and the slab under the deck are out of reach (below the deck, outside the tube walls), so the audit skips them
+  const Ah = (...a) => { const m = A(...a); m.userData.noCollide = true; return m; };
+  const strip = (x, z, w, d) => { Ah(K, x, y, z, w, 3.2, d, HULL); Ah(K, x, y, z, w + 0.1, 0.5, d + 0.1, RED); Ah(K, x, y + 2.2, z, w + 0.06, 0.4, d + 0.06, YELLOW); };
+  const under = (x0, x1, z0, z1) => Ah(K, (x0 + x1) / 2, y, (z0 + z1) / 2, x1 - x0, 3.1, z1 - z0, HULL2);
   strip(cx, r.z0 - pad / 2, W + 2 * pad, pad);
   strip(cx, r.z1 + pad / 2, W + 2 * pad, pad);
   strip(r.x0 - pad / 2, cz, pad, D);
@@ -436,8 +438,8 @@ function arcology(K) {
   domeShell(K); ringWall(K);
   // the paving: pale, a little grey-green, closed at the tube where the floor drops away
   const pave = 0x6f7f75;
-  K.box(-6.25, DCZ, 127.5, 0.03, 140, pave, { y: 0, collide: false });
-  K.box(63.75, -137.75, 12.5, 0.03, 64.5, pave, { y: 0, collide: false }); K.box(63.75, -62.25, 12.5, 0.03, 64.5, pave, { y: 0, collide: false });
+  K.box(-6.25, DCZ, 127.5, 0.03, 140, pave, { y: 0, collide: false }).userData.noCollide = true; // H17: paving is a floor, not a block
+  K.box(63.75, -137.75, 12.5, 0.03, 64.5, pave, { y: 0, collide: false }).userData.noCollide = true; K.box(63.75, -62.25, 12.5, 0.03, 64.5, pave, { y: 0, collide: false }).userData.noCollide = true;
   // the towers: two clean ones and the Hive wing in the north
   tower(K, TOWERS[0][0], TOWERS[0][1], 32, { levels: 5 });                    // west
   tower(K, TOWERS[1][0], TOWERS[1][1], 32, { levels: 4, depth: 12 });         // south-east
@@ -500,6 +502,7 @@ function water(K, x0, x1, z0, z1, y0, y1) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), WATER);
   m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
   m.userData.noMerge = true;
+  m.userData.noCollide = true; // H17: the sea seen through the windows is not a solid
   K.scene.add(m);
 }
 
@@ -527,7 +530,7 @@ function tube(K) {
   const { x0, x1, h0, h1 } = TITAN_RAMP, zc = TITAN_RAMP.z0, L = x1 - x0, th = Math.atan2(h0 - h1, L), cs = Math.cos(th), mx = (x0 + x1) / 2, fy = (x) => h0 - (x - x0) * (h0 - h1) / L;
   const slab = (z, wd, hv, yv, color, o = {}) => K.mesh(new THREE.BoxGeometry(L / cs, hv, wd), color, mx, yv - K.ground(mx, z), z, { rz: -th, glow: o.glow, collide: false });
   // walls (vertical faces, slanted top and foot) on both sides, a roof 8 m over the floor, and a grated floor plate laid on the ramp
-  for (const z of [zc - 4.5, zc + 4.5]) { slab(z, 1.0, 9.8 * cs, fy(mx) + 3.9, WALL); solid(K, x0, 0, z - 0.5, x1, h0 + 8.8, z + 0.5); }
+  for (const z of [zc - 4.5, zc + 4.5]) { slab(z, 1.0, 9.8 * cs, fy(mx) + 3.9, WALL); solid(K, x0 - (L / cs - L) / 2, 0, z - 0.5, x1 + (L / cs - L) / 2, h0 + 8.8, z + 0.5); } // H17: the tilted wall slab is longer than the ramp, so the collider runs the slab's length
   slab(zc, 11, 0.8 * cs, fy(mx) + 8 + 0.4 / cs, WALLD);
   slab(zc, 8.2, 0.1, fy(mx) + 0.08, GRATE);
   // ribs every 9 m: two pilasters and a beam, standing on the floor under them
@@ -557,7 +560,7 @@ function gallery(K) {
   for (const z of [-120, -138]) K.light(148, 6.9 - K.ground(148, z), z, 0x9fe8d8, 8, 22);
   // the lab: consoles along the walls, a cracked sample tank, a bench
   for (const [x, z] of [[122, -102.6], [134, -97.4], [128, -102.6]]) { A(K, x, 0, z, 2.4, 1.0, 0.9, HULL2, { collide: true }); A(K, x, 1.0, z, 2.0, 0.06, 0.7, 0x7fe0d0, { glow: 1.4 }); }
-  A(K, 138, 0, -101, 2.2, 0.3, 2.2, HULL2, { collide: true }); A(K, 138, 0.3, -101, 1.6, 2.6, 1.6, 0x6fd8a0, { glow: 0.5 });
+  A(K, 138, 0, -101, 2.2, 0.3, 2.2, HULL2, { collide: true }); A(K, 138, 0.3, -101, 1.6, 2.6, 1.6, 0x6fd8a0, { glow: 0.5, collide: true }); // H17: the beacon pillar is solid
   // the Hive chamber: a roofed hall with pillars, eggs, crystals and creep
   const cx0 = 108, cx1 = 156, cz0 = -192, cz1 = -150;
   roof(cx0 - 1, cx1 + 1, cz0 - 1, cz1 + 1); floor(cx0, cx1, cz0, cz1);
