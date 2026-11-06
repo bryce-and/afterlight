@@ -13,11 +13,9 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
 | R41 | Sparrow usable on all levels | Sparrow works in patrol zones (v3.3). Off in campaign missions by design ("Unable to summon.", DECISIONS 2026-10-24) | U17 | Complete and published (v3.3) for patrol zones |
 | R44 | Map collision fix | Oriented colliders since v2.3; partly assessed in v2.6, no new collision bugs reproduced | U15 | Not assessed |
-| R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Missing | U20 | Planned |
-| R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Missing | U20 | Planned |
-| R47 | Same base campaign, harder (not a new campaign) | n/a | U20 | Planned |
-| R48 | Light past 100: base 200, Legendary 300, Ultimate 350 | Base cap 200 and missions rescaled to 10 to 180 (v1.1). 300/350 pending | U1 (200), U20 (300/350) | In progress |
-| R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U20 | Planned |
+| R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Legendary tier, unlock and +25 done (v4.2); unlock animation U20b | U20a, U20b | In progress |
+| R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Ultimate tier, 50 under and no revives done (v4.2); better animation U20b | U20a, U20b | In progress |
+| R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U20b | Planned |
 | R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U21 | Planned |
 | R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13b (permanent elemental shields, see DECISIONS 2026-10-20; grenades), U14 (models) | Complete and published (v2.4) |
 | R53 | Distinct faction behaviors | Missing (names and models only) | U13b | Complete and published (v2.4) |
@@ -50,13 +48,12 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 
 | ID | Requirement | Update | Status |
 |---|---|---|---|
-| F02 | Legendary unlock animation opens a reward menu: 3 exotic armor (your class) and 3 exotic weapons, keep 1 of each | U20 | Planned |
-| F03 | Legendary: a random exotic after the final mission's boss | U20 | Planned |
-| F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U20 | Planned |
-| F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U20 | Planned |
-| F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U20 | Planned |
-| F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U20 | Planned |
+| F02 | Legendary unlock animation opens a reward menu: 3 exotic armor (your class) and 3 exotic weapons, keep 1 of each | U20b | Planned |
+| F03 | Legendary: a random exotic after the final mission's boss | U20b | Planned |
+| F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U20b | Planned |
+| F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U20b | Planned |
+| F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U20b | Planned |
 | F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U20 (difficulty scaling) | Complete and published (v2.4) |
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear (optional) | U28 (optional) | Planned |
-| F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U20 | Planned |
-| F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U19, U20 | Planned |
+| F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U20b | Planned |
+| F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U19, U20a, U20b | Complete |

@@ -265,3 +265,12 @@
 | 2026-11-06 | Patrol zones count as non-campaign activities and scale to your Light (gap 0). | Bryce (approved proposal assumption) |
 | 2026-11-06 | Fireteam Light: members play at max(own, leader's) Light, sent with the launch message; loot uses own Light. | Claude |
 | 2026-11-06 | In-game Roadmap: the "Light and Shadow" teaser is removed now that it shipped; only The Emperor's Shadow remains. | Claude |
+| 2026-11-06 | U20 split into U20a (tiers, difficulty, Light caps, Director switch, save) and U20b (animations, reward menus, exotic drops, multi-exotic switch, Skip Campaign). | Bryce |
+| 2026-11-06 | Legendary and Ultimate are power-locked Destiny 2 style: enemies sit at your combat Light +25 / +50 (never immune: +50 is the edge of "extremely hard"); a tier's mission Light only sets reward Light (Legendary 200 to 300, Ultimate 300 to 350, first to last mission). | Bryce (answers 1) |
+| 2026-11-06 | Ultimate: one solo revive-free life; in a fireteam any death ends the run; the failed screen's Retry restarts. | Bryce (answer 2) |
+| 2026-11-06 | A fireteam plays the leader's selected tier; members who have not unlocked it can still join (they will not get U20b's reward menus). | Bryce (answer 3) |
+| 2026-11-06 | Skip Campaign Guardians get the Legendary unlock animation and menu (U20b). | Bryce (answer 4) |
+| 2026-11-06 | Majors in Legendary: captains/heavies 60%, other units 20%; Ultimate 80% / 35%. Bosses and support/life units unchanged. | Claude |
+| 2026-11-06 | Legendary/Ultimate clears are their own per-Guardian records with no Tower stops; Base keeps s.cleared. Save v11 (non-destructive migration). | Claude |
+| 2026-11-06 | Past Light 200, level rewards and Horde/Endless caches hold your Light (capRoll) instead of capping at 200; item clamp is 350. | Claude |
+| 2026-11-06 | Equipped armor can be infused in place (Shift+Click the equipped slot). | Bryce (added mid-update) |
