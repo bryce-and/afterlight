@@ -18,7 +18,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R47 | Same base campaign, harder (not a new campaign) | n/a | U20 | Planned |
 | R48 | Light past 100: base 200, Legendary 300, Ultimate 350 | Base cap 200 and missions rescaled to 10 to 180 (v1.1). 300/350 pending | U1 (200), U20 (300/350) | In progress |
 | R49 | Ultimate unlocks a switch to equip unlimited exotics | Missing (one exotic weapon + one armor enforced) | U20 | Planned |
-| R50 | Non-campaign activities scale to your Light; fireteam brought to leader's Light; loot by own Light | Partial: Horde starts at the player's power | U19 | Planned |
 | R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U21 | Planned |
 | R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13b (permanent elemental shields, see DECISIONS 2026-10-20; grenades), U14 (models) | Complete and published (v2.4) |
 | R53 | Distinct faction behaviors | Missing (names and models only) | U13b | Complete and published (v2.4) |
@@ -55,8 +54,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F03 | Legendary: a random exotic after the final mission's boss | U20 | Planned |
 | F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U20 | Planned |
 | F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U20 | Planned |
-| F06 | Light rework: enemies up to 50 above you are beatable but extremely hard; 51 or more above, attacks kill almost instantly (today the delta is clamped to -40..+10, `game.js`) | U19 | Planned |
-| F07 | 51 or more under: enemies immune, "?" in place of the faction emblem, scrambled names, immune damage marker (none exists today) | U19 | Planned |
 | F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U20 | Planned |
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U20 | Planned |
 | F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U20 (difficulty scaling) | Complete and published (v2.4) |
