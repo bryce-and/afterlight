@@ -8,8 +8,10 @@ import { openMods } from './mods-ui.js';
 import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
-import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock } from './save.js';
-import { CAMPAIGN_TIERS, tierOf, tierPower, tierClears, selectedTier, unlockedTiers } from './campaign.js';
+import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock, setOverload } from './save.js';
+import { CAMPAIGN_TIERS, tierOf, tierPower, tierClears, selectedTier, unlockedTiers, overloadUnlocked, overloadOn, OVERLOAD_NAME, ULTIMATE_HINT } from './campaign.js';
+import { skipAvailableFor } from './rewards.js';
+import { runUnlocks, openPendingMenus, openSkipConfirm } from './rewards-ui.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { openInspect, openCollection, lootScreenOpen } from './loot-ui.js';
 import { RELEASES, ROADMAP, titleRelease } from './releases.js';
@@ -35,6 +37,7 @@ const SCREENS = ['title', 'classes', 'orbit', 'pause', 'complete', 'failed'];
 const _p = new THREE.Vector3();
 
 function showOnly(...ids) {
+  G.invOpen = false; $('#orbit').classList.remove('in-mission'); // a mission that ends under the in-mission Character screen closes it
   for (const id of SCREENS) $('#' + id).classList.toggle('hidden', !ids.includes(id));
   $('#hud').classList.toggle('hidden', !ids.includes('hud'));
 }
@@ -157,7 +160,9 @@ export function showCharacterSelect(fromOrbit = false) {
   G.menu.setMode('planet');
   G.menu.setOffset(0);
   const played = playedClasses(s), lvl = playerLevel(s);
-  const card = (c) => {
+  const skipBtn = (c) => (skipAvailableFor(s, c.id) ? `<button class="btn chs-skip" data-skip="${c.id}" title="Skip the base campaign">Skip Campaign</button>` : '');
+  const card = (c) => `<div class="chs-item">${card0(c)}${skipBtn(c)}</div>`;
+  const card0 = (c) => {
     if (!played.includes(c.id)) {
       return `<button class="chs-card new" data-cls="${c.id}" style="--cc:${c.color}">
         <div class="chs-emblem">+</div>
@@ -184,6 +189,7 @@ export function showCharacterSelect(fromOrbit = false) {
     flySlot = null; vaultOpen = false;
     showOrbit();
   }));
+  $$('.chs-skip').forEach((b) => b.addEventListener('click', () => { sfx.ui(); openSkipConfirm(s, b.dataset.skip); }));
   $('#chs-back')?.addEventListener('click', () => { sfx.ui(); showOrbit(); });
 }
 
@@ -207,9 +213,11 @@ export function showOrbit(tab) {
     selLoc = last;
   }
   renderOrbit();
+  openPendingMenus(G.save); // U20b: an unclaimed Legendary/Ultimate reward menu reopens here
 }
 
 function renderOrbit() {
+  if (G.invOpen) { renderCharOverlay(); return; } // the in-mission Character screen re-renders through the same handlers
   const s = G.save;
   const cls = activeKit(s);
   const newCount = s.inventory.filter((i) => i.isNew).length;
@@ -270,7 +278,7 @@ function tierRowHTML(s, tier) {
   const open = unlockedTiers(s);
   if (open.length < 2) return '';
   const member = net.isClient;
-  return `<div class="tier-row" role="group" aria-label="Campaign">${open.map((id) => `<button class="tier-seg ${id === tier ? 'on' : ''} t-${id}" data-tier="${id}" ${member ? 'disabled' : ''}>${CAMPAIGN_TIERS[id].name}</button>`).join('')}${member ? "<small>The fireteam plays the leader's pick</small>" : ''}</div>`;
+  return `<div class="tier-row" role="group" aria-label="Campaign">${open.map((id) => `<button class="tier-seg ${id === tier ? 'on' : ''} t-${id}" data-tier="${id}" ${member ? 'disabled' : ''}>${CAMPAIGN_TIERS[id].name}</button>`).join('')}${member ? "<small>The fireteam plays the leader's pick</small>" : ''}${open.includes('ultimate') && !overloadUnlocked(s) ? `<small class="tier-hint">${ULTIMATE_HINT}</small>` : ''}</div>`;
 }
 
 function renderDirector(main) {
@@ -521,7 +529,7 @@ function typeLine(it) {
   return `${it.classId ? `${CLASSES[it.classId].name} ` : ''}${SLOT_NAMES[it.slot]}`;
 }
 
-function itemCard(it, { equipped = false, selected = false, compact = false } = {}) {
+export function itemCard(it, { equipped = false, selected = false, compact = false } = {}) {
   const rar = RARITIES[rarityIndex(it.rarity)];
   const el = it.kind === 'weapon' ? ELEMENTS[it.element] : null;
   return `<div class="item r-${it.rarity} ${selected ? 'sel' : ''} ${compact ? 'compact' : ''}" data-id="${it.id}" style="--rc:${rar.color}">
@@ -641,13 +649,14 @@ function renderCharScreen(main) {
         ${sets.length ? `<div class="cs-sets">${sets.map(([id, n]) => `<div class="cs-set${n >= SET_PIECES ? ' on' : ''}" title="${esc(`${SETS[id].bonus.name}: ${SETS[id].bonus.desc}`)}"><b>${SETS[id].name}</b><span>${Math.min(n, 4)} / 4</span></div>`).join('')}</div>` : ''}
       </div>
       <div class="cs-foot">
-        <span>⬡ ${s.glimmer.toLocaleString()}</span><span>${s.inventory.length} / ${INVENTORY_CAP} items</span>
-        <button class="btn cs-vault-btn cs-switch" id="cs-switch" title="Choose another Guardian">⇄ Characters</button>
+        <span>⬡ ${s.glimmer.toLocaleString()}</span>
+        ${G.invOpen ? '' : '<button class="btn cs-vault-btn cs-switch" id="cs-switch" title="Choose another Guardian">⇄ Characters</button>'}
         <button class="btn cs-vault-btn" id="cs-vault-btn">Vault <small>${s.vault.length} / ${VAULT_CAP}</small></button>
         <button class="btn cs-vault-btn" id="cs-coll-btn" title="Every exotic you have found">Collection</button>
         <span class="cs-auto" title="Weapon and armor drops of these rarities are dismantled into glimmer automatically">Auto-dismantle
           ${['common', 'uncommon', 'rare'].map((r) => `<button class="cs-auto-t ${s.settings.autoDismantle?.[r] ? 'on' : ''}" data-r="${r}" style="--rc:${RARITIES[rarityIndex(r)].color}">${{ common: 'White', uncommon: 'Green', rare: 'Blue' }[r]}</button>`).join('')}</span>
-        <button class="btn danger cs-reset" id="cs-reset">Reset Character</button>
+        ${overloadUnlocked(s) ? `<button class="cs-overload ${overloadOn(s) ? 'on' : ''}" id="cs-overload" role="switch" aria-checked="${overloadOn(s)}" title="${OVERLOAD_NAME}: equip any number of exotic weapons and armor"><i></i><span>${OVERLOAD_NAME}</span><b>${overloadOn(s) ? 'ON' : 'OFF'}</b></button>` : ''}
+        ${G.invOpen ? '' : '<button class="btn danger cs-reset" id="cs-reset">Reset Character</button>'}
         <span class="hint">Click a slot to swap  ·  Hover for details  ·  Right-click a weapon to inspect  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
       </div>
       <button class="cs-mods-arrow" id="cs-mods-btn" title="${playerLevel(s) < MODS_LEVEL ? `Armor stats (mods unlock at level ${MODS_LEVEL})` : 'Armor stats and mods'}"><span>${playerLevel(s) < MODS_LEVEL ? 'Stats' : 'Mods'}</span><i>❯</i></button>
@@ -685,6 +694,13 @@ function renderCharScreen(main) {
   });
   root.addEventListener('click', (e) => {
     if (e.target.closest('#cs-vault')) return; // the vault handles its own clicks
+    if (e.target.closest('#cs-overload')) { // U20b: the Ultimate reward's switch (the button only exists once it is unlocked)
+      const changed = setOverload(s, !overloadOn(s));
+      sfx.engram(overloadOn(s) ? 4 : 1);
+      if (changed) orbitNotice(`${OVERLOAD_NAME} off: ${changed} extra exotic${changed === 1 ? '' : 's'} unequipped`);
+      closeFly(); renderOrbit();
+      return;
+    }
     const opt = e.target.closest('.sh-opt');
     if (opt) {
       if (opt.classList.contains('locked')) { sfx.denied(); orbitNotice('Shaders drop from mission caches.'); return; }
@@ -694,7 +710,7 @@ function renderCharScreen(main) {
       return;
     }
     const t = e.target.closest('.tile');
-    if (e.target.closest('#cs-sub')) { openSubclass(); return; }
+    if (e.target.closest('#cs-sub')) { if (G.invOpen) { sfx.denied(); orbitNotice('Change your subclass in Orbit.'); return; } openSubclass(); return; }
     if (e.target.closest('#cs-shader')) { toggleFly('shader', e.target.closest('#cs-shader')); return; }
     if (t && t.dataset.id) {
       const it = getItem(s, t.dataset.id);
@@ -718,7 +734,7 @@ function renderCharScreen(main) {
     orbitNotice(`Armor 2.0: perks are now mods and armor has six stats.${s.armorNote.dropped ? ` ${s.armorNote.dropped} perk${s.armorNote.dropped > 1 ? 's' : ''} did not fit their piece and were removed (the mods are yours to socket from level ${MODS_LEVEL}).` : ''}`);
     delete s.armorNote; writeSave(s);
   }
-  $('#cs-switch', main).addEventListener('click', () => { sfx.ui(); closeFly(); closeVault(); showCharacterSelect(true); });
+  $('#cs-switch', main)?.addEventListener('click', () => { sfx.ui(); closeFly(); closeVault(); showCharacterSelect(true); });
   $('#cs-vault-btn', main).addEventListener('click', () => { sfx.ui(); closeFly(); vaultOpen = true; renderVault(); });
   $('#cs-coll-btn', main).addEventListener('click', () => { closeFly(); closeVault(); openCollection(); });
   $$('.cs-auto-t', main).forEach((b) => b.addEventListener('click', () => {
@@ -728,7 +744,7 @@ function renderCharScreen(main) {
     sfx.ui();
     b.classList.toggle('on', set[b.dataset.r]);
   }));
-  $('#cs-reset', main).addEventListener('click', (ev) => {
+  $('#cs-reset', main)?.addEventListener('click', (ev) => {
     const b = ev.currentTarget;
     if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Click again: delete gear and progress'; return; }
     resetSave();
@@ -759,7 +775,7 @@ function renderVault() {
   v.innerHTML = `
     <div class="vault-head"><div class="sp-title">Vault</div><button class="sp-x" id="vault-close" aria-label="Close vault">✕</button></div>
     <div class="vault-cols">
-      <section class="vault-col" data-side="char"><div class="fly-head">Character<span>${s.inventory.length} / ${INVENTORY_CAP}</span></div>
+      <section class="vault-col" data-side="char"><div class="fly-head">Character</div>
         ${grid(mine, 'Nothing unequipped to store. Equipped gear stays on your character.')}</section>
       <section class="vault-col" data-side="vault"><div class="fly-head">Vault<span>${s.vault.length} / ${VAULT_CAP}</span></div>
         ${grid(stored, 'The vault is empty. Click gear on the left to store it here.')}</section>
@@ -893,10 +909,10 @@ function tipHTML(it, side) {
     const socketed = (it.mods || []).filter(Boolean);
     if (socketed.length) body += `<div class="tt-perks">${socketed.map((id) => `<div class="tt-perk${live.includes(id) ? '' : ' idle'}"><i></i><div><b>${MODS[id].name}</b><span>${live.includes(id) ? MODS[id].desc : lv < MODS_LEVEL ? `Unlocks at level ${MODS_LEVEL}.` : 'Not active (locked or over energy).'}</span></div></div>`).join('')}</div>`;
     body += `<div class="tt-note">Mods ${energyUsed(it.mods)} / ${energyCap(it)} energy${lv < MODS_LEVEL ? `  ·  unlock at level ${MODS_LEVEL}` : ''}</div>`;
-    if (it.rarity === 'exotic') body += '<div class="tt-note">Only one exotic armor piece can be equipped.</div>';
+    if (it.rarity === 'exotic' && !overloadOn(s)) body += '<div class="tt-note">Only one exotic armor piece can be equipped.</div>';
     if (!usableBy(it, s.classId)) body += `<div class="tt-note">Only a ${CLASSES[it.classId].name} can wear this.</div>`;
   }
-  if (it.kind === 'weapon' && it.rarity === 'exotic') {
+  if (it.kind === 'weapon' && it.rarity === 'exotic' && !overloadOn(s)) {
     body += '<div class="tt-note">Only one exotic weapon can be equipped.</div>';
   }
   if (!canUseRarity(it.rarity, playerLevel(s))) body += `<div class="tt-note warn">Requires level ${RARITY_GATE[it.rarity]}. ${LEVEL_TOO_LOW}</div>`;
@@ -1150,9 +1166,9 @@ function closeModify() {
 
 // Hold F to dismantle, Esc to close flyouts (only on the Character screen)
 addEventListener('keydown', (e) => {
-  if (G.state !== 'orbit' || orbitTab !== 'character' || lootScreenOpen()) return;
+  if (!G.invOpen && (G.state !== 'orbit' || orbitTab !== 'character') || lootScreenOpen()) return;
   if (e.code === 'KeyF' && !e.repeat) startDismantle();
-  if (e.code === 'Escape') {
+  if (e.code === 'Escape' && !G.invOpen) { // in a mission, main.js sends Esc to charEscape()
     if ($('#sp-full') && !$('#sp-full').classList.contains('hidden')) { closeModify(); return; } // Modify screen first, then the rest
     closeFly(); closeVault(); $('#cs-panel')?.classList.add('hidden');
   }
@@ -1640,49 +1656,66 @@ export function showPause() {
   $('#p-abandon').addEventListener('click', () => { el.classList.add('hidden'); G.mpMenu = false; abandonMission(); });
 }
 
-/** In-mission inventory: pick any weapon you own for each slot (pauses solo; co-op keeps running). */
-export function showInventory() {
-  if (G.state !== 'playing' || G.mpMenu) return;
-  const coop = !!G.mission?.coop;
-  if (coop) G.mpMenu = true; else G.state = 'paused';
+/** I from anywhere: Orbit opens the Character tab; a mission or patrol opens it over the paused game (co-op keeps running behind it). */
+export function toggleCharacter() {
+  if (G.invOpen) { if (!modsScreen && !lootScreenOpen()) resumeGame(); return; }
+  if (G.state === 'orbit') {
+    if (orbitTab === 'character' || modsScreen || lootScreenOpen()) return;
+    orbitTab = 'character'; flySlot = null; renderOrbit();
+    return;
+  }
+  const pauseUp = !$('#pause').classList.contains('hidden'); // the pause menu itself may be showing
+  if (!G.mission || (G.state === 'playing' && G.mpMenu && !pauseUp) || !['playing', 'paused'].includes(G.state)) return; // not while a Tower terminal or the like is up
+  if (G.state === 'playing' && !G.mpMenu) { if (G.mission.coop) G.mpMenu = true; else G.state = 'paused'; } // same pause rules as the pause menu
   G.invOpen = true;
   unlockPointer();
-  renderInventory();
+  $('#pause').classList.add('hidden');
+  $('#hud').classList.add('hidden');
+  flySlot = null; vaultOpen = false;
+  renderCharOverlay();
 }
 
-function renderInventory() {
-  const s = G.save, P = G.player, el = $('#pause');
-  el.classList.remove('hidden');
-  el.innerHTML = `
-    <div class="modal wide inv-modal">
-      <div class="eyebrow">${esc(G.mission.def.name)}  ·  ${G.mission.coop ? 'Your fireteam keeps playing' : 'Paused'}</div>
-      <h1 class="screen-title">Inventory</h1>
-      <div class="inv-cols">${WEAPON_SLOTS.map((slot, i) => {
-        const items = s.inventory.filter((it) => it.kind === 'weapon' && it.slot === slot).sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
-        return `<div class="inv-col"><div class="eyebrow">${SLOT_NAMES[slot]}  ·  ${items.length}</div>
-          <div class="inv-list">${items.map((it) => {
-            const on = P.weapons[i].item.id === it.id, rar = RARITIES[rarityIndex(it.rarity)], el = ELEMENTS[it.element];
-            return `<button class="inv-pick ${on ? 'on' : ''}" data-slot="${i}" data-id="${it.id}" style="--rc:${rar.color}">
-              ${elementIcon(it.element)}
-              <span class="inv-n">${esc(it.name)}<small>${rar.name} ${ARCHETYPES[it.arch].name}</small></span>
-              <span class="inv-p">${on ? '<em>Equipped</em>' : ''}◆ ${it.power}</span></button>`;
-          }).join('')}</div></div>`;
-      }).join('')}</div>
-      <div class="row-btns"><button class="btn primary" id="inv-close">Back to the fight <kbd>I</kbd></button></div>
-    </div>`;
-  $$('.inv-pick', el).forEach((b) => b.addEventListener('click', () => {
-    const i = +b.dataset.slot, it = getItem(s, b.dataset.id);
-    if (!it || P.weapons[i].item.id === it.id) return;
-    const blocker = equipItem(s, it.id);
-    if (typeof blocker === 'string') { sfx.denied(); orbitNotice(blocker); return; }
-    if (blocker) { sfx.denied(); orbitNotice(`Swap out ${blocker.name} first: only one exotic weapon at a time.`); return; }
-    writeSave(s);
-    P.swapWeapon(i, it);
-    renderWeaponRows();
-    sfx.engram(1);
-    renderInventory();
-  }));
-  $('#inv-close', el).addEventListener('click', resumeGame);
+/** The Orbit Character screen, shown full screen in a mission. main.js renders the menu scene behind it while this is open. */
+function renderCharOverlay() {
+  const o = $('#orbit');
+  o.classList.remove('hidden');
+  o.classList.add('in-mission');
+  o.innerHTML = `
+    <header class="topbar">
+      <div class="cm-title">Character</div>
+      <div class="cm-sub">${esc(G.mission.def.name)}  ·  ${G.mission.coop ? 'Your fireteam keeps playing' : 'Paused'}</div>
+      <button class="btn primary" id="cm-close">Back to the fight <kbd>I</kbd></button>
+    </header>
+    <main id="orbit-main" class="tab-character"></main>`;
+  $('#cm-close').addEventListener('click', resumeGame);
+  renderCharScreen($('#orbit-main'));
+}
+
+/** Close the in-mission Character screen and put whatever changed onto the live player. */
+function endCharOverlay() {
+  G.invOpen = false;
+  flySlot = null; vaultOpen = false; modsScreen = null;
+  hideTip();
+  const o = $('#orbit');
+  o.classList.add('hidden');
+  o.classList.remove('in-mission');
+  o.innerHTML = '';
+  $('#hud').classList.remove('hidden');
+  const s = G.save, P = G.player;
+  if (!P || !G.mission) return;
+  WEAPON_SLOTS.forEach((slot, i) => { // weapons: swap any slot whose item changed (keeps the ammo you carried)
+    const it = getEquipped(s, slot), w = P.weapons[i];
+    if (it && w && (w.item.id !== it.id || w.item.power !== it.power)) P.swapWeapon(i, it);
+  });
+  P.refreshArmor(s); // armor, mods and set bonuses
+  renderWeaponRows();
+}
+
+/** Esc on the in-mission Character screen: close the flyout, vault or panel on top first, then the screen. */
+export function charEscape() {
+  if ($('#sp-full') && !$('#sp-full').classList.contains('hidden')) { closeModify(); return; }
+  if (flySlot || vaultOpen || ($('#cs-panel') && !$('#cs-panel').classList.contains('hidden'))) { closeFly(); closeVault(); $('#cs-panel')?.classList.add('hidden'); return; }
+  resumeGame();
 }
 
 /** HUD scale setting (70%-200%), applied to every HUD panel and the enemy plate through a CSS variable. */
@@ -1691,7 +1724,7 @@ export function applyHudScale() {
 }
 
 export function resumeGame() {
-  G.invOpen = false;
+  if (G.invOpen) endCharOverlay();
   if (G.mpMenu) { G.mpMenu = false; $('#pause').classList.add('hidden'); lockPointer(); return; }
   if (G.state !== 'paused') return;
   $('#pause').classList.add('hidden');
@@ -1733,6 +1766,7 @@ export function showComplete(M) {
         <button class="btn" id="c-replay">Replay</button>
       </div>
     </div>`;
+  if (M.unlocks?.length) { const ev = M.unlocks; M.unlocks = null; runUnlocks(G.save, ev); } // U20b: the unlock animation plays over the summary, then its reward menu
   $('#c-orbit').addEventListener('click', () => abandonMission());
   $('#c-inv').addEventListener('click', () => { orbitTab = 'character'; flySlot = null; abandonMission(); });
   if (M.coop && !net.isHost) $('#c-replay').remove();

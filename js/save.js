@@ -1,4 +1,4 @@
-import { SLOTS, WEAPON_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
+import { SLOTS, SLOT_NAMES, WEAPON_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
@@ -7,23 +7,24 @@ import { frameFor, weaponStats } from './frames.js';
 import { MODS, blankMods, migrateArmorStats } from './armor.js';
 import { newQuests, ensureQuests, actOpen } from './quests.js';
 import { setForLegacy, appearance, shaderFor, SHADERS } from './style.js';
-import { tierClears, capRoll } from './campaign.js';
+import { tierClears, capRoll, overloadOn, overloadUnlocked } from './campaign.js';
 
 const KEY = 'afterlight_save_v2';
 // First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 // Tests lower this to exercise the older migrations (production always resets below SAVE_VERSION).
 export const SAVE_RULES = { resetBelow: 9 };
 // The Ghost's Story (v2.6) starts everyone over for the new campaign: a save older than v9 is copied here once, only its settings carry over.
 export const CAMPAIGN_BACKUP_KEY = 'afterlight_backup_v8';
 // Resetting from the character screen keeps the last save here.
 export const MANUAL_BACKUP_KEY = 'afterlight_backup_manual';
-export const INVENTORY_CAP = 60;
+// U20b: each weapon and armor slot carries SLOT_CAP items besides the equipped one (Destiny 2 style); extras go to the Postmaster.
+export const SLOT_CAP = 9;
 export const VAULT_CAP = 100;
-export const POSTMASTER_CAP = 21;
+export const POSTMASTER_CAP = 50;
 /** Exotic Kiosk price in glimmer (U16): one exotic from your Collection at your current Light. */
 export const KIOSK_PRICE = 7777;
 const DEFAULT_SETTINGS = { sens: 1, fov: 80, volume: 0.6 };
@@ -87,6 +88,13 @@ const MIGRATIONS = {
   10: (s) => {
     s.tier = 'base'; s.tierCleared = { legendary: {}, ultimate: {} }; s.ultimateAll = false;
     for (const c of Object.values(s.chars || {})) { c.tier = c.tier || 'base'; c.tierCleared = c.tierCleared || { legendary: {}, ultimate: {} }; }
+  },
+  // Legend and Ultimate II (v4.3): per-Guardian unclaimed reward menus, the Ultimate reward's switch state and the Skip Campaign mark. Tier clears are untouched.
+  11: (s) => {
+    s.pendingMenus = []; s.overload = false; s.skipped = false;
+    for (const c of Object.values(s.chars || {})) { c.pendingMenus = c.pendingMenus || []; c.overload = !!c.overload; c.skipped = !!c.skipped; }
+    // the 60-item character cap became 9 per slot besides the equipped item: extras go to each Guardian's Postmaster, nothing is lost
+    for (const g of [s, ...Object.values(s.chars || {})]) if (g.inventory && g.equipped) enforceSlotCap(g);
   },
 };
 
@@ -210,7 +218,7 @@ export function resetSave() {
 export function createSave(classId) {
   const kit = starterKit(classId);
   const s = {
-    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, postmaster: [], quests: newQuests(), subclass: {}, loadout: {},
+    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, pendingMenus: [], overload: false, skipped: false, postmaster: [], quests: newQuests(), subclass: {}, loadout: {},
     shaders: { owned: [], applied: {} }, chars: {}, exoticsFound: [],
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
@@ -248,11 +256,9 @@ export function claimLevelReward(s, level) {
   const state = rewardState(s, level);
   if (state === 'claimed') return { error: 'Already claimed.' };
   if (state !== 'ready') return { error: state === 'locked' ? `Reach level ${level} first.` : 'No reward at this level.' };
-  if (s.inventory.length >= INVENTORY_CAP) return { error: `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.` };
   const power = capRoll(playerPower(s), randInt(2, 5)); // U20a: past 200 a reward holds your Light
   const item = rollItem(power, rarityIndex(rewardAt(level)), null, null, s.classId, s.exoticsFound);
-  s.inventory.push(item);
-  noteExotic(s, item);
+  addItem(s, item); // U20b: a full slot sends it to the Postmaster
   s.progression.claimed.push(level);
   writeSave(s);
   return { item };
@@ -318,7 +324,7 @@ export function switchCharacter(s, classId) {
   if (!CLASSES[classId]) throw new Error(`switchCharacter: no class ${classId}`);
   if (classId === s.classId) return;
   s.chars = s.chars || {};
-  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared, tier: s.tier || 'base', tierCleared: s.tierCleared || { legendary: {}, ultimate: {} }, postmaster: s.postmaster || [], quests: ensureQuests(s) };
+  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared, tier: s.tier || 'base', tierCleared: s.tierCleared || { legendary: {}, ultimate: {} }, pendingMenus: s.pendingMenus || [], overload: !!s.overload, skipped: !!s.skipped, postmaster: s.postmaster || [], quests: ensureQuests(s) };
   const next = s.chars[classId] || starterKit(classId);
   delete s.chars[classId];
   s.classId = classId;
@@ -327,6 +333,9 @@ export function switchCharacter(s, classId) {
   s.cleared = next.cleared || {}; // U15: the campaign is per Guardian
   s.tier = next.tier || 'base'; // U20a: so are the tier pick and the Legendary/Ultimate clears (s.ultimateAll is account-wide)
   s.tierCleared = next.tierCleared || { legendary: {}, ultimate: {} };
+  s.pendingMenus = next.pendingMenus || []; // U20b: unclaimed reward menus, the switch state and the Skip mark are per Guardian too
+  s.overload = !!next.overload;
+  s.skipped = !!next.skipped;
   s.postmaster = next.postmaster || []; // U16: so are the Postmaster and the quests
   s.quests = next.quests || newQuests();
   enforceGates(s);
@@ -358,7 +367,7 @@ export function equipItem(s, id) {
   if (!it) throw new Error(`equipItem: no item ${id}`);
   if (!usableBy(it, s.classId)) return `Only a ${CLASSES[it.classId].name} can wear ${it.name}.`;
   if (!canEquipLevel(s, it)) return LEVEL_TOO_LOW;
-  if (it.rarity === 'exotic') {
+  if (it.rarity === 'exotic' && !overloadOn(s)) { // U20b: the Ultimate reward lifts the one-exotic limit
     const slots = it.kind === 'weapon' ? ['primary', 'special', 'heavy'] : ['helmet', 'arms', 'chest', 'legs'];
     const other = slots.map((sl) => sl !== it.slot && getEquipped(s, sl)).find((x) => x && x.rarity === 'exotic');
     if (other) return other;
@@ -383,7 +392,7 @@ export function enforceGates(s) {
     const cur = getEquipped(s, slot);
     if (!cur || canEquipLevel(s, cur)) continue;
     const kind = WEAPON_SLOTS.includes(slot) ? WEAPON_SLOTS : ['helmet', 'arms', 'chest', 'legs'];
-    const exoticElsewhere = kind.some((sl) => sl !== slot && getEquipped(s, sl)?.rarity === 'exotic');
+    const exoticElsewhere = !overloadOn(s) && kind.some((sl) => sl !== slot && getEquipped(s, sl)?.rarity === 'exotic');
     const options = s.inventory.filter((i) => i.slot === slot && usableBy(i, s.classId) && canEquipLevel(s, i) && !(exoticElsewhere && i.rarity === 'exotic'));
     options.sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
     let next = options[0];
@@ -391,6 +400,40 @@ export function enforceGates(s) {
     s.equipped[slot] = next.id;
     changed++;
   }
+  if (changed) enforceSlotCap(s); // U20b: the gear it swapped out still has to fit its slot
+  return changed;
+}
+
+/**
+ * U20b: turns the Ultimate reward's switch on or off. Turning it off keeps the first exotic of each kind (weapon, armor) and swaps
+ * the other equipped exotics for the best non-exotic in their slot, the way a class switch does. Returns the number of slots changed.
+ */
+export function setOverload(s, on) {
+  if (!overloadUnlocked(s)) throw new Error('setOverload: the Ultimate reward is not unlocked');
+  s.overload = !!on;
+  const changed = s.overload ? 0 : trimExotics(s);
+  writeSave(s);
+  return changed;
+}
+
+/** Keeps one equipped exotic per kind: a second one in a slot is replaced by the best usable non-exotic there (a fresh common if none). */
+export function trimExotics(s) {
+  let changed = 0;
+  for (const kind of [WEAPON_SLOTS, ['helmet', 'arms', 'chest', 'legs']]) {
+    let kept = false;
+    for (const slot of kind) {
+      const cur = getEquipped(s, slot);
+      if (cur?.rarity !== 'exotic') continue;
+      if (!kept) { kept = true; continue; }
+      const options = s.inventory.filter((i) => i.slot === slot && i.rarity !== 'exotic' && usableBy(i, s.classId) && canEquipLevel(s, i));
+      options.sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
+      let next = options[0];
+      if (!next) { next = { ...rollItem(cur.power, 0, slot, null, s.classId), isNew: false }; s.inventory.push(next); }
+      s.equipped[slot] = next.id;
+      changed++;
+    }
+  }
+  if (changed) enforceSlotCap(s);
   return changed;
 }
 
@@ -411,7 +454,7 @@ export function fromVault(s, id) {
   const it = s.vault.find((i) => i.id === id);
   if (!it) throw new Error(`fromVault: no vault item ${id}`);
   if (!usableBy(it, s.classId)) return `${it.name} is ${CLASSES[it.classId].name} armor. Switch to your ${CLASSES[it.classId].name} to take it out.`;
-  if (s.inventory.length >= INVENTORY_CAP) return `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.`;
+  if (slotFull(s, it.slot)) return slotFullMsg(it.slot);
   s.vault = s.vault.filter((i) => i !== it);
   s.inventory.push(it);
   writeSave(s);
@@ -461,8 +504,32 @@ export function toggleLock(s, id) {
  */
 export function addItem(s, it) {
   noteExotic(s, it);
-  if (s.inventory.length < INVENTORY_CAP) { s.inventory.push(it); return null; }
+  if (!slotFull(s, it.slot)) { s.inventory.push(it); return null; }
   return sendToPostmaster(s, it);
+}
+
+/** U20b: unequipped items this Guardian carries in a slot (the equipped one does not count against SLOT_CAP). */
+export const slotCount = (s, slot) => s.inventory.filter((i) => i.slot === slot && s.equipped[slot] !== i.id).length;
+export const slotFull = (s, slot) => slotCount(s, slot) >= SLOT_CAP;
+const slotFullMsg = (slot) => `Your ${SLOT_NAMES[slot] || slot} slot is full (${SLOT_CAP}). Dismantle or vault something first.`;
+
+/**
+ * U20b: moves unequipped items past SLOT_CAP in every slot to the Postmaster, lowest Light first (locked items and exotics last).
+ * Nothing is dismantled: the Postmaster may go over its cap here. Returns how many items moved.
+ */
+export function enforceSlotCap(s) {
+  s.postmaster = s.postmaster || [];
+  let moved = 0;
+  for (const slot of SLOTS) {
+    const loose = s.inventory.filter((i) => i.slot === slot && s.equipped[slot] !== i.id);
+    if (loose.length <= SLOT_CAP) continue;
+    const keepScore = (i) => (i.locked ? 2e6 : 0) + (i.rarity === 'exotic' ? 1e6 : 0) + i.power;
+    const extras = [...loose].sort((a, b) => keepScore(a) - keepScore(b)).slice(0, loose.length - SLOT_CAP);
+    s.inventory = s.inventory.filter((i) => !extras.includes(i));
+    s.postmaster.push(...extras);
+    moved += extras.length;
+  }
+  return moved;
 }
 
 /** Puts an item straight into this Guardian's Postmaster (an unclaimed mission cache, or a full inventory). Returns { sent, dismantled }. */
@@ -481,7 +548,7 @@ export function sendToPostmaster(s, it) {
 export function collectPostmaster(s, id) {
   const it = (s.postmaster || []).find((i) => i.id === id);
   if (!it) return 'That item is gone.';
-  if (s.inventory.length >= INVENTORY_CAP) return 'Your inventory is full.';
+  if (slotFull(s, it.slot)) return slotFullMsg(it.slot);
   s.postmaster = s.postmaster.filter((i) => i !== it);
   s.inventory.push(it);
   writeSave(s);

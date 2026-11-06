@@ -7,11 +7,13 @@ import { LIGHT_CAP } from './progression.js';
  * over: enemies sit this far above your (combat) Light, Destiny 2 style power lock (0 = the mission's own Light).
  * band: mission Light is rescaled into this range for rewards. cap: highest Light this tier's loot can reach.
  * lethal: no revives; in a fireteam any death ends the run.
+ * density (U20b): enemy count multiplier for mission waves and boss adds, on top of fireteam scaling.
+ * floor (U20b): the offset counts from your Light or the mission's Light, whichever is higher, so being under the mission never makes it easier.
  */
 export const CAMPAIGN_TIERS = {
-  base: { id: 'base', name: 'Base', over: 0, band: null, cap: LIGHT_CAP, lethal: false },
-  legendary: { id: 'legendary', name: 'Legendary', over: 25, band: [200, 300], cap: 300, lethal: false },
-  ultimate: { id: 'ultimate', name: 'Ultimate', over: 50, band: [300, 350], cap: 350, lethal: true },
+  base: { id: 'base', name: 'Base', over: 0, band: null, cap: LIGHT_CAP, lethal: false, density: 1 },
+  legendary: { id: 'legendary', name: 'Legendary', over: 25, band: [200, 300], cap: 300, lethal: false, floor: false, density: 1.25 },
+  ultimate: { id: 'ultimate', name: 'Ultimate', over: 50, band: [300, 350], cap: 350, lethal: true, floor: true, density: 1.5 },
 };
 export const TIER_IDS = ['base', 'legendary', 'ultimate'];
 /** Highest Light any item can have. */
@@ -31,10 +33,14 @@ export function tierPower(power, tierId) {
   return Math.round(t.band[0] + f * (t.band[1] - t.band[0]));
 }
 
-/** Enemy Light for combat. Base: the mission's Light. Legendary/Ultimate: your combat Light plus the tier offset. */
+/**
+ * Enemy Light for combat. Base: the mission's Light. Legendary: your combat Light plus 25.
+ * Ultimate (U20b): the higher of your combat Light and the mission's Light, plus 50 (a 305 mission is 355 at 250 or 305, 370 at 320).
+ */
 export function tierEnemyLight(power, tierId, combatLight) {
   const t = tierOf(tierId);
-  return t.over ? combatLight + t.over : power;
+  if (!t.over) return power;
+  return (t.floor ? Math.max(combatLight, power) : combatLight) + t.over;
 }
 
 /** A reward Light: `pp + add`, held under `cap`, but never pushed below a Light you already have. */
@@ -77,3 +83,16 @@ export function recordClear(s, missionId, tierId) {
     all: !before.all && !!s.ultimateAll,
   };
 }
+
+/** U20b: true when the base campaign was really cleared (a Skip Campaign does not count as a clear for opening Skip on other Guardians). */
+export const realBaseClear = (c) => campaignDone(c, 'base') && !c.skipped;
+/** True when any Guardian on the account (the active one or a stored one) has really cleared the base campaign. */
+export const anyBaseClear = (s) => realBaseClear(s) || Object.values(s.chars || {}).some(realBaseClear);
+
+/** U20b: the Ultimate reward (a switch in Inventory) opens for the whole account with the first full Ultimate clear. */
+export const overloadUnlocked = (s) => !!s.ultimateAll;
+/** True when the switch is unlocked and this Guardian has it on (the one-exotic limit is lifted). */
+export const overloadOn = (s) => overloadUnlocked(s) && !!s.overload;
+export const OVERLOAD_NAME = 'Exotic Overload';
+/** The only thing the game says about the Ultimate reward before it is earned. */
+export const ULTIMATE_HINT = 'An Ultimate reward awaits those who finish the campaign on Ultimate difficulty.';

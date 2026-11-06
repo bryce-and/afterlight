@@ -3,7 +3,7 @@
 import { G } from './state.js';
 import { CLASSES, EXOTIC_WEAPONS, ARCHETYPES, EXOTIC_ARMOR_PERKS, EXOTIC_PERKS, RARITIES, exoticArmorFor, rarityIndex } from './data.js';
 import { makeExotic, makeArmor } from './loot.js';
-import { addItem, collectPostmaster, writeSave, playerPower, POSTMASTER_CAP, INVENTORY_CAP, KIOSK_PRICE } from './save.js';
+import { addItem, collectPostmaster, writeSave, playerPower, POSTMASTER_CAP, KIOSK_PRICE } from './save.js';
 import { questList, pickUpQuest, QUESTS } from './quests.js';
 import { overlay } from './loot-ui.js';
 import { weaponIcon, armorIcon } from './icons.js';
@@ -32,7 +32,7 @@ export function openPostmaster(done) {
     el.innerHTML = `
       <div class="coll-box">
         <div class="coll-head"><div><div class="eyebrow">Kadi 55-30  ·  Postmaster</div><div class="screen-title gold">Postmaster</div></div>
-          <div class="coll-count">${list.length} / ${POSTMASTER_CAP} held  ·  Inventory ${s.inventory.length} / ${INVENTORY_CAP}</div></div>
+          <div class="coll-count">${list.length} / ${POSTMASTER_CAP} held</div></div>
         <div class="coll-grid">${list.length ? list.map((it) => `<button class="coll-card found pm-card" data-id="${it.id}" style="border-color:${rc(it)}">
           <span class="coll-art">${art(it)}</span><span class="coll-n" style="color:${rc(it)}">${esc(it.name)}<small>${typeOf(it)}  ·  ◆ ${it.power}</small></span></button>`).join('') : '<p class="desc">Nothing is waiting for you.</p>'}</div>
         <div class="coll-foot"><button class="btn" id="pm-close">Back <kbd>Esc</kbd></button><span class="hint">${esc(msg) || 'Click an item to take it. A full Postmaster dismantles its oldest common gear; exotics are never lost.'}</span></div>

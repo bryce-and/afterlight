@@ -112,16 +112,9 @@ export class Player {
     this.cls = activeKit(save);
     const L = playerLevel(save);
     this.modsOn = L >= MODS_LEVEL; // the mod system: sockets, Orbs of Power, armor charge
-    const worn = ARMOR_SLOTS.map((sl) => getEquipped(save, sl)).filter(Boolean);
-    this.statBase = armorStats(this.cls.id, worn, L);
-    this.ap = modCounts(worn, L); // active mods by id, summed over the four pieces (the former perks keep their ids)
-    this.sets = new Set(activeSets(worn)); // destination set bonuses (3 of 4 pieces)
-    this.lookCode = encodeAppearance(wornAppearance(save)); // what fireteam members see
+    this.refreshArmor(save);
     this.maxHealth = 100;
     this.regenT = 0;
-    this.finderS = (this.ap.finders || 0) * MODS_TUNE.finderS; this.finderH = (this.ap.finderh || 0) * MODS_TUNE.finderH;
-    this.splashMult = Math.max(0.5, 1 - MODS_TUNE.concussive * (this.ap.concussive || 0));
-    this.meleeResist = Math.max(0.5, 1 - MODS_TUNE.meleeRes * (this.ap.meleeres || 0));
     this.pos = new THREE.Vector3(); this.vel = new THREE.Vector3(); this.eye = new THREE.Vector3();
     this.yaw = 0; this.pitch = 0; this.recoilAcc = 0;
     this.onGround = true; this.radius = 0.4; this.height = 1.8; this.eyeH = 1.62;
@@ -184,6 +177,19 @@ export class Player {
     this.gBank = 0; this.gBankT = 0; this.trvT = 0; this.dune = 0;
     this.ahamAt = -9; this.freeGAt = -9; this.novaRefund = 0; // Young Ahamkara's Spine, Sunbracers, Skull of Dire Ahamkara
     this.showModel();
+  }
+
+  /** Armor-derived stats, from the gear in the save. Runs at spawn and again when the in-mission Character screen closes. */
+  refreshArmor(save) {
+    const L = playerLevel(save);
+    const worn = ARMOR_SLOTS.map((sl) => getEquipped(save, sl)).filter(Boolean);
+    this.statBase = armorStats(this.cls.id, worn, L);
+    this.ap = modCounts(worn, L); // active mods by id, summed over the four pieces (the former perks keep their ids)
+    this.sets = new Set(activeSets(worn)); // destination set bonuses (3 of 4 pieces)
+    this.lookCode = encodeAppearance(wornAppearance(save)); // what fireteam members see
+    this.finderS = (this.ap.finders || 0) * MODS_TUNE.finderS; this.finderH = (this.ap.finderh || 0) * MODS_TUNE.finderH;
+    this.splashMult = Math.max(0.5, 1 - MODS_TUNE.concussive * (this.ap.concussive || 0));
+    this.meleeResist = Math.max(0.5, 1 - MODS_TUNE.meleeRes * (this.ap.meleeres || 0));
   }
 
   get weapon() { return this.weapons[this.cur]; }

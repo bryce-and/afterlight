@@ -5,7 +5,24 @@
 
 export const RELEASES = [
   {
-    version: '4.2', name: 'Legend and Ultimate', date: '2026-11-06', accent: '#c58cff', glyph: '♆', artPending: true, // chained with U20b: the title artwork comes with the last of them
+    version: '4.3', name: 'Legend and Ultimate II', date: '2026-11-06', accent: '#ff5a4a', glyph: '⚜',
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="l2Bg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a1a06"/><stop offset="0.5" stop-color="#0c0a10"/><stop offset="1" stop-color="#2a0608"/></linearGradient><radialGradient id="l2Gold" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffe9a8" stop-opacity="0.9"/><stop offset="1" stop-color="#ceae2b" stop-opacity="0"/></radialGradient><radialGradient id="l2Red" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd0c8" stop-opacity="0.85"/><stop offset="0.4" stop-color="#ff3a2a" stop-opacity="0.6"/><stop offset="1" stop-color="#ff3a2a" stop-opacity="0"/></radialGradient><linearGradient id="l2Eng" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset="1" stop-color="#ceae2b"/></linearGradient></defs><rect width="320" height="180" fill="url(#l2Bg)"/><g fill="#ffffff" fill-opacity="0.55"><circle cx="40" cy="22" r="0.9"/><circle cx="120" cy="14" r="1"/><circle cx="210" cy="20" r="0.8"/><circle cx="290" cy="28" r="1"/><circle cx="160" cy="40" r="0.8"/></g><path d="M0 156 L60 146 L120 152 L200 142 L260 150 L320 144 V180 H0Z" fill="#08070a"/><circle cx="88" cy="92" r="58" fill="url(#l2Gold)"/><g transform="translate(88 92)" fill="none" stroke="#ffe08a" stroke-width="2"><path d="M-26 6 L0 -18 L26 6"/><path d="M-26 20 L0 -4 L26 20" stroke-opacity="0.6"/></g><g transform="translate(88 92)"><path d="M0 -40 L9 -30 L0 -20 L-9 -30Z" fill="#ffe08a"/></g><circle cx="232" cy="88" r="64" fill="url(#l2Red)"/><g transform="translate(232 88)" fill="none" stroke="#ffd0c8" stroke-width="2.2"><path d="M-30 0 L0 -26 L30 0"/><path d="M-30 14 L0 -12 L30 14" stroke-opacity="0.75"/><path d="M-30 28 L0 2 L30 28" stroke-opacity="0.5"/></g><g transform="translate(232 88)"><path d="M-12 -40 L0 -52 L12 -40 L0 -28Z" fill="#14060a" stroke="#ff3a2a" stroke-width="1.5"/><text x="0" y="-35" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="13" fill="#ff3a2a">?</text></g><g transform="translate(160 120)"><path d="M0 -22 L18 -8 L12 14 L-12 14 L-18 -8Z" fill="url(#l2Eng)" stroke="#fff3c4" stroke-width="1"/><path d="M0 -22 L0 14 M-18 -8 L12 14 M18 -8 L-12 14" stroke="#7a5c10" stroke-width="0.8" stroke-opacity="0.7"/></g><g stroke="#ffe08a" stroke-opacity="0.35" stroke-dasharray="2 4" fill="none"><path d="M140 114 Q120 100 108 96"/><path d="M180 114 Q200 100 212 96" stroke="#ff8a7a"/></g><rect x="0.5" y="0.5" width="319" height="179" fill="none" stroke="#ffffff" stroke-opacity="0.18"/></svg>',
+    summary: 'Legendary and Ultimate now pay out. Unlocking each tier opens an exotic reward menu, Ultimate is tougher and denser, and a new Guardian can skip straight to Legendary.',
+    notes: [
+      'Unlocking Legendary plays a new unlock sequence and opens a reward menu: 3 exotic armor pieces for your class and 3 exotic weapons. Keep 1 of each',
+      'Unlocking Ultimate plays a bigger one: 5 and 5, keep 2 of each. Choose "Decide later" and the menu waits for you in Orbit',
+      'Legendary: the campaign\'s final boss drops an exotic every time you beat it',
+      'Ultimate: every mission drops an exotic the first time you clear it',
+      'An Ultimate reward awaits those who finish the campaign on Ultimate difficulty',
+      'Ultimate enemies stand 50 Light above you, or 50 above the mission if you are under it. Legendary and Ultimate send more enemies',
+      'Skip Campaign: once any of your Guardians has cleared the campaign, another can skip it from character select (hold to confirm). They reach the level a full clear gives, get a full Legendary set at Light 200 and the Legendary reward menu, but no mission drops',
+      'Press I anywhere, even mid-mission, to open the full Character screen: gear, mods, shaders, vault. It replaces the old in-mission inventory',
+      'Each weapon and armor slot holds 9 items besides the one you have equipped; extras go to the Postmaster, which now holds 50. The item count is gone from the Character screen',
+      'Your saves carry over. Anything past 9 in a slot moves to that Guardian\'s Postmaster; nothing is lost',
+    ],
+  },
+  {
+    version: '4.2', name: 'Legend and Ultimate', date: '2026-11-06', accent: '#c58cff', glyph: '♆', artPending: true, // chained with U20b: v4.3 carries the title artwork
     summary: 'The campaign has two harder tiers. Clear it to open Legendary, clear Legendary to open Ultimate, and pick your tier in the Director.',
     notes: [
       'Legendary: the same 18 missions, with enemies 25 Light above you and majors across the board. Missions run from Light 200 to 300, and the Light cap rises to 300',

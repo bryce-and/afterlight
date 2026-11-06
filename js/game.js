@@ -13,6 +13,7 @@ import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
 import { addItem, sendToPostmaster, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, capRarity, maxRarityIndex } from './progression.js';
+import { unlockEvents, tierExoticDue, rollTierExotic } from './rewards.js';
 import { tierOf, tierPower, tierEnemyLight, tierClears, recordClear, capRoll, selectedTier } from './campaign.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection, getSection, musicSectionFor, stinger } from './music.js';
@@ -80,7 +81,7 @@ export function startMission(li, mi, tier = selectedTier(G.save)) {
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: L.playerDmgMult, incomingMult: L.incomingMult, lightImmune: L.immune,
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
-    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', plan: zonePlan(def.id, i, level.zones.length, z.isBoss), waves: makeWaves(i, z.isBoss, g, def, fireteam, loc, zonePlan(def.id, i, level.zones.length, z.isBoss)), waveIdx: 0, enemies: [] })),
+    zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', plan: zonePlan(def.id, i, level.zones.length, z.isBoss), waves: makeWaves(i, z.isBoss, g, def, fireteam, loc, zonePlan(def.id, i, level.zones.length, z.isBoss), T.density), waveIdx: 0, enemies: [] })),
   };
   G.time = 0;
   G.player = new Player(G.save);
@@ -150,14 +151,14 @@ function finishMission() {
 // ---------------------------------------------------------------------------
 // Waves
 // ---------------------------------------------------------------------------
-function makeWaves(zi, isBoss, g, def, fireteam = 1, loc = null, plan = null) {
-  return withFactions(baseWaves(zi, isBoss, g, def, fireteam, loc), zi, isBoss, g, fireteam, plan);
+function makeWaves(zi, isBoss, g, def, fireteam = 1, loc = null, plan = null, density = 1) {
+  return withFactions(baseWaves(zi, isBoss, g, def, fireteam, loc, density), zi, isBoss, g, fireteam, plan, density);
 }
 
 /** U14: a zone's plan (factions.js zonePlan) swaps its opening group and its reinforcements for another faction's roster. The boss keeps its place. */
-function withFactions(waves, zi, isBoss, g, fireteam, plan) {
+function withFactions(waves, zi, isBoss, g, fireteam, plan, density = 1) {
   if (!plan || (!plan.open && !plan.reinf)) return waves;
-  const more = fireteamScale(fireteam).count;
+  const more = fireteamScale(fireteam).count * density; // U20b: Legendary and Ultimate send more
   return waves.map((w, wi) => {
     const f = wi === 0 ? plan.open : plan.reinf;
     if (!f) return w;
@@ -171,9 +172,9 @@ function withFactions(waves, zi, isBoss, g, fireteam, plan) {
   });
 }
 
-function baseWaves(zi, isBoss, g, def, fireteam = 1, loc = null) {
-  // each extra fireteam member adds ~50% more enemies
-  const more = fireteamScale(fireteam).count;
+function baseWaves(zi, isBoss, g, def, fireteam = 1, loc = null, density = 1) {
+  // each extra fireteam member adds ~50% more enemies; U20b: Legendary and Ultimate multiply that by the tier's density
+  const more = fireteamScale(fireteam).count * density;
   const T = (type, n) => Array.from({ length: Math.round(n * more) }, () => ({ type })); // the shield element comes from the faction (tiers.js SHIELD)
   if (isBoss) {
     return [[{ type: 'boss', name: def.boss.name, element: def.boss.element, model: def.boss.model }, ...T('grunt', 2 + Math.floor(g / 3)), ...T('rusher', 1 + Math.floor(g / 4))]];
@@ -259,7 +260,7 @@ export function spawnBossAdds(boss) {
   const M = G.mission;
   const z = boss.zone;
   let specs = [];
-  const FT = fireteamScale(M.fireteam), more = FT.count;
+  const FT = fireteamScale(M.fireteam), more = FT.count * (tierOf(M.tier).density || 1);
   if (FACTIONS[boss.faction]) specs = composeWave(boss.faction, 0, Math.max(1, z.idx || 1), M.g, more).sort(() => Math.random() - 0.5).slice(0, Math.round((5 + Math.floor(M.g / 4)) * more)); // U14: a Taken or Scorn champion calls its own
   else for (const [t, n] of [['grunt', 3], ['rusher', 2], ['captain', M.g >= 2 ? 1 : 0]]) for (let i = 0; i < Math.round(n * more); i++) specs.push(t);
   for (const type of specs) {
@@ -648,21 +649,20 @@ function openChest(auto = false) {
     if (first && M.mi === M.loc.missions.length - 1 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
     rewards.push(rollItem(Math.min(cap, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
   }
+  // U20b: Legendary drops an exotic on every clear of the campaign's final mission (its boss), Ultimate on every mission's first clear
+  if (tierExoticDue(M.tier || 'base', M.def.id === ALL_MISSIONS[ALL_MISSIONS.length - 1].id, first)) rewards.push(rollTierExotic(G.save, Math.min(cap, base + randInt(1, 4)), M.loc.id));
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it, auto); }, 300 + i * 450));
   // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
   const shader = rollShader(G.save.shaders.owned, first && M.mi === M.loc.missions.length - 1);
   if (shader) {
     G.save.shaders.owned.push(shader);
     M.rewardShader = shader;
-    setTimeout(() => { if (G.mission === M) { ui.feed(`Shader acquired: ${SHADERS[shader].name}`, '#e9d7ff'); sfx.engram(3); } }, 300 + n * 450);
+    setTimeout(() => { if (G.mission === M) { ui.feed(`Shader acquired: ${SHADERS[shader].name}`, '#e9d7ff'); sfx.engram(3); } }, 300 + rewards.length * 450);
   }
   const glimmer = 120 + M.g * 45;
   G.save.glimmer += glimmer;
   const opened = recordClear(G.save, M.def.id, M.tier || 'base');
-  M.tierOpened = opened; // U20b turns these into unlock animations and reward menus
-  if (opened.all) setTimeout(() => ui.feed('Ultimate campaign cleared: Legendary and Ultimate are open for every Guardian', '#f0c040'), 1600);
-  else if (opened.ultimate) setTimeout(() => ui.feed('Ultimate campaign unlocked: pick it in the Director', '#f0c040'), 1600);
-  else if (opened.legendary) setTimeout(() => ui.feed('Legendary campaign unlocked: pick it in the Director', '#f0c040'), 1600);
+  M.unlocks = unlockEvents(G.save, opened); // U20b: the complete screen plays each unlock animation, then its reward menu
   M.rewardGlimmer = glimmer;
   M.firstClear = first;
   M.rewards = rewards;

@@ -1,6 +1,6 @@
 // Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
-import { WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor } from '../js/data.js';
+import { SLOTS, WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
 import { rollItem, exoticWeights, pickExotic, EXOTIC_REPEAT_WEIGHT } from '../js/loot.js';
 import * as S from '../js/save.js';
@@ -41,6 +41,7 @@ import * as ST_ from '../js/story.js';
 import * as LI from '../js/light.js';
 import * as Q from '../js/quests.js';
 import * as CA from '../js/campaign.js';
+import * as RW from '../js/rewards.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
 
@@ -172,13 +173,14 @@ test('level rewards: locked, then claimable once', () => {
   S.addXp(s, xpForLevel(20));
   eq(S.claimLevelReward(s, 20).item.rarity, 'exotic');
 });
-test('claiming with a full inventory is refused and loses nothing', () => {
+test('U20b claiming with a full slot sends the reward to the Postmaster and loses nothing', () => {
   fresh();
   const s = S.createSave('vanguard');
   S.addXp(s, xpForLevel(3));
-  while (s.inventory.length < S.INVENTORY_CAP) s.inventory.push(rollItem(10, 0));
-  ok(S.claimLevelReward(s, 3).error, 'refused');
-  eq(S.rewardState(s, 3), 'ready');
+  for (const slot of SLOTS) while (!S.slotFull(s, slot)) s.inventory.push({ ...rollItem(10, 0, slot, null, 'vanguard'), id: `pad-${slot}-${s.inventory.length}` });
+  const n = s.inventory.length, r = S.claimLevelReward(s, 3);
+  ok(r.item && !r.error, 'claimed'); eq(s.inventory.length, n); ok(s.postmaster.some((i) => i.id === r.item.id), 'in the Postmaster');
+  eq(S.rewardState(s, 3), 'claimed');
 });
 test('addXp reports level-ups', () => {
   fresh();
@@ -361,9 +363,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = freshOld({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 11);
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 12);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 11, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 12, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -1160,13 +1162,13 @@ test('Unclaimed mission cache: sendToPostmaster skips a roomy inventory', () => 
   const n = s.inventory.length, r = S.sendToPostmaster(s, { ...base, id: 'auto1', locked: false });
   eq(s.inventory.length, n); eq(s.postmaster.length, 1); eq(r.dismantled, null);
 });
-test('U16 Exotic Kiosk: priced at 7777 glimmer', () => { eq(S.KIOSK_PRICE, 7777); eq(S.POSTMASTER_CAP, 21); });
-test('U16 Postmaster: overflow goes to the Postmaster, it caps at 21, exotics are never lost, items can be collected', () => {
+test('U16 Exotic Kiosk: priced at 7777 glimmer', () => { eq(S.KIOSK_PRICE, 7777); eq(S.POSTMASTER_CAP, 50); });
+test('U16 Postmaster: overflow goes to the Postmaster, it caps at 50 (U20b), exotics are never lost, items can be collected', () => {
   fresh();
   const s = S.createSave('vanguard');
   const base = s.inventory.find((i) => i.kind === 'weapon' && !S.isEquipped(s, i));
   const mk = (id, extra = {}) => ({ ...base, id, locked: false, ...extra });
-  while (s.inventory.length < S.INVENTORY_CAP) s.inventory.push(mk(`f${s.inventory.length}`));
+  while (!S.slotFull(s, base.slot)) s.inventory.push(mk(`f${s.inventory.length}`));
   for (let i = 0; i < S.POSTMASTER_CAP; i++) eq(S.addItem(s, mk(`p${i}`)).dismantled, null);
   eq(s.postmaster.length, S.POSTMASTER_CAP);
   const g0 = s.glimmer, r = S.addItem(s, mk('p-new'));
@@ -1174,7 +1176,7 @@ test('U16 Postmaster: overflow goes to the Postmaster, it caps at 21, exotics ar
   s.postmaster = s.postmaster.map((i) => ({ ...i, rarity: 'exotic' }));
   const r2 = S.addItem(s, mk('p-ex', { rarity: 'exotic' }));
   eq(r2.dismantled, null); eq(s.postmaster.length, S.POSTMASTER_CAP + 1, 'a full Postmaster of exotics grows rather than lose one');
-  ok(S.collectPostmaster(s, 'p-ex'), 'cannot collect into a full inventory');
+  ok(S.collectPostmaster(s, 'p-ex'), 'cannot collect into a full slot');
   s.inventory.pop(); eq(S.collectPostmaster(s, 'p-ex'), null); ok(S.getItem(s, 'p-ex') && !s.postmaster.some((i) => i.id === 'p-ex'));
   S.switchCharacter(s, 'arcanist'); eq(s.postmaster, [], 'the Postmaster is per Guardian');
 });
@@ -1244,7 +1246,7 @@ test('U15 item lock: a locked item is never auto-dismantled, cannot be dismantle
   const weakest = s.inventory.filter((i) => !S.isEquipped(s, i)).sort((x, y) => x.power - y.power)[0];
   eq(S.toggleLock(s, weakest.id), true); ok(weakest.locked, 'locked');
   eq(S.dismantleItem(s, weakest.id), 0, 'a locked item is not dismantled by hand'); ok(S.getItem(s, weakest.id), 'still owned');
-  while (s.inventory.length < S.INVENTORY_CAP) S.addItem(s, { ...weakest, id: `fill${s.inventory.length}`, locked: false, power: weakest.power + 5 });
+  while (!S.slotFull(s, weakest.slot)) S.addItem(s, { ...weakest, id: `fill${s.inventory.length}`, locked: false, power: weakest.power + 5 });
   const gone = S.addItem(s, { ...weakest, id: 'overflow', locked: false, power: weakest.power + 6 });
   ok(gone && gone.sent.id === 'overflow', 'the overflow went to the Postmaster'); ok(S.getItem(s, weakest.id), 'the locked item survived the overflow');
   eq(S.toggleLock(s, weakest.id), false); ok(!weakest.locked, 'unlocked');
@@ -2574,6 +2576,9 @@ test('U20a tier caps and offsets: Base 200, Legendary 300 at +25, Ultimate 350 a
   eq(CA.tierEnemyLight(100, 'base', 140), 100, 'base: the mission Light');
   eq(CA.tierEnemyLight(100, 'legendary', 210), 235, 'legendary: your Light +25');
   eq(CA.tierEnemyLight(100, 'ultimate', 310), 360, 'ultimate: your Light +50');
+  eq([CA.tierEnemyLight(305, 'ultimate', 305), CA.tierEnemyLight(305, 'ultimate', 320), CA.tierEnemyLight(305, 'ultimate', 250)], [355, 370, 355], 'U20b ultimate: +50 over your Light or the mission Light, whichever is higher');
+  eq(CA.tierEnemyLight(250, 'legendary', 200), 225, 'legendary keeps counting from your Light');
+  eq(['base', 'legendary', 'ultimate'].map((id) => CA.tierOf(id).density), [1, 1.25, 1.5], 'U20b: Legendary and Ultimate send more enemies');
   ok(!LI.lightMults(LI.lightGap(310, 360)).immune, 'Ultimate is extremely hard, never immune');
   ok(CA.CAMPAIGN_TIERS.ultimate.lethal && !CA.CAMPAIGN_TIERS.legendary.lethal && !CA.CAMPAIGN_TIERS.base.lethal);
 });
@@ -2630,12 +2635,12 @@ test('U20a majors: Base keeps the old rule, Legendary and Ultimate roll majors a
   eq(TR.rollTier('grunt', 0, 0.01, 'legendary'), 'major'); eq(TR.rollTier('grunt', 0, 0.01), 'minor');
 });
 
-test('U20a save v10 upgrades to v11: base clears kept, tier fields added for every Guardian', () => {
+test('U20a save v10 upgrades through v11: base clears kept, tier fields added for every Guardian', () => {
   const v10 = { version: 10, classId: 'stalker', glimmer: 5, inventory: [], vault: [], equipped: {}, cleared: { e1: true }, postmaster: [], quests: Q.newQuests(), subclass: {}, loadout: {}, shaders: { owned: [], applied: {} }, exoticsFound: [], progression: { xp: 0, claimed: [] }, settings: {},
     chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true, e2: true }, postmaster: [], quests: Q.newQuests() } } };
   fresh({ afterlight_save_v2: JSON.stringify(v10) });
   const s = S.loadSave();
-  eq(s.version, 11); eq(s.cleared, { e1: true }); eq(s.tier, 'base'); eq(s.tierCleared, { legendary: {}, ultimate: {} }); eq(s.ultimateAll, false);
+  eq(s.version, S.SAVE_VERSION); eq(s.cleared, { e1: true }); eq(s.tier, 'base'); eq(s.tierCleared, { legendary: {}, ultimate: {} }); eq(s.ultimateAll, false);
   eq(s.chars.vanguard.tier, 'base'); eq(s.chars.vanguard.tierCleared, { legendary: {}, ultimate: {} }); eq(s.chars.vanguard.cleared, { e1: true, e2: true });
 });
 
@@ -2660,6 +2665,251 @@ test('U20a equipped armor can be infused in place: it takes the best Light in it
   ok(S.infuseItem(s, worn.id), 'infused');
   eq(S.getEquipped(s, 'helmet').id, worn.id, 'still equipped');
   eq(S.getEquipped(s, 'helmet').power, better.power);
+});
+
+// ---------- U20b Legend and Ultimate II ----------
+const exoticCount = (s, kind) => (kind === 'weapon' ? ['primary', 'special', 'heavy'] : ['helmet', 'arms', 'chest', 'legs']).filter((sl) => S.getEquipped(s, sl)?.rarity === 'exotic').length;
+const lvl40 = (s) => { s.progression.xp = xpForLevel(40); };
+
+test('U20b reward menus: Legendary 3+3 (keep 1+1), Ultimate 5+5 (keep 2+2), class-correct armor, no duplicates', () => {
+  fresh();
+  for (const cls of ['vanguard', 'stalker', 'arcanist']) {
+    const s = S.createSave(cls);
+    const mine = new Set(exoticArmorFor(cls).map((x) => x.name));
+    for (const [tier, n, keep] of [['legendary', 3, 1], ['ultimate', 5, 2]]) {
+      const m = RW.rollMenu(s, tier);
+      eq([m.armor.length, m.weapons.length], [n, n], `${cls} ${tier} sizes`);
+      eq([RW.REWARD_MENUS[tier].keepArmor, RW.REWARD_MENUS[tier].keepWeapons], [keep, keep]);
+      ok(m.armor.every((a) => a.rarity === 'exotic' && a.kind === 'armor' && a.classId === cls && mine.has(a.name)), 'class armor');
+      ok(m.weapons.every((w) => w.rarity === 'exotic' && w.kind === 'weapon'), 'exotic weapons');
+      eq(new Set(m.armor.map((a) => a.name)).size, n, 'distinct armor'); eq(new Set(m.weapons.map((a) => a.name)).size, n, 'distinct weapons');
+    }
+  }
+});
+
+test('U20b reward menus favor exotics the Guardian has not found, and roll at their Light', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  const names = EXOTIC_WEAPONS.map((e) => e.name);
+  s.exoticsFound = names.slice(0, names.length - 5); // only 5 weapons unfound
+  let hits = 0;
+  for (let i = 0; i < 40; i++) hits += RW.rollMenu(s, 'ultimate').weapons.filter((w) => !s.exoticsFound.includes(w.name)).length;
+  ok(hits / 40 > 1.5, `a 5-item menu leans to the unfound ones (${hits / 40} of 5; blind luck would be about 0.5)`);
+  const m = RW.rollMenu(s, 'legendary');
+  ok([...m.armor, ...m.weapons].every((i) => i.power === Math.max(1, S.playerPower(s))), 'Light');
+});
+
+test('U20b claim validation: exactly 1+1 (Legendary) and 2+2 (Ultimate), no repeats, only items in the menu', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  const lm = RW.rollMenu(s, 'legendary'), um = RW.rollMenu(s, 'ultimate');
+  const id = (m, k, i) => m[k][i].id;
+  ok(!RW.validateClaim(lm, [id(lm, 'armor', 0)], [id(lm, 'weapons', 2)]), '1+1 ok');
+  ok(RW.validateClaim(lm, [], [id(lm, 'weapons', 0)]), 'missing armor');
+  ok(RW.validateClaim(lm, [id(lm, 'armor', 0), id(lm, 'armor', 1)], [id(lm, 'weapons', 0)]), 'too many armor');
+  ok(!RW.validateClaim(um, [id(um, 'armor', 0), id(um, 'armor', 4)], [id(um, 'weapons', 1), id(um, 'weapons', 3)]), '2+2 ok');
+  ok(RW.validateClaim(um, [id(um, 'armor', 0)], [id(um, 'weapons', 1), id(um, 'weapons', 3)]), 'only 1 armor on Ultimate');
+  ok(RW.validateClaim(um, [id(um, 'armor', 0), id(um, 'armor', 0)], [id(um, 'weapons', 1), id(um, 'weapons', 3)]), 'repeat');
+  ok(RW.validateClaim(lm, [id(um, 'armor', 0)], [id(lm, 'weapons', 0)]), 'foreign item');
+});
+
+test('U20b claiming adds the chosen items, drops the rest, clears the menu; a full inventory sends them to the Postmaster', () => {
+  fresh();
+  const s = S.createSave('arcanist');
+  const m = RW.queueMenu(s, 'legendary');
+  const before = s.inventory.length;
+  ok(RW.claimMenu(s, m.id, [], []).error, 'wrong counts refused');
+  eq(RW.pendingMenus(s).length, 1, 'still pending after a refused claim');
+  const r = RW.claimMenu(s, m.id, [m.armor[1].id], [m.weapons[0].id]);
+  eq(r.items.map((i) => i.id), [m.armor[1].id, m.weapons[0].id]);
+  eq(s.inventory.length, before + 2); eq(RW.pendingMenus(s).length, 0);
+  ok(!s.inventory.some((i) => i.id === m.armor[0].id), 'unchosen gone');
+  ok(s.exoticsFound.includes(m.armor[1].name), 'counted as found');
+  ok(RW.claimMenu(s, m.id, [], []).error, 'a claimed menu is gone');
+  const m2 = RW.queueMenu(s, 'legendary');
+  for (const slot of SLOTS) while (!S.slotFull(s, slot)) s.inventory.push({ id: `pad${s.inventory.length}`, kind: 'weapon', slot, rarity: 'common', power: 1, name: 'pad' });
+  const n2 = s.inventory.length, r2 = RW.claimMenu(s, m2.id, [m2.armor[0].id], [m2.weapons[0].id]);
+  eq(r2.sentToPostmaster, 2); eq(s.inventory.length, n2); ok(s.postmaster.some((i) => i.id === m2.armor[0].id));
+});
+
+test('U20b pending menus survive save/load and belong to one Guardian', () => {
+  const st = fresh();
+  const s = S.createSave('stalker');
+  const m = RW.queueMenu(s, 'ultimate');
+  const loaded = S.loadSave();
+  eq(RW.pendingMenus(loaded).length, 1);
+  eq(RW.pendingMenus(loaded)[0].armor.map((a) => a.id), m.armor.map((a) => a.id), 'same rolled choices');
+  S.switchCharacter(loaded, 'vanguard');
+  eq(RW.pendingMenus(loaded), [], 'the other Guardian has none');
+  S.switchCharacter(loaded, 'stalker');
+  eq(RW.pendingMenus(loaded).length, 1, 'back on the first');
+  ok(st.getItem('afterlight_save_v2'));
+});
+
+test('U20b unlock events: Legendary and Ultimate queue their menus, the full Ultimate clear queues none', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  const ev = RW.unlockEvents(s, { legendary: true, ultimate: false, all: false });
+  eq(ev.map((e) => e.kind), ['legendary']); eq(ev[0].menu.tier, 'legendary');
+  const ev2 = RW.unlockEvents(s, { legendary: false, ultimate: true, all: false });
+  eq(ev2[0].menu.armor.length, 5);
+  const ev3 = RW.unlockEvents(s, { legendary: false, ultimate: false, all: true });
+  eq(ev3, [{ kind: 'all' }]);
+  eq(RW.pendingMenus(s).length, 2);
+  eq(RW.unlockEvents(s, { legendary: false, ultimate: false, all: false }), []);
+});
+
+test('U20b tier exotics: Legendary drops one on every clear of a final mission, Ultimate only on a first clear', () => {
+  ok(RW.tierExoticDue('legendary', true, true) && RW.tierExoticDue('legendary', true, false), 'every clear of the boss mission');
+  ok(!RW.tierExoticDue('legendary', false, true), 'not on other missions');
+  ok(RW.tierExoticDue('ultimate', false, true) && RW.tierExoticDue('ultimate', true, true), 'ultimate first clear');
+  ok(!RW.tierExoticDue('ultimate', true, false) && !RW.tierExoticDue('ultimate', false, false), 'ultimate repeat clears get none');
+  ok(!RW.tierExoticDue('base', true, true), 'base unchanged');
+  fresh();
+  const s = S.createSave('vanguard');
+  const it = RW.rollTierExotic(s, 250, LOCATIONS[0].id);
+  eq([it.rarity, it.power], ['exotic', 250]);
+  ok(it.kind === 'weapon' || it.classId === 'vanguard', 'armor is the Guardian\'s class');
+});
+
+test('U20b the Ultimate switch exists only after a full Ultimate clear', () => {
+  const s = blankTiers();
+  ok(!CA.overloadUnlocked(s) && !CA.overloadOn(s));
+  s.overload = true; ok(!CA.overloadOn(s), 'a stored ON does nothing while locked');
+  fresh(); const t = S.createSave('stalker');
+  let threw = false; try { S.setOverload(t, true); } catch { threw = true; }
+  ok(threw, 'setOverload refuses before the unlock');
+  clearAll(s, 'ultimate');
+  ok(CA.overloadUnlocked(s) && CA.overloadOn(s));
+  ok(!/overload|exotic/i.test(CA.ULTIMATE_HINT.replace('An Ultimate reward awaits', '')), 'the hint says nothing more');
+});
+
+test('U20b equip rule: one exotic weapon and armor normally; any number with the switch; turning it off trims to one each', () => {
+  fresh();
+  const s = S.createSave('stalker'); lvl40(s); s.ultimateAll = true;
+  const mk = [
+    ...['primary', 'special', 'heavy'].map((sl, i) => rollItem(300, 4, sl, null, 'stalker')),
+    ...['helmet', 'arms', 'chest', 'legs'].map((sl) => rollItem(300, 4, sl, null, 'stalker')),
+  ];
+  s.inventory.push(...mk);
+  ok(!S.equipItem(s, mk[0].id), 'first exotic weapon ok');
+  ok(S.equipItem(s, mk[1].id), 'second blocked while the switch is off');
+  ok(!S.equipItem(s, mk[3].id) && S.equipItem(s, mk[4].id), 'armor too');
+  S.setOverload(s, true);
+  for (const it of mk) eq(S.equipItem(s, it.id), null, `${it.slot} equips with the switch on`);
+  eq([exoticCount(s, 'weapon'), exoticCount(s, 'armor')], [3, 4]);
+  const changed = S.setOverload(s, false);
+  eq(changed, 5); eq([exoticCount(s, 'weapon'), exoticCount(s, 'armor')], [1, 1], 'one of each kind stays');
+  ok(S.getEquipped(s, 'primary').id === mk[0].id && S.getEquipped(s, 'helmet').id === mk[3].id, 'the first exotic of each kind is kept');
+  eq(S.setOverload(s, false), 0, 'idempotent');
+});
+
+test('U20b the switch is per Guardian (the unlock is account-wide) and gates level checks as before', () => {
+  fresh();
+  const s = S.createSave('stalker'); s.ultimateAll = true; S.setOverload(s, true);
+  S.switchCharacter(s, 'vanguard');
+  ok(s.ultimateAll && !CA.overloadOn(s), 'the other Guardian starts with it off');
+  S.switchCharacter(s, 'stalker');
+  ok(CA.overloadOn(s), 'kept on the first');
+});
+
+test('U20b save v11 upgrades to v12: tier clears kept for every Guardian, new fields added', () => {
+  const v11 = { version: 11, classId: 'stalker', glimmer: 5, inventory: [], vault: [], equipped: {}, cleared: { e1: true }, tier: 'legendary', tierCleared: { legendary: { e1: true }, ultimate: {} }, ultimateAll: false, postmaster: [], quests: Q.newQuests(), subclass: {}, loadout: {}, shaders: { owned: [], applied: {} }, exoticsFound: [], progression: { xp: 0, claimed: [] }, settings: {},
+    chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true, e2: true }, tier: 'ultimate', tierCleared: { legendary: { e1: true, e2: true }, ultimate: { e1: true } }, postmaster: [], quests: Q.newQuests() } } };
+  fresh({ afterlight_save_v2: JSON.stringify(v11) });
+  const s = S.loadSave();
+  eq(s.version, 12); eq(s.tierCleared, { legendary: { e1: true }, ultimate: {} }); eq(s.tier, 'legendary'); eq(s.cleared, { e1: true });
+  eq([s.pendingMenus, s.overload, s.skipped], [[], false, false]);
+  eq(s.chars.vanguard.tierCleared, { legendary: { e1: true, e2: true }, ultimate: { e1: true } }); eq(s.chars.vanguard.cleared, { e1: true, e2: true });
+  eq([s.chars.vanguard.pendingMenus, s.chars.vanguard.overload, s.chars.vanguard.skipped], [[], false, false]);
+});
+
+test('U20b slot cap: 9 per slot besides the equipped item; the 10th goes to the Postmaster; vault and Postmaster respect it', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  eq(S.SLOT_CAP, 9);
+  const eqId = s.equipped.primary, pad = (id) => ({ ...rollItem(10, 0, 'primary'), id });
+  s.inventory = s.inventory.filter((i) => i.slot !== 'primary' || i.id === eqId);
+  for (let i = 0; i < 9; i++) eq(S.addItem(s, pad(`p${i}`)), null);
+  eq(S.slotCount(s, 'primary'), 9, 'the equipped item does not count'); ok(S.slotFull(s, 'primary'));
+  const r = S.addItem(s, pad('p9'));
+  ok(r && r.sent.id === 'p9', 'the 10th went to the Postmaster'); ok(!S.getItem(s, 'p9'));
+  ok(!S.slotFull(s, 'helmet'), 'other slots are separate');
+  s.vault.push(pad('v1'));
+  ok(S.fromVault(s, 'v1'), 'cannot pull from the vault into a full slot');
+  ok(S.collectPostmaster(s, 'p9'), 'cannot collect into a full slot');
+  eq(S.toVault(s, 'p0'), null); eq(S.collectPostmaster(s, 'p9'), null); ok(S.getItem(s, 'p9'));
+});
+
+test('U20b save v11 to v12: extras past 9 per slot go to that Guardian\'s Postmaster, lowest Light first, nothing is lost', () => {
+  const it = (id, slot, power, extra = {}) => ({ ...rollItem(power, 0, slot), id, power, ...extra });
+  const prim = Array.from({ length: 12 }, (_, i) => it(`a${i}`, 'primary', 10 + i));
+  prim[0].locked = true; // the weakest, but locked: kept
+  const vg = Array.from({ length: 11 }, (_, i) => it(`h${i}`, 'helmet', 20 + i, { kind: 'armor', classId: 'vanguard' }));
+  const v11 = { version: 11, classId: 'stalker', glimmer: 5, inventory: [...prim, it('eq', 'primary', 5)], vault: [], equipped: { primary: 'eq' }, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, postmaster: [it('old', 'heavy', 3)], quests: Q.newQuests(), subclass: {}, loadout: {}, shaders: { owned: [], applied: {} }, exoticsFound: [], progression: { xp: 0, claimed: [] }, settings: {},
+    chars: { vanguard: { inventory: vg, equipped: { helmet: 'h0' }, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, postmaster: [], quests: Q.newQuests() } } };
+  fresh({ afterlight_save_v2: JSON.stringify(v11) });
+  const s = S.loadSave();
+  eq(S.slotCount(s, 'primary'), 9); ok(S.getItem(s, 'eq') && S.getItem(s, 'a0'), 'equipped and locked kept');
+  eq(s.postmaster.map((i) => i.id).sort(), ['a1', 'a2', 'a3', 'old'], 'the three weakest unlocked extras moved');
+  const c = s.chars.vanguard;
+  eq(c.inventory.length, 10); ok(c.inventory.some((i) => i.id === 'h0'), 'equipped helmet kept'); eq(c.postmaster.map((i) => i.id), ['h1']);
+});
+
+test('U20b Skip Campaign is offered only once some Guardian really cleared the base campaign, and only to uncleared Guardians', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  ok(!RW.skipAvailable(s) && !RW.skipAvailableFor(s, 'vanguard'), 'nobody has cleared');
+  clearAll(s, 'base');
+  ok(!RW.skipAvailable(s), 'the clearing Guardian cannot skip');
+  ok(RW.skipAvailableFor(s, 'vanguard') && RW.skipAvailableFor(s, 'arcanist'), 'new Guardians can');
+  S.switchCharacter(s, 'vanguard');
+  ok(RW.skipAvailable(s), 'a stored clear counts');
+  RW.skipCampaign(s);
+  ok(!RW.skipAvailable(s) && !RW.skipAvailableFor(s, 'vanguard'), 'once only');
+  S.switchCharacter(s, 'arcanist');
+  S.switchCharacter(s, 'stalker');
+  ok(RW.skipAvailableFor(s, 'arcanist'), 'a skipped clear does not count; the real one still does');
+});
+
+test('U20b Skip Campaign: base cleared, level raised, Legendary-only Light 200 set equipped, skipped flag, Legendary menu, no drops', () => {
+  fresh();
+  const s = S.createSave('stalker'); clearAll(s, 'base');
+  S.switchCharacter(s, 'vanguard');
+  const before = s.inventory.length, coins = s.glimmer;
+  const lvA = S.playerLevel(s);
+  const res = RW.skipCampaign(s);
+  ok(CA.campaignDone(s, 'base'), 'every base mission cleared');
+  ok(CA.tierUnlocked(s, 'legendary') && !CA.tierUnlocked(s, 'ultimate'), 'Legendary open');
+  eq(s.skipped, true);
+  ok(S.playerLevel(s) > lvA && S.playerLevel(s) >= 20, `level ${S.playerLevel(s)}`);
+  eq(res.levelUp.to, S.playerLevel(s));
+  eq(s.progression.xp, RW.skipXp());
+  for (const sl of ['primary', 'special', 'heavy', 'helmet', 'arms', 'chest', 'legs']) {
+    const it = S.getEquipped(s, sl);
+    eq([it.rarity, it.power], ['legendary', 200], sl);
+    if (it.kind === 'armor') eq(it.classId, 'vanguard');
+    ok(S.canEquipLevel(s, it), 'usable at the new level');
+  }
+  eq(S.playerPower(s), 200);
+  eq(s.inventory.length, before + 7, 'only the 7 set pieces, no mission drops'); eq(s.glimmer, coins, 'no glimmer drop');
+  eq(res.gear.length, 7);
+  eq(RW.pendingMenus(s).length, 1); eq(RW.pendingMenus(s)[0].tier, 'legendary'); eq(RW.pendingMenus(s)[0].armor.length, 3);
+  eq(RW.pendingMenus(s)[0].armor.every((a) => a.power === 200), true, 'menu rolled at Light 200');
+  let threw = false; try { RW.skipCampaign(s); } catch { threw = true; }
+  ok(threw, 'a second skip is refused');
+});
+
+test('U20b Skip Campaign keeps a higher XP total; its XP target is the documented 53,000 run and covers every mission\'s XP', () => {
+  fresh();
+  const s = S.createSave('stalker'); clearAll(s, 'base');
+  S.switchCharacter(s, 'arcanist');
+  s.progression.xp = xpForLevel(35);
+  const xp = s.progression.xp;
+  const res = RW.skipCampaign(s);
+  eq(s.progression.xp, xp, 'never lowered'); eq(res.levelUp, null);
+  eq(RW.skipXp(), 53000); ok(RW.missionsXp() < RW.skipXp(), 'kills are the remainder'); eq(RW.missionsXp(), LOCATIONS.flatMap((l) => l.missions).length * 1500);
+  ok(levelInfo(RW.skipXp()).level >= 25 && levelInfo(RW.skipXp()).level <= 30, `level ${levelInfo(RW.skipXp()).level}`);
 });
 
 let pass = 0, fail = 0;

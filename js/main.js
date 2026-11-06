@@ -33,11 +33,11 @@ const inp = G.input;
 const GAME_KEYS = new Set(['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyV', 'KeyB', 'KeyC', 'KeyE', 'KeyR', 'ShiftLeft']);
 addEventListener('keydown', (e) => {
   if (G.state === 'playing' && GAME_KEYS.has(e.code)) e.preventDefault();
-  if (e.code === 'KeyI' && !e.repeat) {
-    if (G.invOpen) { ui.resumeGame(); return; }
-    if (G.state === 'playing' && !G.mpMenu) { ui.showInventory(); return; }
+  if (e.code === 'KeyI' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) && !e.target?.isContentEditable) {
+    if (['orbit', 'playing', 'paused'].includes(G.state) || G.invOpen) { ui.toggleCharacter(); return; }
   }
   if (e.code === 'Escape') {
+    if (G.invOpen) { ui.charEscape(); return; }
     if (G.state === 'paused' || G.mpMenu) { ui.resumeGame(); return; }
     if (G.state === 'playing' && !document.pointerLockElement) { ui.showPause(); return; }
   }
@@ -93,7 +93,7 @@ function frame(now) {
       updateGame(dt);
       ui.setLockHint(G.state === 'playing' && !G.mpMenu && !document.pointerLockElement);
     }
-    if (G.scene && ['playing', 'paused', 'complete', 'failed'].includes(G.state)) renderer.render(G.scene, G.camera);
+    if (G.scene && !G.invOpen && ['playing', 'paused', 'complete', 'failed'].includes(G.state)) renderer.render(G.scene, G.camera);
     else { G.menu.update(dt); renderer.render(G.menu.scene, G.menu.camera); }
   } catch (err) {
     console.error(err);

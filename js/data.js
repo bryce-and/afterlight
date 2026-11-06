@@ -542,5 +542,5 @@ export const ACTIVITIES = [
 export const CONTROLS = [
   ['WASD', 'Move'], ['Shift', 'Sprint'], ['Space', 'Jump / class jump'], ['Mouse', 'Look'],
   ['LMB', 'Fire'], ['RMB', 'Aim down sights'], ['R', 'Reload'], ['1 2 3 / Wheel', 'Switch weapon'],
-  ['Q', 'Grenade'], ['B', 'Melee'], ['Hold E', 'Revive a teammate'], ['V', 'Charged melee ability'], ['C', 'Class ability'], ['F', 'Super'], ['E', 'Interact'], ['I', 'Inventory (swap weapons)'], ['Esc', 'Pause'],
+  ['Q', 'Grenade'], ['B', 'Melee'], ['Hold E', 'Revive a teammate'], ['V', 'Charged melee ability'], ['C', 'Class ability'], ['F', 'Super'], ['E', 'Interact'], ['I', 'Character (gear, mods, vault)'], ['Esc', 'Pause'],
 ];
