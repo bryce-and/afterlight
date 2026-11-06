@@ -274,3 +274,14 @@
 | 2026-11-06 | Legendary/Ultimate clears are their own per-Guardian records with no Tower stops; Base keeps s.cleared. Save v11 (non-destructive migration). | Claude |
 | 2026-11-06 | Past Light 200, level rewards and Horde/Endless caches hold your Light (capRoll) instead of capping at 200; item clamp is 350. | Claude |
 | 2026-11-06 | Equipped armor can be infused in place (Shift+Click the equipped slot). | Bryce (added mid-update) |
+| 2026-11-06 | Skip Campaign raises the Guardian to the level a full base clear reaches; target 53,000 XP (missions exact, kill XP estimated from the progression.js note). | Bryce (answer 1) |
+| 2026-11-06 | Skip Light 200 set is legendaries only, no exotics. | Bryce (answer 2) |
+| 2026-11-06 | Exotic Overload lives in the Character screen and the button does not exist at all until unlocked. The only player-facing hint is "An Ultimate reward awaits those who finish the campaign on Ultimate difficulty." | Bryce |
+| 2026-11-06 | Legendary final-boss exotic means the campaign's final mission only (the Leviathan), not each destination's last mission. | Claude |
+| 2026-11-06 | Ultimate unlock 5+5 menu opens when Ultimate unlocks (Legendary clear); the first full Ultimate clear has no menu and reveals Overload. | Claude |
+| 2026-11-06 | Slot cap: 9 unequipped per slot plus equipped (Destiny 2 default). | Claude |
+| 2026-11-06 | Overflow past the slot cap goes to the Postmaster, which holds 50. | Bryce |
+| 2026-11-06 | Migration moves the lowest-Light unlocked non-exotic extras first and never dismantles. | Bryce |
+| 2026-11-06 | Ultimate enemy Light = max(your Light, mission Light) + 50; Legendary unchanged (your Light + 25) pending Bryce. | Bryce |
+| 2026-11-06 | Density: Legendary 1.25x, Ultimate 1.5x enemies on waves and boss adds, stacking with fireteam scaling. | Claude (defaults; Bryce asked for more density) |
+| 2026-11-06 | I opens the Character screen in missions; Characters and Reset are hidden there; co-op keeps the sim running like the old inventory. | Bryce (added mid-update) |

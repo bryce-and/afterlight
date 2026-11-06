@@ -52,6 +52,9 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R43 | Properly lit dark interiors | Max 6 lights per map | U15 | Complete and published (v2.6): unlimited lights, the 6 nearest are real |
 | R40 | Patrol spaces, working beacons, public events, heroic on mechanic, multiple factions | Shipped: Earth patrol zone in v3.3, Moon and Mars in v3.4, Titan in v3.5, Io in v3.7, the Tangled Shore in v3.8 and the Dreaming City in v3.9 (spaces, beacons, public events, heroic mechanic, multiple factions) | U17 | Complete and published (v3.9): all seven patrol zones shipped |
 | R50 | Non-campaign activities scale to your Light; fireteam brought to leader's Light; loot by own Light | Partial: Horde starts at the player's power | U19 | Complete and published (v4.1): Horde, Endless and patrol zones scale to your Light (gap 0); fireteam members play at the leader's Light when higher; loot rolls on your own Light |
+| R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Legendary tier, unlock and +25 done (v4.2); unlock animation, reward menu and final-boss exotic done (v4.3) | U20a, U20b | Complete and published (v4.3) |
+| R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Ultimate tier, 50 under and no revives done (v4.2); better animation done (v4.3) | U20a, U20b | Complete and published (v4.3) |
+| R49 | Ultimate unlocks a switch to equip unlimited exotics | Exotic Overload, a multi-exotic switch in the Character screen after the first full Ultimate clear (v4.3) | U20b | Complete and published (v4.3) |
 
 ## Master-prompt requirements
 
@@ -171,3 +174,13 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R47 | Same base campaign, harder (not a new campaign) | U20a | Complete and published (v4.2) |
 | R48 | Light past 100: base 200, Legendary 300, Ultimate 350 | U1 (200), U20a (300/350) | Complete and published (v4.2) |
 | F10 | An Ultimate campaign clear on any Guardian unlocks Legendary and Ultimate for all; Base/Legendary/Ultimate toggle in the Director | U20a | Complete and published (v4.2) |
+| F02 | Legendary unlock animation opens a reward menu: 3 exotic armor (your class) and 3 exotic weapons, keep 1 of each | U20b | Complete and published (v4.3) |
+| F03 | Legendary: a random exotic after the final mission's boss | U20b | Complete and published (v4.3): the Leviathan gives an exotic on every Legendary clear |
+| F04 | Ultimate unlock opens a reward menu: 5 exotic armor and 5 exotic weapons, keep 2 of each | U20b | Complete and published (v4.3) |
+| F05 | Ultimate: an exotic on each mission's first clear only; Ultimate tuned so those drops feel earned | U20b | Complete and published (v4.3) |
+| F09 | Skip Campaign button on character select after the first Guardian's base clear; warning text; hold Yes to skip; no mission drops, but the base-clear menu and later unlock menus are still claimable | U20b | Complete and published (v4.3) |
+| F23 | Skip Campaign awards a gear set at a Light ready for the Legendary campaign; Ultimate still has to be earned | U20b | Complete and published (v4.3): a Light 200 legendary set, no exotics |
+| F32 | Slot cap: 9 unequipped items per slot, extras to the Postmaster (cap 50); migration moves the lowest-Light unlocked non-exotic extras first and never dismantles; item count note removed | U20b | Complete and published (v4.3) |
+| F33 | I opens the full Character screen anywhere (replaces the in-mission inventory); Characters and Reset hidden in missions | U20b | Complete and published (v4.3) |
+| F34 | Ultimate enemy Light = max(your Light, mission Light) + 50 | U20b | Complete and published (v4.3) |
+| F35 | Legendary 1.25x and Ultimate 1.5x enemy density on waves and boss adds, stacking with fireteam scaling | U20b | Complete and published (v4.3) |
