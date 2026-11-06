@@ -204,7 +204,7 @@ export const IO_TERRAIN = [
   ...mirror({ type: 'ramp', x0: -62, z0: 88, x1: -62, z1: 64, width: 9, h0: 14, h1: 22, edge: 2 }),
   ...mirror({ type: 'ramp', x0: -26, z0: -20, x1: -50, z1: -16, width: 9, h0: IO.floor, h1: 14, edge: 2 }),
   { type: 'ramp', x0: 150, z0: -20, x1: 150, z1: -48, width: 10, h0: IO.floor, h1: IO.base, edge: 3 },
-  { type: 'ramp', x0: -96, z0: -150, x1: -120, z1: -150, width: 9, h0: IO.floor, h1: IO.charon, edge: 3 },
+  { type: 'ramp', x0: -150, z0: -96, x1: -150, z1: -120, width: 9, h0: IO.floor, h1: IO.charon, edge: 3 }, // H18: up the pad's open north side (it started against the Pyramidion's face)
 ];
 
 /**
@@ -492,6 +492,7 @@ export const PATROL_DATA = {
     lightPool: 8,
     merge: true,
     seaY: TITAN.sea, // world.js: the ocean plane lies at the water line, so the rig legs go straight down into it
+    seaHoles: TITAN_DECKS.filter((d) => d[5] === 'x').map((d) => d.slice(1, 5)), // H18: no water inside the tube, the gallery and the chamber
     hideCliffs: 0.35, // world.js buildGround: the plateaus' sheer skirts are not drawn, so the rigs stand on open legs and the bridges hang in the air
     // overcast and teal: the colours of the rigs stand out against it
     colors: { sky: 0x86a9a3, fog: 0x8ba9a0, hemiTop: 0xd0e4dc, hemiBot: 0x3a4a44, sea: 0x2b5550 },

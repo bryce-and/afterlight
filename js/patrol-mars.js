@@ -84,11 +84,11 @@ export default {
       road(K, [[-10, 0], [-30, -6]], 'track');
       road(K, [[0, 110], [-50, 60], [-96, 46]], 'track'); road(K, [[-96, 46], [-96, 12]], 'track', 8);
       road(K, [[0, 120], [-24, 126]], 'track', 8);
-      road(K, [[-96, -30], [-100, -48], [-70, -80], [-40, -98]], 'track', 9);
+      road(K, [[-96, -30], [-100, -48], [-90, -76], [-77, -94]], 'track', 9);   // H18: to the city street at x -72, then over the buried tunnel at z -94
       road(K, [[0, 110], [62, 100], [84, 84]], 'cabal'); road(K, [[62, 100], [112, 108]], 'cabal');
       road(K, [[0, -62], [50, -60]], 'track', 9); road(K, [[50, -60], [30, -94], [30, -122]], 'city');
       road(K, [[0, -62], [0, -170]], 'city', 10);
-      for (const z of [-94, -122, -150]) { road(K, [[12, z], [100, z]], 'city'); road(K, [[-12, z], [-54, z]], 'city'); }
+      for (const z of [-94, -122, -150]) { road(K, [[12, z], [100, z]], 'city'); road(K, [[-12, z], [z === -122 ? -51 : -54, z]], 'city'); } // H18: -122 stops at the station roof
       road(K, [[-72, -62], [-72, -166]], 'city', 8);
       for (const z of [-94, -122, -150]) road(K, [[-72, z], [-112, z]], 'city');
 
@@ -175,9 +175,13 @@ export default {
 
       // ================================================================ the subway: a sunken tunnel under the west side, roofed by a collapsed slab
       const SX = -62;                                                              // the city bed is 5 m up; the tunnel floor is 0
-      K.box(SX, -115, 9.2, 4.2, 64, 0x7d725f, { y: 3.8, abs: true });             // the slab: its top is 3 m above the city, so nothing walks on it
-      K.box(SX, -115, 17.2, 4.2, 22, 0x7d725f, { y: 3.8, abs: true });
-      for (const [x, z, s] of [[SX - 3, -90, 3], [SX + 2, -100, 3.4], [SX - 2, -132, 3], [SX + 3, -142, 3.2], [SX, -124, 2.8], [SX + 1, -108, 3]]) K.mesh(new THREE.DodecahedronGeometry(s, 0), 0x8a7a66, x, 8.6, z, { collide: false });
+      // H18: the roof is buried: its top is the street (5 m) and it covers the sloped trench edges too, so the subway is a real tunnel you walk over.
+      // The nav grid keeps the tunnel floor (one height per cell), so enemies use the tunnel and go round the roof; players can cross it.
+      K.box(SX, -115, 13.2, 1.2, 64, 0x7d725f, { y: 3.8, abs: true });
+      K.box(SX, -115, 21.2, 1.2, 22, 0x7d725f, { y: 3.8, abs: true });
+      for (const [x, z, s] of [[SX - 3, -90, 1.2], [SX + 4, -100, 1.4], [SX - 4, -132, 1.1], [SX + 3, -142, 1.3]]) K.mesh(new THREE.DodecahedronGeometry(s, 0), 0x8a7a66, x, 5 + s * 0.35, z, { collide: 0.7, scale: [1, 0.6, 1] }); // rubble on the street over it
+      // the streets cross the roof (z -94 over the tunnel, z -122 over the station)
+      for (const [z, w] of [[-94, 14], [-122, 22]]) K.box(SX, z, w, 0.06, 8, 0xa39478, { y: 5.0, abs: true, collide: false }).userData.noCollide = true;
       // the portals: a lintel and two jambs at each end
       for (const [pz, sg] of [[-82.4, 1], [-148.4, -1]]) {
         K.box(SX, pz, 11, 1.4, 1.2, STONE2, { y: 4.0, abs: true });

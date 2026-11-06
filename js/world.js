@@ -132,8 +132,16 @@ export function buildLevel(loc, def) {
   else if (loc.sea || set.abyss) {
     // U17f: an abyss map draws a matte cloud sea there instead of water
     const seaMat = set.abyss ? new THREE.MeshStandardMaterial({ color: C.sea, roughness: 1, metalness: 0, emissive: C.sea, emissiveIntensity: 0.35 }) : new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.25, metalness: 0.3 });
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2), seaMat);
-    sea.position.set(0, set?.seaY ?? -0.7, (bounds.minZ + bounds.maxZ) / 2);
+    const zc = (bounds.minZ + bounds.maxZ) / 2;
+    let seaGeo = new THREE.PlaneGeometry(1400, 1400, 1, 1);
+    if (set.seaHoles?.length) { // H18: no water inside enclosed rooms below the water line (Titan's tube and gallery): the plane has a hole over each
+      const sh = new THREE.Shape([new THREE.Vector2(-700, -700), new THREE.Vector2(700, -700), new THREE.Vector2(700, 700), new THREE.Vector2(-700, 700)]);
+      // shape y becomes world -z after the rotation below, measured from the plane's centre zc
+      for (const [x0, x1, z0, z1] of set.seaHoles) sh.holes.push(new THREE.Path([new THREE.Vector2(x0, zc - z0), new THREE.Vector2(x0, zc - z1), new THREE.Vector2(x1, zc - z1), new THREE.Vector2(x1, zc - z0)]));
+      seaGeo = new THREE.ShapeGeometry(sh);
+    }
+    const sea = new THREE.Mesh(seaGeo.rotateX(-Math.PI / 2), seaMat);
+    sea.position.set(0, set?.seaY ?? -0.7, zc);
     scene.add(sea);
   }
 

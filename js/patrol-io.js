@@ -212,8 +212,8 @@ function scar(K) {
     K.box(X + dx, Z + dz, w, h, d, pick(K, [SULF, 0xd8c23c, 0xe9d86a]), { collide: false }).userData.noCollide = true; // H17: flat sulfur slabs, walk over them
   }
   // the ringed base
-  K.cyl(X, Z, 12.5, 0.5, CAB3, { sides: 16, collide: false });
-  K.cyl(X, Z, 10.5, 0.7, CAB2, { sides: 16, y: 0.5, collide: false });
+  K.cyl(X, Z, 12.5, 0.5, CAB3, { sides: 16 });          // H18: solid steps (you walked through the knee-high base)
+  K.cyl(X, Z, 10.5, 0.7, CAB2, { sides: 16, y: 0.5 });
   K.mesh(new THREE.TorusGeometry(11.6, 0.35, 5, 28).rotateX(Math.PI / 2), HAZ, X, 0.9, Z, { glow: 1.5 });
   K.mesh(new THREE.TorusGeometry(8.5, 0.25, 5, 24).rotateX(Math.PI / 2), 0xff6a24, X, 1.5, Z, { glow: 1.8 });
   K.mesh(new THREE.CylinderGeometry(7.4, 7.4, 0.9, 16), 0xff5a1a, X, 1.3, Z, { glow: 1.4, collide: false }).userData.noCollide = true; // H17: glow disc
@@ -492,7 +492,10 @@ function block(K) {
   for (const q of [-1, 1]) ab(K, q * 40, IO.plinth, -81.4, 60, 1.1, 0.8, 0xff7a3a, { glow: 2.2 }); // H17: on the floor (it hung 0.3 m above it)
   // solid where the block meets the ground beside and behind the hall (its underside is high overhead everywhere else a player can go)
   for (const sx of [-1, 1]) {
-    K.ocollider(sx * (78 + hw) / 2, -248, hw - 78, 90, 228, 0); K.ocollider(sx * 81, -119, 6, 90, 32, 0); // the ground at 4 m, and the plinth's lip
+    // H18: both start at the 4 m floor (they took the ground at their centre, 8.8 m on a rise, so you walked under them into the face); the side one
+    // reaches 6 m past the face over the relief that stands off it. The road to Terrabase Charon no longer runs along this face.
+    const fx = sx * (78 + hw + 6) / 2;
+    K.ocollider(fx, -248, hw + 6 - 78, 90, 228, 0, IO.floor - K.ground(fx, -248)); K.ocollider(sx * 81, -119, 6, 90, 32, 0, IO.floor - K.ground(sx * 81, -119)); // the ground at 4 m, and the plinth's lip
   }
   K.ocollider(0, -300, W, 90, 124, 0);
 }
@@ -605,8 +608,8 @@ export default {
       road(K, [[-4, 150], [-18, 128], [-52, 114]], 7);
       road(K, [[0, 16], [-60, 16], [-104, 16], [-130, 14], [-160, 10]], 9);
       road(K, [[0, 16], [60, 16], [112, 18], [142, 12]], 9);
-      road(K, [[-104, 16], [-100, -20], [-98, -74], [-104, -112], [-112, -140], [-116, -150]], 9);   // bends west of the Pyramidion's grounded side
-      road(K, [[-116, -150], [-124, -150]], 9);
+      road(K, [[-104, 16], [-100, -20], [-98, -74], [-124, -88], [-150, -92]], 9);   // H18: west to Terrabase Charon's north ramp, clear of the Pyramidion's face
+      road(K, [[-150, -92], [-150, -124]], 9);
       road(K, [[142, 12], [150, -4], [150, -20], [150, -48], [150, -66]], 9, 'cabal');
       for (const s of [-1, 1]) {
         road(K, [[s * 3, 100], [s * 22, 100], [s * 52, 100]], 8);

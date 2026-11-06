@@ -119,6 +119,8 @@ function hostUseLife(id) {
   if (M.lives <= 0) return; // no lives left: only a teammate can bring them back
   M.lives--;
   broadcast({ t: 'lv', n: M.lives });
+  // H18: the last life does not bring you back (as solo revives since H17): you stay down for a teammate, and a full wipe ends the run
+  if (M.lives <= 0 && !M.patrol) { ui.feed('The last life is spent  ·  only a teammate can revive you now', '#ff8a6b'); return; }
   ui.feed(`A life was used  ·  ${M.lives} left`, '#ffb36b');
   revivePlayer(id, false);
 }

@@ -61,7 +61,8 @@ export function auditCollision(G) {
   G.scene.updateMatrixWorld(true);
   const L = G.level, b = L.bounds, ga = L.groundAt || (() => 0);
   const doorCols = new Set((L.doors || []).map((d) => d.collider));
-  const cols = G.colliders.filter((c) => !doorCols.has(c) && c.max.x - c.min.x < 150 && c.max.z - c.min.z < 150);
+  // the invisible walls round the map stand outside the bounds; anything reaching into the play area is judged, however long
+  const cols = G.colliders.filter((c) => !doorCols.has(c) && c.max.x > b.minX + 0.5 && c.min.x < b.maxX - 0.5 && c.max.z > b.minZ + 0.5 && c.min.z < b.maxZ - 0.5);
   const meshes = solidMeshes(G.scene);
   const nearM = hash(meshes, (e) => e.bb), nearC = hash(cols, (c) => c);
   const miss = new Map(), phan = new Map();

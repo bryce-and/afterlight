@@ -311,8 +311,9 @@ export class Player {
         // downed: teammates can revive us; when the timer runs out a pooled life brings us back
         this.downT -= dt;
         if (this.downT <= 0 && !this.lifeAsked && M.lives > 0) { this.lifeAsked = true; requestLife(); }
-        ui.updateDeath(M.lives <= 0 ? 'No lives left: a teammate must revive you'
-          : this.downT > 0 ? `Reviving in ${Math.ceil(this.downT)}  ·  uses a life (${M.lives} left)` : 'Reviving…');
+        const last = M.lives <= 1 && !M.patrol; // H18: the last life does not revive (see coop.js hostUseLife)
+        ui.updateDeath(M.lives <= 0 || (last && this.downT <= 0) ? 'No lives left: a teammate must revive you'
+          : last ? `Last life: a teammate must revive you in ${Math.ceil(this.downT)}` : this.downT > 0 ? `Reviving in ${Math.ceil(this.downT)}  ·  uses a life (${M.lives} left)` : 'Reviving…');
       } else {
         this.respawnT -= dt;
         ui.updateDeath(this.respawnT > 0 ? (M.failing ? `Mission failed in ${Math.ceil(this.respawnT)}` : `Reviving in ${Math.ceil(this.respawnT)}`) : '');

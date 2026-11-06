@@ -5,6 +5,18 @@
 
 export const RELEASES = [
   {
+    version: '4.0.2', name: 'Hotfix', date: '2026-11-06', accent: '#ffb547', glyph: '✚',
+    summary: 'A buried Mars subway, a new road to Terrabase Charon, a dry Titan gallery, and the last co-op life.',
+    notes: [
+      'Mars patrol: the subway is now a real tunnel under the city. Its roof sits level with the street, the streets cross over it, and the road from the Scablands no longer runs into the trench',
+      'Io patrol: Terrabase Charon has a new ramp on its north side with the road running up to it, and the Pyramidion\'s side walls are solid at ground level (you could walk into them)',
+      'Io patrol: the ringed base of the drill at Giant\'s Scar is solid',
+      'Titan patrol: the sea no longer shows inside the descent tube, the Sunken Gallery and the chamber',
+      'Fireteams: the last pooled life no longer brings you back. You stay down for a teammate, and if everyone goes down the run ends (as solo revives since 4.0.1)',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.0.1', name: 'Hotfix', date: '2026-11-06', accent: '#ffb547', glyph: '✚',
     summary: 'Solid Ground: pieces sit on the ground they stand on, collision fits what you see, and enemies no longer spawn in walls.',
     notes: [

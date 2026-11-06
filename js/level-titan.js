@@ -424,8 +424,8 @@ export default {
       {
         const ux = -18, uz = -22, L = Math.hypot(ux, uz), nx = -uz / L, nz = ux / L; // direction and normal of the ramp
         for (const s of [-1, 1]) {
-          rail(K, 4 + nx * 4.8 * s, -60 + nz * 4.8 * s, -14 + nx * 4.8 * s, -82 + nz * 4.8 * s, 2.4);
-          for (const t of [0.3, 0.7]) lamp(K, 4 + ux * t + nx * 4.8 * s, -60 + uz * t + nz * 4.8 * s, 5, AMBER, 3.2);
+          rail(K, 4 + nx * 4.8 * s, -60 + nz * 4.8 * s, -14 + nx * 4.8 * s, -82 + nz * 4.8 * s); // H18: the causeway is terrain now, so the rail follows it (was 2.4 m over it)
+          for (const t of [0.3, 0.7]) lamp(K, 4 + ux * t + nx * 4.8 * s, -60 + uz * t + nz * 4.8 * s, 5, AMBER);
         }
         K.box(-4, -72, 5, 2.6, 0.8, PALE2, { y: 3.2, collide: true }); // a deliberate chokepoint: a barrier with gaps either side
         hive(K, -22, -64, 1.4); hive(K, -2, -84, 1.2); creep(K, -14, -70, 10, 6);
@@ -618,10 +618,10 @@ export default {
 
       // ---- the gangway: out of the hall onto an open causeway down the hull, Saturn overhead ----
       for (const s of [-1, 1]) {
-        rail(K, 22, -34 + 4.8 * s, 46 + 4.8 * s * -1 * 0, -34 + 4.8 * s, 6);
-        rail(K, 46 + 4.8 * s, -34, 46 + 4.8 * s, -80, 6);
+        rail(K, 22, -34 + 4.8 * s, 46, -34 + 4.8 * s); // H18: the gangway is terrain, so its rails follow it (were 6 m and 3 m over it)
+        rail(K, 46 + 4.8 * s, -34, 46 + 4.8 * s, -80);
       }
-      rail(K, 46 - 4.8, -80 + 4.8, 24 + 4.8, -80 + 4.8, 3); rail(K, 46 - 4.8, -80 - 4.8, 24 + 4.8, -80 - 4.8, 3);
+      rail(K, 46 - 4.8, -80 + 4.8, 24 + 4.8, -80 + 4.8); rail(K, 46 - 4.8, -80 - 4.8, 24 + 4.8, -80 - 4.8);
       for (const [x, z] of [[40, -42], [51, -56], [40, -70], [51, -66]]) lamp(K, x, z, 4.5, AMBER, K.ground(x, z) - K.ground(46, z) + 0.0);
       for (const z of [-44, -58, -72]) K.box(46, z, 11, 0.4, 0.4, K.C.metal, { y: 5.6, collide: false });
       hive(K, 38, -52, 1.2, { y: 0 }); creep(K, 46, -64, 4, 6);
