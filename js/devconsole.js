@@ -82,7 +82,7 @@ function open() {
       if (wasPlaying && (G.state === 'paused' || G.mpMenu)) ui.resumeGame();
     },
   };
-  say('Dev console. /give <name>   /gamerule <rule>   /playerlevel <n>   (Tab completes, Esc closes)');
+  say('Dev console. /give <name>   /gamerule <rule>   /playerlevel <n>   /playerlight <n|off>   (Tab completes, Esc closes)');
   if (wasPlaying && !G.mpMenu) unlockPointer();
   input.focus();
 }

@@ -38,6 +38,7 @@ import { findFloats } from './floatcheck.js';
 import { laid } from '../js/patrol-kit.js';
 import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
+import * as LI from '../js/light.js';
 import * as Q from '../js/quests.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
@@ -2519,6 +2520,46 @@ test('H17 laid(): every piece of a strip meets the ground at both ends on a slop
     const p = new THREE.Vector3(sx * m.geometry.parameters.width / 2, -0.025, 0).applyMatrix4(m.matrixWorld);
     ok(Math.abs(p.y - ground(p.x, p.z)) < 0.12, `end at ${p.x.toFixed(1)},${p.z.toFixed(1)} is ${(p.y - ground(p.x, p.z)).toFixed(2)} off the ground`);
   }
+});
+
+test('U19 Light gap: over-Light caps at +10; at 0 nothing changes; small gaps match the old curve', () => {
+  ok(LI.lightGap(300, 250) === 10, 'over-Light capped at +10');
+  ok(LI.lightGap(200, 230) === -30, 'under-Light gap is not clamped');
+  const z = LI.lightMults(0);
+  ok(z.playerDmgMult === 1 && z.incomingMult === 1 && !z.immune, 'gap 0 is neutral');
+  const o = LI.lightMults(10);
+  ok(Math.abs(o.playerDmgMult - 1.2) < 1e-9 && Math.abs(o.incomingMult - 0.75) < 1e-9, '+10 as before');
+  const u = LI.lightMults(-10);
+  ok(Math.abs(u.playerDmgMult - 0.81) < 1e-9 && Math.abs(u.incomingMult - 1.28) < 1e-9, `-10: ${u.playerDmgMult} dealt, ${u.incomingMult} taken`);
+});
+
+test('U19 Light gap: 50 under is beatable but extremely hard, 51 under is immune', () => {
+  const h = LI.lightMults(-50);
+  ok(!h.immune && Math.abs(h.playerDmgMult - 0.25) < 1e-9 && Math.abs(h.incomingMult - 3) < 1e-9, `-50: ${h.playerDmgMult} dealt, ${h.incomingMult} taken`);
+  const i = LI.lightMults(-51);
+  ok(i.immune && i.playerDmgMult === 0 && i.incomingMult === LI.LIGHT.immuneIncoming, '-51 is immune');
+  ok(LI.lightMults(-200).immune, 'far under is immune');
+  let prevD = 2, prevI = 0;
+  for (let g = 10; g >= -50; g--) {
+    const m = LI.lightMults(g);
+    ok(m.playerDmgMult <= prevD && m.incomingMult >= prevI, `monotone at ${g}`);
+    prevD = m.playerDmgMult; prevI = m.incomingMult;
+  }
+});
+
+test('U19 fireteam Light: a member below the leader plays at the leader\'s Light; above keeps their own; solo is own', () => {
+  ok(LI.effectiveLight(180, 220) === 220, 'raised to the leader');
+  ok(LI.effectiveLight(240, 220) === 240, 'kept when higher');
+  ok(LI.effectiveLight(180, undefined) === 180, 'solo');
+  ok(LI.effectiveLight(180, null) === 180, 'no leader Light sent');
+});
+
+test('U19 scrambled names: stable, same length, spaces kept, never the real name', () => {
+  const a = LI.scrambleName('Dreg of House Dusk'), b = LI.scrambleName('Dreg of House Dusk');
+  ok(a === b, 'stable');
+  ok([...a].length === 'Dreg of House Dusk'.length, 'same length');
+  ok(a.split(' ').length === 4, 'spaces kept');
+  ok(a !== 'Dreg of House Dusk' && !/[A-Za-z]/.test(a), 'no readable letters');
 });
 
 let pass = 0, fail = 0;

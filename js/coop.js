@@ -74,13 +74,13 @@ export function onMissionStart() {
 }
 
 export function launchFireteam(li, mi) {
-  if (net.isHost) broadcast({ t: 'start', li, mi });
+  if (net.isHost) broadcast({ t: 'start', li, mi, lp: playerPower(G.save) }); // U19: members play at no less than the leader's Light
   startMission(li, mi);
 }
 
 /** Host: launch the patrol zone of destination li for the whole fireteam. */
 export function launchPatrol(li) {
-  if (net.isHost) broadcast({ t: 'start', li, mi: -1 });
+  if (net.isHost) broadcast({ t: 'start', li, mi: -1, lp: playerPower(G.save) });
   startPatrol(li);
 }
 
@@ -90,7 +90,7 @@ export function announcePatrolReward(pos, n, xp) { if (net.isHost) broadcast({ t
 /** Host: launch an activity (Horde / Endless) for the whole fireteam on a shared arena seed. */
 export function launchActivity(actId) {
   const seed = newSeed();
-  if (net.isHost) broadcast({ t: 'start', act: actId, seed });
+  if (net.isHost) broadcast({ t: 'start', act: actId, seed, lp: playerPower(G.save) });
   startActivity(actId, seed);
 }
 
@@ -415,6 +415,7 @@ const inMission = () => G.mission && ['playing', 'paused'].includes(G.state);
 
 net.on('start', (m) => {
   if (G.mission) abandonMission(true);
+  G.leaderLight = m.lp; // U19: read by combatLight() while this machine is a member
   ui.hideOverlays();
   if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi);
   ui.feed('Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');

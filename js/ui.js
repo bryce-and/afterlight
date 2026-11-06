@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { G, lockPointer, unlockPointer } from './state.js';
+import { scrambleName } from './light.js';
 import { SPEAKERS, CHAPTERS, linesFor, lineDuration } from './story.js';
 import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, activeMods, energyCap, energyUsed, usesCharge } from './armor.js';
@@ -1306,7 +1307,7 @@ export function updateHUD(dt) {
   const boss = G.enemies.find((e) => e.isBoss && e.alive && e.spawnT >= 1) || null;
   setClass(hud.boss, 'boss', 'hidden', !boss);
   if (boss) {
-    setText(hud.bossName, 'bn', boss.name);
+    setText(hud.bossName, 'bn', M.lightImmune ? scrambleName(boss.name) : boss.name); // U19: immune enemies wear scrambled names
     setStyle(hud.bossHp, 'bh', 'width', `${(boss.hp / boss.maxHp) * 100}%`);
     setStyle(hud.bossSh, 'bs', 'width', `${(boss.shield / boss.maxShield) * 100}%`);
     setStyle(hud.bossSh, 'bsc', 'background', ELEMENTS[boss.shieldEl].color);
@@ -1456,10 +1457,10 @@ let dmgSide = 1;
 export function damageNumber(enemy, pos, amount, o = {}) {
   let el = dmgPool.pop();
   if (!el) { el = document.createElement('div'); $('#dmg-layer').appendChild(el); }
-  el.className = 'dmgnum' + (o.crit ? ' crit' : '') + (o.weak ? ' weak' : '');
+  el.className = 'dmgnum' + (o.immune ? ' immune' : o.crit ? ' crit' : '') + (o.weak ? ' weak' : '');
   el.style.color = o.shield ? ELEMENTS[o.shield].color : '';
   el.style.display = 'block';
-  el.textContent = Math.max(1, Math.round(amount));
+  el.textContent = o.immune ? 'IMMUNE' : Math.max(1, Math.round(amount)); // U19: the immune damage marker
   dmgSide = -dmgSide;
   const p = pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.2, (Math.random() - 0.5) * 0.3));
   dmgActive.push({ el, enemy, pos: p, amount, born: G.time, life: 0.8, crit: !!o.crit, side: dmgSide * (0.8 + Math.random() * 0.4) });
@@ -1502,8 +1503,10 @@ function updateEnemyPlate(dt) {
   const e = G.player.dead ? null : aimedEnemy();
   if (e) {
     if (e !== plateE) {
-      plateE = e; setText(hud.plateName, 'epn', e.name);
-      if (cache.get('epf') !== e.faction) { cache.set('epf', e.faction); hud.plateIco.innerHTML = factionIcon(e.faction); hud.plateIco.title = FACTION_NAMES[e.faction]; }
+      const imm = !!G.mission?.lightImmune; // U19: 51+ under-Light, a "?" in place of the faction emblem and a scrambled name
+      plateE = e; setText(hud.plateName, 'epn', imm ? scrambleName(e.name) : e.name);
+      const fk = imm ? '?' : e.faction;
+      if (cache.get('epf') !== fk) { cache.set('epf', fk); hud.plateIco.innerHTML = imm ? '<span class="ep-unknown">?</span>' : factionIcon(e.faction); hud.plateIco.title = imm ? 'Unknown' : FACTION_NAMES[e.faction]; }
       setClass(hud.plate, 'epm', 'major', e.tier === 'major'); // orange bar for majors, red for minors (U13b)
     }
     plateHold = PLATE_HOLD;

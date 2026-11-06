@@ -22,6 +22,8 @@ import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
 import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE } from './combat.js';
 import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from './tiers.js';
 import { WEAKEN_MULT } from './status.js';
+import { effectiveLight, lightGap, lightMults, scrambleName } from './light.js';
+import { DEV } from './devcommands.js';
 import { buildUnlocksAt } from './subclass.js';
 import { castFx } from './abilities.js';
 import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction, baseExtras, ACTIVITY_OWN } from './factions.js';
@@ -64,15 +66,15 @@ export function startMission(li, mi) {
   G.scene.add(G.camera);
   initEffects(G.scene);
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
-  const pp = playerPower(G.save);
-  const delta = clamp(pp - def.power, -40, 10);
+  const pp = combatLight();
+  const L = lightMults(lightGap(pp, def.power));
   onMissionStart();
   const fireteam = net.count();
   G.mission = {
     fireteam, coop: net.active, remote: net.isClient,
     loc, def, li, mi, g, phase: 'travel', current: 0, revives: 3, lives: livesFor(fireteam), bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
-    playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
+    playerDmgMult: L.playerDmgMult, incomingMult: L.incomingMult, lightImmune: L.immune,
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
     zones: level.zones.map((z, i) => ({ ...z, idx: i, state: 'pending', plan: zonePlan(def.id, i, level.zones.length, z.isBoss), waves: makeWaves(i, z.isBoss, g, def, fireteam, loc, zonePlan(def.id, i, level.zones.length, z.isBoss)), waveIdx: 0, enemies: [] })),
   };
@@ -84,10 +86,21 @@ export function startMission(li, mi) {
   stinger('start');
   ui.enterMission();
   ui.centerMessage(def.name, `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
-  if (delta < -4) setTimeout(() => ui.feed(`Underpowered by ${-delta}: enemies hit harder and take less damage`, '#ff7a6b'), 1500);
+  lightWarning(L);
   sfx.areaClear();
   ui.clearSubtitles();
   say('start');
+}
+
+/** U19: this player's Light for combat math: own Light, raised to the leader's when a fireteam member. Loot still rolls on own Light. */
+export function combatLight() {
+  return effectiveLight(DEV.light ?? playerPower(G.save), net.isClient ? G.leaderLight : undefined); // DEV.light: /playerlight
+}
+
+/** U19: the start-of-activity feed line for being under-Light. */
+export function lightWarning(L) {
+  if (L.immune) setTimeout(() => ui.feed(`Underpowered by ${-L.gap}: enemies are immune and nearly kill in one hit`, '#ff4a3d'), 1500);
+  else if (L.gap < -4) setTimeout(() => ui.feed(`Underpowered by ${-L.gap}: enemies hit harder and take less damage`, '#ff7a6b'), 1500);
 }
 
 export function retryMission() {
@@ -321,7 +334,7 @@ function updateMission(dt) {
         z.waveIdx = 1;
         placeObjective(z);
         say(z.isBoss ? 'boss' : `z${z.idx}`);
-        if (z.isBoss) { banner(M.def.boss.name, `${FACTIONS[z.plan?.open]?.name || M.loc.faction} champion`, 3, 'bossIntro'); stinger('boss'); }
+        if (z.isBoss) { banner(M.lightImmune ? scrambleName(M.def.boss.name) : M.def.boss.name, `${FACTIONS[z.plan?.open]?.name || M.loc.faction} champion`, 3, 'bossIntro'); stinger('boss'); }
         else banner(z.name, `${FACTIONS[z.plan?.open]?.name || M.loc.faction} presence detected`, 2.2, 'alert');
       }
     } else if (z.state === 'active') {
@@ -719,6 +732,10 @@ export function enemiesNear(pos, r, n = 99, exclude = null) {
 export function dealDamage(e, amount, o = {}) {
   if (!e.alive) return { killed: false, dealt: 0 };
   const M = G.mission;
+  if (M.lightImmune && !o.remoteHit) { // U19: 51+ under-Light, nothing this player does lands (a member's hits are judged on their own machine)
+    if (amount > 0 && !o.jolted && !o.companion) { ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), 0, { immune: true }); ui.hitmarker(false, false, false); }
+    return { killed: false, dealt: 0 };
+  }
   if (!o.raw && !o.crit && o.source === 'weapon' && e.status.has('judged')) o.crit = true; // Divinity's Judgment bubble: every weapon hit on it is a precision hit
   let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);
   // grenades and melees hit 40% harder than their listed numbers and keep pace with enemy health
@@ -1138,7 +1155,7 @@ export function startActivity(actId, seed) {
   if (!act) throw new Error(`Unknown activity ${actId}`);
   cleanupMission();
   onMissionStart();
-  const pp = playerPower(G.save);
+  const pp = combatLight(); // U19: activities scale to your Light (a fireteam member's is raised to the leader's)
   // difficulty starts at the hardest mission the player's Power has reached, then climbs every wave
   const g0 = Math.max(0, ALL_MISSIONS.filter((m) => m.power <= pp).length - 1);
   const fireteam = net.count();

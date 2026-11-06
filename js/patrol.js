@@ -49,7 +49,6 @@ export function startPatrol(li) {
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   onMissionStart();
   const g = li * 3 + 1;
-  const pp = playerPower(G.save), delta = clamp(pp - def.power, -40, 10);
   const fireteam = net.count();
   const hub = { center: level.spawn.clone(), name: loc.name, isBoss: false, idx: 0, state: 'active', waves: [], waveIdx: 0, enemies: [] };
   G.mission = {
@@ -58,7 +57,7 @@ export function startPatrol(li) {
     fireteam, coop: net.active, remote: net.isClient, revives: 3, lives: net.active ? 99 : livesFor(fireteam), bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     notice: PATROL_TUNE.notice, provoke: PATROL_TUNE.provoke, // U17g: enemies only see a player this close or one who just hurt them (coop.js pickTarget), and walk home when nobody is
-    playerDmgMult: Math.max(0.25, 1 + delta * 0.02), incomingMult: Math.max(0.6, 1 - delta * 0.025),
+    playerDmgMult: 1, incomingMult: 1, // U19: patrol zones scale to your Light, so the gap is always 0
     checkpoint: level.spawn.clone(), objective: patrolObjective(def), waypoint: null, chest: null, failing: false, doneT: 0,
   };
   G.time = 0;

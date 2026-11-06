@@ -9,6 +9,8 @@ import { playerPower, playerLevel, writeSave, UNLOCK } from './save.js';
 
 /** Session-only rules. Never saved, so a reload clears them. */
 export const DEV = { invulnerable: false, mayhem: false, infiniteammo: false, navdebug: false, destinationunlock: false };
+/** U19: /playerlight sets a session-only Light for combat math (null = your real Light). Never saved. */
+DEV.light = null;
 const RULE_NAMES = { invulnerable: 'Invulnerable', mayhem: 'Mayhem', infiniteammo: 'InfiniteAmmo', navdebug: 'NavDebug', destinationunlock: 'DestinationUnlock' };
 
 /** Every giveable item by display name: { name, kind, rarity, ... } (weapons keep their named entry, armor its slot and class). */
@@ -83,6 +85,18 @@ export const COMMANDS = {
       DEV[k] = val === undefined ? !DEV[k] : val === 'true';
       if (k === 'destinationunlock') { UNLOCK.all = DEV[k]; }
       return { ok: true, msg: `${RULE_NAMES[k]} is now ${DEV[k] ? 'ON' : 'OFF'}.` };
+    },
+  },
+  playerlight: {
+    usage: '/playerlight <0-400|off>',
+    options: () => ['off'],
+    run(args, ctx) {
+      const v = args.trim().toLowerCase();
+      if (v === 'off' || v === '') { DEV.light = null; return { ok: true, msg: `Combat Light is your own again (${playerPower(ctx.save)}). Applies from the next launch.` }; }
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 0 || n > 400) return { ok: false, msg: 'Light must be a whole number from 0 to 400, or "off".' };
+      DEV.light = n;
+      return { ok: true, msg: `Combat Light is ${n} for this session (not saved). Applies from the next launch.` };
     },
   },
   playerlevel: {

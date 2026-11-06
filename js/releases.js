@@ -5,6 +5,19 @@
 
 export const RELEASES = [
   {
+    version: '4.1', name: 'Light and Scaling', date: '2026-11-06', accent: '#ffe08a', glyph: '✦',
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="lsBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07090f"/><stop offset="0.6" stop-color="#1a1630"/><stop offset="1" stop-color="#3a2a14"/></linearGradient><radialGradient id="lsGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffe08a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffe08a" stop-opacity="0"/></radialGradient><radialGradient id="lsRed" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff4a3d" stop-opacity="0.55"/><stop offset="1" stop-color="#ff4a3d" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#lsBg)"/><path d="M0 150 Q90 132 170 142 T320 136 V180 H0Z" fill="#0d0a14"/><circle cx="86" cy="104" r="46" fill="url(#lsGlow)"/><g transform="translate(86 104)"><path d="M0 -24 L16 0 L0 24 L-16 0Z" fill="#ffe08a"/><path d="M0 -24 L16 0 L0 4Z" fill="#fff3c4"/><circle r="5" fill="#07090f"/><circle r="2.2" fill="#ffe08a"/></g><g fill="#ffe08a" opacity="0.9"><rect x="132" y="120" width="10" height="10"/><rect x="148" y="110" width="10" height="20"/><rect x="164" y="98" width="10" height="32"/><rect x="180" y="84" width="10" height="46" fill="#ff9a2e"/><rect x="196" y="68" width="10" height="62" fill="#ff4a3d"/></g><circle cx="262" cy="70" r="50" fill="url(#lsRed)"/><g transform="translate(262 70)"><path d="M-30 30 L-18 -14 L0 -34 L18 -14 L30 30 L12 18 L0 34 L-12 18Z" fill="#14060a" stroke="#ff4a3d" stroke-width="1.5"/><text x="0" y="10" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="30" fill="#ff4a3d">?</text></g><g stroke="#fff" stroke-opacity="0.25" stroke-dasharray="2 4" fill="none"><path d="M110 104 Q180 40 232 66"/></g></svg>',
+    summary: 'Your Light matters now. Some enemies are far stronger than you, and you will know it the moment you see them.',
+    notes: [
+      'Enemies up to 50 Light above you can still be beaten, but it is extremely hard: at 50 under you deal a quarter of your damage and take three times as much',
+      'Enemies 51 or more Light above you are immune. Your hits show IMMUNE, their plates show a "?" in place of the faction emblem, their names are scrambled, and their attacks nearly kill in one hit',
+      'A warning at the start of a mission tells you when you are underpowered, and when enemies are immune',
+      'Horde, Endless and patrol zones scale to your Light, so they are never out of reach',
+      'Fireteams: a member below the leader\'s Light plays at the leader\'s Light. Loot still drops at your own Light',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.0.3', name: 'Hotfix', date: '2026-11-06', accent: '#ffb547', glyph: '✚',
     summary: 'Railings sit on their walkways, and doorways and walkways are clear of pieces that reached into them.',
     notes: [
@@ -695,11 +708,6 @@ export const titleRelease = () => RELEASES.find((r) => r.version.split('.').leng
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
 export const ROADMAP = [
-  {
-    name: 'Light and Shadow', status: 'On the Horizon', accent: '#ffe08a', glyph: '✦',
-    teaser: 'Some enemies out there are far stronger than you. Soon you will know it before you get close.',
-    themes: ['Light', 'Scaling'],
-  },
   {
     name: 'The Emperor\'s Shadow', status: 'Future Transmission', accent: '#c9a046', glyph: '♛',
     teaser: 'A golden vessel drifts at the edge of the system. Someone aboard has been watching you for a very long time.',
