@@ -12,7 +12,8 @@ import { updateNavDebug } from './navdebug.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
 import { addItem, sendToPostmaster, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
-import { rollRarity, rewardAt, subclassesUnlockedAt, XP, LIGHT_CAP, capRarity, maxRarityIndex } from './progression.js';
+import { rollRarity, rewardAt, subclassesUnlockedAt, XP, capRarity, maxRarityIndex } from './progression.js';
+import { tierOf, tierPower, tierEnemyLight, tierClears, recordClear, capRoll, selectedTier } from './campaign.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection, getSection, musicSectionFor, stinger } from './music.js';
 import * as ui from './ui.js';
@@ -53,8 +54,10 @@ function snapSun(L, pos) {
 // ---------------------------------------------------------------------------
 // Mission lifecycle
 // ---------------------------------------------------------------------------
-export function startMission(li, mi) {
+/** `tier`: Base, Legendary or Ultimate (U20a). Solo: the Director pick. A fireteam plays the leader's pick (sent with 'start'). */
+export function startMission(li, mi, tier = selectedTier(G.save)) {
   const loc = LOCATIONS[li], def = loc.missions[mi], g = li * 3 + mi;
+  const T = tierOf(tier), power = tierPower(def.power, T.id);
   cleanupMission();
   const level = buildLevel(loc, def);
   G.level = level;
@@ -67,12 +70,13 @@ export function startMission(li, mi) {
   initEffects(G.scene);
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const pp = combatLight();
-  const L = lightMults(lightGap(pp, def.power));
+  const enemyLight = tierEnemyLight(power, T.id, pp);
+  const L = lightMults(lightGap(pp, enemyLight));
   onMissionStart();
   const fireteam = net.count();
   G.mission = {
     fireteam, coop: net.active, remote: net.isClient,
-    loc, def, li, mi, g, phase: 'travel', current: 0, revives: 3, lives: livesFor(fireteam), bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
+    loc, def, li, mi, g, phase: 'travel', current: 0, revives: T.lethal ? 1 : 3, lives: T.lethal ? 0 : livesFor(fireteam), tier: T.id, power, enemyLight, bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: L.playerDmgMult, incomingMult: L.incomingMult, lightImmune: L.immune,
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
@@ -85,8 +89,8 @@ export function startMission(li, mi) {
   playMusic(loc.id);
   stinger('start');
   ui.enterMission();
-  ui.centerMessage(def.name, `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
-  lightWarning(L);
+  ui.centerMessage(T.over ? `${def.name}  ·  ${T.name}` : def.name, T.over ? `${loc.name}  ·  Enemies ◆ ${enemyLight} (your Light +${T.over})${T.lethal ? '  ·  No revives' : ''}` : `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
+  if (!T.over) lightWarning(L);
   sfx.areaClear();
   ui.clearSubtitles();
   say('start');
@@ -106,7 +110,7 @@ export function lightWarning(L) {
 export function retryMission() {
   const M = G.mission;
   if (M.act) startActivity(M.act.id, newSeed());
-  else startMission(M.li, M.mi);
+  else startMission(M.li, M.mi, M.tier);
 }
 
 /** Pooled fireteam lives: 3 for two players, 5 for three (solo uses its own revives). */
@@ -221,7 +225,7 @@ export function spawnUnit(z, type, pos, o = {}) {
   const e = new Enemy(type, pos, {
     zone: z, hpMult: M.hpMult * (type === 'boss' ? (1 + M.g * 0.08) * FT.boss : FT.hp) * (o.hpFrac ?? 1), dmgMult: M.dmgMult * (type === 'boss' ? 1 : FT.dmg),
     element: o.element, name: o.name, model: o.model, faction: o.faction,
-    tier: o.tier || (def?.support || def?.life ? 'minor' : rollTier(cls, M.g)),
+    tier: o.tier || (def?.support || def?.life ? 'minor' : rollTier(cls, M.g, Math.random(), M.tier)),
     noDrops: o.noDrops, revived: o.revived, owner: o.owner, life: o.life, totemKind: o.totemKind, isClone: o.isClone,
   });
   G.enemies.push(e);
@@ -633,15 +637,16 @@ function openChest(auto = false) {
   sfx.chest();
   sparks(M.chest.pos.clone().setY(1), 0xf4c542, 30, 8, 0.1, 0.8);
   const pp = playerPower(G.save);
-  const first = !G.save.cleared[M.def.id];
+  const first = !tierClears(G.save, M.tier || 'base')[M.def.id];
   const n = first ? 3 : 2;
-  const base = Math.max(M.def.power, pp);
+  const cap = tierOf(M.tier).cap;
+  const base = Math.max(M.power ?? M.def.power, pp);
   const rewards = [];
   for (let i = 0; i < n; i++) {
     const lvl = playerLevel(G.save);
     let rIdx = capRarity(Math.max(i === 0 ? 2 : 1, rollRarity(lvl, first ? 5 : 2)), lvl);
     if (first && M.mi === M.loc.missions.length - 1 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
-    rewards.push(rollItem(Math.min(LIGHT_CAP, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
+    rewards.push(rollItem(Math.min(cap, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it, auto); }, 300 + i * 450));
   // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
@@ -653,7 +658,11 @@ function openChest(auto = false) {
   }
   const glimmer = 120 + M.g * 45;
   G.save.glimmer += glimmer;
-  G.save.cleared[M.def.id] = true;
+  const opened = recordClear(G.save, M.def.id, M.tier || 'base');
+  M.tierOpened = opened; // U20b turns these into unlock animations and reward menus
+  if (opened.all) setTimeout(() => ui.feed('Ultimate campaign cleared: Legendary and Ultimate are open for every Guardian', '#f0c040'), 1600);
+  else if (opened.ultimate) setTimeout(() => ui.feed('Ultimate campaign unlocked: pick it in the Director', '#f0c040'), 1600);
+  else if (opened.legendary) setTimeout(() => ui.feed('Legendary campaign unlocked: pick it in the Director', '#f0c040'), 1600);
   M.rewardGlimmer = glimmer;
   M.firstClear = first;
   M.rewards = rewards;
@@ -878,7 +887,7 @@ export function dropEngram(pos) {
   const M = G.mission;
   const pp = playerPower(G.save);
   const rIdx = rollRarity(playerLevel(G.save));
-  const power = clamp(Math.max(pp, M.def.power - 3) + randInt(-1, 2), 1, LIGHT_CAP);
+  const power = clamp(Math.max(pp, (M.power ?? M.def.power) - 3) + randInt(-1, 2), 1, tierOf(M.tier).cap);
   spawnPickup('engram', pos, rollItem(power, rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
 }
 
@@ -1361,7 +1370,7 @@ function openActChest() {
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
     if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
     rIdx = capRarity(rIdx, lvl); // never above what this level can use
-    rewards.push(rollItem(Math.min(LIGHT_CAP, pp + randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound));
+    rewards.push(rollItem(capRoll(pp, randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound)); // U20a: past 200 an activity holds your Light
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   const glimmer = 60 + c.wave * 12;

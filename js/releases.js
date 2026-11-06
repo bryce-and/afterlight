@@ -5,6 +5,20 @@
 
 export const RELEASES = [
   {
+    version: '4.2', name: 'Legend and Ultimate', date: '2026-11-06', accent: '#c58cff', glyph: '♆', artPending: true, // chained with U20b: the title artwork comes with the last of them
+    summary: 'The campaign has two harder tiers. Clear it to open Legendary, clear Legendary to open Ultimate, and pick your tier in the Director.',
+    notes: [
+      'Legendary: the same 18 missions, with enemies 25 Light above you and majors across the board. Missions run from Light 200 to 300, and the Light cap rises to 300',
+      'Ultimate: enemies 50 Light above you, even more majors, and no revives. One death and the mission starts over (in a fireteam, any death ends the run). Missions run from 300 to 350, and the cap rises to 350',
+      'Clear the base campaign to unlock Legendary; clear Legendary to unlock Ultimate. Clear Ultimate on any Guardian and both open for all of your Guardians',
+      'The Director has a Base / Legendary / Ultimate switch on every destination. Each tier keeps its own clears, and its missions open in order',
+      'Fireteams play the leader\'s pick',
+      'Equipped armor can be infused: Shift+Click it in the Character screen',
+      'Past Light 200, level rewards, Horde and Endless hold your Light instead of dropping you back to 200',
+      'Your saves carry over: your clears count as Base clears, and a Guardian who already finished the campaign has Legendary waiting',
+    ],
+  },
+  {
     version: '4.1', name: 'Light and Scaling', date: '2026-11-06', accent: '#ffe08a', glyph: '✦',
     art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="lsBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07090f"/><stop offset="0.6" stop-color="#1a1630"/><stop offset="1" stop-color="#3a2a14"/></linearGradient><radialGradient id="lsGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffe08a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffe08a" stop-opacity="0"/></radialGradient><radialGradient id="lsRed" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff4a3d" stop-opacity="0.55"/><stop offset="1" stop-color="#ff4a3d" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#lsBg)"/><path d="M0 150 Q90 132 170 142 T320 136 V180 H0Z" fill="#0d0a14"/><circle cx="86" cy="104" r="46" fill="url(#lsGlow)"/><g transform="translate(86 104)"><path d="M0 -24 L16 0 L0 24 L-16 0Z" fill="#ffe08a"/><path d="M0 -24 L16 0 L0 4Z" fill="#fff3c4"/><circle r="5" fill="#07090f"/><circle r="2.2" fill="#ffe08a"/></g><g fill="#ffe08a" opacity="0.9"><rect x="132" y="120" width="10" height="10"/><rect x="148" y="110" width="10" height="20"/><rect x="164" y="98" width="10" height="32"/><rect x="180" y="84" width="10" height="46" fill="#ff9a2e"/><rect x="196" y="68" width="10" height="62" fill="#ff4a3d"/></g><circle cx="262" cy="70" r="50" fill="url(#lsRed)"/><g transform="translate(262 70)"><path d="M-30 30 L-18 -14 L0 -34 L18 -14 L30 30 L12 18 L0 34 L-12 18Z" fill="#14060a" stroke="#ff4a3d" stroke-width="1.5"/><text x="0" y="10" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="30" fill="#ff4a3d">?</text></g><g stroke="#fff" stroke-opacity="0.25" stroke-dasharray="2 4" fill="none"><path d="M110 104 Q180 40 232 66"/></g></svg>',
     summary: 'Your Light matters now. Some enemies are far stronger than you, and you will know it the moment you see them.',

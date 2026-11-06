@@ -101,6 +101,14 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .loc-planet { font-family: var(--head); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--muted); }
 .loc-name { font-family: var(--head); font-weight: 700; font-size: 20px; }
 .loc-prog { font-size: 12px; color: var(--muted); }
+/* U20a: Base / Legendary / Ultimate pick in the Director */
+.tier-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 12px; }
+.tier-row small { flex-basis: 100%; font-size: 11px; color: var(--muted); }
+.tier-seg { flex: 1; min-width: 84px; padding: 7px 10px; font-family: var(--head); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-bottom: 3px solid rgba(255,255,255,0.15); color: var(--muted); }
+.tier-seg:hover:not(:disabled) { border-color: rgba(255,255,255,0.45); }
+.tier-seg.on { color: #fff; background: rgba(255,255,255,0.1); border-bottom-color: #fff; }
+.tier-seg.t-legendary.on { border-bottom-color: #c58cff; }
+.tier-seg.t-ultimate.on { border-bottom-color: #f0c040; }
 .missions { display: grid; gap: 10px; margin-bottom: 20px; }
 .mission { padding: 14px 16px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); transition: border-color 0.15s, background 0.15s; }
 .mission:hover:not(:disabled) { border-color: rgba(255,255,255,0.45); }

@@ -9,6 +9,7 @@ import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, c
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, INVENTORY_CAP, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock } from './save.js';
+import { CAMPAIGN_TIERS, tierOf, tierPower, tierClears, selectedTier, unlockedTiers } from './campaign.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { openInspect, openCollection, lootScreenOpen } from './loot-ui.js';
 import { RELEASES, ROADMAP, titleRelease } from './releases.js';
@@ -264,14 +265,23 @@ function lockedHint(s, li) {
   return li === 0 ? 'Locked' : esc(towerLockReason(s, li) || CHAPTERS[LOCATIONS[li].id]?.locked || 'Clear the previous destination to unlock.');
 }
 
+/** U20a: the Base / Legendary / Ultimate pick (only unlocked tiers show). A fireteam member sees it, but the leader's pick is what launches. */
+function tierRowHTML(s, tier) {
+  const open = unlockedTiers(s);
+  if (open.length < 2) return '';
+  const member = net.isClient;
+  return `<div class="tier-row" role="group" aria-label="Campaign">${open.map((id) => `<button class="tier-seg ${id === tier ? 'on' : ''} t-${id}" data-tier="${id}" ${member ? 'disabled' : ''}>${CAMPAIGN_TIERS[id].name}</button>`).join('')}${member ? "<small>The fireteam plays the leader's pick</small>" : ''}</div>`;
+}
+
 function renderDirector(main) {
   const s = G.save;
+  const tier = selectedTier(s), T = tierOf(tier), clears = tierClears(s, tier); // U20a: Base / Legendary / Ultimate
   G.menu.setMode('director');
-  G.menu.director.setup([...LOCATIONS.map((l, i) => ({ id: l.id, loc: l, locked: !isUnlocked(s, i, 0) })), { id: 'tower', loc: TOWER_LOC, locked: false }]);
-  if (dirFocus !== null && dirFocus !== 'tower' && !isUnlocked(s, dirFocus, 0)) dirFocus = null;
+  G.menu.director.setup([...LOCATIONS.map((l, i) => ({ id: l.id, loc: l, locked: !isUnlocked(s, i, 0, tier) })), { id: 'tower', loc: TOWER_LOC, locked: false }]);
+  if (dirFocus !== null && dirFocus !== 'tower' && !isUnlocked(s, dirFocus, 0, tier)) dirFocus = null;
   G.menu.director.focus(dirFocus === null ? null : dirId(dirFocus));
   const nodeHTML = [...LOCATIONS.map((l, i) => {
-    const un = isUnlocked(s, i, 0), done = l.missions.filter((mm) => s.cleared[mm.id]).length;
+    const un = isUnlocked(s, i, 0, tier), done = l.missions.filter((mm) => clears[mm.id]).length;
     return `<button class="dir-node ${un ? '' : 'locked'} ${dirFocus === i ? 'sel' : ''}" data-node="${i}" data-id="${l.id}" ${un ? '' : 'disabled'} title="${un ? '' : lockedHint(s, i)}">
       <span class="dn-label"><b>${un ? l.planetName : 'Locked'}</b><small>${un ? `${l.name}  ·  ${done}/${l.missions.length}` : lockedHint(s, i)}</small></span></button>`;
   }), `<button class="dir-node tower ${dirFocus === 'tower' ? 'sel' : ''}" data-node="tower" data-id="tower"><span class="dn-label"><b>The Tower</b><small>The Last City${dueStop(s) ? '  ·  Quest waiting' : ''}</small></span></button>`].join('');
@@ -291,9 +301,9 @@ function renderDirector(main) {
     selLoc = dirFocus;
     const loc = LOCATIONS[selLoc];
     const missions = loc.missions;
-    if (selMission === null || !isUnlocked(s, selLoc, selMission)) {
-      selMission = missions.findIndex((m, mi) => isUnlocked(s, selLoc, mi) && !s.cleared[m.id]);
-      if (selMission < 0) selMission = missions.reduce((acc, m, mi) => (isUnlocked(s, selLoc, mi) ? mi : acc), -1);
+    if (selMission === null || !isUnlocked(s, selLoc, selMission, tier)) {
+      selMission = missions.findIndex((m, mi) => isUnlocked(s, selLoc, mi, tier) && !clears[m.id]);
+      if (selMission < 0) selMission = missions.reduce((acc, m, mi) => (isUnlocked(s, selLoc, mi, tier) ? mi : acc), -1);
     }
     const pp = playerPower(s);
     const m = missions[selMission];
@@ -305,12 +315,13 @@ function renderDirector(main) {
         <h1 class="screen-title">${loc.name}</h1>
         <p class="desc">${loc.desc}</p>
         ${dueStop(s) ? `<div class="tower-due"><b>Quest:</b> ${esc(dueStop(s).text)}. <button class="btn" id="due-tower" ${net.active ? 'disabled' : ''}>Go to the Tower</button></div>` : ''}
+        ${tierRowHTML(s, tier)}
         <div class="missions">
           ${missions.map((mm, mi) => {
-            const un = isUnlocked(s, selLoc, mi), cl = s.cleared[mm.id];
+            const un = isUnlocked(s, selLoc, mi, tier), cl = clears[mm.id];
             return `<button class="mission ${selMission === mi ? 'sel' : ''} ${un ? '' : 'locked'}" data-m="${mi}" ${un ? '' : 'disabled'}>
-              <div class="m-top"><span class="m-name">${mm.name}</span><span class="m-power">◆ ${mm.power}</span></div>
-              <div class="m-desc">${un ? mm.desc : mi === 0 ? esc(towerLockReason(s, selLoc) || CHAPTERS[loc.id]?.locked || 'Locked.') : 'Clear the previous mission to unlock.'}</div>
+              <div class="m-top"><span class="m-name">${mm.name}</span><span class="m-power">◆ ${tierPower(mm.power, tier)}</span></div>
+              <div class="m-desc">${un ? mm.desc : mi === 0 ? esc(towerLockReason(s, selLoc) || CHAPTERS[loc.id]?.locked || 'Locked.') : `Clear the previous mission${T.over ? ` in ${T.name}` : ''} to unlock.`}</div>
               ${un && selMission === mi && linesFor(mm.id, 'start')[0] ? `<div class="m-ghost"><b>${esc(SPEAKERS[linesFor(mm.id, 'start')[0].who]?.name || '')}</b>  ${esc(linesFor(mm.id, 'start')[0].text)}</div>` : ''}
               <div class="m-foot">${cl ? '<span class="tag done">Cleared</span>' : un ? '<span class="tag new">New</span>' : '<span class="tag">Locked</span>'}
                 <span class="m-boss">Boss: ${mm.boss.name}</span></div>
@@ -318,7 +329,7 @@ function renderDirector(main) {
           }).join('')}
         </div>
         <div class="launch-row">
-          <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
+          <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m && T.over ? `<span class="warn">Enemies ◆ ${pp + T.over} (+${T.over})${T.lethal ? '  ·  No revives' : ''}</span>` : m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
           ${net.active ? `${net.isHost && loc.patrol ? '<button id="launch-patrol" class="btn" title="Take the fireteam on patrol">Patrol</button>' : ''}${readyBarHTML()}` : `${loc.patrol ? '<button id="launch-patrol" class="btn" title="Roam the destination: beacons, public events, a Sparrow">Patrol</button>' : ''}<button id="launch" class="btn primary" ${m ? '' : 'disabled'}>Launch</button>`}
         </div>
       </section>`;
@@ -349,11 +360,12 @@ function renderDirector(main) {
     renderOrbit();
   }));
   $('#dir-back', main)?.addEventListener('click', () => { sfx.ui(); dirFocus = null; renderOrbit(); });
+  $$('.tier-seg', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); G.save.tier = b.dataset.tier; writeSave(G.save); selMission = null; renderOrbit(); }));
   $$('.mission', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); selMission = +b.dataset.m; renderOrbit(); }));
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
     lockPointer();
-    if (dirFocus === 'tower') startTower(); else startMission(selLoc, selMission);
+    if (dirFocus === 'tower') startTower(); else startMission(selLoc, selMission, tier);
   });
   $('#launch-patrol', main)?.addEventListener('click', () => { initAudio(); lockPointer(); if (net.active) launchPatrol(selLoc); else startPatrol(selLoc); });
   $('#due-tower', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
@@ -686,7 +698,7 @@ function renderCharScreen(main) {
     if (e.target.closest('#cs-shader')) { toggleFly('shader', e.target.closest('#cs-shader')); return; }
     if (t && t.dataset.id) {
       const it = getItem(s, t.dataset.id);
-      if (t.closest('.cs-slot')) { toggleFly(it.slot, t); return; }
+      if (t.closest('.cs-slot') && !(e.shiftKey && it.kind === 'armor')) { toggleFly(it.slot, t); return; } // U20a: Shift+Click infuses equipped armor in place
       if (e.shiftKey) { if (infuseItem(s, it.id)) { sfx.engram(3); flySlot = null; renderOrbit(); } else sfx.denied(); return; }
       const blocker = equipItem(s, it.id);
       if (typeof blocker === 'string') { sfx.denied(); orbitNotice(blocker); return; }
@@ -893,7 +905,7 @@ function tipHTML(it, side) {
   const foot = side === 'vault' ? `<div class="tt-foot"><span>Click: Move to character</span>${lockLine}</div>`
     : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span>${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span><i class="tt-hold"><em></em></i></div>`
     : equipped
-    ? `<div class="tt-foot">Equipped${lockLine}</div>`
+    ? `<div class="tt-foot">Equipped${lockLine}${it.kind === 'armor' && inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}</div>`
     : `<div class="tt-foot"><span>Click: Equip</span>${it.kind === 'weapon' ? '<span>Right-click: Inspect</span>' : ''}${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
   return `<div class="tt-head r-${it.rarity}" style="--rc:${rar.color}"><div class="tt-name">${esc(it.name)}</div><div class="tt-type">${rar.name} ${typeLine(it)}</div></div><div class="tt-body">${body}</div>${foot}`;
 }
@@ -1735,7 +1747,7 @@ export function showFailed(M) {
     <div class="modal">
       <div class="eyebrow">${M.loc.name}</div>
       <h1 class="screen-title red">${M.act ? `${esc(M.act.name)} Over` : 'Mission Failed'}</h1>
-      <p class="desc">${M.act ? `You cleared ${cleared} wave${cleared === 1 ? '' : 's'}${M.act.id === 'endless' && cleared > 0 && cleared >= (G.save.records?.endless || 0) ? ', a new record' : ''}.` : `You ran out of ${M.coop ? 'lives' : 'revives'} in ${esc(M.def.name)}.`} Loot you picked up along the way is yours to keep.</p>
+      <p class="desc">${M.act ? `You cleared ${cleared} wave${cleared === 1 ? '' : 's'}${M.act.id === 'endless' && cleared > 0 && cleared >= (G.save.records?.endless || 0) ? ', a new record' : ''}.` : (M.tier === 'ultimate' ? `Ultimate allows no deaths: ${esc(M.def.name)} starts over.` : `You ran out of ${M.coop ? 'lives' : 'revives'} in ${esc(M.def.name)}.`)} Loot you picked up along the way is yours to keep.</p>
       <div class="summary">${M.act ? `<div><b>${cleared}</b><span>Waves cleared</span></div>` : ''}<div><b>${M.kills}</b><span>Kills</span></div><div><b>${M.loot.length}</b><span>Items found</span></div><div><b>+${(M.xp || 0).toLocaleString()}</b><span>XP</span></div><div><b>◆ ${playerPower(G.save)}</b><span>Light</span></div></div>
       <div class="row-btns">
         <button class="btn primary" id="f-retry">Retry</button>

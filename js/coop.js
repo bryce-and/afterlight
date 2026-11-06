@@ -14,6 +14,7 @@ import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startActivity
 import { XP } from './progression.js';
 import { barrierStops } from './combat.js';
 import { playerPower } from './save.js';
+import { selectedTier, tierOf } from './campaign.js';
 import { sfx } from './audio.js';
 import { stinger } from './music.js';
 import { buildSparrowModel } from './sparrow.js';
@@ -74,8 +75,9 @@ export function onMissionStart() {
 }
 
 export function launchFireteam(li, mi) {
-  if (net.isHost) broadcast({ t: 'start', li, mi, lp: playerPower(G.save) }); // U19: members play at no less than the leader's Light
-  startMission(li, mi);
+  const tier = selectedTier(G.save); // U20a: the fireteam plays the leader's campaign pick
+  if (net.isHost) broadcast({ t: 'start', li, mi, lp: playerPower(G.save), tier }); // U19: members play at no less than the leader's Light
+  startMission(li, mi, tier);
 }
 
 /** Host: launch the patrol zone of destination li for the whole fireteam. */
@@ -134,7 +136,8 @@ function updateRevives(dt) {
   const P = G.player, M = G.mission;
   // a wipe with no lives left ends the activity, unless it is already complete (boss cache, final cache)
   const complete = ['loot', 'done', 'final'].includes(M.phase) || !!M.patrol; // a patrol never ends in a wipe: lives are pooled without end and you wake at the landing
-  if (net.isHost && G.state === 'playing' && !complete && M.lives <= 0 && allPlayers().every((p) => p.dead)) {
+  // U20a: Ultimate is lethal: any death in the fireteam ends the run
+  if (net.isHost && G.state === 'playing' && !complete && (tierOf(M.tier).lethal ? allPlayers().some((p) => p.dead) : M.lives <= 0 && allPlayers().every((p) => p.dead))) {
     broadcast({ t: 'wipe' });
     missionFailed();
     return;
@@ -417,7 +420,7 @@ net.on('start', (m) => {
   if (G.mission) abandonMission(true);
   G.leaderLight = m.lp; // U19: read by combatLight() while this machine is a member
   ui.hideOverlays();
-  if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi);
+  if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi, m.tier || 'base');
   ui.feed('Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
 });
 net.on('end', () => { if (inMission()) { abandonMission(true); ui.orbitNotice('The fireteam leader ended the mission.'); } });

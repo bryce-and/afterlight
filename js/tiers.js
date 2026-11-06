@@ -10,17 +10,23 @@ export const TIERS = {
 };
 export const BOSS_BAR = '#f0c040'; // yellow: bosses (and later minibosses)
 
-/** Chance a spawned unit is a major. Normal campaign: only the larger units (captains, heavies) roll majors, a minority early and more with power g. U20 adds majors across the board for Legendary and Ultimate. */
-export function majorChance(typeId, g) {
+/** U20a: in Legendary and Ultimate every unit can roll a major. `big` is for captains and heavies, `small` for the rest. */
+export const MAJORS_HARD = { legendary: { big: 0.6, small: 0.2 }, ultimate: { big: 0.8, small: 0.35 } };
+
+/** Chance a spawned unit is a major. Base campaign: only the larger units (captains, heavies) roll majors, a minority early and more with power g. Legendary and Ultimate (`campaign`): majors across the board. */
+export function majorChance(typeId, g, campaign = 'base') {
   if (typeId === 'boss') return 0;
-  if (typeId === 'captain' || typeId === 'heavy') return Math.min(0.5, 0.15 + 0.02 * g);
+  const big = typeId === 'captain' || typeId === 'heavy';
+  const hard = MAJORS_HARD[campaign];
+  if (hard) return big ? hard.big : hard.small;
+  if (big) return Math.min(0.5, 0.15 + 0.02 * g);
   return 0;
 }
 
 /** Pick a tier for a spawn; `r` is a 0..1 roll (injectable for tests). */
-export function rollTier(typeId, g, r = Math.random()) {
+export function rollTier(typeId, g, r = Math.random(), campaign = 'base') {
   if (typeId === 'boss') return null;
-  return r < majorChance(typeId, g) ? 'major' : 'minor';
+  return r < majorChance(typeId, g, campaign) ? 'major' : 'minor';
 }
 
 // ---- fireteam table ----

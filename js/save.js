@@ -1,19 +1,20 @@
 import { SLOTS, WEAPON_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
-import { levelInfo, rewardAt, subclassLevel, LIGHT_CAP, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
+import { levelInfo, rewardAt, subclassLevel, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { randInt } from './util.js';
 import { frameFor, weaponStats } from './frames.js';
 import { MODS, blankMods, migrateArmorStats } from './armor.js';
 import { newQuests, ensureQuests, actOpen } from './quests.js';
 import { setForLegacy, appearance, shaderFor, SHADERS } from './style.js';
+import { tierClears, capRoll } from './campaign.js';
 
 const KEY = 'afterlight_save_v2';
 // First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 // Tests lower this to exercise the older migrations (production always resets below SAVE_VERSION).
 export const SAVE_RULES = { resetBelow: 9 };
 // The Ghost's Story (v2.6) starts everyone over for the new campaign: a save older than v9 is copied here once, only its settings carry over.
@@ -81,6 +82,11 @@ const MIGRATIONS = {
     s.postmaster = Array.isArray(s.postmaster) ? s.postmaster : [];
     s.quests = newQuests();
     for (const c of Object.values(s.chars || {})) { c.postmaster = c.postmaster || []; c.quests = c.quests || newQuests(); }
+  },
+  // Legend and Ultimate (v4.2): per-Guardian tier pick and Legendary/Ultimate clears; today's clears are the Base record. Nothing is lost.
+  10: (s) => {
+    s.tier = 'base'; s.tierCleared = { legendary: {}, ultimate: {} }; s.ultimateAll = false;
+    for (const c of Object.values(s.chars || {})) { c.tier = c.tier || 'base'; c.tierCleared = c.tierCleared || { legendary: {}, ultimate: {} }; }
   },
 };
 
@@ -204,7 +210,7 @@ export function resetSave() {
 export function createSave(classId) {
   const kit = starterKit(classId);
   const s = {
-    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, postmaster: [], quests: newQuests(), subclass: {}, loadout: {},
+    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, postmaster: [], quests: newQuests(), subclass: {}, loadout: {},
     shaders: { owned: [], applied: {} }, chars: {}, exoticsFound: [],
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
@@ -243,7 +249,7 @@ export function claimLevelReward(s, level) {
   if (state === 'claimed') return { error: 'Already claimed.' };
   if (state !== 'ready') return { error: state === 'locked' ? `Reach level ${level} first.` : 'No reward at this level.' };
   if (s.inventory.length >= INVENTORY_CAP) return { error: `Your character is full (${INVENTORY_CAP} items). Dismantle or vault something first.` };
-  const power = Math.min(LIGHT_CAP, playerPower(s) + randInt(2, 5));
+  const power = capRoll(playerPower(s), randInt(2, 5)); // U20a: past 200 a reward holds your Light
   const item = rollItem(power, rarityIndex(rewardAt(level)), null, null, s.classId, s.exoticsFound);
   s.inventory.push(item);
   noteExotic(s, item);
@@ -312,13 +318,15 @@ export function switchCharacter(s, classId) {
   if (!CLASSES[classId]) throw new Error(`switchCharacter: no class ${classId}`);
   if (classId === s.classId) return;
   s.chars = s.chars || {};
-  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared, postmaster: s.postmaster || [], quests: ensureQuests(s) };
+  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared, tier: s.tier || 'base', tierCleared: s.tierCleared || { legendary: {}, ultimate: {} }, postmaster: s.postmaster || [], quests: ensureQuests(s) };
   const next = s.chars[classId] || starterKit(classId);
   delete s.chars[classId];
   s.classId = classId;
   s.inventory = next.inventory;
   s.equipped = next.equipped;
   s.cleared = next.cleared || {}; // U15: the campaign is per Guardian
+  s.tier = next.tier || 'base'; // U20a: so are the tier pick and the Legendary/Ultimate clears (s.ultimateAll is account-wide)
+  s.tierCleared = next.tierCleared || { legendary: {}, ultimate: {} };
   s.postmaster = next.postmaster || []; // U16: so are the Postmaster and the quests
   s.quests = next.quests || newQuests();
   enforceGates(s);
@@ -485,10 +493,12 @@ export const ALL_MISSIONS = LOCATIONS.flatMap((l, li) => l.missions.map((m, mi) 
 /** Session-only (U16b): the DestinationUnlock gamerule opens every destination and mission. Never saved. */
 export const UNLOCK = { all: false };
 
-export function isUnlocked(s, li, mi) {
+/** `tier`: which campaign (U20a). Legendary and Ultimate open in order by their own clears, with no Tower stops. */
+export function isUnlocked(s, li, mi, tier = 'base') {
   if (UNLOCK.all) return true;
   const g = li * 3 + mi;
   if (g === 0) return true;
+  if (tier !== 'base') return !!tierClears(s, tier)[ALL_MISSIONS[g - 1].id];
   if (mi === 0 && !actOpen(s, li)) return false; // U16: the Vanguard's debrief in the Tower opens the next destination
   return !!s.cleared[ALL_MISSIONS[g - 1].id];
 }

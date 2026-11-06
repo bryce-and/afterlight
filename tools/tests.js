@@ -40,6 +40,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as LI from '../js/light.js';
 import * as Q from '../js/quests.js';
+import * as CA from '../js/campaign.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
 
@@ -105,7 +106,8 @@ test('rarity weights are valid at every level', () => {
 // ---------- loot / Light ----------
 test('items can exceed 100 Light and are clamped at the cap', () => {
   eq(rollItem(150, 3).power, 150);
-  eq(rollItem(LIGHT_CAP + 50, 3).power, LIGHT_CAP);
+  eq(rollItem(CA.LIGHT_MAX + 50, 3).power, CA.LIGHT_MAX); // U20a: the item clamp is the Ultimate cap; callers hold drops under their tier's cap
+  eq(CA.LIGHT_MAX, 350);
 });
 test('mission Light rises every mission and stays under the cap', () => {
   const p = LOCATIONS.flatMap((l) => l.missions.map((m) => m.power));
@@ -359,9 +361,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = freshOld({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 10);
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 11);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 10, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 11, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -2560,6 +2562,104 @@ test('U19 scrambled names: stable, same length, spaces kept, never the real name
   ok([...a].length === 'Dreg of House Dusk'.length, 'same length');
   ok(a.split(' ').length === 4, 'spaces kept');
   ok(a !== 'Dreg of House Dusk' && !/[A-Za-z]/.test(a), 'no readable letters');
+});
+
+// ---------- U20a Legend and Ultimate (tiers) ----------
+const allIds = () => LOCATIONS.flatMap((l) => l.missions.map((m) => m.id));
+const clearAll = (s, tier) => { for (const id of allIds()) CA.recordClear(s, id, tier); };
+const blankTiers = () => ({ classId: 'stalker', cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false });
+
+test('U20a tier caps and offsets: Base 200, Legendary 300 at +25, Ultimate 350 at +50 with no revives', () => {
+  eq(CA.CAMPAIGN_TIERS.base.cap, LIGHT_CAP); eq(CA.CAMPAIGN_TIERS.legendary.cap, 300); eq(CA.CAMPAIGN_TIERS.ultimate.cap, 350);
+  eq(CA.tierEnemyLight(100, 'base', 140), 100, 'base: the mission Light');
+  eq(CA.tierEnemyLight(100, 'legendary', 210), 235, 'legendary: your Light +25');
+  eq(CA.tierEnemyLight(100, 'ultimate', 310), 360, 'ultimate: your Light +50');
+  ok(!LI.lightMults(LI.lightGap(310, 360)).immune, 'Ultimate is extremely hard, never immune');
+  ok(CA.CAMPAIGN_TIERS.ultimate.lethal && !CA.CAMPAIGN_TIERS.legendary.lethal && !CA.CAMPAIGN_TIERS.base.lethal);
+});
+
+test('U20a mission Light per tier: base unchanged, Legendary spans 200-300, Ultimate 300-350, always rising', () => {
+  const p = LOCATIONS.flatMap((l) => l.missions.map((m) => m.power));
+  for (const x of p) eq(CA.tierPower(x, 'base'), x);
+  eq(CA.tierPower(p[0], 'legendary'), 200); eq(CA.tierPower(p.at(-1), 'legendary'), 300);
+  eq(CA.tierPower(p[0], 'ultimate'), 300); eq(CA.tierPower(p.at(-1), 'ultimate'), 350);
+  for (const tier of ['legendary', 'ultimate']) for (let i = 1; i < p.length; i++) ok(CA.tierPower(p[i], tier) >= CA.tierPower(p[i - 1], tier), `${tier} ${i}`);
+});
+
+test('U20a capRoll: under the cap a reward climbs; past it, it holds your Light', () => {
+  eq(CA.capRoll(150, 4), 154); eq(CA.capRoll(198, 4), 200); eq(CA.capRoll(260, 4), 260);
+});
+
+test('U20a unlocks: Legendary on a base clear, Ultimate on a Legendary clear, an Ultimate clear opens both for every Guardian', () => {
+  const s = blankTiers();
+  eq(CA.unlockedTiers(s), ['base']);
+  const ids = allIds();
+  for (const id of ids.slice(0, -1)) ok(!CA.recordClear(s, id, 'base').legendary, 'not until the last mission');
+  eq(CA.recordClear(s, ids.at(-1), 'base'), { legendary: true, ultimate: false, all: false });
+  eq(CA.unlockedTiers(s), ['base', 'legendary']);
+  s.tier = 'ultimate'; eq(CA.selectedTier(s), 'base', 'a locked pick falls back to Base');
+  clearAll(s, 'legendary');
+  eq(CA.unlockedTiers(s), ['base', 'legendary', 'ultimate']); eq(CA.selectedTier(s), 'ultimate');
+  eq(Object.keys(s.cleared).length, ids.length, 'Legendary clears do not touch the base record');
+  for (const id of ids.slice(0, -1)) CA.recordClear(s, id, 'ultimate');
+  ok(!s.ultimateAll);
+  eq(CA.recordClear(s, ids.at(-1), 'ultimate').all, true);
+  const other = { ...blankTiers(), ultimateAll: true };
+  eq(CA.unlockedTiers(other), ['base', 'legendary', 'ultimate'], 'account-wide');
+});
+
+test('U20a mission order per tier: Legendary missions open in order by Legendary clears, with no Tower stops', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  ok(S.isUnlocked(s, 0, 0, 'legendary'), 'first mission always open');
+  ok(!S.isUnlocked(s, 0, 1, 'legendary'));
+  CA.recordClear(s, LOCATIONS[0].missions[0].id, 'legendary');
+  ok(S.isUnlocked(s, 0, 1, 'legendary')); ok(!S.isUnlocked(s, 0, 1), 'base still needs its own clear');
+  for (const m of LOCATIONS[0].missions) CA.recordClear(s, m.id, 'legendary');
+  ok(S.isUnlocked(s, 1, 0, 'legendary'), 'next destination opens without a Tower debrief');
+});
+
+test('U20a majors: Base keeps the old rule, Legendary and Ultimate roll majors across the board', () => {
+  ok(['grunt', 'rusher', 'suicide'].every((u) => TR.majorChance(u, 8) === 0), 'base: small units never major');
+  for (const tier of ['legendary', 'ultimate']) {
+    ok(['grunt', 'rusher', 'suicide'].every((u) => TR.majorChance(u, 0, tier) > 0), `${tier}: small units can be majors`);
+    ok(TR.majorChance('captain', 0, tier) > TR.majorChance('captain', 0), `${tier}: more large majors`);
+    eq(TR.majorChance('boss', 0, tier), 0);
+  }
+  ok(TR.majorChance('grunt', 0, 'ultimate') > TR.majorChance('grunt', 0, 'legendary'), 'Ultimate has more');
+  eq(TR.rollTier('grunt', 0, 0.01, 'legendary'), 'major'); eq(TR.rollTier('grunt', 0, 0.01), 'minor');
+});
+
+test('U20a save v10 upgrades to v11: base clears kept, tier fields added for every Guardian', () => {
+  const v10 = { version: 10, classId: 'stalker', glimmer: 5, inventory: [], vault: [], equipped: {}, cleared: { e1: true }, postmaster: [], quests: Q.newQuests(), subclass: {}, loadout: {}, shaders: { owned: [], applied: {} }, exoticsFound: [], progression: { xp: 0, claimed: [] }, settings: {},
+    chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true, e2: true }, postmaster: [], quests: Q.newQuests() } } };
+  fresh({ afterlight_save_v2: JSON.stringify(v10) });
+  const s = S.loadSave();
+  eq(s.version, 11); eq(s.cleared, { e1: true }); eq(s.tier, 'base'); eq(s.tierCleared, { legendary: {}, ultimate: {} }); eq(s.ultimateAll, false);
+  eq(s.chars.vanguard.tier, 'base'); eq(s.chars.vanguard.tierCleared, { legendary: {}, ultimate: {} }); eq(s.chars.vanguard.cleared, { e1: true, e2: true });
+});
+
+test('U20a switching Guardians swaps the tier pick and clears; the Ultimate unlock is account-wide', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  s.tier = 'legendary'; s.tierCleared.legendary.e1 = true; s.ultimateAll = true;
+  S.switchCharacter(s, 'vanguard');
+  eq(s.tier, 'base'); eq(s.tierCleared, { legendary: {}, ultimate: {} }); ok(s.ultimateAll, 'kept');
+  S.switchCharacter(s, 'stalker');
+  eq(s.tier, 'legendary'); eq(s.tierCleared.legendary, { e1: true });
+});
+
+test('U20a equipped armor can be infused in place: it takes the best Light in its slot and stays equipped', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  const worn = S.getEquipped(s, 'helmet');
+  const better = makeArmor('helmet', worn.power + 30, 2, null, 'stalker');
+  s.inventory.push(better); s.glimmer = 1e6;
+  const info = S.infuseInfo(s, worn);
+  ok(info.possible && info.target === better.power, 'a higher helmet makes it possible');
+  ok(S.infuseItem(s, worn.id), 'infused');
+  eq(S.getEquipped(s, 'helmet').id, worn.id, 'still equipped');
+  eq(S.getEquipped(s, 'helmet').power, better.power);
 });
 
 let pass = 0, fail = 0;

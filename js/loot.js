@@ -1,6 +1,6 @@
 import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt } from './util.js';
-import { LIGHT_CAP } from './progression.js';
+import { LIGHT_MAX } from './campaign.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
 import { namedFor, perkPoolFor, rollPerks, weaponStats, frameSlot, archesForSlot } from './frames.js';
 import { SETS, setForDrop } from './style.js';
@@ -20,7 +20,7 @@ export function newId() {
 }
 
 
-const clampPower = (p) => Math.max(1, Math.min(LIGHT_CAP, Math.round(p)));
+const clampPower = (p) => Math.max(1, Math.min(LIGHT_MAX, Math.round(p))); // U20a: callers hold drops under their tier's cap
 
 const STAT_KEYS = ['dmg', 'rpm', 'mag', 'reload', 'spread', 'range'];
 
