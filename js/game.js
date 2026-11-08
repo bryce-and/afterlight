@@ -90,7 +90,7 @@ export function startMission(li, mi, tier = selectedTier(G.save)) {
   playMusic(loc.id);
   stinger('start');
   ui.enterMission();
-  ui.centerMessage(T.over ? `${def.name}  ·  ${T.name}` : def.name, T.over ? `${loc.name}  ·  Enemies ◆ ${enemyLight} (your Light +${T.over})${T.lethal ? '  ·  No revives' : ''}` : `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
+  ui.centerMessage(T.over ? `${def.name}  ·  ${T.name}` : def.name, T.over ? `${loc.name}  ·  Recommended ◆ ${power}  ·  Enemies ◆ ${enemyLight} (+${T.over})${T.lethal ? '  ·  No revives' : ''}` : `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
   if (!T.over) lightWarning(L);
   sfx.areaClear();
   ui.clearSubtitles();

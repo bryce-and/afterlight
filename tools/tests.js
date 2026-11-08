@@ -2577,7 +2577,7 @@ test('U20a tier caps and offsets: Base 200, Legendary 300 at +25, Ultimate 350 a
   eq(CA.tierEnemyLight(100, 'legendary', 210), 235, 'legendary: your Light +25');
   eq(CA.tierEnemyLight(100, 'ultimate', 310), 360, 'ultimate: your Light +50');
   eq([CA.tierEnemyLight(305, 'ultimate', 305), CA.tierEnemyLight(305, 'ultimate', 320), CA.tierEnemyLight(305, 'ultimate', 250)], [355, 370, 355], 'U20b ultimate: +50 over your Light or the mission Light, whichever is higher');
-  eq(CA.tierEnemyLight(250, 'legendary', 200), 225, 'legendary keeps counting from your Light');
+  eq([CA.tierEnemyLight(250, 'legendary', 200), CA.tierEnemyLight(250, 'legendary', 250), CA.tierEnemyLight(250, 'legendary', 260)], [275, 275, 285], 'v4.3.1 legendary: +25 over your Light or the mission Light, whichever is higher');
   eq(['base', 'legendary', 'ultimate'].map((id) => CA.tierOf(id).density), [1, 1.25, 1.5], 'U20b: Legendary and Ultimate send more enemies');
   ok(!LI.lightMults(LI.lightGap(310, 360)).immune, 'Ultimate is extremely hard, never immune');
   ok(CA.CAMPAIGN_TIERS.ultimate.lethal && !CA.CAMPAIGN_TIERS.legendary.lethal && !CA.CAMPAIGN_TIERS.base.lethal);

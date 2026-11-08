@@ -8,11 +8,11 @@ import { LIGHT_CAP } from './progression.js';
  * band: mission Light is rescaled into this range for rewards. cap: highest Light this tier's loot can reach.
  * lethal: no revives; in a fireteam any death ends the run.
  * density (U20b): enemy count multiplier for mission waves and boss adds, on top of fireteam scaling.
- * floor (U20b): the offset counts from your Light or the mission's Light, whichever is higher, so being under the mission never makes it easier.
+ * floor (U20b, Legendary since v4.3.1): the offset counts from your Light or the mission's Light, whichever is higher, so being under the mission never makes it easier.
  */
 export const CAMPAIGN_TIERS = {
   base: { id: 'base', name: 'Base', over: 0, band: null, cap: LIGHT_CAP, lethal: false, density: 1 },
-  legendary: { id: 'legendary', name: 'Legendary', over: 25, band: [200, 300], cap: 300, lethal: false, floor: false, density: 1.25 },
+  legendary: { id: 'legendary', name: 'Legendary', over: 25, band: [200, 300], cap: 300, lethal: false, floor: true, density: 1.25 },
   ultimate: { id: 'ultimate', name: 'Ultimate', over: 50, band: [300, 350], cap: 350, lethal: true, floor: true, density: 1.5 },
 };
 export const TIER_IDS = ['base', 'legendary', 'ultimate'];
@@ -34,8 +34,8 @@ export function tierPower(power, tierId) {
 }
 
 /**
- * Enemy Light for combat. Base: the mission's Light. Legendary: your combat Light plus 25.
- * Ultimate (U20b): the higher of your combat Light and the mission's Light, plus 50 (a 305 mission is 355 at 250 or 305, 370 at 320).
+ * Enemy Light for combat. Base: the mission's Light. Legendary and Ultimate: the higher of your combat Light and the
+ * mission's Light (the floor), plus 25 or 50 (an Ultimate 305 mission is 355 at 250 or 305, 370 at 320; a Legendary 250 mission is 275 at 200 or 250).
  */
 export function tierEnemyLight(power, tierId, combatLight) {
   const t = tierOf(tierId);
