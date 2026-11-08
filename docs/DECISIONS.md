@@ -285,3 +285,4 @@
 | 2026-11-06 | Ultimate enemy Light = max(your Light, mission Light) + 50; Legendary unchanged (your Light + 25) pending Bryce. | Bryce |
 | 2026-11-06 | Density: Legendary 1.25x, Ultimate 1.5x enemies on waves and boss adds, stacking with fireteam scaling. | Claude (defaults; Bryce asked for more density) |
 | 2026-11-06 | I opens the Character screen in missions; Characters and Reset are hidden there; co-op keeps the sim running like the old inventory. | Bryce (added mid-update) |
+| 2026-11-08 | Legendary uses the same Light floor as Ultimate (Bryce, 2026-11-08): enemy Light = max(your Light, mission Light) + 25. Supersedes the U20a/U20b note that Legendary always counts from your Light. | Bryce |
