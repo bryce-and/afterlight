@@ -286,3 +286,13 @@
 | 2026-11-06 | Density: Legendary 1.25x, Ultimate 1.5x enemies on waves and boss adds, stacking with fireteam scaling. | Claude (defaults; Bryce asked for more density) |
 | 2026-11-06 | I opens the Character screen in missions; Characters and Reset are hidden there; co-op keeps the sim running like the old inventory. | Bryce (added mid-update) |
 | 2026-11-08 | Legendary uses the same Light floor as Ultimate (Bryce, 2026-11-08): enemy Light = max(your Light, mission Light) + 25. Supersedes the U20a/U20b note that Legendary always counts from your Light. | Bryce |
+| 2026-11-08 | Exotic missions follow D2 design rules: one intentional path, one mechanic introduced then iterated, traversal jump puzzles between encounters, a puzzle element, a soloable but hard boss, custom areas. Dungeons and raids will reuse the framework. | Bryce |
+| 2026-11-08 | Exotic mission timer never adds time. Running out boots you to orbit; a boss kill freezes it and the chest drop ends the mission. | Bryce |
+| 2026-11-08 | Exotic mission respawns are restricted. Solo: death or fall restarts the segment at its checkpoint. Fireteam: revive only, a wipe restarts the segment. | Bryce |
+| 2026-11-08 | Fireteam void fall leaves the downed body at the last safe spot, to keep revive-only with jump puzzles. | Claude |
+| 2026-11-08 | The Whisper reward is a new exotic shotgun, Blight Edge. Whisper of the Worm stays a random exotic. | Bryce |
+| 2026-11-08 | Blight Harvest odds: 50% on kill, 100% on precision kill. | Bryce |
+| 2026-11-08 | The Whisper boss-falls reference image is the boss room; its sun-ring is decor. | Bryce |
+| 2026-11-08 | Exotic missions are listed in the Activities tab. | Bryce |
+| 2026-11-08 | Enemy Light is your combat Light + 10 and the exotic mission timer is 20:00 (defaults, tunable). | Claude |
+| 2026-11-08 | Every fireteam member must be level 30 to start an exotic mission. | Claude |

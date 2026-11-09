@@ -13,7 +13,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
 | R41 | Sparrow usable on all levels | Sparrow works in patrol zones (v3.3). Off in campaign missions by design ("Unable to summon.", DECISIONS 2026-10-24) | U17 | Complete and published (v3.3) for patrol zones |
 | R44 | Map collision fix | Oriented colliders since v2.3; partly assessed in v2.6, no new collision bugs reproduced | U15 | Not assessed |
-| R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | Missing | U21 | Planned |
 | R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13b (permanent elemental shields, see DECISIONS 2026-10-20; grenades), U14 (models) | Complete and published (v2.4) |
 | R53 | Distinct faction behaviors | Missing (names and models only) | U13b | Complete and published (v2.4) |
 | R54 | Darkness supers and abilities | Missing | U22 | Planned |
