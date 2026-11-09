@@ -138,6 +138,7 @@ export const EXOTIC_PERKS = {
   telesto: { name: 'Unstable Payload', desc: 'Bolts stick to enemies and detonate a second later in a void blast.' },
   merciless: { name: 'Conserve Momentum', desc: 'Kills supercharge the weapon for 4s: shots charge six times faster.' },
   acrius: { name: 'Royal Decree', desc: 'Kills send out an arc shockwave that hits everything within 7m.' },
+  blightharvest: { name: 'Blight Harvest', desc: 'Kills have a 50% chance (100% on a precision kill) to leave a blight bomb that detonates after 1.2s: a 4m Void blast that weakens survivors for 4s. Bomb kills have a 25% chance to leave another, up to 3 bombs deep. Never hurts you.' },
   sleeper: { name: 'Refraction', desc: 'Each bolt refracts into up to 2 more enemies within 15m for 80% damage.' },
   reign: { name: 'Reign Havoc', desc: 'Every 8th hit calls down a lightning strike on the target.' },
   xeno: { name: 'Scorched Earth', desc: 'Every round is a solar explosion that leaves enemies burning for 3s.' },
@@ -200,6 +201,7 @@ export const PERK_SLOTS = {
 // Exotics: perks (first one is the signature), stat mods (numbers multiply the roll,
 // mode/burst/pellets/charge replace the archetype), and a unique look for the model.
 // Slot overrides follow Destiny 2: Legend of Acrius and Whisper of the Worm are Heavy (Power) weapons.
+// U21: an entry with `mission` is earned only in that exotic mission (exotic-rules.js): it never drops, rolls in a reward menu or sells at the kiosk unowned.
 export const EXOTIC_WEAPONS = [
   { name: 'SUROS Regime', arch: 'auto', element: 'kinetic', perks: ['regime', 'spinup'], look: { body: 0xe8e4da, accent: 0xff6a1a, parts: ['stripes'] }, flavor: 'Spin up. Never stop.' },
   { name: 'Sweet Business', arch: 'auto', element: 'kinetic', perks: ['payday', 'spinup', 'overflow'], mods: { mag: 3, spread: 1.3 }, look: { body: 0xc9a046, accent: 0x2a2d33, parts: ['drum'] }, flavor: 'Business is good.' },
@@ -240,7 +242,11 @@ export const EXOTIC_WEAPONS = [
   { name: 'Prometheus Lens', arch: 'trace', element: 'solar', perks: ['inferno', 'retraction'], mods: { dmg: 0.9 }, look: { body: 0xb8742a, accent: 0xffc04a, parts: ['coils'] }, flavor: 'Steal fire. Keep stealing.' },
   { name: 'Wavesplitter', arch: 'trace', element: 'void', perks: ['harmonic', 'supercharged'], mods: { dmg: 0.85 }, look: { body: 0x2a2236, accent: 0xb07cff, parts: ['fins'] }, flavor: 'Every wave breaks eventually.' },
   { name: 'Divinity', arch: 'trace', element: 'arc', perks: ['judgment', 'penance'], mods: { dmg: 0.9 }, look: { body: 0xf2ecdc, accent: 0xffd27a, parts: ['crystal'] }, flavor: 'The verdict is the light.' },
+  // U21 Exotic Missions: earned only in the Whisper (mission), never from a random roll
+  { name: 'Blight Edge', mission: 'whisper', arch: 'shotgun', element: 'void', slot: 'special', perks: ['blightharvest'], look: { body: 0x14141a, accent: 0xf2f2f2, parts: ['blight'] }, flavor: 'What the Taken touch, they keep.' },
 ];
+/** U21: the exotic weapons that can drop, roll in a reward menu or sell at the kiosk unowned (mission-only exotics excluded). */
+export const EXOTIC_RANDOM_WEAPONS = EXOTIC_WEAPONS.filter((e) => !e.mission);
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
 export const HEAVY_VERSION = { dmg: 1.7, reserve: 7, brick: 2 };
 // What each exotic armor piece does. Exotic armor belongs to one class, like Destiny 2.

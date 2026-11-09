@@ -12,7 +12,9 @@ import { getEquipped, activeKit, playerLevel, wornAppearance } from './save.js';
 import { activeSets, encodeAppearance, SET_TUNE } from './style.js';
 import { net } from './net.js';
 import { MODS_LEVEL, MODS_TUNE, ORB, CHARGE, STAT_KEYS, STAT_CAP, CLASS_STAT, COOLDOWN_FLOOR, armorStats, modCounts, cooldownMult, superRateMult, speedMult, jumpBonus, shieldMax, regenDelay, regenRate, FONT_STAT, usesCharge } from './armor.js';
-import { fxTracer, requestLife, DOWN_TIME, sendHit } from './coop.js';
+import { fxTracer, requestLife, DOWN_TIME, sendHit, sendFx, allPlayers } from './coop.js';
+import { deathOutcome, blightChance, BLIGHT } from './exotic-rules.js';
+import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
 import { makeShieldDome, buildCharacter, SUPER_POSES } from './characters.js';
 import * as ui from './ui.js';
@@ -313,7 +315,10 @@ export class Player {
     const inp = G.input;
     if (this.dead) {
       const M = G.mission;
-      if (M.coop && !this.ragdoll) { // U17f: a fall is not a down: no revive, no life, back at the landing
+      const exoTeam = !!M.exotic && M.coop && allPlayers().length > 1;
+      if (exoTeam) { // U21: exotic missions restrict respawns: no pooled life, no down timer; only a teammate's revive (or a wipe) brings you back
+        ui.updateDeath('Respawns restricted: a teammate must revive you');
+      } else if (M.coop && !M.exotic && !this.ragdoll) { // U17f: a fall is not a down: no revive, no life, back at the landing
         // downed: teammates can revive us; when the timer runs out a pooled life brings us back
         this.downT -= dt;
         if (this.downT <= 0 && !this.lifeAsked && M.lives > 0) { this.lifeAsked = true; requestLife(); }
@@ -322,9 +327,10 @@ export class Player {
           : last ? `Last life: a teammate must revive you in ${Math.ceil(this.downT)}` : this.downT > 0 ? `Reviving in ${Math.ceil(this.downT)}  ·  uses a life (${M.lives} left)` : 'Reviving…');
       } else {
         this.respawnT -= dt;
-        ui.updateDeath(this.respawnT > 0 ? (M.failing ? `Mission failed in ${Math.ceil(this.respawnT)}` : `Reviving in ${Math.ceil(this.respawnT)}`) : '');
+        ui.updateDeath(this.respawnT > 0 ? (M.failing ? `Mission failed in ${Math.ceil(this.respawnT)}` : M.exotic ? `Segment restarts in ${Math.ceil(this.respawnT)}` : `Reviving in ${Math.ceil(this.respawnT)}`) : '');
         if (this.respawnT <= 0) {
           if (M.failing) { missionFailed(); return; }
+          M.exotic?.resetSegment(); // U21: a solo death restarts the segment (enemies, gate, eyes, blights, boss)
           this.respawn();
         }
       }
@@ -897,6 +903,7 @@ export class Player {
       } else {
         end = h.point;
         sparks(h.point, 0xffe0a0, 3, 3, 0.05, 0.25);
+        h.object.userData.mechShot?.(h.point); // U21: an Attuned eye or a blight in an exotic mission
         break;
       }
     }
@@ -1593,8 +1600,10 @@ export class Player {
       for (const ww of this.weapons) if (ww.has('adrenaline')) this.status.apply('adrenaline', { scope: ww.idx, stacks: 5, set: true });
     }
     if (e.blightT > G.time && this.blightW) this.blightZone(e.pos.clone(), this.blightW, 0.6); // blighted enemies leave blight behind
+    if (o.blightDepth) this.blightRoll(e, false, o.blightDepth, o.blightDmg); // killed by a blight bomb: it may chain
     const w = o.weapon;
     if (!w) return;
+    if (w.has('blightharvest')) this.blightRoll(e, !!o.crit, 0, w.s.dmg * (w.A.pellets || 1) * 0.9); // Blight Edge
     if (w.has('rampage')) this.status.apply('rampage', { add: 1, set: true });
     if (w.has('killclip')) w.killclipWindow = 3;
     if (w.has('outlaw') && o.crit) this.status.apply('outlaw');
@@ -1653,6 +1662,26 @@ export class Player {
     for (const ww of this.weapons) if (ww !== w && ww.has('envious')) ww.envy = Math.min(ww.mag, (ww.envy || 0) + Math.ceil(ww.mag * LOOT_PERKS.envy));
     if (w.has('scavenger') && w.reserve !== Infinity && Math.random() < 0.4) {
       w.reserve = Math.min(w.maxReserve, w.reserve + (w.item.slot === 'heavy' ? Math.ceil(w.brick / 2) : 1));
+    }
+  }
+
+  /** Blight Harvest: a kill (killDepth 0 for the weapon, 1 to 3 for a bomb) may leave a blight bomb on the body. */
+  blightRoll(e, crit, killDepth, dmg) {
+    if (Math.random() >= blightChance(crit, killDepth)) return;
+    const at = e.pos.clone().setY(e.pos.y + 0.5), bombDepth = killDepth + 1;
+    sendFx({ t: 'fx', k: 'bb', p: [Math.round(at.x * 100) / 100, Math.round(at.y * 100) / 100, Math.round(at.z * 100) / 100] }); // teammates see the orb too
+    blightBombFx(at, BLIGHT.fuse, () => this.blightBlast(at, bombDepth, dmg));
+  }
+  /** The bomb goes off: Void damage and Weakened to enemies within 4 m. Never touches players. Damage goes through the normal path (the host stays authoritative). */
+  blightBlast(at, bombDepth, dmg) {
+    if (!G.mission) return;
+    ringFx(at.clone().setY(Math.max(0.05, at.y - 0.4)), BLIGHT.radius, ELEMENTS.void.hex, 0.5);
+    glowBurst(at, 0xffffff, 18, 6, 0.1, 0.6, 1.5, 0.3);
+    flashLight(at, ELEMENTS.void.hex, 40, 14, 0.2);
+    sendFx({ t: 'fx', k: 'boom', p: [Math.round(at.x * 100) / 100, Math.round(at.y * 100) / 100, Math.round(at.z * 100) / 100], r: BLIGHT.radius, c: ELEMENTS.void.hex, s: 0 });
+    sfx.explosion(BLIGHT.radius, at, 'void');
+    for (const x of enemiesNear(at, BLIGHT.radius, 99)) {
+      dealDamage(x, dmg, { element: 'void', source: 'perk', pos: x.center(new THREE.Vector3()), weaken: BLIGHT.weaken, blightDepth: bombDepth, blightDmg: dmg });
     }
   }
 
@@ -2024,15 +2053,21 @@ export class Player {
     if (this.health <= 0) this.die();
   }
 
-  die() {
+  /** cause: 'void' when an exotic mission's void swallowed you (see exotic-rules.js deathOutcome). */
+  die(cause = 'death') {
     const M = G.mission;
     this.dead = true; this.health = 0; this.shield = 0;
     this.superActive = null;
     this.status.remove('fragout');
     this.status.remove('nighthawk');
+    this.status.remove('attuned');
     this.viewmodel.visible = false;
     M.deaths++;
-    if (M.coop) {
+    if (M.exotic) { // U21: restricted respawns
+      const o = deathOutcome({ fireteam: M.coop ? Math.max(1, allPlayers().length) : 1, cause });
+      this.respawnT = o.respawnIn ?? 0;
+      ui.showDeath(o.title, o.sub);
+    } else if (M.coop) {
       this.downT = DOWN_TIME; this.lifeAsked = false;
       ui.showDeath('You Died', 'A teammate can revive you');
     } else if (M.patrol) {
@@ -2065,12 +2100,13 @@ export class Player {
     this.dead = false;
     this.ragdoll = null;
     this.health = this.maxHealth; this.shield = this.maxShield;
-    if (!inPlace) this.pos.copy(M.checkpoint).add(new THREE.Vector3(0, 0, 6));
+    if (!inPlace) { this.pos.copy(M.checkpoint); if (!M.exotic) this.pos.add(new THREE.Vector3(0, 0, 6)); } // U21: exotic missions respawn exactly at the checkpoint
+    this.status.remove('attuned');
     this.vel.set(0, 0, 0);
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.patrol ? 'Back at the landing' : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.patrol ? 'Back at the landing' : M.exotic ? (inPlace ? 'A teammate picked you up' : 'Back at the checkpoint') : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   /** Invisibility (Nightstalker). Graviton Forfeit makes it last longer. */

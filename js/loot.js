@@ -1,4 +1,4 @@
-import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, EXOTIC_RANDOM_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick, randInt } from './util.js';
 import { LIGHT_MAX } from './campaign.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
@@ -28,7 +28,7 @@ export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null, n
   const rar = RARITIES[rIdx];
   let arch, element, name, frame = null, exotic = null, flavor = '', tpl = null, named = null;
   if (rar.id === 'exotic') {
-    const pool = EXOTIC_WEAPONS.filter((e) => (e.slot || ARCHETYPES[e.arch].slot) === slot);
+    const pool = EXOTIC_RANDOM_WEAPONS.filter((e) => (e.slot || ARCHETYPES[e.arch].slot) === slot); // U21: mission-only exotics never come from a random roll
     tpl = (exoticName && EXOTIC_WEAPONS.find((e) => e.name === exoticName)) || pick(pool);
     arch = tpl.arch; element = tpl.element; name = tpl.name; exotic = tpl.perks[0]; flavor = tpl.flavor;
   } else {
@@ -109,7 +109,7 @@ export function rollItem(power, rIdx, slot = null, dest = null, classId = null, 
   const weapon = WEAPON_SLOTS.includes(slot);
   if (RARITIES[rIdx].id === 'exotic') {
     if (weapon) {
-      const pool = EXOTIC_WEAPONS.filter((e) => !fixed || (e.slot || ARCHETYPES[e.arch].slot) === slot).map((e) => e.name);
+      const pool = EXOTIC_RANDOM_WEAPONS.filter((e) => !fixed || (e.slot || ARCHETYPES[e.arch].slot) === slot).map((e) => e.name);
       return makeExotic(pickExotic(pool, found), power);
     }
     classId = classId || pick(Object.keys(EXOTIC_ARMOR));

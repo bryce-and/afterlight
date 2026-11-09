@@ -15,7 +15,7 @@ export const net = {
   hostConn: null, // client: connection to the host
   myId: null,
   code: null,
-  members: [], // [{ id, name, cls, power }]
+  members: [], // [{ id, name, cls, power, level }]
   sel: null, // host's selected mission { li, mi }
   ready: [], // member ids that readied up for the selected mission (host decides, members mirror)
   onAllReady: null, // host UI hook: every member is ready, launch the selection
@@ -167,7 +167,7 @@ export async function createFireteam(profile) {
     });
     conn.on('data', (msg) => {
       if (msg.t === 'hello') {
-        if (!net.members.some((m) => m.id === conn.peer)) net.members.push({ id: conn.peer, name: msg.name, cls: msg.cls, power: msg.power });
+        if (!net.members.some((m) => m.id === conn.peer)) net.members.push({ id: conn.peer, name: msg.name, cls: msg.cls, power: msg.power, level: msg.level });
         net.ready = []; // the roster changed: everyone readies again
         lobbyChanged();
         dispatch({ t: 'joined', id: conn.peer }, conn.peer);

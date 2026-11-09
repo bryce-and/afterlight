@@ -32,6 +32,9 @@ import { FACTIONS, UNITS, classOf, composeWave, zonePlan, activityFaction, baseE
 import { skillIncoming, skillHit } from './enemy-skills.js';
 import { buildVoidAxe } from './models.js';
 import { updateTower } from './tower.js';
+import { updateExotic, cleanupExotic, openExoticChest, startExotic } from './exotic-missions.js';
+import { mechTargets, mechSplash } from './mechanics.js';
+import { gateDamage } from './exotic-rules.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
 import { linesFor, objectiveFor, UNLOCKS } from './story.js';
@@ -110,7 +113,8 @@ export function lightWarning(L) {
 
 export function retryMission() {
   const M = G.mission;
-  if (M.act) startActivity(M.act.id, newSeed());
+  if (M.exotic) startExotic(M.exotic.id).catch((e) => { console.error(e); ui.orbitNotice(`Could not start ${M.exotic.def.name}: ${e.message}`); });
+  else if (M.act) startActivity(M.act.id, newSeed());
   else startMission(M.li, M.mi, M.tier);
 }
 
@@ -127,6 +131,7 @@ export function abandonMission(silent = false) {
 
 export function cleanupMission() {
   ui.endTimer(null);
+  if (G.mission?.exotic) cleanupExotic();
   if (G.mission?.patrol) leavePatrol();
   if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
@@ -294,6 +299,7 @@ export function updateGame(dt) {
   updateMusic(dt);
   netTick(dt);
   const L = G.level;
+  if (!L) return; // U21: an exotic mission that ran out of time went to orbit during updateMission this frame
   snapSun(L, P.pos);
   L.updateLights(P.pos);
   L.updateDoors(dt);
@@ -322,6 +328,7 @@ function updateMission(dt) {
   const M = G.mission, P = G.player;
   if (M.tower) { updateTower(dt); return; } // U16: the Tower has no zones
   if (M.patrol) { updatePatrol(dt); return; } // U17a: patrol zones have no zones to clear either
+  if (M.exotic) { updateExotic(dt); if (M.phase !== 'loot' && M.phase !== 'done') return; } // U21: exotic missions run their own segments; the chest and Mission End use the usual flow below
   syncBossLocks();
   if (M.act) { updateActivity(dt); return; }
   // fireteam members get zones/objectives from the leader; only the cache is local
@@ -632,6 +639,7 @@ export function spawnChest(pos) {
 
 function openChest(auto = false) {
   const M = G.mission;
+  if (M.exotic) { openExoticChest(auto); return; }
   M.chest.opened = true;
   ui.endTimer(null);
   M.chest.beam.visible = false;
@@ -725,6 +733,7 @@ export function getHitTargets() {
   if (G.hitDirty) {
     G.hitTargets = [...G.staticMeshes];
     for (const e of G.enemies) if (e.alive) for (const m of e.hitMeshes) G.hitTargets.push(m);
+    if (G.mission?.exotic) for (const m of mechTargets()) G.hitTargets.push(m); // U21: Attuned eyes and live blights
     G.hitDirty = false;
   }
   return G.hitTargets;
@@ -765,6 +774,11 @@ export function dealDamage(e, amount, o = {}) {
   for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
   if (o.suppress) e.flush?.();
   dmg = skillIncoming(e, dmg, o); // U14: wards, ally shields, front guards, totem auras
+  if (e.exoBoss) { // U21: an exotic-mission boss is immune outside its damage window and loses at most a third of its health per phase
+    const allowed = gateDamage(e, dmg);
+    if (allowed <= 0 && dmg > 0 && !o.remoteHit && !o.jolted) { ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), 0, { immune: true }); ui.hitmarker(false, false, false); }
+    dmg = allowed;
+  }
   skillHit(e);
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
@@ -898,6 +912,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
   // teammates see every explosion; only this machine applies its damage
   sendFx({ t: 'fx', k: 'boom', p: [Math.round(pos.x * 100) / 100, Math.round(pos.y * 100) / 100, Math.round(pos.z * 100) / 100], r: radius, c: col, s: o.small ? 1 : 0 });
   sfx.explosion(radius, pos, element);
+  if (G.mission?.exotic) mechSplash(pos, radius); // U21: explosions reach eyes and blights
   const c = new THREE.Vector3();
   for (const e of G.enemies) {
     if (!e.alive) continue;

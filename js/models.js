@@ -631,6 +631,10 @@ function exoticParts(g, look) {
       case 'crystal': for (let i = 0; i < 5; i++) { const o = add(new THREE.OctahedronGeometry(0.022 + (i % 2) * 0.008, 0), glow, (i - 2) * 0.02, -0.06 - (i % 2) * 0.025, mf - 0.08 - (i % 3) * 0.04); o.scale.y = 1.8; o.rotation.z = (i - 2) * 0.3; } break;
       case 'coils': for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(0.042, 0.01, 4, 16), glow, 0, -0.01, mf - 0.2 + i * 0.06); break;
       case 'ornate': { const gold = mat(0xf4d27a, { emissive: 0x8a6a1e, emissiveIntensity: 0.5 }); for (const x of [-1, 1]) B(0.006, 0.01, 0.42, x * 0.04, 0.012, 0.15, gold); add(new THREE.ConeGeometry(0.025, 0.1, 4).rotateX(Math.PI), gold, 0, -0.09, -0.12); B(0.05, 0.05, 0.03, 0, 0.0, mf - 0.05, glow); break; }
+      case 'blight': // Taken: white flame wisps licking up from the barrel and a jagged blade edge under it
+        for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(0.014 - i * 0.002, 0.07 + (i % 2) * 0.03, 4), new THREE.MeshBasicMaterial({ color: 0xf2f2f2, transparent: true, opacity: 0.85 }), 0, 0.04 + (i % 2) * 0.01, mf - 0.05 - i * 0.07);
+        for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(0.01, 0.05, 3).rotateX(Math.PI), acc, 0, -0.05, mf - 0.03 - i * 0.05);
+        break;
       case 'wings':
         for (const x of [-1, 1]) {
           const w = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape([[0.04, 0.02], [0.32, 0.07], [0.26, 0.13], [0.1, 0.1]].map(([a, b]) => new THREE.Vector2(a, b))), { depth: 0.006, bevelEnabled: false }).rotateY(Math.PI / 2), mat(look.body));

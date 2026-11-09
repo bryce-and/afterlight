@@ -58,7 +58,7 @@ export function openExoticKiosk(done) {
   const s = G.save, found = new Set(s.exoticsFound || []);
   const render = (msg = '') => {
     const power = playerPower(s);
-    const weapons = EXOTIC_WEAPONS.map((tpl) => makeExotic(tpl.name, power));
+    const weapons = EXOTIC_WEAPONS.filter((tpl) => !tpl.mission || found.has(tpl.name)).map((tpl) => makeExotic(tpl.name, power)); // U21: a mission exotic is on sale only once this account has found it
     const armor = exoticArmorFor(s.classId).map((x) => makeArmor(x.slot, power, 4, null, s.classId, x.name));
     const list = kioskTab === 'weapons' ? weapons : armor;
     const card = (it) => {

@@ -1,6 +1,6 @@
 // U20b Legend and Ultimate II: the unlock reward menus (pick exotics), the Legendary/Ultimate mission exotics and Skip Campaign.
 // Pure rules (no DOM, no Three.js) so tools/tests.html can check them. See docs/DECISIONS.md.
-import { EXOTIC_WEAPONS, exoticArmorFor, WEAPON_SLOTS, ARMOR_SLOTS, LOCATIONS } from './data.js';
+import { EXOTIC_RANDOM_WEAPONS, exoticArmorFor, WEAPON_SLOTS, ARMOR_SLOTS, LOCATIONS } from './data.js';
 import { pickExotic, makeExotic, makeArmor, makeWeapon, rollItem, newId } from './loot.js';
 import { tierOf, tierClears, anyBaseClear, campaignDone } from './campaign.js';
 import { XP, LIGHT_CAP } from './progression.js';
@@ -32,7 +32,7 @@ export function rollMenu(s, tier, rnd = Math.random) {
   const armorPool = exoticArmorFor(s.classId);
   const armor = pickDistinct(armorPool.map((x) => x.name), def.armor, found, rnd)
     .map((name) => { const a = makeArmor(armorPool.find((x) => x.name === name).slot, power, 4, null, s.classId, name); a.isNew = true; return a; });
-  const weapons = pickDistinct(EXOTIC_WEAPONS.map((e) => e.name), def.weapons, found, rnd).map((name) => makeExotic(name, power));
+  const weapons = pickDistinct(EXOTIC_RANDOM_WEAPONS.map((e) => e.name), def.weapons, found, rnd).map((name) => makeExotic(name, power));
   return { id: newId(), tier, armor, weapons };
 }
 

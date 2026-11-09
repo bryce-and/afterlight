@@ -24,6 +24,8 @@ export const STATUS = {
   sunbracers: { name: 'Helium Spirals', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   stormdancer: { name: "Stormdancer's Brace", group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity, maxStacks: 5 },
   lunafaction: { name: 'Lunafaction Rift', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
+  // U21 Exotic Missions: standing in a Vex conduit's light (the Whisper). Eyes show and phase blocks turn solid while it lasts; Taken blights drain it.
+  attuned: { name: 'Attuned', group: 'general', glyph: '◈', color: '#5ff2dc', t: 20 },
   // aspects and fragments (Paths of Light)
   sunspot: { name: 'Sunspot', group: 'general', glyph: '☀', color: '#ffb547' },
   roaring: { name: 'Roaring Flames', group: 'general', glyph: '▲', color: '#ff8b2b', t: 10, maxStacks: 3 },

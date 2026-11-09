@@ -386,6 +386,14 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .cm-sub { font-size: 16px; letter-spacing: 0.12em; color: rgba(255,255,255,0.8); text-transform: uppercase; }
 @keyframes cm { from { opacity: 0; transform: translate(-50%, 10px); letter-spacing: 0.4em; } to { opacity: 1; transform: translate(-50%, 0); } }
 #end-timer { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); font-weight: 700; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 20px; background: rgba(0,0,0,0.55); border: 1px solid rgba(244,197,66,0.6); color: #f4c542; text-shadow: 0 2px 8px rgba(0,0,0,0.8); white-space: nowrap; }
+/* U21 exotic missions: the top-centre countdown, red in the last minute, gold-steady once the boss is down */
+#exo-timer { position: absolute; left: 50%; top: 2.2%; transform: translateX(-50%); font-weight: 700; font-size: 26px; letter-spacing: 0.14em; padding: 4px 22px; background: rgba(0,0,0,0.5); border: 1px solid rgba(95,242,220,0.55); color: #e9eef5; text-shadow: 0 2px 8px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; zoom: var(--hud-scale, 1); }
+#exo-timer.red { color: #ff4a3d; border-color: rgba(255,74,61,0.8); animation: exoPulse 1s infinite; }
+#exo-timer.frozen { color: #f4c542; border-color: rgba(244,197,66,0.7); }
+@keyframes exoPulse { 50% { background: rgba(120,10,0,0.55); } }
+#exo-timer.hidden { display: none; }
+.loc.locked { opacity: 0.55; }
+.loc-head { margin: 14px 0 6px; }
 #prompt { position: absolute; left: 50%; top: 64%; transform: translateX(-50%); font-weight: 700; font-size: 18px; letter-spacing: 0.12em; padding: 8px 18px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.4); }
 /* U17a: Ghost view (Tab): hold E to summon a Sparrow, hold O to go to orbit */
 #ghost-hud { position: absolute; left: 3.2vw; top: 46%; display: flex; flex-direction: column; gap: 10px; letter-spacing: 0.22em; font-weight: 700; color: #e9eef5; text-shadow: 0 0 8px rgba(0,0,0,0.8); zoom: var(--hud-scale, 1); }

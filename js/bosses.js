@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { mat } from './world.js';
+import * as VEX_MODELS from './models-vex.js';
+import * as TAKEN_MODELS from './models-taken.js';
 
 // ---------------------------------------------------------------------------
 // Unique boss models. Each builder takes the kit from enemies.js buildModel:
@@ -128,7 +130,31 @@ function cabalBody(c, W, hipY, metal) {
   return torso;
 }
 
+/**
+ * U21: Aurix, Hollowed Mind (the Whisper's boss). Builder B exports buildTakenMind() from models-vex.js or models-taken.js (a THREE.Group about 5 m
+ * tall with a child named 'eye'). Namespace imports keep this file loading before that export exists; asking for the model without it is an error.
+ * Each mesh is baked into the enemy's hit list (the boss kit only takes geometry), so the 'eye' subtree is the precision weak point.
+ */
+function takenMind(c) {
+  const build = VEX_MODELS.buildTakenMind || TAKEN_MODELS.buildTakenMind;
+  if (!build) throw new Error('Boss model takenMind needs buildTakenMind() exported from js/models-vex.js or js/models-taken.js');
+  const grp = build();
+  grp.updateMatrixWorld(true);
+  const eye = grp.getObjectByName('eye');
+  const inEye = (o) => { for (let p = o; p; p = p.parent) if (p === eye) return true; return false; };
+  grp.traverse((o) => {
+    if (!o.isMesh) return;
+    c.add(o.geometry.clone().applyMatrix4(o.matrixWorld), o.material, 0, 0, 0, c.g, !!eye && inEye(o));
+  });
+  c.torso = c.pivot(0, 2.5, 0);
+  c.muzzle.position.set(0, 3.2, 1.4);
+  c.g.add(c.muzzle);
+  c.hover = true;
+  c.height = 5;
+}
+
 export const BOSS_MODELS = {
+  takenMind,
   // -------------------------------------------------------------------------
   // FALLEN
   // -------------------------------------------------------------------------

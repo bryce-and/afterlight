@@ -13,12 +13,15 @@ import { classKit, ARCHETYPES } from './data.js';
 import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
 import { XP } from './progression.js';
 import { barrierStops } from './combat.js';
-import { playerPower } from './save.js';
+import { playerPower, playerLevel } from './save.js';
 import { selectedTier, tierOf } from './campaign.js';
 import { sfx } from './audio.js';
 import { stinger } from './music.js';
 import { buildSparrowModel } from './sparrow.js';
 import { startPatrol, patrolSnapshot, applyPatrolSnapshot, receivePatrolReward } from './patrol.js';
+import { blightBombFx } from './mechanics.js';
+import { BLIGHT } from './exotic-rules.js';
+import { startExotic, exoticWipe, onSnapshot, onRemoteShot, onChest, onReset, onWipe, failOutOfTime } from './exotic-missions.js';
 import * as ui from './ui.js';
 
 // Glue between the network layer and the game.
@@ -40,7 +43,7 @@ let nextId = 1, sendT = 0, snapT = 0, rosterT = 0;
 export function profile() {
   const s = G.save;
   if (!s.settings.name) { s.settings.name = `Guardian${Math.floor(1000 + Math.random() * 9000)}`; }
-  return { name: s.settings.name, cls: s.classId, power: playerPower(s) };
+  return { name: s.settings.name, cls: s.classId, power: playerPower(s), level: playerLevel(s) }; // level: U21 exotic missions gate every member
 }
 
 /** Everyone enemies can target: the local player plus teammates in this mission. */
@@ -78,6 +81,12 @@ export function launchFireteam(li, mi) {
   const tier = selectedTier(G.save); // U20a: the fireteam plays the leader's campaign pick
   if (net.isHost) broadcast({ t: 'start', li, mi, lp: playerPower(G.save), tier }); // U19: members play at no less than the leader's Light
   startMission(li, mi, tier);
+}
+
+/** Host: launch an exotic mission (U21) for the whole fireteam. Members start it from the 'start' message. */
+export function launchExotic(id) {
+  if (net.isHost) broadcast({ t: 'start', exo: id, lp: playerPower(G.save) });
+  return startExotic(id);
 }
 
 /** Host: launch the patrol zone of destination li for the whole fireteam. */
@@ -135,6 +144,11 @@ function revivePlayer(id, inPlace) {
 function updateRevives(dt) {
   const P = G.player, M = G.mission;
   // a wipe with no lives left ends the activity, unless it is already complete (boss cache, final cache)
+  if (M.exotic) { // U21: no lives and no wipe failure: everyone down resets the segment (exotic-missions.js); revives below work as usual
+    if (net.isHost && G.state === 'playing') exoticWipe(allPlayers().map((p) => !!p.dead));
+    reviveNearby(dt);
+    return;
+  }
   const complete = ['loot', 'done', 'final'].includes(M.phase) || !!M.patrol; // a patrol never ends in a wipe: lives are pooled without end and you wake at the landing
   // U20a: Ultimate is lethal: any death in the fireteam ends the run
   if (net.isHost && G.state === 'playing' && !complete && (tierOf(M.tier).lethal ? allPlayers().some((p) => p.dead) : M.lives <= 0 && allPlayers().every((p) => p.dead))) {
@@ -142,6 +156,11 @@ function updateRevives(dt) {
     missionFailed();
     return;
   }
+  reviveNearby(dt);
+}
+
+function reviveNearby(dt) {
+  const P = G.player;
   let target = null, bd = 2.6;
   if (!P.dead) for (const r of remotes.values()) {
     if (!r.inMission || !r.dead || r.state?.rg) continue; // U17f: nobody revives a Guardian who fell
@@ -207,7 +226,7 @@ export function damageRemote(r, dmg, from) {
 
 /** Member: report a hit on a host-owned enemy. */
 export function sendHit(e, dmg, o) {
-  lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source });
+  lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source, blightDepth: o.blightDepth, blightDmg: o.blightDmg });
   send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, co: o.corrosive || 0, sb: o.shieldBreaker ? 1 : 0, gb: o.guardBreak ? 1 : 0 });
 }
 
@@ -420,7 +439,8 @@ net.on('start', (m) => {
   if (G.mission) abandonMission(true);
   G.leaderLight = m.lp; // U19: read by combatLight() while this machine is a member
   ui.hideOverlays();
-  if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi, m.tier || 'base');
+  if (m.exo) startExotic(m.exo).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the exotic mission: ${e.message}`); });
+  else if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi, m.tier || 'base');
   ui.feed('Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
 });
 net.on('end', () => { if (inMission()) { abandonMission(true); ui.orbitNotice('The fireteam leader ended the mission.'); } });
@@ -457,6 +477,8 @@ net.on('fx', (m, from) => {
     firePool(new THREE.Vector3(...m.p), m.r, m.l);
   } else if (m.k === 'ab') {
     replayFx(m.kind, m.o);
+  } else if (m.k === 'bb') {
+    blightBombFx(new THREE.Vector3(...m.p), BLIGHT.fuse); // U21 Blight Edge: a teammate's bomb, picture only (they resolve it)
   }
 });
 
@@ -484,7 +506,7 @@ net.on('s', (m) => {
     M.current = ms.cur;
     M.objective = ms.obj;
     M.waypoint = ms.wp ? new THREE.Vector3(...ms.wp) : null;
-    M.checkpoint.set(ms.cp[0], 0, ms.cp[1]);
+    if (!M.exotic) M.checkpoint.set(ms.cp[0], 0, ms.cp[1]); // exotic missions send the full checkpoint in their own snapshot
     syncObjMarkers(ms.ob);
   }
   M.lives = ms.lv;
@@ -532,6 +554,14 @@ net.on('loot', (m) => {
   sfx.missionComplete();
   stinger('complete');
 });
+
+// U21 exotic missions
+net.on('xs', (m) => { if (inMission()) onSnapshot(m); });
+net.on('xh', (m) => { if (inMission() && net.isHost) onRemoteShot(m); });
+net.on('xc', (m) => { if (inMission()) onChest(m); });
+net.on('xrst', () => { if (inMission()) onReset(); });
+net.on('xwipe', () => { if (inMission()) onWipe(); });
+net.on('xfail', () => { if (inMission()) failOutOfTime(); });
 
 // activities
 net.on('arena', (m) => { if (inMission() && G.mission.act) moveArena(m.i); });

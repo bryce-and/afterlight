@@ -487,3 +487,70 @@ export function taken(c, t) {
       throw new Error('taken(): unknown unit id ' + t);
   }
 }
+
+// ---------------------------------------------------------------------------
+// U21: Aurix, Hollowed Mind (The Whisper's final boss): a Vex Mind frame the Taken have taken over. About 5 m tall.
+// ---------------------------------------------------------------------------
+/**
+ * Returns a THREE.Group with a child named `eye` (the weak point, flagged crit). Called with no argument it builds a standalone group.
+ * Called with a unit-builder context `c` (js/enemies.js buildModel) the parts go through c.add, so they count as hit meshes, and c.torso /
+ * c.hover / c.height / c.muzzle are set; the context's group is returned.
+ */
+export function buildTakenMind(c = null) {
+  const g = c ? c.g : new THREE.Group();
+  const add = c ? c.add : (geo, m, x, y, z, parent = g, crit = false, r = null) => {
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(x, y, z);
+    if (r) mesh.rotation.set(r[0], r[1], r[2]);
+    mesh.castShadow = true;
+    mesh.userData.crit = crit;
+    parent.add(mesh);
+    return mesh;
+  };
+  const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
+  const pivot = c ? c.pivot : (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+  const kit = c || { g, add, B, pivot };
+  const black = mat(0x07080c), plate = mat(0x15161c), bronze = mat(0x6e4c2a), brass = mat(0x8a6a3a);
+  const white = orbMat();
+  const red = mat(0xff3a2a, { emissive: 0xff2a1a, emissiveIntensity: 3.5 });
+  const PI = Math.PI;
+  g.name = 'takenMind';
+  const body = pivot(0, 2.9, 0);
+  // the great hexagonal head plate, black with a bronze inner plate, edged in white Light
+  add(new THREE.CylinderGeometry(1.7, 1.7, 0.5, 6).rotateX(PI / 2), plate, 0, 0, 0, body);
+  add(new THREE.CylinderGeometry(1.3, 1.3, 0.5, 6).rotateX(PI / 2), bronze, 0, 0, 0.07, body);
+  add(new THREE.TorusGeometry(1.68, 0.06, 4, 6).rotateZ(PI / 6), white, 0, 0, 0.27, body);
+  // the eye: a red orb in a white ring (the weak point)
+  const eye = add(new THREE.SphereGeometry(0.85, 12, 8), red, 0, 0, 0.42, body, true);
+  eye.scale.z = 0.55;
+  eye.name = 'eye';
+  add(new THREE.TorusGeometry(1.12, 0.08, 4, 12), white, 0, 0, 0.5, body, true);
+  add(new THREE.TorusGeometry(1.0, 0.07, 4, 6), brass, 0, 0, 0.46, body, false);
+  // the hollowed core hanging below: a black mass with a white heart showing through ribs
+  add(new THREE.IcosahedronGeometry(0.9, 1), black, 0, -1.65, -0.05, body);
+  add(new THREE.IcosahedronGeometry(0.4, 1), white, 0, -1.65, 0.05, body);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * PI * 2;
+    B(0.12, 1.4, 0.12, Math.cos(a) * 0.75, -1.1, Math.sin(a) * 0.5 - 0.05, plate, body, false, [Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35]);
+  }
+  // modular blocks orbiting the frame, black and bronze, as on a Vex Mind
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * PI * 2, s = 0.5 + (i % 3) * 0.08;
+    B(s, s, s, Math.cos(a) * 2.9, Math.sin(a) * 2.9 * 0.85, -0.2, i % 2 ? bronze : plate, body, false, [a, a * 0.7, 0]);
+    if (i % 2 === 0) B(s * 0.2, s * 1.1, s * 1.1, Math.cos(a) * 2.9, Math.sin(a) * 2.9 * 0.85, -0.2, white, body, false, [a, a * 0.7, 0]);
+  }
+  // backplate spines and ragged tatters of Darkness hanging under the frame
+  for (const s of [-1, 0, 1]) add(new THREE.ConeGeometry(0.2, 1.8, 4), black, s * 0.8, 1.4, -0.55, body, false, [-0.3, 0, -s * 0.45]);
+  for (let i = 0; i < 9; i++) {
+    const l = 0.6 + ((i * 37) % 10) / 20, x = (i - 4) * 0.36;
+    B(0.12, l, 0.03, x, -1.5 - l / 2, 0.15 - (i % 3) * 0.2, black, body, false, [((i % 3) - 1) * 0.12, 0, ((i % 2) ? 1 : -1) * 0.1]);
+  }
+  // the Taken's flame: white-rimmed black wisps off the head and both shoulders of the plate
+  wisps(kit, body, 1.7, 1.35, 2.6, -0.1, 3);
+  wisps(kit, body, 1.1, 1.9, 2.2, -0.2, 6);
+  const muzzle = c ? c.muzzle : new THREE.Object3D();
+  muzzle.position.set(0, 0, 1.2);
+  body.add(muzzle);
+  if (c) { c.hover = true; c.torso = body; c.height = 5; } else g.userData = { ...g.userData, muzzle, height: 5, torso: body };
+  return g;
+}

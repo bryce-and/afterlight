@@ -39,6 +39,9 @@ import { laid } from '../js/patrol-kit.js';
 import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as LI from '../js/light.js';
+import * as EX from '../js/exotic-rules.js';
+import * as DATA from '../js/data.js';
+import { makeExotic } from '../js/loot.js';
 import * as Q from '../js/quests.js';
 import * as CA from '../js/campaign.js';
 import * as RW from '../js/rewards.js';
@@ -363,9 +366,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = freshOld({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 12);
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 13);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 12, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 13, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -1400,7 +1403,7 @@ test('U11: the 14 new exotics are real Destiny 2 exotics with a signature perk e
     'Worldline Zero': 'sword', Heartshadow: 'sword', 'The Lament': 'sword', 'Buried Bloodline': 'sidearm', Forerunner: 'forerunner', Witherhoard: 'glauncher', 'Dead Messenger': 'glauncher',
     'Edge of Concurrence': 'glaive', 'Edge of Action': 'glaive', 'Edge of Intent': 'glaive', Coldheart: 'trace', 'Prometheus Lens': 'trace', Wavesplitter: 'trace', Divinity: 'trace',
   };
-  eq(EXOTIC_WEAPONS.length, 24 + 14, '24 before U11');
+  eq(EXOTIC_WEAPONS.length, 24 + 14 + 1, '24 before U11, 14 added, and U21 adds Blight Edge');
   for (const [name, arch] of Object.entries(real)) {
     const e = EXOTIC_WEAPONS.find((x) => x.name === name);
     ok(e, name); eq(e.arch, arch, `${name} family`);
@@ -2818,7 +2821,7 @@ test('U20b save v11 upgrades to v12: tier clears kept for every Guardian, new fi
     chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true, e2: true }, tier: 'ultimate', tierCleared: { legendary: { e1: true, e2: true }, ultimate: { e1: true } }, postmaster: [], quests: Q.newQuests() } } };
   fresh({ afterlight_save_v2: JSON.stringify(v11) });
   const s = S.loadSave();
-  eq(s.version, 12); eq(s.tierCleared, { legendary: { e1: true }, ultimate: {} }); eq(s.tier, 'legendary'); eq(s.cleared, { e1: true });
+  eq(s.version, 13); eq(s.tierCleared, { legendary: { e1: true }, ultimate: {} }); eq(s.tier, 'legendary'); eq(s.cleared, { e1: true });
   eq([s.pendingMenus, s.overload, s.skipped], [[], false, false]);
   eq(s.chars.vanguard.tierCleared, { legendary: { e1: true, e2: true }, ultimate: { e1: true } }); eq(s.chars.vanguard.cleared, { e1: true, e2: true });
   eq([s.chars.vanguard.pendingMenus, s.chars.vanguard.overload, s.chars.vanguard.skipped], [[], false, false]);
@@ -2911,6 +2914,161 @@ test('U20b Skip Campaign keeps a higher XP total; its XP target is the documente
   eq(RW.skipXp(), 53000); ok(RW.missionsXp() < RW.skipXp(), 'kills are the remainder'); eq(RW.missionsXp(), LOCATIONS.flatMap((l) => l.missions).length * 1500);
   ok(levelInfo(RW.skipXp()).level >= 25 && levelInfo(RW.skipXp()).level <= 30, `level ${levelInfo(RW.skipXp()).level}`);
 });
+
+// ---------- U21 Exotic Missions ----------
+const fakeLayout = () => {
+  const r = { minX: 0, maxX: 10, minZ: 0, maxZ: 10, minY: -5, maxY: 20 }, eye = (i) => ({ p: [i, 1, 0], n: [0, 1] });
+  return {
+    spawn: [1, 0, 1], voidY: -40,
+    segments: [
+      { id: 'descent', name: 'The Descent', kind: 'encounter', checkpoint: [1, 0, 1], region: r, conduits: [[2, 0, 2]], eyes: [0, 1, 2, 3].map(eye), gate: { p: [5, 0, 9], w: 4, h: 3, axis: 'x' }, spawns: [[3, 0, 3]], exit: null },
+      { id: 'shaft', name: 'The Red Shaft', kind: 'traversal', checkpoint: [1, 0, 1], region: r, conduits: [[2, 0, 2]], phaseBlocks: [{ p: [3, 5, 3], s: [2, 0.5, 2] }], spawns: [[3, 0, 3]], exit: { p: [4, 9, 4], r: 2 } },
+      { id: 'gallery', name: 'Blight Gallery', kind: 'encounter', checkpoint: [1, 0, 1], region: r, conduits: [[2, 0, 2], [8, 0, 8]], eyes: [0, 1, 2, 3, 4, 5].map(eye), glyph: [5, 3, 0], blights: [[5, 0, 5]], gate: { p: [5, 0, 9], w: 4, h: 3, axis: 'z' }, spawns: [[3, 0, 3]] },
+      { id: 'chasm', name: 'The Green Chasm', kind: 'traversal', checkpoint: [1, 0, 1], region: r, phaseBlocks: [], conduits: [], ambush: [{ p: [5, 0, 5], r: 4, spawns: [[6, 0, 6]] }], exit: { p: [4, -9, 4], r: 2 } },
+      { id: 'falls', name: 'The Falls', kind: 'boss', checkpoint: [1, 0, 1], region: r, room: r, boss: [5, 0, 5], glyph: [5, 6, 5], conduits: [[1, 0, 1], [2, 0, 2], [3, 0, 3], [4, 0, 4]], eyes: [0, 1, 2, 3, 4, 5, 6, 7].map(eye), blights: [[6, 0, 6]], spawns: [[7, 0, 7]], chest: [5, 0, 8] },
+    ],
+  };
+};
+const WHISPER = EX.exoticDef('whisper');
+
+test('U21 exotic registry: the Whisper is valid (units exist, level 30, 20:00, reward, boss)', () => {
+  eq(EX.validateExotic(WHISPER), []);
+  eq([WHISPER.unlockLevel, WHISPER.timeLimit, WHISPER.enemyLightOver, WHISPER.reward, WHISPER.boss.name], [30, 1200, 10, 'Blight Edge', 'Aurix, Hollowed Mind']);
+  ok(EXOTIC_WEAPONS.some((e) => e.name === WHISPER.reward), 'the reward is a real exotic');
+  let threw = false; try { EX.exoticDef('nope'); } catch (e) { threw = true; } ok(threw, 'unknown id throws');
+  eq(EX.validateLayout(fakeLayout(), WHISPER), [], 'the contract accepts a well-formed layout');
+  const bad = fakeLayout(); delete bad.segments[2].glyph; bad.segments[4].eyes.pop();
+  ok(EX.validateLayout(bad, WHISPER).length >= 2, 'a layout with missing pieces is rejected');
+  eq(EX.expandKit([['tk_thrall', 2]], 1).length, 2); eq(EX.expandKit([['tk_thrall', 2]], 2).length, 3); eq(EX.expandKit([['tk_thrall', 2]], 3).length, 4);
+});
+test('U21 the real Whisper layout (js/level-whisper.js) matches the contract and the registry', async () => {
+  const m = await import('../js/level-whisper.js');
+  eq(EX.validateLayout(m.WHISPER_LAYOUT, WHISPER), []);
+  eq(m.WHISPER_LAYOUT.segments.map((x) => x.id), Object.keys(WHISPER.segments), 'the same five segments in order');
+});
+test('U21 level 30 gate and enemy Light', () => {
+  ok(!EX.exoticUnlocked(29, WHISPER)); ok(EX.exoticUnlocked(30, WHISPER)); eq(EX.exoticLockText(WHISPER), 'Requires level 30');
+  eq(EX.exoticEnemyLight(150, WHISPER), 160);
+});
+test('U21 timer: counts down, expires at zero, freezes on the boss kill, never adds time', () => {
+  const t = EX.newTimer(1200);
+  EX.stepTimer(t, 60); eq(t.left, 1140); eq(EX.clock(t.left), '19:00');
+  EX.stepTimer(t, -5); eq(t.left, 1140, 'negative time adds nothing');
+  EX.stepTimer(t, 1085); ok(EX.timerRed(t), 'red under 60 s'); ok(!t.expired);
+  EX.freezeTimer(t); EX.stepTimer(t, 500); eq(t.left, 55, 'frozen'); eq(EX.timeUsed(t), 1145); ok(!EX.timerRed(t), 'frozen is not red');
+  const u = EX.newTimer(10); EX.stepTimer(u, 99); ok(u.expired); eq(u.left, 0); EX.freezeTimer(u); ok(!u.frozen, 'an expired timer cannot be frozen');
+});
+test('U21 save v13: v12 migrates with everything kept, per Guardian exoticMissions added', () => {
+  const v12 = { version: 12, classId: 'stalker', glimmer: 9, inventory: [], vault: [], equipped: {}, cleared: { e1: true }, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, pendingMenus: [], overload: false, skipped: false, postmaster: [], quests: Q.newQuests(), subclass: {}, loadout: {}, shaders: { owned: [], applied: {} }, exoticsFound: ['Thorn'], progression: { xp: 5, claimed: [] }, settings: {},
+    chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true }, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, pendingMenus: [], overload: false, skipped: false, postmaster: [], quests: Q.newQuests() } } };
+  fresh({ afterlight_save_v2: JSON.stringify(v12) });
+  const s = S.loadSave();
+  eq(S.SAVE_VERSION, 13); eq(s.version, 13);
+  eq(s.exoticMissions, { whisper: { clears: 0, bestTime: null } }); eq(s.chars.vanguard.exoticMissions, { whisper: { clears: 0, bestTime: null } });
+  eq([s.glimmer, s.cleared, s.exoticsFound, s.progression.xp], [9, { e1: true }, ['Thorn'], 5]);
+  const n = S.createSave('stalker'); eq(n.exoticMissions, { whisper: { clears: 0, bestTime: null } });
+  // switching Guardians keeps each one's record
+  EX.recordExoticClear(n, 'whisper', 600); S.switchCharacter(n, 'vanguard'); eq(EX.exoticRecord(n, 'whisper').clears, 0); S.switchCharacter(n, 'stalker'); eq(EX.exoticRecord(n, 'whisper').clears, 1);
+});
+test('U21 first clear guarantees Blight Edge once per Guardian; repeats give two legendaries; best time is kept', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  let plan = EX.rewardPlan(s, WHISPER);
+  eq([plan.first, plan.exotic, plan.legendary], [true, 'Blight Edge', 0]);
+  let r = EX.recordExoticClear(s, 'whisper', 800.04);
+  ok(r.first && r.newBest); eq(s.exoticMissions.whisper, { clears: 1, bestTime: 800 });
+  plan = EX.rewardPlan(s, WHISPER); eq([plan.first, plan.exotic, plan.legendary], [false, null, 2]);
+  r = EX.recordExoticClear(s, 'whisper', 900); ok(!r.first && !r.newBest); eq(s.exoticMissions.whisper, { clears: 2, bestTime: 800 });
+  r = EX.recordExoticClear(s, 'whisper', 700); ok(r.newBest); eq(s.exoticMissions.whisper.bestTime, 700);
+  const it = makeExotic('Blight Edge', 120);
+  eq([it.name, it.rarity, it.slot, it.arch, it.element, it.power], ['Blight Edge', 'exotic', 'special', 'shotgun', 'void', 120]);
+  const other = S.createSave('vanguard'); eq(EX.rewardPlan(other, WHISPER).first, true, 'a new Guardian is first-clear again');
+});
+test('U21 Blight Edge never comes from a random exotic pool (drops, tier exotics, reward menus, kiosk) but Whisper of the Worm still does', () => {
+  fresh();
+  const { EXOTIC_RANDOM_WEAPONS } = DATA;
+  ok(!EXOTIC_RANDOM_WEAPONS.some((e) => e.name === 'Blight Edge')); ok(EXOTIC_RANDOM_WEAPONS.some((e) => e.name === 'Whisper of the Worm'));
+  eq(EXOTIC_WEAPONS.filter((e) => e.mission).map((e) => e.name), ['Blight Edge']);
+  const s = S.createSave('stalker');
+  for (let i = 0; i < 400; i++) {
+    const a = rollItem(100, 4, null, null, 'stalker', []); ok(a.name !== 'Blight Edge', 'rollItem');
+    const sp = rollItem(100, 4, 'special', null, 'stalker', []); ok(sp.name !== 'Blight Edge', 'special slot roll');
+    const b = RW.rollTierExotic(s, 100, 'io'); ok(b.name !== 'Blight Edge', 'rollTierExotic');
+  }
+  for (let i = 0; i < 40; i++) ok(!RW.rollMenu(s, 'ultimate').weapons.some((w) => w.name === 'Blight Edge'), 'reward menu');
+  ok(EXOTIC_WEAPONS.length === 24 + 14 + 1, 'the exotic list grew by one');
+});
+test('U21 glyph puzzles: correct order solves, a wrong eye resets the set, repeats are ignored, any-order mode', () => {
+  const rnd = mulberry32(5);
+  const p = EX.makeGlyphPuzzle(rnd, 6, 4, 'order');
+  eq(p.order.length, 4); eq(new Set(p.order).size, 4); eq(new Set(p.symbols).size, 6, 'one symbol per eye');
+  const wrong = [0, 1, 2, 3, 4, 5].find((i) => !p.order.slice(0, 1).includes(i));
+  eq(EX.glyphShoot(p, p.order[0]), 'correct'); eq(EX.glyphShoot(p, p.order[0]), 'ignored', 'a held trigger on the same eye');
+  eq(EX.glyphShoot(p, p.order[1]), 'correct');
+  const w = [0, 1, 2, 3, 4, 5].find((i) => !p.lit.includes(i) && i !== p.order[2]);
+  eq(EX.glyphShoot(p, w), 'wrong'); eq([p.progress, p.lit, p.wrongs], [0, [], 1], 'the set resets');
+  for (const i of p.order.slice(0, 3)) eq(EX.glyphShoot(p, i), 'correct');
+  eq(EX.glyphShoot(p, p.order[3]), 'solved'); ok(p.solved); eq(EX.glyphShoot(p, 0), 'ignored');
+  const a = EX.makeGlyphPuzzle(rnd, 4, 3, 'any');
+  eq(EX.glyphShoot(a, 2), 'correct'); eq(EX.glyphShoot(a, 0), 'correct'); eq(EX.glyphShoot(a, 3), 'solved');
+  let threw = false; try { EX.makeGlyphPuzzle(rnd, 3, 5); } catch (e) { threw = true; } ok(threw, 'more glyphs than eyes throws');
+});
+test('U21 boss phases: immune until the glyph, a damage window capped at a third per phase, phase 2 moves a lit conduit, phase 3 repeats', () => {
+  const cfg = WHISPER.segments.falls, rnd = mulberry32(11);
+  const f = new EX.BossFsm(cfg, 4, rnd), max = 3000;
+  ok(f.immune && f.phase === 1 && f.puzzle.len === 3 && f.lit === -1 && !f.blightsOn);
+  eq(EX.gateDamage({ exoBoss: true, exoImm: true, hp: max }, 500), 0, 'immune takes nothing');
+  eq(EX.gateDamage({ hp: 5 }, 500), 500, 'other enemies are untouched');
+  for (const i of f.puzzle.order.slice(0, 2)) eq(f.shoot(i), 'correct');
+  eq(f.shoot(f.puzzle.order[2]), 'solved'); ok(!f.immune); eq(f.windowLeft, 12);
+  eq(f.floorHp(max), 2000, 'at most a third in phase 1');
+  eq(EX.capDamage(3000, 2000, 5000), 1000); eq(EX.capDamage(2000, 2000, 50), 0);
+  eq(f.tick(1, 3000, max), null); eq(f.windowLeft, 11);
+  eq(f.tick(1, 2000, max), 'window-end'); ok(f.immune && f.phase === 2 && f.puzzle.len === 4, 'floor reached ends the window'); ok(f.lit >= 0 && f.lit < 4, 'one conduit lit');
+  const first = f.lit; f.tick(14.9, 2000, max); eq(f.lit, first); eq(f.tick(0.2, 2000, max), 'lit-moved'); ok(f.lit !== first && f.lit >= 0 && f.lit < 4);
+  for (const i of f.puzzle.order) f.shoot(i);
+  ok(!f.immune); eq(f.floorHp(max), 1000);
+  eq(f.tick(13, 1800, max), 'window-end'); eq(f.ended, 'time'); eq(f.phase, 3); ok(f.blightsOn && f.puzzle.len === 5 && f.lit === -1);
+  for (const i of f.puzzle.order) f.shoot(i);
+  eq(f.floorHp(max), 0); f.tick(13, 900, max); eq(f.phase, 3, 'phase 3 repeats with a fresh glyph'); ok(f.immune);
+  eq(f.snapshot().ph, 3);
+});
+test('U21 respawn rules: solo death restarts the segment, fireteam deaths stay down, a wipe resets, a fireteam void fall is downed at the safe spot', () => {
+  const solo = EX.deathOutcome({ fireteam: 1, cause: 'death' });
+  eq([solo.action, solo.respawnIn], ['segment-reset', 3]); ok(/no revive is spent/i.test(solo.sub));
+  eq(EX.deathOutcome({ fireteam: 1, cause: 'void' }).action, 'segment-reset', 'solo void is a death');
+  for (const n of [2, 3]) {
+    const d = EX.deathOutcome({ fireteam: n, cause: 'death' });
+    eq([d.action, d.respawnIn], ['stay-down', null]); ok(/Respawns restricted: a teammate must revive you/.test(d.sub));
+    eq(EX.deathOutcome({ fireteam: n, cause: 'void' }).action, 'downed-at-safe');
+  }
+  eq(EX.wipeOutcome([true, false]).action, 'none'); eq(EX.wipeOutcome([true, true]).action, 'wipe-reset'); eq(EX.wipeOutcome([]).action, 'none'); ok(EX.isWipe([true]));
+  let threw = false; try { EX.deathOutcome({ fireteam: 1, cause: 'x' }); } catch (e) { threw = true; } ok(threw);
+  // the safe spot only follows grounded, non-phase-block positions
+  let safe = { x: 0, y: 0, z: 0 };
+  safe = EX.trackSafe(safe, { x: 5, y: 2, z: 5 }, true, false); eq(safe, { x: 5, y: 2, z: 5 });
+  safe = EX.trackSafe(safe, { x: 9, y: 4, z: 9 }, false, false); eq(safe, { x: 5, y: 2, z: 5 }, 'airborne does not count');
+  safe = EX.trackSafe(safe, { x: 9, y: 4, z: 9 }, true, true); eq(safe, { x: 5, y: 2, z: 5 }, 'a phase block does not count');
+  ok(EX.inVoid(-41, -40)); ok(!EX.inVoid(-39, -40));
+  eq(EX.downText(1), ''); ok(EX.downText(2).startsWith('Respawns restricted'));
+});
+test('U21 Blight Harvest: 50% per kill, 100% on a precision kill, a bomb kill has half the normal chance (25%), at most 3 bombs deep', () => {
+  eq(EX.blightChance(false, 0), 0.5); eq(EX.blightChance(true, 0), 1);
+  eq(EX.blightChance(false, 1), 0.25); eq(EX.blightChance(true, 1), 0.25, 'a bomb kill is never a precision kill'); eq(EX.blightChance(false, 2), 0.25);
+  eq(EX.blightChance(false, 3), 0, 'the third bomb cannot chain'); eq(EX.blightChance(true, 4), 0);
+  // walk the chain with a rigged roll: always rolling under the chance gives exactly three bombs
+  let bombs = 0, depth = 0;
+  while (Math.random() * 0 < EX.blightChance(false, depth)) { bombs++; depth++; if (bombs > 10) break; }
+  eq(bombs, 3);
+  eq([EX.BLIGHT.fuse, EX.BLIGHT.radius, EX.BLIGHT.weaken], [1.2, 4, 4]);
+  const perk = DATA.EXOTIC_PERKS.blightharvest; ok(perk && perk.name === 'Blight Harvest');
+  const edge = EXOTIC_WEAPONS.find((e) => e.name === 'Blight Edge'); eq([edge.perks, edge.look.body, edge.look.accent], [['blightharvest'], 0x14141a, 0xf2f2f2]);
+});
+test('U21 the Attuned status exists and the exotic-mission pieces are wired into the registry', () => {
+  const st = new StatusSet(); st.apply('attuned', { set: true }); eq(st.remaining('attuned'), 20); ok(STATUS.attuned.name === 'Attuned');
+  for (const [seg, c] of Object.entries(WHISPER.segments)) ok(c, seg);
+});
+
 
 let pass = 0, fail = 0;
 for (const t of tests) {

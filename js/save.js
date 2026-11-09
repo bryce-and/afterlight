@@ -14,7 +14,7 @@ const KEY = 'afterlight_save_v2';
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 // Tests lower this to exercise the older migrations (production always resets below SAVE_VERSION).
 export const SAVE_RULES = { resetBelow: 9 };
 // The Ghost's Story (v2.6) starts everyone over for the new campaign: a save older than v9 is copied here once, only its settings carry over.
@@ -96,7 +96,15 @@ const MIGRATIONS = {
     // the 60-item character cap became 9 per slot besides the equipped item: extras go to each Guardian's Postmaster, nothing is lost
     for (const g of [s, ...Object.values(s.chars || {})]) if (g.inventory && g.equipped) enforceSlotCap(g);
   },
+  // Exotic Missions (v4.4): per-Guardian clears and best time of each exotic mission (the Whisper). Nothing else changes.
+  12: (s) => {
+    s.exoticMissions = newExoticMissions();
+    for (const c of Object.values(s.chars || {})) c.exoticMissions = c.exoticMissions || newExoticMissions();
+  },
 };
+
+/** A Guardian's exotic-mission record: clears and best time in seconds (null = never cleared), per mission id. */
+export const newExoticMissions = () => ({ whisper: { clears: 0, bestTime: null } });
 
 /** Names of every exotic in any Guardian's inventory or the vault. */
 function ownedExotics(s) {
@@ -218,7 +226,7 @@ export function resetSave() {
 export function createSave(classId) {
   const kit = starterKit(classId);
   const s = {
-    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, pendingMenus: [], overload: false, skipped: false, postmaster: [], quests: newQuests(), subclass: {}, loadout: {},
+    version: SAVE_VERSION, classId, glimmer: 250, inventory: kit.inventory, vault: [], equipped: kit.equipped, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, pendingMenus: [], overload: false, skipped: false, exoticMissions: newExoticMissions(), postmaster: [], quests: newQuests(), subclass: {}, loadout: {},
     shaders: { owned: [], applied: {} }, chars: {}, exoticsFound: [],
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
@@ -324,7 +332,7 @@ export function switchCharacter(s, classId) {
   if (!CLASSES[classId]) throw new Error(`switchCharacter: no class ${classId}`);
   if (classId === s.classId) return;
   s.chars = s.chars || {};
-  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared, tier: s.tier || 'base', tierCleared: s.tierCleared || { legendary: {}, ultimate: {} }, pendingMenus: s.pendingMenus || [], overload: !!s.overload, skipped: !!s.skipped, postmaster: s.postmaster || [], quests: ensureQuests(s) };
+  s.chars[s.classId] = { inventory: s.inventory, equipped: s.equipped, cleared: s.cleared, tier: s.tier || 'base', tierCleared: s.tierCleared || { legendary: {}, ultimate: {} }, pendingMenus: s.pendingMenus || [], overload: !!s.overload, skipped: !!s.skipped, exoticMissions: s.exoticMissions || newExoticMissions(), postmaster: s.postmaster || [], quests: ensureQuests(s) };
   const next = s.chars[classId] || starterKit(classId);
   delete s.chars[classId];
   s.classId = classId;
@@ -336,6 +344,7 @@ export function switchCharacter(s, classId) {
   s.pendingMenus = next.pendingMenus || []; // U20b: unclaimed reward menus, the switch state and the Skip mark are per Guardian too
   s.overload = !!next.overload;
   s.skipped = !!next.skipped;
+  s.exoticMissions = next.exoticMissions || newExoticMissions(); // U21: exotic-mission clears are per Guardian too
   s.postmaster = next.postmaster || []; // U16: so are the Postmaster and the quests
   s.quests = next.quests || newQuests();
   enforceGates(s);

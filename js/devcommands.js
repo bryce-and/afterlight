@@ -110,7 +110,50 @@ export const COMMANDS = {
       return { ok: true, msg: `Player level is now ${playerLevel(ctx.save)}.` };
     },
   },
+  whisperlevel: {
+    usage: '/whisperlevel [descent|shaft|gallery|chasm|falls]',
+    options: () => ['descent', 'shaft', 'gallery', 'chasm', 'falls'],
+    run(args) {
+      const seg = args.trim().toLowerCase() || 'descent';
+      if (!['descent', 'shaft', 'gallery', 'chasm', 'falls'].includes(seg)) return { ok: false, msg: 'Segments: descent, shaft, gallery, chasm, falls' };
+      startWhisperDev(seg).catch((err) => console.error(err));
+      return { ok: true, msg: `Building The Whisper at ${seg} (static level only, no mechanics).` };
+    },
+  },
 };
+
+/** U21 dev: builds The Whisper (js/level-whisper.js) and drops you at a segment's checkpoint to look at it and test the jumps. Falling past voidY puts you back. */
+async function startWhisperDev(segId) {
+  const [{ G }, ui, { buildLevel }, { buildNav }, { Player }, { initEffects }, { cleanupMission }, W, THREE] = await Promise.all([
+    import('./state.js'), import('./ui.js'), import('./world.js'), import('./nav.js'), import('./player.js'), import('./effects.js'),
+    import('./game.js'), import('./level-whisper.js'), import('three'),
+  ]);
+  cleanupMission();
+  const def = { id: 'whisper', name: 'The Whisper', power: 0, boss: { name: '', model: null }, mood: null };
+  const level = buildLevel(W.WHISPER_LOC, def);
+  G.level = level; G.scene = level.scene; G.colliders = level.colliders; G.staticMeshes = level.staticMeshes;
+  G.nav = buildNav(G.colliders, level.bounds);
+  G.hitDirty = true;
+  G.scene.add(G.camera);
+  initEffects(G.scene);
+  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
+  const seg = W.WHISPER_LAYOUT.segments.find((x) => x.id === segId) || W.WHISPER_LAYOUT.segments[0];
+  const cp = new THREE.Vector3(...seg.checkpoint);
+  G.mission = {
+    loc: W.WHISPER_LOC, def, li: -1, mi: -1, g: 0, phase: 'whisperdev', current: 0, zones: [],
+    fireteam: 1, coop: false, remote: false, revives: 3, lives: 0, bossModel: null, kills: 0, crits: 0, deaths: 0, loot: [],
+    xp: 0, startTime: performance.now(), hpMult: 1, dmgMult: 1, playerDmgMult: 1, incomingMult: 1,
+    checkpoint: cp.clone(), objective: `The Whisper: ${seg.name}`, waypoint: null, chest: null, failing: false, doneT: 0,
+  };
+  G.time = 0;
+  G.player = new Player(G.save);
+  G.player.spawn(cp);
+  G.tickers.push({ update() { const P = G.player; if (P && P.pos.y < W.WHISPER_LAYOUT.voidY) { P.pos.copy(cp); P.vel.set(0, 0, 0); } return true; } });
+  G.state = 'playing';
+  ui.enterMission();
+  ui.clearSubtitles();
+  ui.centerMessage('The Whisper', seg.name, 3);
+}
 
 /** Runs one line such as "/give Sunshot". Returns { ok, msg }. */
 export function runCommand(line, ctx) {
