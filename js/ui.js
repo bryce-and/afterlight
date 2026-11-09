@@ -9,7 +9,7 @@ import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, c
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock, setOverload } from './save.js';
-import { CAMPAIGN_TIERS, tierOf, tierPower, tierClears, selectedTier, unlockedTiers, overloadUnlocked, overloadOn, OVERLOAD_NAME, ULTIMATE_HINT } from './campaign.js';
+import { CAMPAIGN_TIERS, tierOf, tierPower, tierEnemyLight, tierClears, selectedTier, unlockedTiers, overloadUnlocked, overloadOn, OVERLOAD_NAME, ULTIMATE_HINT } from './campaign.js';
 import { skipAvailableFor } from './rewards.js';
 import { runUnlocks, openPendingMenus, openSkipConfirm } from './rewards-ui.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
@@ -19,7 +19,7 @@ import { dismantleValue } from './loot.js';
 import { weaponIcon, weaponSilhouette, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES, setArmorIconContext } from './icons.js';
 import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './style.js';
 import { frameDef, weaponHandling } from './frames.js';
-import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets } from './game.js';
+import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets, combatLight } from './game.js';
 import { dmgDrift, HUD_SCALE, ABILITY_CD } from './combat.js';
 import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
@@ -339,7 +339,7 @@ function renderDirector(main) {
           }).join('')}
         </div>
         <div class="launch-row">
-          <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m && T.over ? `<span class="warn">Enemies ◆ ${pp + T.over} (+${T.over})${T.lethal ? '  ·  No revives' : ''}</span>` : m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
+          <div class="power-cmp">Your Light <b>◆ ${pp}</b>${m && T.over ? `<span class="warn">Enemies ◆ ${tierEnemyLight(tierPower(m.power, tier), tier, combatLight())} (+${T.over})${T.lethal ? '  ·  No revives' : ''}</span>` : m ? (diff < -4 ? `<span class="warn">Underpowered by ${-diff}</span>` : diff >= 0 ? '<span class="ok">Ready</span>' : '<span class="meh">Slightly under</span>') : ''}</div>
           ${net.active ? `${net.isHost && loc.patrol ? '<button id="launch-patrol" class="btn" title="Take the fireteam on patrol">Patrol</button>' : ''}${readyBarHTML()}` : `${loc.patrol ? '<button id="launch-patrol" class="btn" title="Roam the destination: beacons, public events, a Sparrow">Patrol</button>' : ''}<button id="launch" class="btn primary" ${m ? '' : 'disabled'}>Launch</button>`}
         </div>
       </section>`;

@@ -10,7 +10,7 @@ import { esc } from './util.js';
 import { itemCard, orbitNotice, showOrbit } from './ui.js';
 
 const UNLOCKS = {
-  legendary: { cls: 'legendary', title: 'LEGENDARY CAMPAIGN UNLOCKED', sub: 'The same fight, harder. Enemies stand 25 Light above you. Pick it in the Director.', ms: 3600 },
+  legendary: { cls: 'legendary', title: 'LEGENDARY CAMPAIGN UNLOCKED', sub: 'The same fight, harder. Enemies stand 25 Light above you, or above the mission if you are under it. Pick it in the Director.', ms: 3600 },
   ultimate: { cls: 'ultimate', title: 'ULTIMATE CAMPAIGN UNLOCKED', sub: 'No revives. Enemies stand 50 Light above you, or above the mission if you are under it. Pick it in the Director.', ms: 5800 },
   all: { cls: 'ultimate', title: 'ULTIMATE CAMPAIGN CLEARED', sub: `Legendary and Ultimate are open for every Guardian. Ultimate reward unlocked: ${OVERLOAD_NAME}. Equip any number of exotics. Find it in Inventory.`, ms: 6200 },
 };
