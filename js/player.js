@@ -17,6 +17,7 @@ import { deathOutcome, blightChance, BLIGHT } from './exotic-rules.js';
 import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
 import { installDarkness } from './darkness.js';
+import { DARK_EXO } from './darkness-rules.js';
 import { makeShieldDome, buildCharacter, SUPER_POSES } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
@@ -1912,7 +1913,7 @@ export class Player {
     const cd = (v, perk) => Math.max(COOLDOWN_FLOOR, cooldownMult(v) * perk);
     this.cdMax.grenade = this.cdBase.grenade * cd(st.dis, 1 - 0.15 * ap('grenadier'));
     this.cdMax.melee = this.cdBase.melee * cd(st.str, 1 - 0.15 * ap('brawler')) * (this.exo.has('synthoceps') ? 0.75 : 1) * (this.sets.has('leviathan') ? SET_TUNE.meleeCd : 1); // Emperor's Feast: Calus's Indulgence
-    this.cdMax.class = this.cdBase.class * cd(st[CLASS_STAT[this.cls.id]], 1 - 0.2 * ap('kickstart')) * (this.exo.has('stomp') ? 0.7 : 1) * (this.sets.has('dc') ? SET_TUNE.classCd : 1); // Dreaming Court: Queen's Grace
+    this.cdMax.class = this.cdBase.class * cd(st[CLASS_STAT[this.cls.id]], 1 - 0.2 * ap('kickstart')) * (this.exo.has('stomp') ? 0.7 : 1) * (this.exo.has('abeyant') && this.cls.subclassId === 'berserker' ? DARK_EXO.abeyant.classCd : 1) * (this.sets.has('dc') ? SET_TUNE.classCd : 1); // Dreaming Court: Queen's Grace
     if (this.exo.has('stomp')) { this.jumpV *= 1.3; this.speed *= 1.08; }
   }
 
@@ -2262,7 +2263,7 @@ export class Player {
   /** Per-frame exotic armor effects. */
   updateExoticArmor(dt) {
     const x = this.exo;
-    if (x.has('starfire') && this.gBank < 1) {
+    if ((x.has('starfire') || this.osmioCharge()) && this.gBank < 1) { // H26: Osmiomancy Gloves bank a second Coldsnap the same way
       // the stored second charge recharges once the first one is full
       if (this.cd.grenade <= 0) { this.gBankT += dt; if (this.gBankT >= this.cdMax.grenade) { this.gBank = 1; this.gBankT = 0; } }
     }
@@ -2830,7 +2831,8 @@ export class Player {
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
       const p = this.pos.clone().addScaledVector(fwd, id === 'rally' ? 2.4 : 3.2);
       p.y = floorBelow(p.x, p.z, this.pos.y + 0.6); // H24: stand on the floor in front of you (was always y = 0, so it sank into raised floors)
-      castFx('barricade', { p, alongX: Math.abs(fwd.z) > Math.abs(fwd.x), small: id === 'rally', el: this.cls.element });
+      if (this.exo.has('hoarfrost') && this.cls.subclassId === 'behemoth') this.hoarfrostWall(p, fwd); // H26 Hoarfrost-Z: a wall of Stasis crystals
+      else castFx('barricade', { p, alongX: Math.abs(fwd.z) > Math.abs(fwd.x), small: id === 'rally', el: this.cls.element });
       this.status.apply('barricadeup', { t: CLASS_FX_LIFE[id], set: true });
       for (const ww of this.weapons) this.instantReload(ww);
       this.status.apply(id === 'rally' ? 'rally' : 'reloaded', { set: true });

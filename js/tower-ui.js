@@ -3,7 +3,7 @@
 import { G } from './state.js';
 import { CLASSES, EXOTIC_WEAPONS, ARCHETYPES, EXOTIC_ARMOR_PERKS, EXOTIC_PERKS, RARITIES, exoticArmorFor, rarityIndex } from './data.js';
 import { makeExotic, makeArmor } from './loot.js';
-import { addItem, collectPostmaster, writeSave, playerPower, POSTMASTER_CAP, KIOSK_PRICE } from './save.js';
+import { addItem, collectPostmaster, writeSave, playerPower, playerLevel, POSTMASTER_CAP, KIOSK_PRICE } from './save.js';
 import { questList, pickUpQuest, QUESTS } from './quests.js';
 import { overlay } from './loot-ui.js';
 import { weaponIcon, armorIcon } from './icons.js';
@@ -59,7 +59,7 @@ export function openExoticKiosk(done) {
   const render = (msg = '') => {
     const power = playerPower(s);
     const weapons = EXOTIC_WEAPONS.filter((tpl) => !tpl.mission || found.has(tpl.name)).map((tpl) => makeExotic(tpl.name, power)); // U21: a mission exotic is on sale only once this account has found it
-    const armor = exoticArmorFor(s.classId).map((x) => makeArmor(x.slot, power, 4, null, s.classId, x.name));
+    const armor = exoticArmorFor(s.classId, playerLevel(s)).map((x) => makeArmor(x.slot, power, 4, null, s.classId, x.name)); // H26: Darkness exotics wait for their subclass
     const list = kioskTab === 'weapons' ? weapons : armor;
     const card = (it) => {
       const have = found.has(it.name), held = owns(s, it.name);

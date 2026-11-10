@@ -1,6 +1,6 @@
 // Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
-import { SLOTS, WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor } from '../js/data.js';
+import { SLOTS, WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor, exoticArmorLevel } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
 import { rollItem, exoticWeights, pickExotic, EXOTIC_REPEAT_WEIGHT } from '../js/loot.js';
 import * as S from '../js/save.js';
@@ -908,18 +908,18 @@ test('characters: each Guardian has its own inventory and gear; level and vault 
   eq(makeArmor('legs', 20, 3, 'io', 'arcanist').classId, 'arcanist');
   eq(rollItem(20, 1, 'chest', null, 'stalker').classId, 'stalker');
 });
-test('class exotics: two per slot per class (8 each), Destiny classes, they drop only for their class', () => {
+test('class exotics: two per slot per class plus the H26 Darkness pieces (10 each), Destiny classes, they drop only for their class', () => {
   const D = {
-    vanguard: [['An Insurmountable Skullfort', 'Mask of the Quiet One'], ['Synthoceps', 'Ursa Furiosa'], ['Heart of Inmost Light', 'Hallowfire Heart'], ['Dunemarchers', 'Peacekeepers']],
-    stalker: [['Celestial Nighthawk', 'Graviton Forfeit'], ["Liar's Handshake", "Young Ahamkara's Spine"], ['Raiden Flux', 'Lucky Raspberry'], ['St0mp-EE5', 'Orpheus Rig']],
-    arcanist: [["Nezarec's Sin", 'Skull of Dire Ahamkara'], ['Contraverse Hold', 'Sunbracers'], ['Starfire Protocol', "Stormdancer's Brace"], ['Transversive Steps', 'Lunafaction Boots']],
+    vanguard: [['An Insurmountable Skullfort', 'Mask of the Quiet One'], ['Synthoceps', 'Ursa Furiosa'], ['Heart of Inmost Light', 'Hallowfire Heart', 'Hoarfrost-Z'], ['Dunemarchers', 'Peacekeepers', 'Abeyant Leap']],
+    stalker: [['Celestial Nighthawk', 'Graviton Forfeit', "Cyrtarachne's Facade"], ["Liar's Handshake", "Young Ahamkara's Spine", 'Renewal Grasps'], ['Raiden Flux', 'Lucky Raspberry'], ['St0mp-EE5', 'Orpheus Rig']],
+    arcanist: [["Nezarec's Sin", 'Skull of Dire Ahamkara'], ['Contraverse Hold', 'Sunbracers', 'Osmiomancy Gloves'], ['Starfire Protocol', "Stormdancer's Brace"], ['Transversive Steps', 'Lunafaction Boots', 'Swarmers']],
   };
   for (const [c, names] of Object.entries(D)) eq(['helmet', 'arms', 'chest', 'legs'].map((sl) => EXOTIC_ARMOR[c][sl]), names);
   const ids = new Set();
   for (const names of Object.values(D)) for (const n of names.flat()) { ok(EXOTIC_ARMOR_PERKS[n], `${n} has a perk`); ids.add(EXOTIC_ARMOR_PERKS[n].id); }
-  eq(ids.size, 24);
-  eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 24, 'no stray exotic perks');
-  for (const id of ids) if (!['skullfort', 'synthoceps', 'dunemarchers', 'stomp', 'transversive', 'raiden', 'liars', 'starfire', 'graviton', 'ahamkara', 'raspberry', 'orpheus', 'ursa', 'peacekeepers'].includes(id)) ok(STATUS[id] || ['heart', 'nighthawk', 'nezarec', 'contraverse'].includes(id), `${id} shows in the buff HUD`);
+  eq(ids.size, 30);
+  eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 30, 'no stray exotic perks');
+  for (const id of ids) if (!['hoarfrost', 'abeyant', 'renewal', 'cyrtarachne', 'osmiomancy', 'swarmers', 'skullfort', 'synthoceps', 'dunemarchers', 'stomp', 'transversive', 'raiden', 'liars', 'starfire', 'graviton', 'ahamkara', 'raspberry', 'orpheus', 'ursa', 'peacekeepers'].includes(id)) ok(STATUS[id] || ['heart', 'nighthawk', 'nezarec', 'contraverse'].includes(id), `${id} shows in the buff HUD`);
   for (const c of Object.keys(D)) for (let i = 0; i < 12; i++) { const it = makeArmor('chest', 50, 4, null, c); ok(it.classId === c && EXOTIC_ARMOR[c].chest.includes(it.name), `${c} chest exotic`); }
   ok(C.LIARS.mult === 2 && C.RAIDEN.maxExtend === 5 && C.RAIDEN.step * C.RAIDEN.maxStacks === 0.5 && C.STARFIRE.refund === 0.2);
 });
@@ -938,7 +938,7 @@ test('exotic duplicate protection: unfound exotics are favored until every one i
 test('exotic drops: weapons use the shared pool, armor the class pool; a fixed slot limits the pool', () => {
   const weapons = EXOTIC_WEAPONS.map((e) => e.name);
   const armor = exoticArmorFor('arcanist').map((x) => x.name);
-  eq(armor.length, 8);
+  eq(armor.length, 10, 'H26: two Darkness exotics per class');
   for (let i = 0; i < 60; i++) {
     const it = rollItem(100, 4, null, null, 'arcanist', []);
     eq(it.rarity, 'exotic');
@@ -3297,6 +3297,23 @@ test('H25: Avalanche leaps higher than Well and Ward, then slams where it lands'
   const A = C.SUPER_TUNE.avalanche;
   ok(C.SLAM_SUPERS.includes('avalanche') && C.BURST_SUPERS.includes('avalanche'), 'Avalanche slams and keeps its burst armor');
   ok(A.hop > C.SUPER_HOVER.hop && A.hopT > C.SUPER_HOVER.hopT && A.slamMax >= C.SUPER_HOVER.slamMax, 'a higher leap and a longer dive window');
+});
+
+test('H26: Darkness exotics: one Stasis and one Strand per class, each tied to its subclass, dropping from level 28', () => {
+  const want = { vanguard: ['Hoarfrost-Z', 'Abeyant Leap'], stalker: ['Renewal Grasps', "Cyrtarachne's Facade"], arcanist: ['Osmiomancy Gloves', 'Swarmers'] };
+  for (const [c, names] of Object.entries(want)) {
+    const els = names.map((n) => { const sub = EXOTIC_ARMOR_PERKS[n].sub; ok(CLASSES[c].subclasses[sub], `${n} belongs to a ${c} subclass`); return CLASSES[c].subclasses[sub].element; });
+    eq(els.slice().sort(), ['stasis', 'strand'], `${c}: one Stasis and one Strand`);
+    for (const n of names) {
+      eq(exoticArmorLevel(c, n), 28);
+      ok(!exoticArmorFor(c, 27).some((x) => x.name === n), `${n} does not drop at 27`);
+      ok(exoticArmorFor(c, 28).some((x) => x.name === n), `${n} drops at 28`);
+      ok(DR.DARK_EXO[EXOTIC_ARMOR_PERKS[n].id], `${n} has tuning`);
+    }
+    eq(exoticArmorFor(c, 27).length, 8, 'the Light exotics drop at any level');
+    for (let i = 0; i < 40; i++) { const it = rollItem(50, 4, null, null, c, [], 5); if (it.kind === 'armor') ok(!names.includes(it.name), 'no Darkness exotic below level 28'); }
+  }
+  eq(exoticArmorLevel('vanguard', 'Synthoceps'), 1);
 });
 
 test('U22: players hit by enemy Darkness: three Chilled stacks freeze, Space breaks out; severed enemies hit softer', () => {

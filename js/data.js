@@ -287,15 +287,24 @@ export const EXOTIC_ARMOR_PERKS = {
   Sunbracers: { id: 'sunbracers', name: 'Helium Spirals', desc: 'Solar melee kills give you free Solar grenades for 5s.' },
   "Stormdancer's Brace": { id: 'stormdancer', name: 'Eye of the Storm', desc: 'Stormtrance kills extend the super by 0.5s (up to 5s) and stack 10% more damage, up to 50%.' },
   'Lunafaction Boots': { id: 'lunafaction', name: 'Lunafaction Rift', desc: 'Your rifts also reload the weapons of every Guardian standing inside them, fireteam included.' },
+  // H26 Darkness exotics: `sub` is the Darkness subclass the perk works with; they drop from that subclass's unlock level (exoticArmorFor)
+  'Hoarfrost-Z': { id: 'hoarfrost', sub: 'behemoth', name: 'Glacial Fortification', desc: 'Behemoth: your barricade is a wall of Stasis crystals that freezes enemies beside it and shatters when shot.' },
+  'Abeyant Leap': { id: 'abeyant', sub: 'berserker', name: 'Strand Shackles', desc: "Berserker: your class ability recharges 30% faster, and Drengr's Lash threads travel 50% farther." },
+  'Renewal Grasps': { id: 'renewal', sub: 'revenant', name: 'Glacial Guard', desc: 'Revenant: your Duskfield is 50% larger, and Guardians inside it take 30% less damage.' },
+  "Cyrtarachne's Facade": { id: 'cyrtarachne', sub: 'threadrunner', name: 'Fighting Spirit', desc: 'Threadrunner: grappling gives you Woven Mail for 6s.' },
+  'Osmiomancy Gloves': { id: 'osmiomancy', sub: 'shadebinder', name: 'Cold Snap Gloves', desc: 'Shadebinder: your Coldsnap grenade gains a second charge, and its hits return 20% grenade energy.' },
+  Swarmers: { id: 'swarmers', sub: 'broodweaver', name: 'Swarming Threadlings', desc: 'Broodweaver: you weave one extra threadling each time, and threadlings live 50% longer.' },
 };
 /** Exotic armor by class and slot (drops only for its class). The first per slot is the original v1.6 piece. */
 export const EXOTIC_ARMOR = {
-  vanguard: { helmet: ['An Insurmountable Skullfort', 'Mask of the Quiet One'], arms: ['Synthoceps', 'Ursa Furiosa'], chest: ['Heart of Inmost Light', 'Hallowfire Heart'], legs: ['Dunemarchers', 'Peacekeepers'] },
-  stalker: { helmet: ['Celestial Nighthawk', 'Graviton Forfeit'], arms: ["Liar's Handshake", "Young Ahamkara's Spine"], chest: ['Raiden Flux', 'Lucky Raspberry'], legs: ['St0mp-EE5', 'Orpheus Rig'] },
-  arcanist: { helmet: ["Nezarec's Sin", 'Skull of Dire Ahamkara'], arms: ['Contraverse Hold', 'Sunbracers'], chest: ['Starfire Protocol', "Stormdancer's Brace"], legs: ['Transversive Steps', 'Lunafaction Boots'] },
+  vanguard: { helmet: ['An Insurmountable Skullfort', 'Mask of the Quiet One'], arms: ['Synthoceps', 'Ursa Furiosa'], chest: ['Heart of Inmost Light', 'Hallowfire Heart', 'Hoarfrost-Z'], legs: ['Dunemarchers', 'Peacekeepers', 'Abeyant Leap'] },
+  stalker: { helmet: ['Celestial Nighthawk', 'Graviton Forfeit', "Cyrtarachne's Facade"], arms: ["Liar's Handshake", "Young Ahamkara's Spine", 'Renewal Grasps'], chest: ['Raiden Flux', 'Lucky Raspberry'], legs: ['St0mp-EE5', 'Orpheus Rig'] },
+  arcanist: { helmet: ["Nezarec's Sin", 'Skull of Dire Ahamkara'], arms: ['Contraverse Hold', 'Sunbracers', 'Osmiomancy Gloves'], chest: ['Starfire Protocol', "Stormdancer's Brace"], legs: ['Transversive Steps', 'Lunafaction Boots', 'Swarmers'] },
 };
-/** Every exotic armor piece a class can find, with its slot. */
-export const exoticArmorFor = (classId) => Object.entries(EXOTIC_ARMOR[classId]).flatMap(([slot, names]) => names.map((name) => ({ name, slot })));
+/** The level a Guardian of this class must reach before this exotic can drop (H26: a Darkness exotic waits for its subclass). */
+export const exoticArmorLevel = (classId, name) => { const sub = EXOTIC_ARMOR_PERKS[name]?.sub; return sub ? CLASSES[classId].subclasses[sub]?.unlockLevel ?? 1 : 1; };
+/** Every exotic armor piece a class can find, with its slot. `level` (H26): only pieces that Guardian level can find. */
+export const exoticArmorFor = (classId, level = Infinity) => Object.entries(EXOTIC_ARMOR[classId]).flatMap(([slot, names]) => names.map((name) => ({ name, slot }))).filter((x) => level >= exoticArmorLevel(classId, x.name));
 
 // ---------- Classes ----------
 export const CLASSES = {

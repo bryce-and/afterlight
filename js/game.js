@@ -659,7 +659,7 @@ function openChest(auto = false) {
     const lvl = playerLevel(G.save);
     let rIdx = capRarity(Math.max(i === 0 ? 2 : 1, rollRarity(lvl, first ? 5 : 2)), lvl);
     if (first && M.mi === M.loc.missions.length - 1 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
-    rewards.push(rollItem(Math.min(cap, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
+    rewards.push(rollItem(Math.min(cap, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save)));
   }
   // U20b: Legendary drops an exotic on every clear of the campaign's final mission (its boss), Ultimate on every mission's first clear
   if (tierExoticDue(M.tier || 'base', M.def.id === ALL_MISSIONS[ALL_MISSIONS.length - 1].id, first)) rewards.push(rollTierExotic(G.save, Math.min(cap, base + randInt(1, 4)), M.loc.id));
@@ -910,7 +910,7 @@ export function dropEngram(pos) {
   const pp = playerPower(G.save);
   const rIdx = rollRarity(playerLevel(G.save));
   const power = clamp(Math.max(pp, (M.power ?? M.def.power) - 3) + randInt(-1, 2), 1, tierOf(M.tier).cap);
-  spawnPickup('engram', pos, rollItem(power, rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound));
+  spawnPickup('engram', pos, rollItem(power, rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save)));
 }
 
 export function explode(pos, radius, dmg, element, o = {}) {
@@ -1394,7 +1394,7 @@ function openActChest() {
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
     if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
     rIdx = capRarity(rIdx, lvl); // never above what this level can use
-    rewards.push(rollItem(capRoll(pp, randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound)); // U20a: past 200 an activity holds your Light
+    rewards.push(rollItem(capRoll(pp, randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound, playerLevel(G.save))); // U20a: past 200 an activity holds your Light
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   const glimmer = 60 + c.wave * 12;

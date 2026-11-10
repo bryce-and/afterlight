@@ -265,7 +265,7 @@ export function claimLevelReward(s, level) {
   if (state === 'claimed') return { error: 'Already claimed.' };
   if (state !== 'ready') return { error: state === 'locked' ? `Reach level ${level} first.` : 'No reward at this level.' };
   const power = capRoll(playerPower(s), randInt(2, 5)); // U20a: past 200 a reward holds your Light
-  const item = rollItem(power, rarityIndex(rewardAt(level)), null, null, s.classId, s.exoticsFound);
+  const item = rollItem(power, rarityIndex(rewardAt(level)), null, null, s.classId, s.exoticsFound, level);
   addItem(s, item); // U20b: a full slot sends it to the Postmaster
   s.progression.claimed.push(level);
   writeSave(s);

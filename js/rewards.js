@@ -4,7 +4,7 @@ import { EXOTIC_RANDOM_WEAPONS, exoticArmorFor, WEAPON_SLOTS, ARMOR_SLOTS, LOCAT
 import { pickExotic, makeExotic, makeArmor, makeWeapon, rollItem, newId } from './loot.js';
 import { tierOf, tierClears, anyBaseClear, campaignDone } from './campaign.js';
 import { XP, LIGHT_CAP } from './progression.js';
-import { addItem, addXp, playerPower, writeSave, ALL_MISSIONS, enforceSlotCap } from './save.js';
+import { addItem, addXp, playerPower, playerLevel, writeSave, ALL_MISSIONS, enforceSlotCap } from './save.js';
 
 /** What each unlock offers: `armor` and `weapons` exotics are shown, the player keeps exactly `keepArmor` and `keepWeapons`. */
 export const REWARD_MENUS = {
@@ -29,7 +29,7 @@ export function rollMenu(s, tier, rnd = Math.random) {
   if (!def) throw new Error(`rollMenu: no reward menu for tier ${tier}`);
   const power = Math.max(1, Math.min(tierOf(tier).cap, playerPower(s)));
   const found = s.exoticsFound || [];
-  const armorPool = exoticArmorFor(s.classId);
+  const armorPool = exoticArmorFor(s.classId, playerLevel(s)); // H26: Darkness exotics wait for their subclass
   const armor = pickDistinct(armorPool.map((x) => x.name), def.armor, found, rnd)
     .map((name) => { const a = makeArmor(armorPool.find((x) => x.name === name).slot, power, 4, null, s.classId, name); a.isNew = true; return a; });
   const weapons = pickDistinct(EXOTIC_RANDOM_WEAPONS.map((e) => e.name), def.weapons, found, rnd).map((name) => makeExotic(name, power));
@@ -80,7 +80,7 @@ export function claimMenu(s, menuId, armorIds, weaponIds) {
  */
 export const tierExoticDue = (tierId, isFinalMission, first) => (tierId === 'legendary' && isFinalMission) || (tierId === 'ultimate' && first);
 /** That exotic: a random one at the mission's Light, favoring ones this Guardian has not found. */
-export const rollTierExotic = (s, power, dest) => rollItem(power, 4, null, dest, s.classId, s.exoticsFound || []);
+export const rollTierExotic = (s, power, dest) => rollItem(power, 4, null, dest, s.classId, s.exoticsFound || [], playerLevel(s));
 
 /**
  * What a clear's recordClear result sets off, in play order: the Legendary unlock (3+3 menu), the Ultimate unlock (5+5 menu), and the

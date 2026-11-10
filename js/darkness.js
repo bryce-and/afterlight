@@ -19,7 +19,7 @@ import { moveBody } from './physics.js';
 import { sfx } from './audio.js';
 import { SUPER_TUNE, SUPER_POWER } from './combat.js';
 import { DARK_ASPECT_TUNE as AT, FRAGMENT_TUNE as FT } from './subclass.js';
-import { DARK_PERKS, weaponChill, sliceHit, canPerch, perchAdd } from './darkness-rules.js';
+import { DARK_PERKS, DARK_EXO, weaponChill, sliceHit, canPerch, perchAdd } from './darkness-rules.js';
 import { hasLOS } from './physics.js';
 import { groundAt, floorBelow } from './colliders.js';
 import { STASIS, STRAND, DARK_GRENADE, canFreeze, canSuspend, chill, freezeTime, suspendTime, shatters, shatterBlast, playerChill, breakFree, unravelTargets, darkWielder } from './darkness-rules.js';
@@ -227,6 +227,7 @@ export function darkSplash(pos, r) {
 /** Clear every crystal and tangle (mission start, reset). */
 export function resetDark() {
   for (const c of [...objs.values()]) removeObj(c);
+  renewalFields.clear();
   for (const m of perch.list) m.parent?.remove(m); // H23: perched threadlings do not follow you to a new map
   perch.list.length = 0; perch.ticker = null; perch.sent = -1;
   for (const st of remotePerch.values()) for (const m of st.list) m.parent?.remove(m);
@@ -353,6 +354,8 @@ export function darkFx(kind, o, local) {
       const dome = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), new THREE.MeshBasicMaterial({ color: ST, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
       dome.position.copy(p); dome.scale.y = 0.6;
       G.scene.add(dome);
+      const field = o.rn ? { p, r } : null; // H26: a Renewal Grasps Duskfield protects every Guardian inside, fireteam included
+      if (field) renewalFields.add(field);
       let t = o.life, tick = 0;
       addTicker({
         update(dt) {
@@ -361,7 +364,7 @@ export function darkFx(kind, o, local) {
           if (local && tick <= 0) { tick = 0.5; for (const e of enemiesNear(p, r)) dealDamage(e, 8, { element: 'stasis', source: 'ability', pos: e.center(new THREE.Vector3()), slowAdd: 1, freezeMult: o.fm || 1 }); }
           return t > 0;
         },
-        dispose() { G.scene?.remove(dome); },
+        dispose() { G.scene?.remove(dome); if (field) renewalFields.delete(field); },
       });
       return true;
     }
@@ -453,6 +456,7 @@ function threadlingMesh() {
 
 const perch = { list: [], ticker: null, releaseAt: -9, sent: -1 };
 const remotePerch = new Map(); // caster id -> { list, ticker }
+const renewalFields = new Set(); // H26 Renewal Grasps: Duskfields (anyone's) that cut the damage Guardians inside take
 
 /** Where perched threadling i of n floats around an anchor (H24: low at the feet, slowly circling, out of the first-person view). */
 function perchSpot(anchor, i, n, out) {
@@ -507,7 +511,7 @@ function runThreadling(from, o, local, mesh = null) {
   g.position.copy(pos);
   if (!g.parent) G.scene.add(g);
   const vel = new THREE.Vector3((Math.random() - 0.5) * 3, 2.5, (Math.random() - 0.5) * 3);
-  let state = 'skitter', tgt = o.tgt || null, life = T.life, idle = 0, k = 0;
+  let state = 'skitter', tgt = o.tgt || null, life = o.life || T.life, idle = 0, k = 0;
   const leapFrom = new THREE.Vector3(), aim = new THREE.Vector3(), d = new THREE.Vector3();
   const to = o.to ? V(o.to) : null;
   const done = { v: false };
@@ -598,6 +602,14 @@ const methods = {
   isDark() { return this.cls.element === 'stasis' || this.cls.element === 'strand'; },
   giveEnergy(k, f) { this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * f); },
   giveSuper(n) { if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + n); },
+  /** H26 Osmiomancy Gloves: a Shadebinder's Coldsnap gets a second charge. */
+  osmioCharge() { return this.exo.has('osmiomancy') && this.cls.subclassId === 'shadebinder' && this.cls.abilities.grenade.id === 'coldsnap'; },
+  /** H26 Hoarfrost-Z: the barricade is a row of Stasis crystals across your path (each freezes enemies beside it and shatters when shot). */
+  hoarfrostWall(p, fwd) {
+    const H = DARK_EXO.hoarfrost, side = new THREE.Vector3(-fwd.z, 0, fwd.x);
+    for (let i = 0; i < H.n; i++) raiseCrystal(p.clone().addScaledVector(side, (i - (H.n - 1) / 2) * H.gap).setY(p.y + 0.3), H.size);
+    sfx.throw('stasis');
+  },
   freezeMult() { return this.frag.has('durance') ? FT.durance : 1; },
   suspendMult() { return (this.frag.has('continuity') ? FT.continuity : 1) * (this.asp.has('mindspun') && this._mindspunHit ? 1.5 : 1); },
   /** Stasis hit options: slow stacks (and the freeze length for when they freeze). */
@@ -606,8 +618,10 @@ const methods = {
   /** H23 Threadlings: they skitter along the ground and leap at enemies; a Broodweaver's perch when they find nothing. */
   threadlings(from, n) {
     const T = STRAND.threadling;
+    const sw = this.exo.has('swarmers') && this.cls.subclassId === 'broodweaver'; // H26 Swarmers: one more, and they live longer
+    if (sw) n += DARK_EXO.swarmers.extra;
     const targets = enemiesNear(from, T.seekR, n);
-    const o = { perch: canPerch(this.cls.subclassId), unravel: this.asp.has('weaverscall') };
+    const o = { perch: canPerch(this.cls.subclassId), unravel: this.asp.has('weaverscall'), life: sw ? T.life * DARK_EXO.swarmers.life : T.life };
     for (let i = 0; i < n; i++) {
       const tgt = targets[i % Math.max(1, targets.length)] || null;
       const p = from.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0, (Math.random() - 0.5) * 0.8));
@@ -625,7 +639,7 @@ const methods = {
     const targets = hit && hit.alive ? [hit, ...near.filter((x) => x !== hit)] : near;
     if (!targets.length) return;
     perch.releaseAt = G.time + T.releaseGap;
-    const o = { perch: canPerch(this.cls.subclassId), unravel: this.asp.has('weaverscall') };
+    const o = { perch: canPerch(this.cls.subclassId), unravel: this.asp.has('weaverscall'), life: this.exo.has('swarmers') && this.cls.subclassId === 'broodweaver' ? T.life * DARK_EXO.swarmers.life : T.life };
     const out = perch.list.splice(0);
     out.forEach((m, i) => {
       const tgt = targets[i % targets.length];
@@ -695,6 +709,7 @@ const methods = {
     let m = 1;
     if (this.status.has('wovenmail') || this.superActive?.type === 'loomwalker') m *= STRAND.woven.cut;
     if (this.status.has('weavewalk')) m *= AT.weavewalk.cut;
+    for (const f of renewalFields) if (f.p.distanceTo(this.pos) < f.r) { m *= DARK_EXO.renewal.cut; break; } // H26 Renewal Grasps
     if (this.frag.has('chains')) {
       const near = [...objs.values()].some((c) => c.kind === 'crystal' && c.pos.distanceTo(this.pos) < FT.chains.r)
         || enemiesNear(this.pos, FT.chains.r).some((e) => e.status.has('frozen'));
@@ -787,11 +802,13 @@ const methods = {
       for (let i = 0; i < n; i++) raiseCrystal(pt.clone().addScaledVector(side, (i - (n - 1) / 2) * 1.4).addScaledVector(fwd, (i % 2) * 0.6));
       castFx('darkslam', { p: pt.clone().setY(fy + 0.1), el: 'stasis', r: 4 });
     } else if (id === 'duskfield') {
-      castFx('duskfield', { p: pt.clone().setY(fy), r: tw ? 6 : 4.5, life: 6, fm: this.freezeMult() });
+      const rn = this.exo.has('renewal') && this.cls.subclassId === 'revenant'; // H26 Renewal Grasps
+      castFx('duskfield', { p: pt.clone().setY(fy), r: (tw ? 6 : 4.5) * (rn ? DARK_EXO.renewal.r : 1), life: 6, fm: this.freezeMult(), rn: rn ? 1 : 0 });
     } else if (id === 'coldsnap') {
       this.coldsnap(pt, tw ? 3 : 1);
     } else if (id === 'grapple') {
       this.grapple = { to: pt.clone().setY(pt.y + 1.2), t: 0.9 };
+      if (this.exo.has('cyrtarachne') && this.cls.subclassId === 'threadrunner') this.status.apply('wovenmail', { t: DARK_EXO.cyrtarachne.t, set: true }); // H26 Cyrtarachne's Facade
       this.status.apply('grapplemelee', { set: true });
       if (ms) dropTangle(pt);
       if (this.asp.has('widowssilk')) { this.cd.grenade *= 0.5; this.status.apply('severing', { t: AT.widowssilk.rounds, set: true }); } // H23: Severing Rounds
@@ -816,6 +833,7 @@ const methods = {
         shatterFx(p, 0.6);
         if (e && e.alive) {
           dealDamage(e, 140, { element: 'stasis', source: 'ability', pos: p.clone(), freeze: this.freezeMult() });
+          if (this.osmioCharge() && G.time - (this.osmioAt ?? -9) >= DARK_EXO.osmiomancy.gap) { this.osmioAt = G.time; this.giveEnergy('grenade', DARK_EXO.osmiomancy.refund); } // H26 Osmiomancy Gloves
           if (more > 0) this.coldsnap(p.clone(), more - 1, e);
         }
       },
@@ -950,11 +968,12 @@ const methods = {
     if ((id === 'rift' || id === 'empower') && A.has('weaverscall')) this.threadlings(this.pos.clone(), AT.weaverscall.n); // H24: from your feet, not your perched ones' spot
     if ((id === 'barricade' || id === 'rally') && A.has('drengrslash')) {
       const D = AT.drengrslash, f = this.getForward(new THREE.Vector3()).setY(0).normalize();
-      for (let i = 1; i <= D.n; i++) {
+      const n = Math.round(D.n * (this.exo.has('abeyant') && this.cls.subclassId === 'berserker' ? DARK_EXO.abeyant.lash : 1)); // H26 Abeyant Leap: 50% farther
+      for (let i = 1; i <= n; i++) {
         const p = this.pos.clone().addScaledVector(f, i * D.step).setY(this.pos.y + 0.5);
         for (const e of enemiesNear(p, D.r)) dealDamage(e, D.dmg, { element: 'strand', source: 'ability', pos: e.center(new THREE.Vector3()), suspend: this.suspendMult() });
       }
-      castFx('threads', { pts: [this.pos.clone().setY(this.pos.y + 0.5), this.pos.clone().addScaledVector(f, D.n * D.step).setY(this.pos.y + 0.5)] });
+      castFx('threads', { pts: [this.pos.clone().setY(this.pos.y + 0.5), this.pos.clone().addScaledVector(f, n * D.step).setY(this.pos.y + 0.5)] });
     }
     if (id !== 'marksman' && id !== 'gambler') return;
     if (A.has('wintersshroud')) {

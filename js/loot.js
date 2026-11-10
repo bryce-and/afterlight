@@ -103,7 +103,7 @@ export function pickExotic(names, found = [], rnd = Math.random) {
  * the player already has (save.exoticsFound); an exotic drop then favors ones not found yet. Weapon
  * exotics are one pool for every Guardian; armor exotics are the class's pool. A given slot limits the pool.
  */
-export function rollItem(power, rIdx, slot = null, dest = null, classId = null, found = []) {
+export function rollItem(power, rIdx, slot = null, dest = null, classId = null, found = [], level = Infinity) { // H26: `level` holds back Darkness exotics
   const fixed = !!slot;
   slot = slot || pick(SLOTS);
   const weapon = WEAPON_SLOTS.includes(slot);
@@ -113,7 +113,7 @@ export function rollItem(power, rIdx, slot = null, dest = null, classId = null, 
       return makeExotic(pickExotic(pool, found), power);
     }
     classId = classId || pick(Object.keys(EXOTIC_ARMOR));
-    const pool = exoticArmorFor(classId).filter((x) => !fixed || x.slot === slot);
+    const pool = exoticArmorFor(classId, level).filter((x) => !fixed || x.slot === slot);
     const name = pickExotic(pool.map((x) => x.name), found);
     return makeArmor(pool.find((x) => x.name === name).slot, power, rIdx, dest, classId, name);
   }

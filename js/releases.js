@@ -5,6 +5,20 @@
 
 export const RELEASES = [
   {
+    version: '4.5.4', name: 'Hotfix', date: '2026-11-10', accent: '#ffb547', glyph: '✚',
+    summary: 'Six Darkness exotic armor pieces, one Stasis and one Strand for each class.',
+    notes: [
+      'New Darkness exotics, one Stasis and one Strand per class. Each works with its Darkness subclass and starts dropping at level 28, when Darkness unlocks',
+      'Titan, Hoarfrost-Z (chest, Behemoth): your barricade is a wall of Stasis crystals that freezes enemies beside it and shatters when shot',
+      'Titan, Abeyant Leap (legs, Berserker): your class ability recharges 30% faster, and Drengr\'s Lash threads travel 50% farther',
+      'Hunter, Renewal Grasps (arms, Revenant): your Duskfield is 50% larger, and Guardians inside it take 30% less damage',
+      'Hunter, Cyrtarachne\'s Facade (helmet, Threadrunner): grappling gives you Woven Mail for 6 seconds',
+      'Warlock, Osmiomancy Gloves (arms, Shadebinder): Coldsnap gains a second charge, and its hits return 20% grenade energy',
+      'Warlock, Swarmers (legs, Broodweaver): you weave one extra threadling each time, and threadlings live 50% longer',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.5.3', name: 'Hotfix', date: '2026-11-10', accent: '#ffb547', glyph: '✚',
     summary: 'Avalanche slams down where you land, and fireteams can meet in the Tower together.',
     notes: [

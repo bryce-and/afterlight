@@ -44,6 +44,16 @@ export function perchAdd(cur, add, max = STRAND.threadling.perchMax) {
 export const releasesPerch = (o, dmg) => dmg > 0 && !o.remoteHit && !o.raw && !o.companion && !o.jolted
   && (o.source === 'weapon' || o.source === 'melee' || o.source === 'ability' || o.source === 'super');
 
+// H26: Darkness exotic armor tuning (EXOTIC_ARMOR_PERKS in data.js names them; each works only with its `sub`).
+export const DARK_EXO = {
+  hoarfrost: { n: 5, gap: 1.1, size: 1.15 },      // Hoarfrost-Z: crystals in the barricade wall, spacing across, crystal size
+  abeyant: { classCd: 0.7, lash: 1.5 },            // Abeyant Leap: class ability cooldown, Drengr's Lash reach
+  renewal: { r: 1.5, cut: 0.7 },                   // Renewal Grasps: Duskfield radius, damage taken inside
+  cyrtarachne: { t: 6 },                           // Cyrtarachne's Facade: Woven Mail after a grapple
+  osmiomancy: { refund: 0.2, gap: 1 },             // Osmiomancy Gloves: grenade energy per Coldsnap hit, at most once per gap
+  swarmers: { extra: 1, life: 1.5 },               // Swarmers: threadlings per weave, threadling life
+};
+
 // H23: Darkness weapon perks (they roll only on weapons of their element, PERK_ELEMENT) and the "Rounds" buffs
 // that make weapon hits apply a Darkness debuff (Chilling, Severing; Unraveling Rounds from U22).
 export const DARK_PERKS = {
