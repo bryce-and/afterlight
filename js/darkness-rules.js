@@ -9,7 +9,7 @@ export const DARK_UNLOCK = 28; // Guardian level the six Darkness subclasses unl
 export const DARK_ELEMENTS = ['stasis', 'strand'];
 
 export const STASIS = {
-  slowT: 4, freezeAt: 5, bossSlowCap: 4,
+  slowT: 6, freezeAt: 4, bossSlowCap: 3, // H23: freeze at 4 stacks (was 5), slow lasts 6s (was 4)
   freezeT: { grunt: 3, rusher: 3, suicide: 3, captain: 2.4, heavy: 1.6 },
   shatter: { dmg: 260, r: 4, splash: 150 }, // the frozen target takes dmg; enemies within r take splash
   crystal: { life: 10, freezeR: 2.6, freezeT: 2.5, r: 4.5, dmg: 180, size: 1.3 },
@@ -24,9 +24,46 @@ export const STRAND = {
   sever: { t: 6, mult: 0.6 },
   tangle: { life: 10, r: 4.5, dmg: 240, suspend: 1 },
   woven: { t: 6, cut: 0.55 },
-  threadling: { life: 6, dmg: 75, speed: 10 },
+  // H23: threadlings skitter along the ground (speed), leap at a target within leapR (leapT seconds in the air),
+  // and burst. A Broodweaver's threadlings that find nothing perch on the caster (at most perchMax) and jump off
+  // when the caster's weapon deals damage (at most once per releaseGap).
+  threadling: { life: 6, dmg: 90, speed: 11, seekR: 24, leapR: 3.2, leapT: 0.32, perchMax: 5, releaseGap: 0.4 },
   player: { suspendT: 1.4 },
 };
+
+/** Can this subclass's threadlings perch on the caster? Only the Broodweaver's (Destiny 2's Warlock trait). */
+export const canPerch = (sub) => sub === 'broodweaver';
+/** Perch `add` threadlings on top of `cur`: returns how many are perched now and how many found no room. */
+export function perchAdd(cur, add, max = STRAND.threadling.perchMax) {
+  const perched = Math.min(max, cur + add);
+  return { perched, lost: cur + add - perched };
+}
+
+// H23: Darkness weapon perks (they roll only on weapons of their element, PERK_ELEMENT) and the "Rounds" buffs
+// that make weapon hits apply a Darkness debuff (Chilling, Severing; Unraveling Rounds from U22).
+export const DARK_PERKS = {
+  chillclip: { stacks: 1, crit: 2, gap: 0.25 }, // hits slow; precision hits slow twice
+  headstone: { size: 0.9 }, // precision kills raise a Stasis crystal
+  hatchling: { n: 1 }, // precision kills weave a threadling
+  slice: { hits: 3, window: 1.5 }, // 3 hits on one enemy within 1.5s sever it
+};
+export const ROUNDS = { chilling: { stacks: 1, gap: 0.25 } };
+/** Slow stacks a weapon hit adds (Chill Clip, Chilling Rounds, Whisper of Impairment), or 0. A frozen target gets none so the hit shatters it. */
+export function weaponChill({ chillclip = false, chilling = false, impairment = false, slowed = false, frozen = false, crit = false }) {
+  if (frozen) return 0;
+  let n = 0;
+  if (chillclip) n += crit ? DARK_PERKS.chillclip.crit : DARK_PERKS.chillclip.stacks;
+  if (chilling) n += ROUNDS.chilling.stacks;
+  if (impairment && slowed) n += 1;
+  return n;
+}
+/** Slice: keep the hit times within the window; returns the kept list and whether this hit severs. */
+export function sliceHit(times, now) {
+  const S = DARK_PERKS.slice;
+  const kept = times.filter((t) => now - t < S.window);
+  kept.push(now);
+  return kept.length >= S.hits ? { times: [], sever: true } : { times: kept, sever: false };
+}
 
 const isBossLike = (e) => !!(e.isBoss || e.exoBoss);
 export const canFreeze = (e) => !isBossLike(e);

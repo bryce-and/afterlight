@@ -32,6 +32,7 @@ import { startTower } from './tower.js';
 import { TOWER_LOC } from './level-tower.js';
 import { startPatrol } from './patrol.js';
 import { startExotic } from './exotic-missions.js';
+import { renderRollTracker } from './rolltracker.js';
 import { exoticList, exoticDef, exoticUnlocked, exoticLockText, exoticRecord, clock } from './exotic-rules.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -204,7 +205,7 @@ let orbitTab = 'director', selLoc = null, selMission = null, selAct = 0, selExo 
 export function showOrbit(tab) {
   G.state = 'orbit';
   if (tab) orbitTab = tab;
-  if (!['director', 'quests', 'activities', 'level'].includes(orbitTab)) orbitTab = 'character';
+  if (!['director', 'quests', 'activities', 'level', 'rolls'].includes(orbitTab)) orbitTab = 'character';
   showOnly('orbit');
   setVolume(G.save.settings.volume);
   setMusicVolume(G.save.settings.musicVolume ?? 0.5);
@@ -230,7 +231,7 @@ function renderOrbit() {
     <header class="topbar">
       <button class="brand" id="brand" title="Back to the title screen">AFTERLIGHT</button>
       <nav class="tabs">
-        ${['director', 'quests', 'activities', 'character', 'level'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'quests' && dueStop(s) ? '<span class="badge">!</span>' : ''}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}${t === 'level' && readyRewards ? `<span class="badge">${readyRewards}</span>` : ''}</button>`).join('')}
+        ${['director', 'quests', 'activities', 'character', 'level', 'rolls'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'quests' && dueStop(s) ? '<span class="badge">!</span>' : ''}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}${t === 'level' && readyRewards ? `<span class="badge">${readyRewards}</span>` : ''}</button>`).join('')}
       </nav>
       <button class="btn tower-btn${dueStop(s) ? ' due' : ''}" id="go-tower" title="${net.active ? 'Leave your fireteam to visit the Tower' : 'Land at the Tower'}" ${net.active ? 'disabled' : ''}>The Tower</button>
       <button class="btn install-app hidden" id="install-app" title="Install Afterlight as an app">Install App</button>
@@ -264,6 +265,7 @@ function renderOrbit() {
   else if (orbitTab === 'quests') renderQuests(main);
   else if (orbitTab === 'activities') renderActivities(main);
   else if (orbitTab === 'level') renderLevel(main);
+  else if (orbitTab === 'rolls') renderRollTracker(main);
   else renderCharScreen(main);
 }
 
@@ -1240,6 +1242,7 @@ export function enterMission() {
   hud.superFill = $('#super .super-fill'); hud.superLbl = $('#super .super-label'); hud.superBox = $('#super');
   hud.plate = $('#eplate'); hud.plateIco = $('#eplate .ep-ico'); hud.plateName = $('#eplate .ep-name'); hud.plateHp = $('#eplate .ep-hp'); hud.plateSh = $('#eplate .ep-shield'); hud.plateDb = $('#eplate .ep-debuffs');
   hud.buffs = { general: $('#buffs-gen'), weapon: $('#buffs-wpn') };
+  hud.perch = $('#perch'); hud.perchSlots = $('#perch .pc-slots'); hud.perchN = ''; // H23
   hud.charge = $('#charge'); hud.chargePips = $('#charge .ch-pips'); hud.chargeBar = $('#charge .ch-bar'); hud.chargeN = '';
   for (const box of Object.values(hud.buffs)) box.innerHTML = '';
   buffChips.clear();
@@ -1301,6 +1304,7 @@ export function updateHUD(dt) {
   setText(hud.revives, 'rev', M.patrol || M.exotic ? '' : M.coop ? `Lives ${Math.max(0, M.lives)}` : `Revives ${Math.max(0, M.revives)}`);
   setText(hud.objText, 'obj', M.objective);
   updateCharge(P);
+  updatePerch(P);
   // vignette
   flashV = Math.max(0, flashV - dt * 2.5);
   setStyle(hud.vig, 'vig', 'opacity', Math.min(1, flashV).toFixed(2));
@@ -1628,6 +1632,15 @@ function updateEnemyPlate(dt) {
 const buffChips = new Map();
 const SCOPE_LABEL = { grenade: 'Grenade', melee: 'Melee', class: 'Class' };
 /** U9: the armor charge counter. Shown while a socketed mod uses armor charge; one pip per stack it can hold. */
+/** H23: the Broodweaver's perched threadlings, five slots over the super bar. */
+function updatePerch(P) {
+  const on = P.cls.subclassId === 'broodweaver';
+  setClass(hud.perch, 'pch', 'hidden', !on);
+  if (!on) return;
+  const n = P.perchN?.() ?? 0, key = String(n);
+  if (hud.perchN !== key) { hud.perchN = key; hud.perchSlots.innerHTML = Array.from({ length: 5 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join(''); }
+}
+
 function updateCharge(P) {
   const on = P.modsOn && usesCharge(P.ap);
   setClass(hud.charge, 'chg', 'hidden', !on);

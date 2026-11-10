@@ -98,6 +98,11 @@ export const PERKS = {
   incandescent: { name: 'Incandescent', desc: 'Kills set enemies within 5m burning for 3s.' },
   voltshot: { name: 'Voltshot', desc: 'Reloading within 4s of a kill charges the next hit to jolt up to 3 nearby enemies.' },
   destabilizing: { name: 'Destabilizing Rounds', desc: 'Kills pulse void energy that weakens enemies within 6m, so they take 30% more damage for 4s.' },
+  // H23: Darkness weapon perks (Stasis and Strand weapons only)
+  chillclip: { name: 'Chill Clip', desc: 'Hits slow the target; precision hits slow it twice. Four slow stacks freeze.' },
+  headstone: { name: 'Headstone', desc: 'Precision kills raise a Stasis crystal where the target fell.' },
+  hatchling: { name: 'Hatchling', desc: 'Precision kills weave a threadling that hunts the next enemy.' },
+  slice: { name: 'Slice', desc: 'Three hits on one enemy within 1.5s sever it: it deals less damage.' },
   chainreaction: { name: 'Chain Reaction', desc: 'Every kill sets off an elemental explosion.' },
   demolitionist: { name: 'Demolitionist', desc: 'Kills take an extra 2.5s off your grenade cooldown.' },
   snapshot: { name: 'Snapshot Sights', desc: 'Aim down sights twice as fast.' },
@@ -171,13 +176,15 @@ export const EXOTIC_PERKS = {
   penance: { name: 'Penance', desc: 'A target held in Judgment for 2.5s is struck by a burst of arc damage.' },
 };
 // Elemental perks roll only on weapons of their element (H3).
-export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void', tremors: 'kinetic', repulsor: 'void', jolting: 'arc' };
+export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void', tremors: 'kinetic', repulsor: 'void', jolting: 'arc', chillclip: 'stasis', headstone: 'stasis', hatchling: 'strand', slice: 'strand' };
+/** H23: every Stasis or Strand named weapon's Effect pool holds at least one of its element's perks (frames.js perkPoolFor). */
+export const DARK_SIGNATURE_PERKS = ['chillclip', 'headstone', 'hatchling', 'slice'];
 // Loot 2.0 (U10): three perk columns, Destiny 2 style. A perk goes by its payoff (docs/DECISIONS.md 2026-10-17).
 // Steady Hands and Snapshot Sights no longer roll (no column fits them); old weapons keep them.
 export const PERK_COLUMNS = {
   mag: ['harvest', 'deepreserve', 'thrift', 'extmag', 'alloymag', 'highcal', 'overflow', 'outlaw', 'feeding', 'reconstruction', 'rapidhit', 'subsistence', 'envious', 'hotswap', 'scavenger'],
   damage: ['relentless', 'crescendo', 'executioner', 'rampage', 'killclip', 'frenzy', 'surrounded', 'opening', 'precise', 'adrenaline', 'oneforall', 'baitswitch'],
-  effect: ['eager', 'bloodletter', 'sweep', 'firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting'],
+  effect: ['eager', 'bloodletter', 'sweep', 'firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting', 'chillclip', 'headstone', 'hatchling', 'slice'],
 };
 export const PERK_COLUMN_NAMES = { mag: 'Magazine or Reload', damage: 'Damage', effect: 'Effect' };
 /** The column a perk belongs to, or null (Steady Hands, Snapshot Sights). */

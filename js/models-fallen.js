@@ -117,16 +117,38 @@ function fallenBody(c, W, lean, crest, drape) {
   return { torso, up, low };
 }
 
+
+/** Pose the upper arm pair so both hands close on a two-handed weapon, then build the weapon where the hands are.
+ *  `xr`/`xl` are the torso-space x the right (rear grip) and left (fore-end) hands reach, `rxr`/`rxl` their forward lean.
+ *  `build(g)` fills a group whose origin is the midpoint of the two hands (z forward, hands at about z 0); the group is
+ *  then re-parented to the right upper arm, so the weapon follows the arm (windup, flinch) and `c.muzzle` stays a child of it. */
+function holdTwoHanded(c, torso, up, len, xr, xl, rxr, rxl, build) {
+  const hands = [];
+  [[up[0], xl, rxl], [up[1], xr, rxr]].forEach(([a, tx, rx]) => {
+    a.rotation.x = rx;
+    a.rotation.z = Math.asin(Math.max(-0.95, Math.min(0.95, (tx - a.position.x) / len)));
+    hands.push(new THREE.Vector3(0, -len, 0).applyEuler(a.rotation).add(a.position));
+  });
+  const grp = new THREE.Group();
+  grp.position.copy(hands[0]).add(hands[1]).multiplyScalar(0.5);
+  torso.add(grp);
+  build(grp);
+  torso.updateMatrixWorld(true);
+  up[1].attach(grp);
+}
+
 /** Dreg: lean and hunched, wrapped limbs, a scarf hood and a dark red mohawk; a shock knife in one upper hand and a shock pistol in the other. */
 function dreg(c) {
   const M = fm();
   const { torso, up } = fallenBody(c, 0.85, 0.45, 'mohawk', 0);
   c.arms.push(...up);
-  c.B(0.025, 0.06, 0.36, 0, -0.52, 0.16, M.blade, up[0]); // shock knife
-  c.B(0.04, 0.06, 0.08, 0, -0.5, -0.02, M.joint, up[0]);
-  c.B(0.06, 0.08, 0.18, 0, -0.5, 0.08, M.steel, up[1]); // shock pistol
-  c.B(0.025, 0.025, 0.04, 0, -0.48, 0.18, c.accent, up[1]);
-  c.muzzle.position.set(0, 0.5, 0.3); torso.add(c.muzzle);
+  // both weapons point along the forearm (arm-local -y is forward once the arm is raised), so they sit in the hands and aim forward
+  c.B(0.025, 0.34, 0.06, 0, -0.66, 0, M.blade, up[0]); // shock knife: blade forward from the fist
+  c.B(0.06, 0.1, 0.06, 0, -0.5, 0, M.joint, up[0]);
+  c.B(0.07, 0.2, 0.09, 0, -0.55, 0, M.steel, up[1]); // shock pistol: body forward from the fist, grip under the hand
+  c.B(0.05, 0.1, 0.05, 0, -0.5, -0.07, M.joint, up[1]);
+  c.B(0.03, 0.04, 0.025, 0, -0.66, 0, c.accent, up[1]);
+  c.muzzle.position.set(0, -0.7, 0); up[1].add(c.muzzle);
 }
 
 /** Vandal: bone plating over the red suit, horned helm, hooded red cloak and a backpack; a wire rifle held by the upper pair. */
@@ -136,11 +158,14 @@ function vandal(c) {
   c.arms.push(...up);
   c.B(0.26, 0.3, 0.16, 0, 0.5, -0.2, c.bodyMat, torso); // pack
   c.B(0.08, 0.1, 0.06, 0.08, 0.68, -0.24, M.steel, torso);
-  // wire rifle: stock, body, long barrel with blue coil, held across the chest
-  c.B(0.08, 0.1, 0.3, 0.12, 0.42, 0.28, M.joint, torso);
-  c.B(0.05, 0.05, 0.42, 0.12, 0.44, 0.62, M.steel, torso);
-  c.B(0.03, 0.03, 0.18, 0.12, 0.5, 0.5, c.accent, torso);
-  c.muzzle.position.set(0.12, 0.44, 0.85); torso.add(c.muzzle);
+  // wire rifle: stock, body, long barrel with blue coil, gripped by the rear hand and braced by the fore-end hand
+  holdTwoHanded(c, torso, up, 0.48, 0.05, -0.05, -1.05, -1.35, (g) => {
+    c.B(0.08, 0.1, 0.2, 0, 0, -0.05, M.joint, g);
+    c.B(0.04, 0.1, 0.05, 0, -0.07, -0.02, M.joint, g); // grip
+    c.B(0.05, 0.05, 0.5, 0, 0.01, 0.3, M.steel, g);
+    c.B(0.03, 0.03, 0.18, 0, 0.045, 0.2, c.accent, g);
+    c.muzzle.position.set(0, 0.01, 0.58); g.add(c.muzzle);
+  });
 }
 
 /** Captain: bigger, a spiked crown, a red scarf over a long cloak, heavy spiked pauldrons; a heavy scorch cannon held across the body
@@ -156,14 +181,16 @@ function captain(c) {
     c.B(0.025, 0.3, 0.025, sx * 0.06, 0.66, 0.16, M.joint, torso, false, [0.2, 0, sx * 0.2]); // breather hoses
   }
   c.B(0.36 * W, 0.12, 0.3, 0, 0.72, 0.02, M.cloth, torso); // scarf
-  // scorch cannon: dark stock against the chest, a long heavy body with a bone top plate, glowing vents and a red-hot muzzle
-  c.B(0.12, 0.14, 0.3, 0.14, 0.44, 0.24, M.joint, torso);
-  c.B(0.14, 0.16, 0.6, 0.14, 0.44, 0.62, M.steel, torso);
-  c.B(0.1, 0.05, 0.42, 0.14, 0.54, 0.58, c.bodyMat, torso);
-  for (const dz of [0.5, 0.62, 0.74]) c.B(0.15, 0.03, 0.04, 0.14, 0.44, dz, M.hot, torso);
-  c.B(0.16, 0.16, 0.08, 0.14, 0.44, 0.94, M.joint, torso);
-  c.B(0.1, 0.1, 0.03, 0.14, 0.44, 0.99, M.hot, torso);
-  c.muzzle.position.set(0.14, 0.44, 1.02); torso.add(c.muzzle);
+  // scorch cannon: dark stock behind the hands, a long heavy body with a bone top plate, glowing vents and a red-hot muzzle
+  holdTwoHanded(c, torso, up, 0.48, 0.12, -0.12, -1.05, -1.3, (g) => {
+    c.B(0.12, 0.14, 0.24, 0, 0, -0.05, M.joint, g);
+    c.B(0.14, 0.16, 0.56, 0, 0, 0.35, M.steel, g);
+    c.B(0.1, 0.05, 0.42, 0, 0.1, 0.32, c.bodyMat, g);
+    for (const dz of [0.25, 0.37, 0.49]) c.B(0.15, 0.03, 0.04, 0, 0, dz, M.hot, g);
+    c.B(0.16, 0.16, 0.08, 0, 0, 0.67, M.joint, g);
+    c.B(0.1, 0.1, 0.03, 0, 0, 0.72, M.hot, g);
+    c.muzzle.position.set(0, 0, 0.75); g.add(c.muzzle);
+  });
   c.height = 2.2;
 }
 
@@ -298,12 +325,12 @@ function legsBiped(c, hipY, hipW, thick, m, foot, digi = false) {
   }
 }
 
-/** Gun held at chest height; places the muzzle at its front. */
-function gun(c, parent, x, y, z, len, thick, glow = true) {
-  c.B(thick, thick * 1.2, len, x, y, z, c.dark, parent);
-  if (glow) c.B(thick * 0.5, thick * 0.4, len * 0.4, x, y + thick * 0.7, z, c.accent, parent);
-  c.muzzle.position.set(x, y, z + len / 2 + 0.03);
-  parent.add(c.muzzle);
+/** A gun built in group `g` (origin at the hands): stock behind the origin, body ahead of it; places the muzzle at its front. */
+function gun(c, g, len, thick, glow = true) {
+  c.B(thick, thick * 1.2, len, 0, 0, len / 2 - 0.1, c.dark, g);
+  if (glow) c.B(thick * 0.5, thick * 0.4, len * 0.4, 0, thick * 0.7, len / 2 - 0.1, c.accent, g);
+  c.muzzle.position.set(0, 0, len - 0.1 + 0.03);
+  g.add(c.muzzle);
 }
 
 function arm(c, parent, x, y, len, thick, m, lift = -1.1, rz = 0) {
@@ -374,7 +401,7 @@ function genericBoss(c, t = 'boss') {
     for (const a of up) B(0.02, 0.05, 0.36, 0, -0.5, 0.12, accent, a);
     c.muzzle.position.set(0, 0.5, 0.3); torso.add(c.muzzle);
   } else {
-    gun(c, torso, 0.12, 0.42, 0.45, big ? 0.75 : 0.65, 0.08);
+    holdTwoHanded(c, torso, up, 0.48, 0.1 * W, -0.1 * W, -1.05, -1.3, (g) => gun(c, g, big ? 0.75 : 0.65, 0.08));
   }
   if (big) {
     for (const s of [-1, 1]) {

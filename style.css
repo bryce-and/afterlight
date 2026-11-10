@@ -315,6 +315,12 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 #charge .ch-pips i.on { background: #cdb6ff; box-shadow: 0 0 6px #cdb6ff; }
 #charge .ch-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: #cdb6ff; }
 #charge.empty { opacity: 0.55; }
+/* H23: Broodweaver perched threadlings, five slots */
+#perch { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #c8ffd8; text-shadow: 0 1px 3px #000; }
+#perch.hidden { display: none; }
+#perch .pc-slots { display: inline-flex; gap: 4px; }
+#perch .pc-slots i { width: 11px; height: 14px; border-radius: 50% 50% 45% 45%; border: 1px solid rgba(53,227,102,0.6); background: rgba(0,0,0,0.45); }
+#perch .pc-slots i.on { background: repeating-linear-gradient(170deg, #35e366 0 2px, #0a140d 2px 4px); border-color: #35e366; box-shadow: 0 0 6px #35e366; }
 /* enemy plate: floats above the aimed enemy's head (positioned every frame in ui.js) */
 /* sizes scale with the HUD scale setting (--hud-scale); keep PLATE_CENTER in ui.js in step */
 #eplate { --ps: var(--hud-scale, 1); position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: calc(5px * var(--ps)); text-shadow: 0 1px 3px #000; pointer-events: none; will-change: transform; }
@@ -1102,3 +1108,33 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 @keyframes ov-glow { 50% { box-shadow: 0 0 34px rgba(255,205,60,1), inset 0 0 20px rgba(255,205,60,0.5); } }
 @media (prefers-reduced-motion: reduce) { .unlock-ov, .unlock-ov * , .cs-overload, .cs-overload::after { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; } }
 @media (min-width: 901px) and (max-width: 1239px) { .cs-overload span { display: none; } .cs-overload { gap: 8px; padding: 8px 10px; } } /* narrow desktops: diamond plus ON/OFF, the name stays in the tooltip */
+
+/* H23 Roll Tracker */
+#orbit-main.tab-rolls { background: rgba(5,7,11,0.88); }
+.rt { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); gap: 24px; padding: 24px 28px; height: 100%; }
+.rt-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.rt-q { width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--line); color: var(--text); font-family: var(--body); font-size: 14px; user-select: text; -webkit-user-select: text; }
+.rt-q:focus { outline: none; border-color: var(--accent); }
+.rt-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.rt-filters select { min-width: 0; padding: 7px 6px; background: #141a22; border: 1px solid var(--line); color: var(--text); font-size: 12px; }
+.rt-count { color: var(--muted); font-size: 12px; }
+.rt-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; padding-right: 4px; }
+.rt-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--rc); background: rgba(255,255,255,0.03); color: var(--text); cursor: pointer; }
+.rt-row:hover, .rt-row.sel { background: rgba(255,255,255,0.09); border-color: var(--rc); }
+.rt-sil .w-ico { width: 44px; height: 17px; opacity: 0.85; }
+.rt-rn { min-width: 0; }
+.rt-rn b { display: block; font-family: var(--head); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-rn small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-detail { overflow-y: auto; min-height: 0; }
+.rt-card { display: grid; gap: 12px; max-width: 760px; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--rc); padding: 18px 20px; }
+.rt-head { display: flex; gap: 16px; align-items: center; }
+.rt-big { width: 120px; height: 64px; object-fit: contain; flex: none; }
+.rt-hit { outline: 1px solid var(--accent); background: rgba(127,216,255,0.12); }
+.rt-src { display: block; }
+.ins-perk b small { color: var(--gold); font-weight: 600; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+@media (max-width: 900px) {
+  .rt { grid-template-columns: 1fr; overflow-y: auto; padding: 16px; gap: 16px; align-content: start; height: auto; max-height: 100%; }
+  .rt-list { max-height: 36vh; flex: none; }
+  .rt-detail { overflow: visible; }
+  .rt-head { flex-wrap: wrap; }
+}

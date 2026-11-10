@@ -37,6 +37,8 @@ export const STATUS = {
   hedrons: { name: 'Whisper of Hedrons', group: 'general', glyph: '▲', color: '#4d88ff', t: 6 },
   ascent: { name: 'Thread of Ascent', group: 'general', glyph: '↻', color: '#35e366', t: 5 },
   unraveling: { name: 'Unraveling Rounds', group: 'general', glyph: '⟆', color: '#35e366', t: 8 },
+  chilling: { name: 'Chilling Rounds', group: 'general', glyph: '❄', color: '#4d88ff', t: 6 }, // H23: weapon hits slow
+  severing: { name: 'Severing Rounds', group: 'general', glyph: '⫽', color: '#35e366', t: 6 }, // H23: weapon hits sever
   cryoclasm: { name: 'Cryoclasm', group: 'general', glyph: '»', color: '#4d88ff', t: 3 },
   grapplemelee: { name: 'Grapple Melee', group: 'general', glyph: '⥉', color: '#35e366', t: 3 },
   // aspects and fragments (Paths of Light)
@@ -105,7 +107,7 @@ export const STATUS = {
 // damage-over-time (the ticks come from the attacker). jolt: the next hits arc into nearby enemies.
 export const ENEMY_STATUS = {
   weaken: { name: 'Weakened', glyph: '▼', color: '#b07cff' },
-  slow: { name: 'Slowed', glyph: '≈', color: '#9fb4ff', maxStacks: 5 }, // U22: Stasis slow stacks; five freeze (darkness-rules.js chill)
+  slow: { name: 'Slowed', glyph: '≈', color: '#9fb4ff', maxStacks: 4 }, // U22: Stasis slow stacks; four freeze (H23, was five) (darkness-rules.js chill)
   suppress: { name: 'Suppressed', glyph: '⊘', color: '#c9a6ff' },
   burn: { name: 'Scorched', glyph: '♨', color: '#ff8b2b' },
   corrosive: { name: 'Corrosive', glyph: '⬣', color: '#c8d84a' }, // Witherhoard only: a round stuck to the target, or standing in its pool

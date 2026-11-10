@@ -699,6 +699,7 @@ export class Player {
   /** Loot 2.0 perks that react to a weapon hit: Rapid Hit, One for All, Bait and Switch, Kinetic Tremors. */
   lootPerksOnHit(w, e, crit) {
     w.lastDmgT = G.time;
+    this.releasePerched?.(); // H23: perched threadlings jump off on weapon damage (swords and explosions too)
     if (crit && w.has('rapidhit')) this.status.apply('rapidhit', { scope: w.idx, add: 1, set: true });
     if (w.has('oneforall')) {
       w.ofa = (w.ofa || []).filter((h) => G.time - h.t < 3 && h.e !== e);
@@ -946,7 +947,7 @@ export class Player {
     if (prowl) this.prowlUsed = true;
     this.prowlShot = false;
     const jolt = !o.isSuper && w.has('jolting') && this.joltingHit(w, e) ? LOOT_PERKS.joltT : 0; // Jolting Feedback
-    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...(o.isSuper ? null : this.darkDeal()), ...o.deal });
+    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...(o.isSuper ? null : this.darkDeal(w, e, crit)), ...o.deal });
     if (o.isSuper) return res;
     w.hitCount++;
     this.darkWeaponHit(); // U22: Thread of Generation
@@ -1624,6 +1625,7 @@ export class Player {
     const w = o.weapon;
     if (!w) return;
     if (w.has('blightharvest')) this.blightRoll(e, !!o.crit, 0, w.s.dmg * (w.A.pellets || 1) * 0.9); // Blight Edge
+    this.darkWeaponKill(w, e, !!o.crit); // H23: Headstone, Hatchling, Darkness fragments
     if (w.has('rampage')) this.status.apply('rampage', { add: 1, set: true });
     if (w.has('killclip')) w.killclipWindow = 3;
     if (w.has('outlaw') && o.crit) this.status.apply('outlaw');

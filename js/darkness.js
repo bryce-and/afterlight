@@ -12,12 +12,15 @@ import { G } from './state.js';
 import { ELEMENTS } from './data.js';
 import { dealDamage, enemiesNear, addTicker, spawnPlayerProjectile } from './game.js';
 import { castFx } from './abilities.js';
+import { remotes } from './coop.js';
 import { net } from './net.js';
 import { sparks, glowBurst, shockwave, explosionFx, swirl, ember, tracer } from './effects.js';
 import { moveBody } from './physics.js';
 import { sfx } from './audio.js';
 import { SUPER_TUNE, SUPER_POWER } from './combat.js';
 import { DARK_ASPECT_TUNE as AT, FRAGMENT_TUNE as FT } from './subclass.js';
+import { DARK_PERKS, weaponChill, sliceHit, canPerch, perchAdd } from './darkness-rules.js';
+import { groundAt } from './colliders.js';
 import { STASIS, STRAND, DARK_GRENADE, canFreeze, canSuspend, chill, freezeTime, suspendTime, shatters, shatterBlast, playerChill, breakFree, unravelTargets, darkWielder } from './darkness-rules.js';
 import * as ui from './ui.js';
 
@@ -221,7 +224,13 @@ export function darkSplash(pos, r) {
   for (const c of [...objs.values()]) if (c.local && c.pos.distanceTo(pos) < r + 0.6) breakObj(c);
 }
 /** Clear every crystal and tangle (mission start, reset). */
-export function resetDark() { for (const c of [...objs.values()]) removeObj(c); }
+export function resetDark() {
+  for (const c of [...objs.values()]) removeObj(c);
+  for (const m of perch.list) m.parent?.remove(m); // H23: perched threadlings do not follow you to a new map
+  perch.list.length = 0; perch.ticker = null; perch.sent = -1;
+  for (const st of remotePerch.values()) for (const m of st.list) m.parent?.remove(m);
+  remotePerch.clear();
+}
 
 function crystalMesh(size) {
   const g = new THREE.Group();
@@ -355,6 +364,7 @@ export function darkFx(kind, o, local) {
       return true;
     }
     case 'bleak': case 'decoy': case 'maelstrom': case 'squall': return companionFx(kind, o, local);
+    case 'thrd': case 'perch': return local ? true : remoteThreadlingFx(kind, o); // H23: the caster runs its own
     default: return false;
   }
 }
@@ -414,6 +424,162 @@ function companionFx(kind, o, local) {
 }
 
 // ===========================================================================
+// H23 Threadlings: small striped Strand eggs that skitter along the ground, leap at a target and burst.
+// A Broodweaver's threadlings that miss or find nothing climb back onto the caster and perch (up to five);
+// perched threadlings jump off when the caster's weapon deals damage. The caster's screen runs them and deals
+// the damage; teammates see a cosmetic copy ('thrd') and the perched count ('perch').
+// ===========================================================================
+let thrGeo = null;
+function threadlingMesh() {
+  if (!thrGeo) {
+    thrGeo = {
+      core: new THREE.SphereGeometry(0.12, 8, 6), ring: new THREE.TorusGeometry(1, 0.16, 4, 12).rotateX(Math.PI / 2),
+      dark: new THREE.MeshStandardMaterial({ color: 0x0a140d, roughness: 0.6, flatShading: true }), lit: glow(SD, 2.6), hot: glow(SD_CORE, 3),
+    };
+  }
+  const g = new THREE.Group(), body = new THREE.Group();
+  const core = new THREE.Mesh(thrGeo.core, thrGeo.dark); core.scale.set(1, 1.35, 1.1); core.position.y = 0.16; body.add(core);
+  for (let i = 0; i < 4; i++) { // the wavy green stripes over the dark shell
+    const r = new THREE.Mesh(thrGeo.ring, thrGeo.lit), k = 0.125 - Math.abs(i - 1.2) * 0.022;
+    r.scale.setScalar(k); r.position.y = 0.07 + i * 0.065; r.rotation.z = (i % 2 ? 0.25 : -0.25); body.add(r);
+  }
+  const foot = new THREE.Mesh(thrGeo.core, thrGeo.hot); foot.scale.set(0.5, 0.2, 0.5); foot.position.y = 0.03; body.add(foot);
+  g.add(body); g.userData.body = body;
+  g.scale.setScalar(1.6); // about knee height, as in Destiny 2
+  return g;
+}
+
+const perch = { list: [], ticker: null, releaseAt: -9, sent: -1 };
+const remotePerch = new Map(); // caster id -> { list, ticker }
+
+/** Where perched threadling i of n floats around an anchor (shoulder height, slowly circling). */
+function perchSpot(anchor, i, n, out) {
+  const a = G.time * 1.4 + (i / Math.max(1, n)) * Math.PI * 2;
+  return out.set(anchor.x + Math.cos(a) * 0.85, anchor.y + 1.45 + Math.sin(G.time * 3 + i) * 0.12, anchor.z + Math.sin(a) * 0.85);
+}
+
+function perchTicker(store, anchorFn) {
+  const sp = new THREE.Vector3();
+  return {
+    update(dt) {
+      const anchor = anchorFn();
+      store.list.forEach((m, i) => {
+        if (anchor) m.position.lerp(perchSpot(anchor, i, store.list.length, sp), Math.min(1, dt * 8));
+        m.userData.body.rotation.y += dt * 3;
+        if (Math.random() < 0.04) ember(m.position.clone(), SD, 0.03, 0.3, 0.2);
+      });
+      if (!store.list.length) { store.ticker = null; return false; }
+      return true;
+    },
+    dispose() {},
+  };
+}
+function ensureTicker(store, anchorFn) {
+  if (store.ticker && G.tickers.includes(store.ticker)) return;
+  if (store.ticker) { for (const m of store.list) m.parent?.remove(m); store.list.length = 0; } // a new map cleared the tickers: perched ones are gone
+  store.ticker = perchTicker(store, anchorFn);
+  addTicker(store.ticker);
+}
+function sendPerch() {
+  if (perch.sent === perch.list.length) return;
+  perch.sent = perch.list.length;
+  castFx('perch', { n: perch.list.length });
+}
+/** How many threadlings are perched on you (the HUD reads this). */
+export const perchedCount = () => (perch.ticker && G.tickers.includes(perch.ticker) ? perch.list.length : 0);
+
+function burstAt(p) { glowBurst(p, SD, 8, 3, 0.07, 0.35); sparks(p, SD_CORE, 5, 3, 0.04, 0.25); }
+
+/**
+ * One threadling. `local`: the caster's screen (hunts real enemies and deals damage). `o.tgt` a preferred enemy,
+ * `o.to` (cosmetic copies) the point it runs to. `o.perch`: it climbs back onto the caster when it finds nothing.
+ */
+function runThreadling(from, o, local, mesh = null) {
+  const T = STRAND.threadling;
+  const g = mesh || threadlingMesh();
+  const pos = from.clone();
+  const gy = groundAt(pos.x, pos.z);
+  if (pos.y < gy) pos.y = gy;
+  g.position.copy(pos);
+  if (!g.parent) G.scene.add(g);
+  const vel = new THREE.Vector3((Math.random() - 0.5) * 3, 2.5, (Math.random() - 0.5) * 3);
+  let state = 'skitter', tgt = o.tgt || null, life = T.life, idle = 0, k = 0;
+  const leapFrom = new THREE.Vector3(), aim = new THREE.Vector3(), d = new THREE.Vector3();
+  const to = o.to ? V(o.to) : null;
+  const done = { v: false };
+  const end = (miss) => {
+    if (local && miss && o.perch && G.player && !G.player.dead) { state = 'return'; return; }
+    burstAt(pos.clone().setY(pos.y + 0.2));
+    done.v = true;
+  };
+  const target = () => {
+    if (!local) return to;
+    if (!tgt || !tgt.alive) tgt = enemiesNear(pos, T.seekR, 1)[0] || null;
+    return tgt ? tgt.center(aim) : null;
+  };
+  addTicker({
+    update(dt) {
+      if (done.v) return false;
+      if (state === 'skitter') {
+        life -= dt;
+        const at = target();
+        if (!at) { idle += dt; vel.x *= 0.9; vel.z *= 0.9; if (idle > 0.6 || life <= 0) end(true); }
+        else {
+          idle = 0;
+          d.copy(at).sub(pos).setY(0);
+          const dist = d.length();
+          if (dist < T.leapR) { state = 'leap'; leapFrom.copy(pos); k = 0; }
+          else { d.normalize(); vel.x = d.x * T.speed; vel.z = d.z * T.speed; g.rotation.y = Math.atan2(d.x, d.z); }
+          if (life <= 0) end(true);
+        }
+        vel.y -= 24 * dt;
+        moveBody(pos, vel, dt, 0.15, 0.3);
+        g.userData.body.position.y = Math.abs(Math.sin(G.time * 22)) * 0.05; // the skitter
+        if (Math.random() < 0.25) ember(pos.clone().setY(pos.y + 0.05), SD, 0.025, 0.25, 0.15);
+      } else if (state === 'leap') {
+        k = Math.min(1, k + dt / T.leapT);
+        const at = local ? (tgt && tgt.alive ? tgt.center(aim) : aim) : to;
+        pos.lerpVectors(leapFrom, at, k).y += Math.sin(Math.PI * k) * 1.1;
+        g.userData.body.rotation.x += dt * 14;
+        if (k >= 1) {
+          g.userData.body.rotation.x = 0;
+          if (local && tgt && tgt.alive && tgt.center(d).distanceTo(pos) < tgt.radius + 1.3) {
+            dealDamage(tgt, T.dmg, { element: 'strand', source: 'ability', pos: pos.clone(), companion: true, unravel: o.unravel ? STRAND.unravel.t : 0 });
+            end(false);
+          } else end(true);
+        }
+      } else if (state === 'return') { // back to the caster's shoulder, then perch
+        const P = G.player;
+        if (!P || P.dead) { end(false); return false; }
+        perchSpot(P.pos, perch.list.length, perch.list.length + 1, d);
+        pos.lerp(d, Math.min(1, dt * 6));
+        if (pos.distanceTo(d) < 0.5) {
+          const r = perchAdd(perch.list.length, 1);
+          if (r.lost) { burstAt(pos.clone()); done.v = true; }
+          else { ensureTicker(perch, () => (G.player && !G.player.dead ? G.player.pos : null)); perch.list.push(g); sendPerch(); done.v = true; return false; }
+        }
+      }
+      g.position.copy(pos);
+      if (done.v) { g.parent?.remove(g); return false; }
+      return true;
+    },
+    dispose() { if (!perch.list.includes(g)) g.parent?.remove(g); },
+  });
+}
+
+/** Cosmetic copies of a teammate's threadlings and their perched count. */
+function remoteThreadlingFx(kind, o) {
+  if (kind === 'thrd') { runThreadling(V(o.p), { to: o.to }, false); return true; }
+  // 'perch': show o.n threadlings floating around the caster's avatar
+  let st = remotePerch.get(o.by);
+  if (!st) { st = { list: [], ticker: null }; remotePerch.set(o.by, st); }
+  ensureTicker(st, () => remotes.get(o.by)?.pos || null);
+  while (st.list.length < o.n) { const m = threadlingMesh(); const a = remotes.get(o.by)?.pos; if (a) m.position.copy(a).setY(a.y + 1.4); G.scene.add(m); st.list.push(m); }
+  while (st.list.length > o.n) { const m = st.list.pop(); burstAt(m.position.clone()); m.parent?.remove(m); }
+  return true;
+}
+
+// ===========================================================================
 // Player side (mixed into Player.prototype)
 // ===========================================================================
 const STASIS_GRENADES = new Set(['glacier', 'duskfield', 'coldsnap']);
@@ -423,6 +589,7 @@ export const DARK_SUPERS = new Set(['glacialquake', 'avalanche', 'silencesquall'
 
 const methods = {
   // ---- small helpers ----
+  perchN() { return perchedCount(); }, // H23: the HUD reads this
   isDark() { return this.cls.element === 'stasis' || this.cls.element === 'strand'; },
   giveEnergy(k, f) { this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * f); },
   giveSuper(n) { if (!this.superActive) this.superCharge = Math.min(100, this.superCharge + n); },
@@ -431,22 +598,34 @@ const methods = {
   /** Stasis hit options: slow stacks (and the freeze length for when they freeze). */
   stasisO(stacks, extra = {}) { return { element: 'stasis', slowAdd: stacks, freezeMult: this.freezeMult(), ...extra }; },
 
-  /** Threadlings: small Strand seekers that hunt enemies and burst on contact. */
+  /** H23 Threadlings: they skitter along the ground and leap at enemies; a Broodweaver's perch when they find nothing. */
   threadlings(from, n) {
     const T = STRAND.threadling;
-    const targets = enemiesNear(from, 25, n);
+    const targets = enemiesNear(from, T.seekR, n);
+    const o = { perch: canPerch(this.cls.subclassId), unravel: this.asp.has('weaverscall') };
     for (let i = 0; i < n; i++) {
       const tgt = targets[i % Math.max(1, targets.length)] || null;
-      const a = (i / n) * Math.PI * 2 + Math.random() * 0.5;
-      spawnPlayerProjectile({
-        kind: 'swarm', pos: from.clone().add(new THREE.Vector3(0, 0.3, 0)), vel: new THREE.Vector3(Math.cos(a) * T.speed * 0.6, 5, Math.sin(a) * T.speed * 0.6),
-        gravity: tgt ? 0 : 12, size: 0.09, color: SD, life: T.life, target: tgt, turn: 3,
-        onHit: (p, e) => {
-          if (e && e.alive) dealDamage(e, T.dmg, { element: 'strand', source: 'ability', pos: p.clone(), companion: true });
-          glowBurst(p, SD, 8, 3, 0.07, 0.35);
-        },
-      });
+      const p = from.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0, (Math.random() - 0.5) * 0.8));
+      runThreadling(p, { ...o, tgt }, true);
+      castFx('thrd', { p, to: tgt ? tgt.center(new THREE.Vector3()) : p });
     }
+    sfx.zap();
+  },
+  /** H23: perched threadlings jump off at the enemies near you (weapon damage calls this). */
+  releasePerched() {
+    if (!perchedCount() || G.time < perch.releaseAt) return;
+    const T = STRAND.threadling;
+    const targets = enemiesNear(this.pos, T.seekR, perch.list.length);
+    if (!targets.length) return;
+    perch.releaseAt = G.time + T.releaseGap;
+    const o = { perch: canPerch(this.cls.subclassId), unravel: this.asp.has('weaverscall') };
+    const out = perch.list.splice(0);
+    out.forEach((m, i) => {
+      const tgt = targets[i % targets.length];
+      runThreadling(m.position.clone(), { ...o, tgt }, true, m);
+      castFx('thrd', { p: m.position.clone(), to: tgt.center(new THREE.Vector3()) });
+    });
+    sendPerch();
     sfx.zap();
   },
 
@@ -517,9 +696,45 @@ const methods = {
     return m;
   },
   darkWeaponMult() { return this.status.has('hedrons') ? FT.hedrons.dmg : 1; },
-  /** Extra dealDamage options for a weapon hit (Unraveling Rounds). */
-  darkDeal() { return this.status.has('unraveling') ? { unravel: STRAND.unravel.t } : null; },
-  darkWeaponHit() { if (this.frag.has('generation')) this.giveEnergy('grenade', FT.generation); },
+  /**
+   * Extra dealDamage options for a weapon hit: Unraveling, Chilling and Severing Rounds, Banner of War,
+   * Chill Clip, Slice and Whisper of Impairment (H23). `w`, `e`, `crit` may be missing (old callers).
+   */
+  darkDeal(w, e, crit) {
+    const o = {};
+    if (this.status.has('unraveling')) o.unravel = STRAND.unravel.t;
+    if (!e) return o.unravel ? o : null;
+    if (this.status.has('severing') || (this.asp.has('bannerofwar') && this.status.has('banner'))) o.sever = STRAND.sever.t;
+    if (w?.has?.('slice')) {
+      const r = sliceHit(e.sliceHits?.[w.idx] || [], G.time);
+      (e.sliceHits ||= {})[w.idx] = r.times;
+      if (r.sever) o.sever = STRAND.sever.t;
+    }
+    if (G.time >= (e.chillAt ?? -9)) {
+      const n = weaponChill({ chillclip: !!w?.has?.('chillclip'), chilling: this.status.has('chilling'), impairment: this.frag.has('impairment'), slowed: e.status.has('slow'), frozen: e.status.has('frozen'), crit });
+      if (n) { o.slowAdd = n; o.freezeMult = this.freezeMult(); e.chillAt = G.time + DARK_PERKS.chillclip.gap; }
+    }
+    return Object.keys(o).length ? o : null;
+  },
+  darkWeaponHit() {
+    if (this.frag.has('generation')) this.giveEnergy('grenade', FT.generation);
+    this.releasePerched(); // H23: perched threadlings jump off when your weapon deals damage
+  },
+  /** H23: weapon kill effects from Darkness perks and fragments. */
+  darkWeaponKill(w, e, crit) {
+    const c = e.center(new THREE.Vector3());
+    if (crit && w.has('headstone')) raiseCrystal(e.pos.clone(), DARK_PERKS.headstone.size);
+    if (crit && w.has('hatchling')) this.threadlings(c, DARK_PERKS.hatchling.n);
+    if (this.frag.has('frostbite')) for (const x of enemiesNear(c, FT.frostbite.r, 8, e)) if (!x.status.has('frozen')) dealDamage(x, 10, { ...this.stasisO(FT.frostbite.stacks), source: 'ability', pos: x.center(new THREE.Vector3()), companion: true });
+    if (this.frag.has('isolation')) {
+      castFx('darkslam', { p: e.pos.clone(), el: 'strand', r: FT.isolation.r });
+      for (const x of enemiesNear(c, FT.isolation.r, 8, e)) dealDamage(x, 10, { element: 'strand', source: 'ability', pos: x.center(new THREE.Vector3()), sever: STRAND.sever.t, companion: true });
+    }
+    if (crit && this.frag.has('snaring') && (e.status.has('sever') || e.status.has('unravel'))) {
+      castFx('darkslam', { p: e.pos.clone(), el: 'strand', r: FT.snaring.r });
+      for (const x of enemiesNear(c, FT.snaring.r, 8, e)) dealDamage(x, 10, { element: 'strand', source: 'ability', pos: x.center(new THREE.Vector3()), suspend: this.suspendMult(), companion: true });
+    }
+  },
 
   // ---- per frame ----
   darkTick(dt) {
@@ -572,7 +787,7 @@ const methods = {
       this.grapple = { to: pt.clone().setY(pt.y + 1.2), t: 0.9 };
       this.status.apply('grapplemelee', { set: true });
       if (ms) dropTangle(pt);
-      if (this.asp.has('widowssilk')) this.cd.grenade *= 0.5;
+      if (this.asp.has('widowssilk')) { this.cd.grenade *= 0.5; this.status.apply('severing', { t: AT.widowssilk.rounds, set: true }); } // H23: Severing Rounds
     } else if (id === 'shackle') {
       const r = ms ? 6.5 : 4.5;
       castFx('darkslam', { p: pt.clone(), el: 'strand', r });
@@ -723,6 +938,7 @@ const methods = {
     if ((id === 'rift' || id === 'empower') && A.has('frostpulse')) {
       castFx('darkslam', { p: this.pos.clone(), el: 'stasis', r: AT.frostpulse.r });
       for (const e of enemiesNear(this.pos, AT.frostpulse.r)) dealDamage(e, 60, { element: 'stasis', source: 'ability', pos: e.center(new THREE.Vector3()), freeze: this.freezeMult() });
+      this.status.apply('chilling', { t: AT.frostpulse.rounds, set: true }); // H23: Chilling Rounds
     }
     if ((id === 'rift' || id === 'empower') && A.has('weaverscall')) this.threadlings(this.pos.clone().setY(this.pos.y + 1), AT.weaverscall.n);
     if ((id === 'barricade' || id === 'rally') && A.has('drengrslash')) {
@@ -737,6 +953,7 @@ const methods = {
     if (A.has('wintersshroud')) {
       castFx('darkslam', { p: this.pos.clone(), el: 'stasis', r: AT.wintersshroud.r });
       for (const e of enemiesNear(this.pos, AT.wintersshroud.r)) dealDamage(e, 20, { ...this.stasisO(AT.wintersshroud.stacks), source: 'ability', pos: e.center(new THREE.Vector3()) });
+      this.status.apply('chilling', { t: AT.wintersshroud.rounds, set: true }); // H23: Chilling Rounds
     }
     if (A.has('threadedspecter')) castFx('decoy', { p: this.pos.clone().setY(0), life: AT.threadedspecter.life });
     if (airborne && (A.has('shatterdive') || A.has('ensnaring'))) {
@@ -771,7 +988,10 @@ const methods = {
     if (this.frag.has('rime')) this.addOvershield(FT.rime, 5);
     if (this.frag.has('shards')) this.giveEnergy('grenade', FT.shards);
     if (this.asp.has('diamondlance')) this.status.apply('diamondlance', { set: true });
-    if (crystal && this.asp.has('tectonic')) { this.giveEnergy('grenade', AT.tectonic.grenade); this.giveEnergy('melee', AT.tectonic.melee); }
+    if (crystal && this.asp.has('tectonic')) {
+      this.giveEnergy('grenade', AT.tectonic.grenade); this.giveEnergy('melee', AT.tectonic.melee);
+      for (const e of enemiesNear(at, AT.tectonic.r)) if (!e.status.has('frozen')) dealDamage(e, 10, { ...this.stasisO(AT.tectonic.stacks), source: 'ability', pos: e.center(new THREE.Vector3()), companion: true }); // H23
+    }
     if (!crystal && this.asp.has('iceflare')) {
       const I = AT.iceflare;
       for (const tgt of enemiesNear(at, I.r, I.n)) {

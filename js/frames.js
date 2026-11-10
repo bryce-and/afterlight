@@ -2,7 +2,7 @@
 // archetype fixes the weapon's stats: every drop of a weapon shoots the same, only perks roll.
 // Named legendaries always have the same archetype and element (sourced from Destinypedia,
 // see docs/DECISIONS.md). Pure data and functions, shared by loot, the Player, the UI and tests.
-import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, HEAVY_VERSION, PERK_COLUMNS, PERK_ELEMENT, PERK_SLOTS, PERK_ARCH } from './data.js';
+import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, HEAVY_VERSION, PERK_COLUMNS, PERK_ELEMENT, PERK_SLOTS, PERK_ARCH, DARK_SIGNATURE_PERKS } from './data.js';
 
 // stats: multipliers on the family's base stats. handling: `mult` multiplies the family's
 // handling, `set` replaces it (burst size, charge time...), `projectile` multiplies projectile values.
@@ -362,6 +362,11 @@ export function perkPoolFor(named) {
     const list = eligiblePerks(col, named.arch, named.element, named.frame);
     for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
     out[col] = list.slice(0, POOL_PER_COLUMN);
+    // H23: Stasis and Strand weapons always carry one of their element's Darkness perks in the Effect column
+    if (col === 'effect' && !out[col].some((p) => DARK_SIGNATURE_PERKS.includes(p))) {
+      const sig = list.find((p) => DARK_SIGNATURE_PERKS.includes(p));
+      if (sig) out[col][out[col].length - 1] = sig;
+    }
   }
   return out;
 }

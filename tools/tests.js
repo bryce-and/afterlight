@@ -314,13 +314,13 @@ const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasse
 const isDarkSub = (c, sid) => ['stasis', 'strand'].includes(CLASSES[c].subclasses[sid].element);
 const LIGHT_SUBS = SUBS.filter(([c, sid]) => !isDarkSub(c, sid)); // U22: the nine Light subclasses
 const DARK_SUBS = SUBS.filter(([c, sid]) => isDarkSub(c, sid));
-test('registry: 3 grenades per element, 2 class abilities per class, 4 aspects per subclass, 8 fragments per element', () => {
+test('registry: 3 grenades per element, 2 class abilities per class, 4 aspects per subclass, 8 fragments per Light element and 10 per Darkness element (H23)', () => {
   for (const el of ['solar', 'arc', 'void', 'stasis', 'strand']) eq(SC.grenadesFor(el).length, 3, el);
   for (const [c, sid] of SUBS) eq(SC.classAbilitiesFor(c, sid).length, sid === 'dawnblade' ? 3 : 2, sid); // H4: Phoenix Dive is Dawnblade's third
   // H3: each former subclass trait is an aspect; Bastion is gone, so Sentinel keeps 4 and the rest have 5. U22: Darkness subclasses have Destiny 2's four
   for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, sid === 'sentinel' || isDarkSub(c, sid) ? 4 : 5, sid);
   eq(Object.keys(SC.ASPECTS).length, 68);
-  eq(['solar', 'arc', 'void', 'stasis', 'strand'].map((el) => SC.fragmentsFor(el).length), [8, 8, 8, 8, 8]);
+  eq(['solar', 'arc', 'void', 'stasis', 'strand'].map((el) => SC.fragmentsFor(el).length), [8, 8, 8, 10, 10]);
   for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 2 || a.slots === 3, a.name); // U9: one more slot each
 });
 test('every default loadout is valid and resolves to the expected abilities (H3: Sentinel keeps its barricade, Sunsinger grenades from Gift of the Sun)', () => {
@@ -3231,9 +3231,9 @@ test('U22: each Darkness subclass has a roaming and a burst super (the original 
   for (const L of [32, 35]) eq(rewardAt(L), null, `no item reward at ${L}`);
 });
 
-test('U22: Stasis slow stacks freeze at five; bosses only slow; every damaging hit shatters except Stasis slows and freezes', () => {
+test('U22/H23: Stasis slow stacks freeze at four; bosses only slow; every damaging hit shatters except Stasis slows and freezes', () => {
   let s = { stacks: 0, freeze: false };
-  for (let i = 0; i < 4; i++) { s = DR.chill(s.stacks, 1); ok(!s.freeze, `stack ${i + 1}`); }
+  for (let i = 0; i < 3; i++) { s = DR.chill(s.stacks, 1); ok(!s.freeze, `stack ${i + 1}`); }
   eq(DR.chill(s.stacks, 1), { stacks: 0, freeze: true });
   eq(DR.chill(3, 3), { stacks: 0, freeze: true }, 'overflow freezes');
   eq(DR.chill(3, 9, true), { stacks: DR.STASIS.bossSlowCap, freeze: false }, 'a boss caps out slowed');
@@ -3245,6 +3245,28 @@ test('U22: Stasis slow stacks freeze at five; bosses only slow; every damaging h
   ok(!DR.shatters({ slowAdd: 2 }, 10) && !DR.shatters({ freeze: 1 }, 10) && !DR.shatters({}, 0), 'Stasis slows, freezes and zero hits do not');
   const B = DR.shatterBlast(), F = DR.shatterBlast(SC.FRAGMENT_TUNE.fissures);
   ok(F.dmg === B.dmg * 1.5 && F.r === B.r + 1, 'Whisper of Fissures');
+});
+
+test('H23: threadlings perch on a Broodweaver (up to five); Darkness weapon perks, Rounds and Slice', () => {
+  ok(DR.canPerch('broodweaver') && !DR.canPerch('berserker') && !DR.canPerch('threadrunner'), 'only the Broodweaver perches');
+  eq(DR.perchAdd(0, 1), { perched: 1, lost: 0 });
+  eq(DR.perchAdd(4, 3), { perched: 5, lost: 2 }, 'five perch at most');
+  eq(DR.STRAND.threadling.perchMax, 5);
+  ok(DR.STRAND.threadling.leapR > 0 && DR.STRAND.threadling.speed > 0, 'threadlings skitter and leap');
+  eq(DR.weaponChill({ chillclip: true }), 1); eq(DR.weaponChill({ chillclip: true, crit: true }), 2);
+  eq(DR.weaponChill({ chilling: true }), 1); eq(DR.weaponChill({ impairment: true, slowed: false }), 0); eq(DR.weaponChill({ impairment: true, slowed: true }), 1);
+  eq(DR.weaponChill({ chillclip: true, chilling: true, frozen: true }), 0, 'a frozen target gets no slow, so the hit shatters it');
+  let sl = DR.sliceHit([], 0); ok(!sl.sever); sl = DR.sliceHit(sl.times, 0.5); ok(!sl.sever); sl = DR.sliceHit(sl.times, 1); ok(sl.sever, 'third hit severs');
+  ok(!DR.sliceHit([0, 0.1], 2).sever, 'old hits fall out of the window');
+  for (const [p, el] of [['chillclip', 'stasis'], ['headstone', 'stasis'], ['hatchling', 'strand'], ['slice', 'strand']]) {
+    ok(PERKS[p] && PERK_ELEMENT[p] === el && PERK_COLUMNS.effect.includes(p), `${p} is a ${el} Effect perk`);
+  }
+  for (const n of [...NAMED_WEAPONS, ...LEGENDARY_WEAPONS].filter((w) => w.element === 'stasis' || w.element === 'strand')) {
+    const pool = perkPoolFor(n);
+    ok(pool.effect.some((p) => PERK_ELEMENT[p] === n.element), `${n.name} carries a ${n.element} perk`);
+  }
+  for (const id of ['chilling', 'severing']) ok(STATUS[id], `Rounds status ${id}`);
+  for (const id of ['impairment', 'frostbite', 'isolation', 'snaring']) ok(SC.FRAGMENTS[id] && SC.FRAGMENT_TUNE[id] !== undefined, `fragment ${id}`);
 });
 
 test('U22: players hit by enemy Darkness: three Chilled stacks freeze, Space breaks out; severed enemies hit softer', () => {
@@ -3278,6 +3300,26 @@ test('U22: Darkness grenades, aspects and fragments: names, slots and tuning are
   for (const id of [...SC.fragmentsFor('stasis'), ...SC.fragmentsFor('strand')]) ok(SC.FRAGMENT_TUNE[id] !== undefined, `${id} tuned`);
   for (const id of Object.keys(SC.DARK_ASPECT_TUNE)) ok(SC.ASPECTS[id], `${id} tuning has an aspect`);
   for (const text of [...Object.values(SC.ASPECTS), ...Object.values(SC.FRAGMENTS), ...Object.values(SC.GRENADES)].map((x) => x.desc)) ok(!/[\u2013\u2014]/.test(text), 'no dashes in player text');
+});
+
+// H23 Roll Tracker
+test('H23: Roll Tracker covers every weapon, searches by perk and name, and gives every weapon a source', async () => {
+  const RT = await import('../js/rolltracker.js');
+  const F = await import('../js/frames.js');
+  const D = await import('../js/data.js');
+  const all = RT.trackerEntries();
+  eq(all.length, F.NAMED_WEAPONS.length + F.LEGENDARY_WEAPONS.length + D.EXOTIC_WEAPONS.length, 'one entry per weapon');
+  for (const e of all) ok(e.sources.length > 0 && e.sources.every((x) => x && !/[\u2013\u2014]/.test(x)), `${e.name} has a source`);
+  const hits = RT.searchTracker('incandescent');
+  ok(hits.length > 0, 'incandescent is on some weapons');
+  const want = all.filter((e) => !e.exotic && ['mag', 'damage', 'effect'].some((c) => e.pool[c].includes('incandescent')) || (e.exotic && e.perks.includes('incandescent')));
+  eq(hits.map((e) => e.name).sort().join('|'), want.map((e) => e.name).sort().join('|'), 'perk search returns exactly the weapons rolling it');
+  ok(hits.every((e) => e.element === 'solar'), 'incandescent only rolls on solar weapons');
+  const known = F.LEGENDARY_WEAPONS[0].name;
+  ok(RT.searchTracker(known.toUpperCase()).some((e) => e.name === known), 'name search finds a known weapon');
+  ok(RT.searchTracker('', { element: 'void' }).every((e) => e.element === 'void'), 'element filter');
+  const mission = D.EXOTIC_WEAPONS.find((x) => x.mission);
+  if (mission) ok(all.find((e) => e.name === mission.name).sources[0].startsWith('Exotic mission:'), 'mission exotic names its mission');
 });
 
 for (const t of tests) {
