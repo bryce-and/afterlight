@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { CLASSES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF } from './data.js';
 import { clamp, lerp, damp } from './util.js';
-import { moveBody, hasLOS, pointInColliders, rayGround, groundAt } from './physics.js';
+import { moveBody, hasLOS, pointInColliders, rayGround, groundAt, floorBelow } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
 import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage, voidMote, VOID_FX } from './effects.js';
@@ -219,12 +219,13 @@ export class Player {
   /** U17a: the Ghost view is out, or its animation is still running (the weapon is down or coming back up). */
   get ghostBusy() { return this.ghostOut || this.ghostT > 0.001; }
   get holdingAxe() { return !this.superActive && !this.dead && this.status.has('voidaxe'); } // U9: a picked-up Twilight Arsenal axe
+  get holdingLance() { return !this.superActive && !this.dead && this.status.has('diamondlance'); } // H24: a Diamond Lance in hand
   get holdingSword() { return !this.superActive && !this.dead && !!this.weapon?.A?.sword; } // Swords are fought in third person
   /** U16: the Tower is third person with weapons holstered, until you walk into the Range. */
   get social() { const T = G.mission?.tower; return !!T && !T.inRange; }
-  get thirdPerson() { return !this.dead && (this.social || !!this.mount || (!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe || this.holdingSword); }
-  /** The prop held in third person: the super's id, or 'twilight' for a picked-up axe. */
-  get tpsProp() { return !this.thirdPerson || this.social || this.mount ? null : this.superActive ? this.superActive.type : this.holdingAxe ? 'twilight' : 'sword'; }
+  get thirdPerson() { return !this.dead && (this.social || !!this.mount || (!!this.superActive && TPS_SUPERS.has(this.superActive.type)) || this.holdingAxe || this.holdingLance || this.holdingSword); }
+  /** The prop held in third person: the super's id, 'twilight' for a picked-up axe, 'lance' for a Diamond Lance. */
+  get tpsProp() { return !this.thirdPerson || this.social || this.mount ? null : this.superActive ? this.superActive.type : this.holdingAxe ? 'twilight' : this.holdingLance ? 'lance' : 'sword'; }
 
   /** Aim direction from the eye. In third person: toward whatever is under the crosshair, so shots land where you aim. */
   aimForward(out) {
@@ -562,6 +563,11 @@ export class Player {
       if (pressed) this.throwHeldAxe();
       return;
     }
+    if (this.holdingLance) { // H24: a Diamond Lance in hand: no guns, left-click throws it (B still does too)
+      w.charge = 0; w.burstLeft = 0;
+      if (pressed && this.meleeLock <= 0 && this.darkBasicMelee()) this.meleeLock = 0.5;
+      return;
+    }
     if (pressed) w.queued = 0.18;
     if (w.reloading && pressed && w.ammo > 0) w.reloading = false;
     if (w.reloading || this.punchT > 0) { w.charge = 0; w.cburst = 0; w.beamT = 0; return; }
@@ -699,7 +705,6 @@ export class Player {
   /** Loot 2.0 perks that react to a weapon hit: Rapid Hit, One for All, Bait and Switch, Kinetic Tremors. */
   lootPerksOnHit(w, e, crit) {
     w.lastDmgT = G.time;
-    this.releasePerched?.(); // H23: perched threadlings jump off on weapon damage (swords and explosions too)
     if (crit && w.has('rapidhit')) this.status.apply('rapidhit', { scope: w.idx, add: 1, set: true });
     if (w.has('oneforall')) {
       w.ofa = (w.ofa || []).filter((h) => G.time - h.t < 3 && h.e !== e);
@@ -2824,6 +2829,7 @@ export class Player {
     if (id === 'barricade' || id === 'rally') {
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize();
       const p = this.pos.clone().addScaledVector(fwd, id === 'rally' ? 2.4 : 3.2);
+      p.y = floorBelow(p.x, p.z, this.pos.y + 0.6); // H24: stand on the floor in front of you (was always y = 0, so it sank into raised floors)
       castFx('barricade', { p, alongX: Math.abs(fwd.z) > Math.abs(fwd.x), small: id === 'rally', el: this.cls.element });
       this.status.apply('barricadeup', { t: CLASS_FX_LIFE[id], set: true });
       for (const ww of this.weapons) this.instantReload(ww);

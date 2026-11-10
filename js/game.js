@@ -35,6 +35,7 @@ import { updateTower } from './tower.js';
 import { updateExotic, cleanupExotic, openExoticChest, startExotic } from './exotic-missions.js';
 import { mechTargets, mechSplash } from './mechanics.js';
 import { darkHit, darkUnravel, darkTargets, darkSplash, resetDark } from './darkness.js';
+import { releasesPerch } from './darkness-rules.js';
 import { gateDamage } from './exotic-rules.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
@@ -785,6 +786,7 @@ export function dealDamage(e, amount, o = {}) {
     dmg = allowed;
   }
   skillHit(e);
+  if (releasesPerch(o, dmg)) G.player?.releasePerched?.(e); // H24: any direct hit you deal releases perched threadlings
   if (e.remote) {
     // fireteam member: the leader owns this enemy. Report the hit and predict feedback locally.
     sendHit(e, dmg, o);

@@ -5,6 +5,22 @@
 
 export const RELEASES = [
   {
+    version: '4.5.2', name: 'Hotfix', date: '2026-11-10', accent: '#ffb547', glyph: '✚',
+    summary: 'Perched threadlings are smaller and jump off on any hit you deal, Penumbral Blast and Winter\'s Wrath freeze, Iceflare Bolts hit instantly, Diamond Lance is held in third person, Glacial Quake raises crystal clusters you can walk through, and barricades and crystals stand on the floor.',
+    notes: [
+      'Perched threadlings are much smaller and circle low at your feet, so they no longer block your view; they grow back to full size when they jump off',
+      'Perched threadlings now jump off on any direct damage you deal (weapons, grenades, melees, abilities, supers) at any range, and go after the enemy you hit. Threadling hits, perk procs and chain hits don\'t release them',
+      'Weaver\'s Call: the rift\'s threadlings now spawn at your feet, so casting your rift no longer looks like your perched threadlings leaping off (Rift never released them)',
+      'Penumbral Blast: a direct hit freezes the enemy (nearby enemies are still slowed). Bosses are only slowed',
+      'Winter\'s Wrath: a shard\'s direct hit freezes the enemy. Bosses are only slowed',
+      'Iceflare Bolts are now instant hitscan bolts at enemies in sight of the shatter, instead of seekers',
+      'Diamond Lance: holding one puts you in third person with the lance in hand; left-click (or B) throws it at the crosshair',
+      'Glacial Quake: each light slam raises a cluster of four crystals (was one), and walking or sprinting into your crystals during the super shatters them',
+      'Barricades, Glacier Grenade crystals, Duskfield and Bleak Watcher now stand on the floor they land on instead of sinking into raised floors, decks and hills',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.5.1', name: 'Hotfix', date: '2026-11-10', accent: '#ffb547', glyph: '✚',
     summary: 'Threadlings rebuilt, easier freezes, Darkness perks, fragments and aspects for your guns, a Roll Tracker in Orbit, and Fallen who hold their weapons.',
     notes: [

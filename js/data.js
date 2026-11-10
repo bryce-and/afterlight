@@ -332,7 +332,7 @@ export const CLASSES = {
         defaults: { grenade: 'glacier', class: 'barricade', aspects: ['diamondlance'] },
         abilities: {
           melee: { id: 'shiver', name: 'Shiver Strike', cd: 10, desc: 'Lunge forward in a Stasis shoulder slam that slows the target and everything around it.' },
-          super: { id: 'glacialquake', camera: 'third', name: 'Glacial Quake', desc: 'For 14s wield a Stasis gauntlet: click to slam a shockwave of crystals that slows and freezes, right-click for a heavy slam that shatters everything frozen around you. Take 70% less damage.' },
+          super: { id: 'glacialquake', camera: 'third', name: 'Glacial Quake', desc: 'For 14s wield a Stasis gauntlet: click to slam a shockwave that slows and raises a cluster of crystals (walk or sprint through them to shatter them), right-click for a heavy slam that shatters everything frozen around you. Take 70% less damage.' },
         },
       },
       berserker: { // U22 Darkness
@@ -423,8 +423,8 @@ export const CLASSES = {
         name: 'Shadebinder', unlockLevel: 28, element: 'stasis', color: '#4d88ff', tagline: 'Hold the battlefield still.',
         defaults: { grenade: 'duskfield', class: 'rift', aspects: ['frostpulse'] },
         abilities: {
-          melee: { id: 'penumbral', name: 'Penumbral Blast', cd: 10, desc: 'Fire a burst of Stasis from your staff that slows the first enemy it hits and everyone near it.' },
-          super: { id: 'winterswrath', camera: 'third', name: "Winter's Wrath", desc: 'For 12s wield a Stasis staff: click to fire shards that slow and freeze, right-click to send out a shockwave that shatters every frozen enemy in front of you. Take 70% less damage.' },
+          melee: { id: 'penumbral', name: 'Penumbral Blast', cd: 10, desc: 'Fire a burst of Stasis from your staff that freezes the enemy it hits and slows everyone near it.' },
+          super: { id: 'winterswrath', camera: 'third', name: "Winter's Wrath", desc: 'For 12s wield a Stasis staff: click to fire shards that freeze the enemy they hit, right-click to send out a shockwave that shatters every frozen enemy in front of you. Take 70% less damage.' },
         },
       },
       broodweaver: { // U22 Darkness

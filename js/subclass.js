@@ -93,7 +93,7 @@ export const ASPECTS = {
   icarus: { cls: 'arcanist', sub: 'dawnblade', name: 'Icarus Dash', slots: 3, desc: 'In the air, press Shift to dash in your movement direction. 2 charges, each recharging in 6s.' },
   hellion: { cls: 'arcanist', sub: 'dawnblade', name: 'Hellion', slots: 3, desc: 'Any class ability summons a Hellion for 8s: a solar turret that follows you and lobs burning bolts at nearby enemies.' },
   // ---- U22 Darkness: Stasis ----
-  diamondlance: { cls: 'vanguard', sub: 'behemoth', name: 'Diamond Lance', slots: 3, desc: 'Shattering an enemy or a crystal forms a Diamond Lance in your hand for 10s. Your next quick melee (B) hurls it: it freezes enemies where it lands.' },
+  diamondlance: { cls: 'vanguard', sub: 'behemoth', name: 'Diamond Lance', slots: 3, desc: 'Shattering an enemy or a crystal forms a Diamond Lance in your hand for 10s. Hold it in third person; left-click or quick melee (B) hurls it: it freezes enemies where it lands.' },
   howlstorm: { cls: 'vanguard', sub: 'behemoth', name: 'Howl of the Storm', slots: 2, desc: 'Your powered melee while sprinting sends a wave of Stasis crystals rolling forward that freezes enemies in its path.' },
   tectonic: { cls: 'vanguard', sub: 'behemoth', name: 'Tectonic Harvest', slots: 3, desc: 'Shattering a Stasis crystal gives you 10% grenade energy and 10% melee energy, and slows every enemy within 5m twice.' },
   cryoclasm: { cls: 'vanguard', sub: 'behemoth', name: 'Cryoclasm', slots: 2, desc: 'Sprinting into a Stasis crystal or a frozen enemy shatters it, and your sprint is 15% faster for 3s.' },
@@ -104,7 +104,7 @@ export const ASPECTS = {
   bleakwatcher: { cls: 'arcanist', sub: 'shadebinder', name: 'Bleak Watcher', slots: 2, desc: 'Your grenade becomes a Bleak Watcher: a Stasis turret that stands for 10s and fires slowing bolts at nearby enemies.' },
   frostpulse: { cls: 'arcanist', sub: 'shadebinder', name: 'Frostpulse', slots: 3, desc: 'Casting your rift releases a burst of Stasis that freezes every enemy within 6m and gives you Chilling Rounds for 6s.' },
   glacialharvest: { cls: 'arcanist', sub: 'shadebinder', name: 'Glacial Harvest', slots: 3, desc: 'Freezing an enemy gives you 5% grenade, melee and class ability energy (at most twice a second).' },
-  iceflare: { cls: 'arcanist', sub: 'shadebinder', name: 'Iceflare Bolts', slots: 2, desc: 'Shattering an enemy releases two seeker bolts that hunt nearby enemies and slow them.' },
+  iceflare: { cls: 'arcanist', sub: 'shadebinder', name: 'Iceflare Bolts', slots: 2, desc: 'Shattering an enemy fires two instant bolts at nearby enemies in sight, slowing them.' },
   // ---- U22 Darkness: Strand ----
   intothefray: { cls: 'vanguard', sub: 'berserker', name: 'Into the Fray', slots: 3, desc: 'Strand ability kills give you Woven Mail for 6s: you take 45% less damage.' },
   drengrslash: { cls: 'vanguard', sub: 'berserker', name: "Drengr's Lash", slots: 2, desc: 'Raising a barricade sends a wave of threads forward that suspends enemies in its path.' },

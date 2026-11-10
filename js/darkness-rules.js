@@ -26,8 +26,9 @@ export const STRAND = {
   woven: { t: 6, cut: 0.55 },
   // H23: threadlings skitter along the ground (speed), leap at a target within leapR (leapT seconds in the air),
   // and burst. A Broodweaver's threadlings that find nothing perch on the caster (at most perchMax) and jump off
-  // when the caster's weapon deals damage (at most once per releaseGap).
-  threadling: { life: 6, dmg: 90, speed: 11, seekR: 24, leapR: 3.2, leapT: 0.32, perchMax: 5, releaseGap: 0.4 },
+  // when the caster deals direct damage (at most once per releaseGap). H24: perched ones shrink to perchScale and
+  // circle low at the caster's feet (perchY up, perchR out) so they stay out of the first-person view.
+  threadling: { life: 6, dmg: 90, speed: 11, seekR: 24, leapR: 3.2, leapT: 0.32, perchMax: 5, releaseGap: 0.4, scale: 1.6, perchScale: 0.6, perchY: 0.3, perchR: 0.7 },
   player: { suspendT: 1.4 },
 };
 
@@ -38,6 +39,10 @@ export function perchAdd(cur, add, max = STRAND.threadling.perchMax) {
   const perched = Math.min(max, cur + add);
   return { perched, lost: cur + add - perched };
 }
+/** H24: does this hit release perched threadlings? Any direct damage the caster deals (weapon, melee, ability, super);
+ *  not companions (threadlings themselves, turrets), chain hits, perk procs or zero-damage relays. */
+export const releasesPerch = (o, dmg) => dmg > 0 && !o.remoteHit && !o.raw && !o.companion && !o.jolted
+  && (o.source === 'weapon' || o.source === 'melee' || o.source === 'ability' || o.source === 'super');
 
 // H23: Darkness weapon perks (they roll only on weapons of their element, PERK_ELEMENT) and the "Rounds" buffs
 // that make weapon hits apply a Darkness debuff (Chilling, Severing; Unraveling Rounds from U22).

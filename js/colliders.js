@@ -123,6 +123,14 @@ export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
   return res;
 }
 
+/** H24: the floor under (x, z) at or below `fromY`: the terrain (0 on a flat map) or the top of a solid collider
+ *  (a deck, a floor, stairs) under that point, whichever is highest. Things placed on the floor (barricades) read this. */
+export function floorBelow(x, z, fromY = Infinity) {
+  let y = groundAt(x, z);
+  for (const c of G.colliders) if (!c.pass && c.max.y <= fromY && c.max.y > y && footprintHit(c, x, z, 0)) y = c.max.y;
+  return y;
+}
+
 /** Push a ground-bound circle (enemies) out of colliders in XZ. */
 export function pushOutCircle(pos, r, h) {
   for (const c of G.colliders) {

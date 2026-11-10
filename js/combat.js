@@ -96,7 +96,7 @@ export const SUPER_TUNE = {
   chaos: { range: 45, dmg: 60, refund: 45 }, // fires from the start; F again ends it (refund scales with time left)
   daybreak: { r: 3, dmg: 340, burn: 20 },
   // U22 Darkness (base numbers before superDmg). Roaming: per hit; burst: per target.
-  glacialquake: { slam: 260, slamR: 4.5, slamCd: 0.6, stacks: 3, heavy: 520, heavyR: 7, heavyCd: 1.6, crystals: 4 },
+  glacialquake: { slam: 260, slamR: 4.5, slamCd: 0.6, stacks: 3, heavy: 520, heavyR: 7, heavyCd: 1.6, crystals: 4, walkR: 1.1 }, // H24: each slam raises a cluster of `crystals`; walking within walkR of one shatters it
   bladefury: { slash: 230, slashR: 3, slashCd: 0.32, throw: 420, throwR: 4.5, throwCd: 1.2, sever: 6 },
   rimeblades: { slash: 250, slashR: 3, slashCd: 0.4, stacks: 2, throw: 380, throwR: 4.5, throwCd: 1.3 },
   silkstrike: { whip: 240, whipRange: 7, whipCd: 0.45, leap: 480, leapR: 5, leapCd: 1.6 },

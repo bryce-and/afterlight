@@ -227,16 +227,17 @@ export function abilityFx(kind, o, local) {
       const p = V(o.p), col = hex(o.el || 'solar'), alongX = o.alongX; // the caster's subclass color
       const len = o.small ? 4 : 5, h = o.small ? 1.3 : 2.2; // Rally Barricade is low
       const w = alongX ? len : 0.6, d = alongX ? 0.6 : len;
-      const geo = new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0);
+      const sk = 0.4, base = p.y; // H24: built on the floor it was cast on, with a short skirt so slopes show no gap
+      const geo = new THREE.BoxGeometry(w, h + sk, d).translate(0, (h + sk) / 2 - sk, 0);
       const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.7, transparent: true, opacity: 0.5, flatShading: true }));
       mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending })));
-      mesh.position.set(p.x, 0, p.z);
+      mesh.position.set(p.x, base, p.z);
       mesh.scale.y = 0.01;
       G.scene.add(mesh);
       // a wall on every screen for enemies and their shots; Guardians (and their shots) pass through
-      const box = { min: new THREE.Vector3(p.x - w / 2, 0, p.z - d / 2), max: new THREE.Vector3(p.x + w / 2, h, p.z + d / 2), pass: true };
+      const box = { min: new THREE.Vector3(p.x - w / 2, base - sk, p.z - d / 2), max: new THREE.Vector3(p.x + w / 2, base + h, p.z + d / 2), pass: true };
       G.colliders.push(box);
-      shockwave(p.clone().setY(0.05), 4, col, 0.5);
+      shockwave(p.clone().setY(base + 0.05), 4, col, 0.5);
       for (let i = 0; i < 16; i++) glowBurst(p.clone().add(new THREE.Vector3(alongX ? (Math.random() - 0.5) * w : 0, 0.1, alongX ? 0 : (Math.random() - 0.5) * d)), i % 2 ? col : 0xffffff, 1, 3, 0.1, 0.7, 4, 1);
       let life = o.small ? CLASS_FX_LIFE.rally : CLASS_FX_LIFE.barricade, age = 0;
       const scene = G.scene;

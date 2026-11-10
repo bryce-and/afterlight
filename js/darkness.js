@@ -20,7 +20,8 @@ import { sfx } from './audio.js';
 import { SUPER_TUNE, SUPER_POWER } from './combat.js';
 import { DARK_ASPECT_TUNE as AT, FRAGMENT_TUNE as FT } from './subclass.js';
 import { DARK_PERKS, weaponChill, sliceHit, canPerch, perchAdd } from './darkness-rules.js';
-import { groundAt } from './colliders.js';
+import { hasLOS } from './physics.js';
+import { groundAt, floorBelow } from './colliders.js';
 import { STASIS, STRAND, DARK_GRENADE, canFreeze, canSuspend, chill, freezeTime, suspendTime, shatters, shatterBlast, playerChill, breakFree, unravelTargets, darkWielder } from './darkness-rules.js';
 import * as ui from './ui.js';
 
@@ -307,7 +308,8 @@ function breakObj(c) {
 }
 function newObjId() { return `${net.myId || 'solo'}:${++objN}`; }
 /** Raise a crystal at p (the caster's, shootable). */
-export function raiseCrystal(p, size) { castFx('crystal', { id: newObjId(), p: p.clone().setY(Math.max(0, p.y)), life: STASIS.crystal.life, size }); }
+/** Raise a Stasis crystal at p, standing on the floor under it (H24: was clamped to y = 0, so it sank into raised floors). */
+export function raiseCrystal(p, size) { castFx('crystal', { id: newObjId(), p: p.clone().setY(floorBelow(p.x, p.z, p.y + 0.6)), life: STASIS.crystal.life, size }); }
 /** Drop a tangle at p. */
 export function dropTangle(p, lifeMult = 1) { castFx('tangle', { id: newObjId(), p: p.clone().setY(Math.max(0, p.y - 0.3)), life: STRAND.tangle.life * lifeMult }); }
 
@@ -445,17 +447,17 @@ function threadlingMesh() {
   }
   const foot = new THREE.Mesh(thrGeo.core, thrGeo.hot); foot.scale.set(0.5, 0.2, 0.5); foot.position.y = 0.03; body.add(foot);
   g.add(body); g.userData.body = body;
-  g.scale.setScalar(1.6); // about knee height, as in Destiny 2
+  g.scale.setScalar(STRAND.threadling.scale); // about knee height, as in Destiny 2
   return g;
 }
 
 const perch = { list: [], ticker: null, releaseAt: -9, sent: -1 };
 const remotePerch = new Map(); // caster id -> { list, ticker }
 
-/** Where perched threadling i of n floats around an anchor (shoulder height, slowly circling). */
+/** Where perched threadling i of n floats around an anchor (H24: low at the feet, slowly circling, out of the first-person view). */
 function perchSpot(anchor, i, n, out) {
-  const a = G.time * 1.4 + (i / Math.max(1, n)) * Math.PI * 2;
-  return out.set(anchor.x + Math.cos(a) * 0.85, anchor.y + 1.45 + Math.sin(G.time * 3 + i) * 0.12, anchor.z + Math.sin(a) * 0.85);
+  const T = STRAND.threadling, a = G.time * 1.4 + (i / Math.max(1, n)) * Math.PI * 2;
+  return out.set(anchor.x + Math.cos(a) * T.perchR, anchor.y + T.perchY + Math.sin(G.time * 3 + i) * 0.06, anchor.z + Math.sin(a) * T.perchR);
 }
 
 function perchTicker(store, anchorFn) {
@@ -465,6 +467,7 @@ function perchTicker(store, anchorFn) {
       const anchor = anchorFn();
       store.list.forEach((m, i) => {
         if (anchor) m.position.lerp(perchSpot(anchor, i, store.list.length, sp), Math.min(1, dt * 8));
+        m.scale.setScalar(STRAND.threadling.perchScale); // H24: perched ones are small
         m.userData.body.rotation.y += dt * 3;
         if (Math.random() < 0.04) ember(m.position.clone(), SD, 0.03, 0.3, 0.2);
       });
@@ -497,6 +500,7 @@ function burstAt(p) { glowBurst(p, SD, 8, 3, 0.07, 0.35); sparks(p, SD_CORE, 5, 
 function runThreadling(from, o, local, mesh = null) {
   const T = STRAND.threadling;
   const g = mesh || threadlingMesh();
+  g.scale.setScalar(T.scale); // H24: a released perched threadling grows back to full size
   const pos = from.clone();
   const gy = groundAt(pos.x, pos.z);
   if (pos.y < gy) pos.y = gy;
@@ -553,6 +557,7 @@ function runThreadling(from, o, local, mesh = null) {
         if (!P || P.dead) { end(false); return false; }
         perchSpot(P.pos, perch.list.length, perch.list.length + 1, d);
         pos.lerp(d, Math.min(1, dt * 6));
+        g.scale.setScalar(Math.max(T.perchScale, g.scale.x - dt * 4)); // H24: shrinks as it climbs on
         if (pos.distanceTo(d) < 0.5) {
           const r = perchAdd(perch.list.length, 1);
           if (r.lost) { burstAt(pos.clone()); done.v = true; }
@@ -611,11 +616,13 @@ const methods = {
     }
     sfx.zap();
   },
-  /** H23: perched threadlings jump off at the enemies near you (weapon damage calls this). */
-  releasePerched() {
+  /** Perched threadlings jump off at the enemy you hit and the enemies near it (H24: dealDamage calls this on any
+   *  direct hit, at any range; was weapon hits only, within seekR of you). */
+  releasePerched(hit = null) {
     if (!perchedCount() || G.time < perch.releaseAt) return;
     const T = STRAND.threadling;
-    const targets = enemiesNear(this.pos, T.seekR, perch.list.length);
+    const near = enemiesNear(hit ? hit.pos : this.pos, T.seekR, perch.list.length);
+    const targets = hit && hit.alive ? [hit, ...near.filter((x) => x !== hit)] : near;
     if (!targets.length) return;
     perch.releaseAt = G.time + T.releaseGap;
     const o = { perch: canPerch(this.cls.subclassId), unravel: this.asp.has('weaverscall') };
@@ -718,7 +725,6 @@ const methods = {
   },
   darkWeaponHit() {
     if (this.frag.has('generation')) this.giveEnergy('grenade', FT.generation);
-    this.releasePerched(); // H23: perched threadlings jump off when your weapon deals damage
   },
   /** H23: weapon kill effects from Darkness perks and fragments. */
   darkWeaponKill(w, e, crit) {
@@ -769,18 +775,19 @@ const methods = {
   isDarkGrenade(g) { return DARK_GRENADE_KINDS.has(g.kind); },
   darkGrenade(g, pt, hitEnemy) {
     pt.y = Math.max(pt.y, 0.3);
+    const fy = floorBelow(pt.x, pt.z, pt.y + 0.6); // H24: the floor under the impact (was y = 0, so effects sank into raised floors)
     const id = g.kind, tw = this.asp.has('touchwinter'), ms = this.asp.has('mindspun');
-    if (STASIS_GRENADES.has(id) && this.asp.has('bleakwatcher')) { castFx('bleak', { p: pt.clone().setY(0), life: AT.bleakwatcher.life }); return; }
+    if (STASIS_GRENADES.has(id) && this.asp.has('bleakwatcher')) { castFx('bleak', { p: pt.clone().setY(fy), life: AT.bleakwatcher.life }); return; }
     if (this.asp.has('wanderer') && hitEnemy?.alive && g.element === 'strand') {
       for (const e of enemiesNear(hitEnemy.center(new THREE.Vector3()), AT.wanderer.r)) dealDamage(e, 90, { element: 'strand', source: 'ability', pos: e.center(new THREE.Vector3()), suspend: this.suspendMult() });
     }
     if (id === 'glacier') {
       const fwd = this.getForward(new THREE.Vector3()).setY(0).normalize(), side = new THREE.Vector3(-fwd.z, 0, fwd.x);
       const n = tw ? 7 : 5;
-      for (let i = 0; i < n; i++) raiseCrystal(pt.clone().setY(0).addScaledVector(side, (i - (n - 1) / 2) * 1.4).addScaledVector(fwd, (i % 2) * 0.6));
-      castFx('darkslam', { p: pt.clone().setY(0.1), el: 'stasis', r: 4 });
+      for (let i = 0; i < n; i++) raiseCrystal(pt.clone().addScaledVector(side, (i - (n - 1) / 2) * 1.4).addScaledVector(fwd, (i % 2) * 0.6));
+      castFx('darkslam', { p: pt.clone().setY(fy + 0.1), el: 'stasis', r: 4 });
     } else if (id === 'duskfield') {
-      castFx('duskfield', { p: pt.clone().setY(0), r: tw ? 6 : 4.5, life: 6, fm: this.freezeMult() });
+      castFx('duskfield', { p: pt.clone().setY(fy), r: tw ? 6 : 4.5, life: 6, fm: this.freezeMult() });
     } else if (id === 'coldsnap') {
       this.coldsnap(pt, tw ? 3 : 1);
     } else if (id === 'grapple') {
@@ -863,7 +870,7 @@ const methods = {
     } else if (id === 'penumbral') { // a Stasis burst from the staff
       spawnPlayerProjectile({ kind: 'drain', pos: start, vel: fwd.clone().multiplyScalar(38), gravity: 0, size: 0.16, color: ST, life: 1.0,
         onHit: (p, e) => {
-          if (e && e.alive) dealDamage(e, 220, { ...this.stasisO(3), source: 'melee', pos: p.clone() });
+          if (e && e.alive) dealDamage(e, 220, { ...this.stasisO(3, { freeze: this.freezeMult() }), source: 'melee', pos: p.clone() }); // H24: a direct hit freezes (bosses only slow)
           for (const x of enemiesNear(p, 3, 8, e)) dealDamage(x, 50, { ...this.stasisO(2), source: 'melee', pos: x.center(new THREE.Vector3()) });
           shatterFx(p, 0.7);
         } });
@@ -917,11 +924,11 @@ const methods = {
       return i < A.n;
     } });
   },
-  /** Diamond Lance: B throws the lance; it freezes enemies where it lands. Returns true if it replaced the quick melee. */
+  /** Diamond Lance: B or left-click (H24) throws the lance; it freezes enemies where it lands. Returns true if it replaced the quick melee. */
   darkBasicMelee() {
     if (!this.status.has('diamondlance')) return false;
     this.status.remove('diamondlance');
-    const fwd = this.getForward(new THREE.Vector3()), A = AT.diamondlance;
+    const fwd = this.aimForward(new THREE.Vector3()), A = AT.diamondlance; // H24: at the crosshair (it is thrown in third person)
     this.throwFist(0.32);
     spawnPlayerProjectile({ kind: 'hammer', pos: this.eye.clone().addScaledVector(fwd, 0.6), vel: fwd.clone().multiplyScalar(36).add(new THREE.Vector3(0, 2, 0)), gravity: 12, size: 0.16, color: ST, life: 2,
       onHit: (p) => {
@@ -940,7 +947,7 @@ const methods = {
       for (const e of enemiesNear(this.pos, AT.frostpulse.r)) dealDamage(e, 60, { element: 'stasis', source: 'ability', pos: e.center(new THREE.Vector3()), freeze: this.freezeMult() });
       this.status.apply('chilling', { t: AT.frostpulse.rounds, set: true }); // H23: Chilling Rounds
     }
-    if ((id === 'rift' || id === 'empower') && A.has('weaverscall')) this.threadlings(this.pos.clone().setY(this.pos.y + 1), AT.weaverscall.n);
+    if ((id === 'rift' || id === 'empower') && A.has('weaverscall')) this.threadlings(this.pos.clone(), AT.weaverscall.n); // H24: from your feet, not your perched ones' spot
     if ((id === 'barricade' || id === 'rally') && A.has('drengrslash')) {
       const D = AT.drengrslash, f = this.getForward(new THREE.Vector3()).setY(0).normalize();
       for (let i = 1; i <= D.n; i++) {
@@ -994,9 +1001,14 @@ const methods = {
     }
     if (!crystal && this.asp.has('iceflare')) {
       const I = AT.iceflare;
-      for (const tgt of enemiesNear(at, I.r, I.n)) {
-        spawnPlayerProjectile({ kind: 'swarm', pos: at.clone(), vel: new THREE.Vector3((Math.random() - 0.5) * 6, 8, (Math.random() - 0.5) * 6), gravity: 0, size: 0.09, color: ST, life: 2, target: tgt, turn: 5,
-          onHit: (p, e) => { if (e && e.alive) dealDamage(e, I.dmg, { ...this.stasisO(2), source: 'ability', pos: p.clone(), companion: true }); sparks(p, ST, 6, 3, 0.05, 0.3); } });
+      let hits = 0;
+      for (const tgt of enemiesNear(at, I.r, I.n + 1)) { // H24: hitscan bolts (were seekers) at enemies in sight of the shatter
+        const c = tgt.center(new THREE.Vector3());
+        if (c.distanceTo(at) < 0.5 || !hasLOS(at, c)) continue;
+        castFx('line', { a: at.clone(), b: c.clone(), el: 'stasis', w: 0.05, life: 0.25 });
+        dealDamage(tgt, I.dmg, { ...this.stasisO(2), source: 'ability', pos: c.clone(), companion: true });
+        sparks(c, ST, 6, 3, 0.05, 0.3);
+        if (++hits >= I.n) break;
       }
     }
   },
@@ -1030,6 +1042,8 @@ const methods = {
     switch (S.type) {
       // ---------- roaming ----------
       case 'glacialquake':
+        // H24: walking or sprinting into one of your crystals during the super shatters it
+        for (const c of [...objs.values()]) if (c.local && c.kind === 'crystal' && Math.hypot(c.pos.x - this.pos.x, c.pos.z - this.pos.z) < T.walkR && Math.abs(c.pos.y - this.pos.y) < 2) breakObj(c);
         if (R) {
           S.cd = T.heavyCd;
           castFx('darkslam', { p: this.pos.clone(), el, r: T.heavyR });
@@ -1040,7 +1054,8 @@ const methods = {
           S.cd = T.slamCd;
           const p = this.pos.clone().addScaledVector(flat, 2.4);
           castFx('darkslam', { p: p.clone().setY(this.pos.y + 0.2), el, r: T.slamR });
-          raiseCrystal(p.clone().addScaledVector(flat, 1.5).setY(this.pos.y), 1);
+          const side = new THREE.Vector3(-flat.z, 0, flat.x), at = p.clone().addScaledVector(flat, 1.5).setY(this.pos.y); // H24: a cluster of crystals (was one)
+          for (let i = 0; i < T.crystals; i++) raiseCrystal(at.clone().addScaledVector(side, (i % 2 ? 1 : -1) * (0.55 + 0.25 * (i >> 1))).addScaledVector(flat, (i >> 1) * 1.1 + (Math.random() - 0.5) * 0.3), 0.8 + Math.random() * 0.35);
           for (const e of enemiesNear(p.setY(this.pos.y + 1), T.slamR)) dealDamage(e, superDmg(T.slam), { ...this.stasisO(T.stacks), source: 'super', pos: e.center(new THREE.Vector3()) });
           this.throwFist(0.3, true); this.shake = 0.2; sfx.melee(el);
         }
@@ -1096,7 +1111,7 @@ const methods = {
           S.cd = T.shardCd;
           spawnPlayerProjectile({ kind: 'drain', pos: hand.clone(), vel: this.aimForward(new THREE.Vector3()).multiplyScalar(55), gravity: 0, size: 0.12, color: ST, life: 1.2,
             onHit: (p, e) => {
-              if (e && e.alive) dealDamage(e, superDmg(T.shard), { ...this.stasisO(T.stacks), source: 'super', pos: p.clone() });
+              if (e && e.alive) dealDamage(e, superDmg(T.shard), { ...this.stasisO(T.stacks, { freeze: this.freezeMult() }), source: 'super', pos: p.clone() }); // H24: a direct hit freezes
               for (const x of enemiesNear(p, 1.6, 4, e)) dealDamage(x, superDmg(T.shard) * 0.4, { ...this.stasisO(1), source: 'super', pos: x.center(new THREE.Vector3()) });
               sparks(p, ST, 8, 4, 0.06, 0.3);
             } });

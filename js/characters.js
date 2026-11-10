@@ -508,6 +508,11 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
       } else if (type === 'glacialquake') {
         // Glacial Quake: a big crystal-encrusted gauntlet around the right fist
         put(R, crystalCluster(9, 0.55, 22, { x: 0, y: -0.2, z: 1 }), 0, -0.5, 0.05).scale.setScalar(1.15);
+      } else if (type === 'lance') {
+        // H24 Diamond Lance: a long Stasis crystal spear held raised in the right hand
+        const ln = put(R, new THREE.Group(), 0, -0.47, 0.05);
+        ln.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0).scale(1, 1, 9).translate(0, 0, 0.45), glow(STASIS, 1.8)));
+        const tip = crystalCluster(5, 0.28, 61, { x: 0, y: 0, z: 1 }); tip.position.z = 1.3; ln.add(tip);
       } else if (type === 'avalanche') {
         for (const [arm, sd] of [[R, 31], [L, 32]]) put(arm, crystalCluster(7, 0.42, sd, { x: 0, y: -0.3, z: 0.6 }), 0, -0.5, 0.05);
       } else if (type === 'silencesquall' || type === 'rimeblades') {

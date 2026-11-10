@@ -22,7 +22,7 @@ import * as ST from '../js/style.js';
 import { sfx, SHOT_RECIPES, ELEMENT_TINT, ABILITY_RECIPES, FACTION_SOUND, spatial } from '../js/audio.js';
 import { musicSectionFor } from '../js/music.js';
 import { G } from '../js/state.js';
-import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody, rayGround, groundAt } from '../js/colliders.js';
+import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody, rayGround, groundAt, floorBelow } from '../js/colliders.js';
 import { buildTerrain, steepest, routeSlope, MAX_SLOPE } from '../js/terrain.js';
 import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV } from '../js/nav.js';
 import * as AI from '../js/ai.js';
@@ -3267,6 +3267,30 @@ test('H23: threadlings perch on a Broodweaver (up to five); Darkness weapon perk
   }
   for (const id of ['chilling', 'severing']) ok(STATUS[id], `Rounds status ${id}`);
   for (const id of ['impairment', 'frostbite', 'isolation', 'snaring']) ok(SC.FRAGMENTS[id] && SC.FRAGMENT_TUNE[id] !== undefined, `fragment ${id}`);
+});
+
+const DARK_SRC = await (await fetch(new URL('../js/darkness.js', import.meta.url))).text();
+test('H24: perched threadlings sit small and low and release on any direct hit; Shadebinder staff hits freeze; Diamond Lance', () => {
+  const T = DR.STRAND.threadling;
+  ok(T.perchScale < T.scale * 0.5, 'perched threadlings are under half their running size');
+  ok(T.perchY < 0.6 && T.perchR <= 0.8, 'perched threadlings circle at the feet, below the first-person view');
+  for (const src of ['weapon', 'melee', 'ability', 'super']) ok(DR.releasesPerch({ source: src }, 50), `${src} damage releases them`);
+  ok(!DR.releasesPerch({ source: 'ability', companion: true }, 90), 'threadling and turret hits do not release them');
+  ok(!DR.releasesPerch({ source: 'perk' }, 50) && !DR.releasesPerch({ source: 'weapon', jolted: true }, 50), 'perk procs and chain hits do not');
+  ok(!DR.releasesPerch({ source: 'weapon' }, 0) && !DR.releasesPerch({ source: 'weapon', remoteHit: true }, 50), 'zero damage and teammates\' hits do not');
+  const src = DARK_SRC;
+  ok(/id === 'penumbral'[\s\S]{0,400}stasisO\(3, \{ freeze:/.test(src), 'Penumbral Blast direct hit carries freeze');
+  ok(/case 'winterswrath'[\s\S]{0,1400}stasisO\(T\.stacks, \{ freeze:/.test(src), "Winter's Wrath shard direct hit carries freeze");
+  ok(/iceflare[\s\S]{0,600}hasLOS/.test(src) && !/iceflare[\s\S]{0,400}kind: 'swarm'/.test(src), 'Iceflare Bolts are hitscan, not seekers');
+  ok(DR.canFreeze({ cls: 'grunt' }) && !DR.canFreeze({ isBoss: true }), 'freeze still never lands on bosses');
+  // barricades and Stasis crystals stand on the floor under them, not at y = 0
+  const keepC = G.colliders, keepL = G.level;
+  G.level = null;
+  G.colliders = [{ min: { x: -2, y: 0, z: -2 }, max: { x: 2, y: 3, z: 2 } }, { min: { x: -2, y: 6, z: -2 }, max: { x: 2, y: 6.3, z: 2 } }, { min: { x: -9, y: 0, z: -9 }, max: { x: 9, y: 9, z: 9 }, pass: true }];
+  eq(floorBelow(0, 0, 3.6), 3, 'on top of a deck');
+  eq(floorBelow(0, 0, 10), 6.3, 'the highest floor at or below the caster');
+  eq(floorBelow(5, 5, 3.6), 0, 'open ground; pass-through boxes (barricades) are not floors');
+  G.colliders = keepC; G.level = keepL;
 });
 
 test('U22: players hit by enemy Darkness: three Chilled stacks freeze, Space breaks out; severed enemies hit softer', () => {

@@ -250,7 +250,7 @@ function myState() {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, lk: P.lookCode,
     x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0,
     // animation: sprinting, airborne, firing, and the gun in hand
-    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, mt: P.mount ? 1 : 0, mh: P.mount ? r2(P.mount.heading) : 0, gm: P.ghostOut || P.mount ? 1 : 0, rg: P.ragdoll ? 1 : 0, w: (P.superActive && !P.keepsGuns) || P.holdingAxe || P.ghostOut || P.mount ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
+    s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, mt: P.mount ? 1 : 0, mh: P.mount ? r2(P.mount.heading) : 0, gm: P.ghostOut || P.mount ? 1 : 0, rg: P.ragdoll ? 1 : 0, w: (P.superActive && !P.keepsGuns) || P.holdingAxe || P.holdingLance || P.ghostOut || P.mount ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
   };
 }
 
