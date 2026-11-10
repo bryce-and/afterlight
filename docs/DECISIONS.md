@@ -317,3 +317,11 @@
 | 2026-11-10 | Weapon hits never add slow to a frozen target, so the hit shatters it. | Claude |
 | 2026-11-10 | Stasis and Strand named weapons always carry one Darkness perk in their Effect column. This changed the pools of those weapons only; existing items keep their rolls. | Claude |
 | 2026-11-10 | Roll Tracker drop sources come only from real loot code paths; no destination-specific weapon drops exist. | Claude |
+| 2026-11-10 | H24 perched threadlings release on any direct hit dealt by the caster (`DR.releasesPerch` in `js/darkness-rules.js`, called from `dealDamage` in `js/game.js`). Excluded: companion hits, jolted chain hits, perk source, raw or zero damage, teammates' relayed hits. Released threadlings target the enemy hit first, with no range limit around the caster. | Claude |
+| 2026-11-10 | H24 perched look tuned in `STRAND.threadling`: scale 1.6, perchScale 0.6, perchY 0.3, perchR 0.7. | Claude |
+| 2026-11-10 | H24 reproduced in the preview: casting Rift did not release perched threadlings, and its 3 Weaver's Call threadlings spawned at chest height where perched ones sat. Fix: spawn them at the feet. | Claude |
+| 2026-11-10 | H24 Penumbral Blast and Winter's Wrath shard direct hits carry the existing `freeze` hit option; bosses are immune through `canFreeze`. | Claude |
+| 2026-11-10 | H24 Iceflare Bolts are hitscan with a line-of-sight check (`hasLOS`), still 2 bolts, same damage and slow. | Claude |
+| 2026-11-10 | H24 Diamond Lance in hand: `Player.holdingLance` joins `thirdPerson`, `tpsProp 'lance'` (new prop in `js/characters.js`), and left-click throws via `darkBasicMelee` using `aimForward`. | Claude |
+| 2026-11-10 | H24 new helper `floorBelow(x, z, fromY)` in `js/colliders.js`: highest of terrain and solid collider tops under a point. Used by barricades (cast point), `raiseCrystal` and Stasis grenade effects. Cause of "stuck in the ground": these were all placed at y = 0. | Claude |
+| 2026-11-10 | H24 Glacial Quake: each light slam raises `SUPER_TUNE.glacialquake.crystals` (4) crystals in a small cluster (the tuning existed but only one was raised); during the super, any of your crystals within `walkR` 1.1 m of you shatters (walking or sprinting, no aspect needed). Bryce asked for this mid-hotfix. | Claude |
