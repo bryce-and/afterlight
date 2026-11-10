@@ -296,3 +296,10 @@
 | 2026-11-08 | Exotic missions are listed in the Activities tab. | Bryce |
 | 2026-11-08 | Enemy Light is your combat Light + 10 and the exotic mission timer is 20:00 (defaults, tunable). | Claude |
 | 2026-11-08 | Every fireteam member must be level 30 to start an exotic mission. | Claude |
+| 2026-11-09 | Fireteam scaling: count 1.25 (2 players) and 1.5 (3), regular enemy health 1.3 and 1.55; boss health and damage unchanged. | Bryce (asked for less density, more health); Claude (numbers) |
+| 2026-11-09 | Enemy models are merged per animated pivot and material at build; crit parts merge only with crit parts; referenced, named, transparent and closure-captured parts stay separate; models with onDeath/deathStep hooks are not merged. | Claude (approved by Bryce) |
+| 2026-11-09 | Hand cannons use a data-driven recoil profile: kick 15 degrees right of vertical over 60 ms, 80% eases back over 0.3 s, small screen shake (0.03) after Bryce found 0.12 too shaky. | Bryce (feel); Claude (numbers) |
+| 2026-11-09 | Glyph symbols and boards are flat panels fixed to walls, not camera-facing sprites (sprites clipped into walls and the boss). | Bryce |
+| 2026-11-09 | Bosses with damage gates show a segmented health bar (Destiny style); the Whisper's damage window ending early at a gate is intended. | Bryce |
+| 2026-11-09 | One blight look for decor, mechanic blights and Blight Edge bombs, after Bryce's Destiny reference: black orb, pale halo. | Bryce |
+| 2026-11-09 | Exotics can define a full custom model (`look.model`); Blight Edge is the first. | Bryce (look); Claude (mechanism) |
