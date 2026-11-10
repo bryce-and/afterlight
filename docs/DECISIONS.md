@@ -311,3 +311,9 @@
 | 2026-11-09 | Co-op approximation: crystals and tangles are only shootable by their caster (teammates see them); shatter fragment effects (Rime, Shards, Diamond Lance) apply to the fireteam leader's shatters only when a member's hit causes the shatter on the leader's copy. | Claude |
 | 2026-11-09 | Some Destiny aspects were adapted to this game's kit: Cryoclasm shatters on sprint (no slide), Widow's Silk speeds Grapple recharge (no grapple charges), Banner of War heals only you, Weavewalk is Q while sprinting. | Claude |
 | 2026-11-09 | Thrown burst supers (Silence and Squall, Ripcord, Cat's Cradle) lob onto the crosshair point. | Claude |
+| 2026-11-10 | H23 was requested as an update-sized change; Bryce chose to ship it as a hotfix (no title art). | Bryce |
+| 2026-11-10 | Freeze threshold is 4 Stasis slow stacks (was 5), and slow lasts 6s (was 4s). Boss slow cap is 3. | Bryce |
+| 2026-11-10 | Only Broodweaver threadlings perch on the player (Destiny 2 Warlock trait). Perched threadlings are cleared on a new map. | Claude |
+| 2026-11-10 | Weapon hits never add slow to a frozen target, so the hit shatters it. | Claude |
+| 2026-11-10 | Stasis and Strand named weapons always carry one Darkness perk in their Effect column. This changed the pools of those weapons only; existing items keep their rolls. | Claude |
+| 2026-11-10 | Roll Tracker drop sources come only from real loot code paths; no destination-specific weapon drops exist. | Claude |
