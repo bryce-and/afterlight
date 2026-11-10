@@ -82,8 +82,26 @@ addEventListener('resize', () => {
 // Main loop
 // ---------------------------------------------------------------------------
 let last = performance.now();
+// Dev-only perf readout, enabled with ?perf in the URL. Costs nothing when absent.
+const PERF = /[?&]perf(\b|=)/.test(location.search);
+let perfTick = null;
+if (PERF) {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:99999;padding:4px 7px;background:rgba(0,0,0,.65);color:#9f9;font:11px/1.35 monospace;pointer-events:none;white-space:pre';
+  document.body.appendChild(box);
+  let acc = 0, n = 0, worst = 0, since = 0;
+  perfTick = (ms) => {
+    acc += ms; n++; if (ms > worst) worst = ms; since += ms;
+    if (since < 1000) return;
+    const inf = renderer.info.render;
+    const alive = G.enemies ? G.enemies.filter((e) => e.alive).length : 0;
+    box.textContent = `frame ${(acc / n).toFixed(1)} ms (worst ${worst.toFixed(1)})  ${Math.round(1000 * n / since)} fps\ncalls ${inf.calls}  tris ${inf.triangles}  enemies ${alive}`;
+    acc = 0; n = 0; worst = 0; since = 0;
+  };
+}
 function frame(now) {
   requestAnimationFrame(frame);
+  if (perfTick) perfTick(now - last);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   try {

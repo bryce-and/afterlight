@@ -19,6 +19,7 @@
 //   PHASE spans are 15.6 m of void: more than a sprint jump at 100 Mobility (about 11.8 m), so only the phase blocks cross them.
 //   One-way drops (the Green Chasm) are 2.0 m; falling is free, climbing back is not meant to be possible.
 import * as THREE from 'three';
+import { blightOrb } from './blight-look.js';
 
 export const WHISPER_JUMP = { v: 8.2, g: 24, walk: 6.2, sprint: 9.3, step: 0.6, r: 0.4 };
 /** Farthest horizontal distance a jump can cover when it ends `rise` metres above (negative: below) where it started. */
@@ -204,7 +205,7 @@ export const WHISPER_LAYOUT = {
         { p: [140, YG + 5, -26], n: [0, 1] }, { p: [160, YG + 6.5, -26], n: [0, 1] }, { p: [134, YG + 6, 26], n: [0, -1] },
         { p: [154, YG + 5, 26], n: [0, -1] }, { p: [180, YG + 5.5, -15], n: [-1, 0] }, { p: [180, YG + 6.5, 15], n: [-1, 0] },
       ],
-      glyph: [180, YG + 9, 0],
+      glyph: [179.2, YG + 9, 0], glyphW: 8, // in front of the dark frame (front face x 179.45), filling it
       blights: [[134.5, YG + 1.6, -15.5], [129.5, YG + 1.6, -20.5], [169.5, YG + 1.6, 15.5], [174.5, YG + 1.6, 20.5]], // two guard each conduit (aura 5 m)
       gate: { p: [181, YG, 0], w: 6, h: 6.5, axis: 'z' },
       spawns: [[150, YG, -18], [144, YG, 0], [156, YG, 18], [164, YG, -6], [138, YG, 10], [170, YG, -16]],
@@ -225,7 +226,7 @@ export const WHISPER_LAYOUT = {
       id: 'falls', name: 'The Falls', kind: 'boss',
       checkpoint: [315, YB, 0], region: { minX: 309, maxX: 381, minZ: -31, maxZ: 31, minY: YB - 2, maxY: 58 },
       room: { minX: 310, maxX: 372, minZ: -30, maxZ: 30 },
-      boss: [356, YB, 0], glyph: [356, YB + 6.5, 0],
+      boss: [356, YB, 0], glyph: [371.2, YB + 18, 0], glyphW: 10, // high on the back wall (face x 372), behind the boss, framed
       conduits: [[334, YB, -22], [334, YB, 22], [366, YB, -22], [366, YB, 22]],
       eyes: [
         { p: [322, YB + 6, -30], n: [0, 1] }, { p: [340, YB + 9, -30], n: [0, 1] }, { p: [358, YB + 6, -30], n: [0, 1] }, { p: [368, YB + 9, -30], n: [0, 1] },
@@ -369,10 +370,13 @@ function socket(K, x, y, z, fxd, fzd, r, k = 0.5, ring = BRONZE2) {
   vb(K, x + fxd * 0.12, y, z + fzd * 0.12, 1, 1, 1, ring, { geo: new THREE.TorusGeometry(r * 0.5, r * 0.07, 4, 10), ry });
   return disc;
 }
-/** Black Taken blight clump: a dark blob with a pale ring. */
+/** Taken blight growth: H22 uses the shared blight look (black orb with a pale halo, js/blight-look.js), as the mechanic blights and Blight Edge do. */
 function blightDecor(K, x, y, z, s) {
-  vb(K, x, y, z, 1, 1, 1, G_BLIGHT, { geo: new THREE.IcosahedronGeometry(s, 0), rx: x, ry: z });
-  vb(K, x, y, z, 1, 1, 1, G_BLUE, { geo: new THREE.TorusGeometry(s * 1.35, 0.08, 4, 14), rx: 1.3 + x * 0.1, ry: z * 0.1, glow: 1.4 });
+  const o = blightOrb(s);
+  o.group.position.set(x, y, z);
+  o.core.rotation.set(x, z, 0); // each growth's streaks lie differently
+  o.core.userData.noCollide = true;
+  K.scene.add(o.group);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -469,7 +473,7 @@ const WHISPER = {
         vx(K, x - w / 2 - 0.04, x + w / 2 + 0.04, YG + h - 0.12, YG + h, z - d / 2 - 0.04, z + d / 2 + 0.04, G_WHITE, { glow: 0.5 });
       }
       // the blank board over the gate where the glyphs will be shown (frame only)
-      vb(K, 179.7, YG + 9, 0, 0.5, 5.6, 9, 0x15151b); vb(K, 179.5, YG + 9, 0, 0.1, 5.8, 9.2, G_WHITE, { glow: 0.4 });
+      vb(K, 179.7, YG + 9, 0, 0.5, 5.6, 9, 0x15151b); vb(K, 179.75, YG + 9, 0, 0.1, 5.8, 9.2, G_WHITE, { glow: 0.4 }); // H22: the white rim sits inside the dark board (its face was coplanar with the board's and z-fought)
       vb(K, 180.4, YG + 3.2, -3.6, 1.2, 6.4, 1.0, G_WHITE, { glow: 0.2 }); vb(K, 180.4, YG + 3.2, 3.6, 1.2, 6.4, 1.0, G_WHITE, { glow: 0.2 }); vb(K, 180.4, YG + 7.4, 0, 1.2, 1.4, 8.6, G_WHITE, { glow: 0.2 });
       for (const [x, z, i] of [[132, -18, 12], [172, 18, 12], [150, 0, 10], [128, 10, 8], [172, -14, 8], [150, -22, 8], [150, 22, 8]]) lamp(K, x, YG + 7, z, G_BLUE, i, 36);
       tunnel(K, 182, 198, -3, 3, YG, YG + 6.5, G_WALL, { color: G_BLUE, k: 0.6 });
@@ -532,6 +536,8 @@ const WHISPER = {
         vx(K, 371.9, 372.1, YB + 3, YB + hh - 1, za + 0.5, zb - 0.5, F_RIB);
         vx(K, 371.8, 372.2, YB + hh * 0.5, YB + hh * 0.5 + 0.14, za + 0.2, zb - 0.2, F_GOLD, { glow: 0.8 });
       }
+      // the glyph board's frame on the back wall (board at x 371.2 sits in front of it; the cliff face is x 372)
+      vb(K, 371.75, YB + 18, 0, 0.5, 3.4, 10.8, 0x15110c); for (const dy of [-1.75, 1.75]) vb(K, 371.45, YB + 18 + dy, 0, 0.1, 0.14, 10.9, F_GOLD, { glow: 0.6 });
       for (const zc of FZ) {
         solid(K, 372, 380, YB + 24, y1, zc - CH, zc + CH, 0x2a2016); // the lintel the water spills from
         const fall = fx(K, new THREE.BoxGeometry(0.6, 24, CH * 2 - 0.8), F_WATER, 0.88, 379.4, YB + 12, zc, { fog: false });

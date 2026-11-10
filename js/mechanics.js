@@ -10,6 +10,7 @@ import { G } from './state.js';
 import { mat } from './world.js';
 import { sparks, ringFx, basicMat } from './effects.js';
 import { GLYPH_SYMBOLS } from './exotic-rules.js';
+import { blightOrb, disposeBlightOrb } from './blight-look.js';
 
 const TEAL = 0x3affd8, BRONZE = 0x8a6a3a, DARK = 0x2b2118, PALE = 0xdff3ff;
 
@@ -29,7 +30,7 @@ export function mechSplash(pos, radius) {
 
 const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
-// ---------- canvas sprites (glyph symbols and the glyph board) ----------
+// ---------- canvas panels (glyph symbols and the glyph board) ----------
 function symbolTexture(sym, color = '#7ffff0') {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
@@ -41,8 +42,9 @@ function symbolTexture(sym, color = '#7ffff0') {
   const t = new THREE.CanvasTexture(c);
   return t;
 }
-function makeSprite(tex, w, h) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+/** H22: a flat glyph panel fixed to the wall (a unit plane facing +z, sized by scale), not a sprite that turns to face the camera. */
+function makeFlat(tex, w, h) {
+  const s = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   s.scale.set(w, h, 1);
   return s;
 }
@@ -62,14 +64,27 @@ export function drawBoard(board, puzzle) {
   }
   tex.needsUpdate = true;
 }
-function makeBoard(p, w) {
+function makeBoard(p, w, face) {
   const canvas = document.createElement('canvas');
   canvas.width = 640; canvas.height = 160;
   const tex = new THREE.CanvasTexture(canvas);
-  const sprite = makeSprite(tex, w, w / 4);
+  const sprite = makeFlat(tex, w, w / 4);
   sprite.position.copy(p);
+  sprite.rotation.y = boardYaw(p, face); // faces into the room
   return { canvas, ctx: canvas.getContext('2d'), tex, sprite };
 }
+
+/** Board width in metres: the layout's glyphW when given, else 5 for a boss room and 4 elsewhere. */
+export function boardWidth(seg) { return seg.glyphW ?? (seg.kind === 'boss' ? 5 : 4); }
+/** H22: the board's yaw so its face (+z) points at `face` (the segment's room centre), snapped to the nearest wall axis. */
+export function boardYaw(p, face) {
+  if (!face) return 0;
+  const a = Math.atan2(face.x - p.x, face.z - p.z);
+  return Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
+}
+/** Eye glyph sprite: size and placement in the eye's local frame (+z is out of the wall, +y up). */
+export const EYE_SYM = { size: 1.5, y: 1.55, z: 0.06 }; // H22: flat on the wall above the eye (the eye group already sits 0.12 m out)
+const FLARE_T = 0.6;
 
 // ---------- builders ----------
 function buildConduit(p) {
@@ -111,19 +126,13 @@ function buildEye(spec, segI, i) {
 function buildBlight(p, segI, i, aura, hits) {
   const g = new THREE.Group();
   g.position.copy(p);
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85, 1), new THREE.MeshStandardMaterial({ color: 0x07060a, emissive: 0x2a1040, emissiveIntensity: 0.9, flatShading: true, roughness: 0.4 }));
-  const wisps = new THREE.Group();
-  for (let k = 0; k < 5; k++) {
-    const w = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.8, 5), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-    const a = (k / 5) * Math.PI * 2;
-    w.position.set(Math.cos(a) * 0.8, 0.2, Math.sin(a) * 0.8);
-    wisps.add(w);
-  }
+  const orb = blightOrb(0.85); // H22: the shared blight look (black orb, pale halo)
+  const core = orb.core, wisps = orb.core; // the core spins (its surface streaks swirl) and swells when hit
   const hit = new THREE.Mesh(new THREE.SphereGeometry(1.15, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
   const ground = new THREE.Mesh(new THREE.RingGeometry(aura - 0.15, aura, 40), new THREE.MeshBasicMaterial({ color: 0xcfc8ff, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -1.55; // the orb hangs about 1.6 m over the floor
-  g.add(core, wisps, hit, ground);
+  g.add(orb.group, hit, ground);
   g.visible = false;
   return { p, group: g, core, wisps, hit, ground, hp: hits, max: hits, alive: true, on: false, seg: segI, i, flash: 0 };
 }
@@ -198,7 +207,8 @@ export function buildMechanics(layout, cfg) {
       G.staticMeshes.push(S.gate.slab);
     }
     if (seg.glyph) {
-      S.board = makeBoard(v3(seg.glyph), seg.kind === 'boss' ? 5 : 4);
+      const r = seg.room || seg.region;
+      S.board = makeBoard(v3(seg.glyph), boardWidth(seg), r ? { x: (r.minX + r.maxX) / 2, z: (r.minZ + r.maxZ) / 2 } : null);
       S.board.sprite.visible = false;
       root.add(S.board.sprite);
     }
@@ -231,21 +241,50 @@ export function setPuzzle(S, puzzle) {
     const sym = puzzle.symbols[i];
     if (e.sym?.userData.sym === sym) return;
     if (e.sym) { e.group.remove(e.sym); e.sym.material.map.dispose(); e.sym.material.dispose(); }
-    e.sym = makeSprite(symbolTexture(sym), 0.5, 0.5);
+    e.sym = makeFlat(symbolTexture(sym), EYE_SYM.size, EYE_SYM.size);
     e.sym.userData.sym = sym;
-    e.sym.position.set(0, 0.85, 0.15);
+    e.sym.position.set(0, EYE_SYM.y, EYE_SYM.z);
     e.group.add(e.sym);
+    if (!e.ring) { // a soft teal halo behind the symbol so it reads from across the room
+      e.ring = new THREE.Mesh(new THREE.RingGeometry(EYE_SYM.size * 0.46, EYE_SYM.size * 0.56, 28), new THREE.MeshBasicMaterial({ color: TEAL, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, fog: false, blending: THREE.AdditiveBlending }));
+      e.ring.position.set(0, EYE_SYM.y, EYE_SYM.z - 0.05);
+      e.group.add(e.ring);
+    }
+    paintEye(e);
   });
   if (S.board) drawBoard(S.board, puzzle);
 }
 export function refreshBoard(S) { if (S.board && S.puzzle) drawBoard(S.board, S.puzzle); }
 
-/** 0: dark socket, 1: shot correctly (stays lit), 2: wrong (red flash that fades back to 0). */
-export function setEyeLit(S, i, v) {
+/** 0: dark socket, 1: shot correctly (stays lit, flares first when `flare`), 2: wrong (red flash that fades back to 0). */
+export function setEyeLit(S, i, v, flare = false) {
   const e = S.eyes[i];
   e.lit = v;
   e.flashT = v === 2 ? 0.7 : 0;
-  e.iris.material = v === 2 ? mat(0xff3a2a, { emissive: 0xff3a2a, emissiveIntensity: 2 }) : v === 1 ? mat(0xffffff, { emissive: 0xaafff0, emissiveIntensity: 2.4 }) : mat(TEAL, { emissive: TEAL, emissiveIntensity: 1.9 });
+  if (v !== 1) e.flareT = 0;
+  else if (flare) e.flareT = FLARE_T;
+  if (e.ownIris) { e.ownIris.dispose(); e.ownIris = null; }
+  e.iris.material = v === 2 ? mat(0xff3a2a, { emissive: 0xff3a2a, emissiveIntensity: 2 }) : v === 1 ? mat(TEAL, { emissive: TEAL, emissiveIntensity: 2.6 }) : mat(TEAL, { emissive: TEAL, emissiveIntensity: 1.9 });
+  // the flare animates emissiveIntensity, so a flaring iris gets its own copy (mat() materials are shared by every mesh of that look)
+  if (v === 1 && flare) e.iris.material = e.ownIris = e.iris.material.clone();
+  paintEye(e);
+}
+/** The symbol and halo follow the eye: teal when lit, red on a wrong shot, pale when dark. */
+function paintEye(e) {
+  const col = e.lit === 1 ? TEAL : e.lit === 2 ? 0xff3a2a : 0xffffff;
+  if (e.sym) e.sym.material.color.setHex(col);
+  if (e.ring) { e.ring.material.color.setHex(e.lit === 2 ? 0xff3a2a : TEAL); e.ring.material.opacity = e.lit === 1 ? 0.8 : 0.35; e.ring.scale.setScalar(1); }
+}
+/** Steps the right-shot flare: a strong emissive burst that settles to the steady lit glow. Returns true while flaring. */
+export function stepEyeFlare(e, dt) {
+  if (!(e.flareT > 0)) return false;
+  e.flareT = Math.max(0, e.flareT - dt);
+  const k = e.flareT / FLARE_T;
+  e.iris.material.emissiveIntensity = 2.6 + 7 * k * k;
+  if (e.ring) { e.ring.material.opacity = 0.8 + 0.2 * k; e.ring.scale.setScalar(1 + 0.7 * k); }
+  if (e.sym) e.sym.scale.setScalar(EYE_SYM.size * (1 + 0.25 * k));
+  if (e.flareT === 0 && e.sym) e.sym.scale.set(EYE_SYM.size, EYE_SYM.size, 1);
+  return e.flareT > 0;
 }
 
 export function setConduitLit(S, i, lit) {
@@ -349,6 +388,7 @@ export function updateMech(mech, dt, P) {
     }
     for (const e of S.eyes) {
       e.group.visible = now && (S.active || S.done);
+      stepEyeFlare(e, dt);
       if (e.flashT > 0) { e.flashT -= dt; if (e.flashT <= 0) setEyeLit(S, e.i, 0); }
     }
     for (const bl of S.blocks) {
@@ -381,15 +421,8 @@ export function shotMesh(mesh, point) { mesh.userData.mechShot?.(point); }
 export function blightBombFx(pos, fuse, onDone) {
   const g = new THREE.Group();
   g.position.copy(pos);
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 1), new THREE.MeshStandardMaterial({ color: 0x07060a, emissive: 0x2a1040, emissiveIntensity: 1, flatShading: true }));
-  const wisps = new THREE.Group();
-  for (let k = 0; k < 5; k++) {
-    const w = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.34, 5), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-    const a = (k / 5) * Math.PI * 2;
-    w.position.set(Math.cos(a) * 0.32, 0.12, Math.sin(a) * 0.32);
-    wisps.add(w);
-  }
-  g.add(core, wisps);
+  const orb = blightOrb(0.34, true), wisps = orb.core; // H22: the same blight look as the Whisper's
+  g.add(orb.group);
   G.scene.add(g);
   let t = 0;
   G.tickers.push({
@@ -402,6 +435,6 @@ export function blightBombFx(pos, fuse, onDone) {
       onDone?.();
       return false;
     },
-    dispose() { G.scene.remove(g); g.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); },
+    dispose() { G.scene.remove(g); disposeBlightOrb(orb); },
   });
 }

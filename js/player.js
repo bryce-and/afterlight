@@ -20,7 +20,7 @@ import { makeShieldDome, buildCharacter, SUPER_POSES } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
-import { weaponHandling } from './frames.js';
+import { weaponHandling, recoilProfileFor, recoilKick, recoilQueue, recoilStep, newRecoilState } from './frames.js';
 import { brickScale } from './tiers.js';
 import { DEV } from './devcommands.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops, falloffMult } from './combat.js';
@@ -118,7 +118,7 @@ export class Player {
     this.maxHealth = 100;
     this.regenT = 0;
     this.pos = new THREE.Vector3(); this.vel = new THREE.Vector3(); this.eye = new THREE.Vector3();
-    this.yaw = 0; this.pitch = 0; this.recoilAcc = 0;
+    this.yaw = 0; this.pitch = 0; this.recoilAcc = 0; this.recoilSt = newRecoilState();
     this.onGround = true; this.radius = 0.4; this.height = 1.8; this.eyeH = 1.62;
     initGhost(this); // U17a: Tab pulls out the Ghost; the Sparrow lives in sparrow.js
     const ab = this.cls.abilities;
@@ -351,6 +351,12 @@ export class Player {
     this.pitch = clamp(this.pitch - inp.mouse.dy * this.sens * sensMul, -1.5, 1.5);
     this.sway.x = damp(this.sway.x, clamp(-inp.mouse.dx * 0.0005, -0.04, 0.04), 10, dt);
     this.sway.y = damp(this.sway.y, clamp(inp.mouse.dy * 0.0005, -0.04, 0.04), 10, dt);
+    const rp = recoilProfileFor(this.weapon?.A); // H22: hand cannons kick up and right over a few frames, then ease back
+    if (this.recoilSt.pp || this.recoilSt.py || this.recoilSt.rp || this.recoilSt.ry) {
+      const d = recoilStep(this.recoilSt, rp || this.recoilProf || { riseTime: 0.06, recover: 0.8, recoverTime: 0.3 }, dt);
+      this.pitch = clamp(this.pitch + d.pitch, -1.5, 1.5); this.yaw += d.yaw;
+      if (Math.abs(this.recoilSt.rp) + Math.abs(this.recoilSt.pp) < 1e-5) { this.recoilSt.pp = this.recoilSt.py = this.recoilSt.rp = this.recoilSt.ry = 0; }
+    }
     if (this.recoilAcc > 0) {
       const rec = Math.min(this.recoilAcc, dt * 0.35);
       this.pitch -= rec; this.recoilAcc -= rec;
@@ -502,7 +508,7 @@ export class Player {
     }
     this.fightT = G.time - this.lastFire < 3 ? this.fightT + dt : 0; // Frenzy
     for (const ww of this.weapons) if (ww.has('frenzy')) { if (this.fightT >= 6) this.status.apply('frenzy', { scope: ww.idx }); else this.status.remove('frenzy', ww.idx); }
-    this.kick = damp(this.kick, 0, 14, dt);
+    this.kick = damp(this.kick, 0, recoilProfileFor(w?.A)?.settle ?? 14, dt);
     this.punchT = Math.max(0, this.punchT - dt);
     this.swingT = Math.max(0, (this.swingT || 0) - dt);
     this.glaiveT = Math.max(0, (this.glaiveT || 0) - dt);
@@ -836,9 +842,16 @@ export class Player {
     w.honed = 0;
     if (A.bloom) w.bloom = Math.min(0.025, w.bloom + A.bloom);
     const rec = A.recoil * (w.has('steady') ? 0.65 : 1) * lerp(1, 0.7, this.adsT) * (w.tapShot ? 0.5 : 1);
-    this.pitch += rec; this.recoilAcc += rec * 0.7;
-    this.yaw += (Math.random() - 0.5) * rec * 0.5;
-    this.kick = Math.min(1, this.kick + 0.35 + rec * 6);
+    const prof = recoilProfileFor(A), rk = recoilKick(prof, rec);
+    if (rk) { // H22: hand cannon kick, up and to the right
+      this.recoilProf = prof; recoilQueue(this.recoilSt, prof, rk);
+      this.kick = Math.min(1, this.kick + 0.55 + rec * 6);
+      this.shake = Math.max(this.shake, prof.shake || 0); this.fovKick = Math.max(this.fovKick, prof.fov || 0);
+    } else {
+      this.pitch += rec; this.recoilAcc += rec * 0.7;
+      this.yaw += (Math.random() - 0.5) * rec * 0.5;
+      this.kick = Math.min(1, this.kick + 0.35 + rec * 6);
+    }
     w.model.userData.flash.visible = true;
     w.model.userData.flash.rotation.z = Math.random() * Math.PI;
     flashLight(muzzle, el.id === 'kinetic' ? 0xffc870 : el.hex, 6, 7, 0.05);
@@ -3467,8 +3480,9 @@ export class Player {
     vm.position.lerpVectors(ud.hip, ud.ads, a);
     vm.position.x += Math.sin(this.bobT) * bobAmp + this.sway.x * (1 - a);
     vm.position.y += -Math.abs(Math.cos(this.bobT)) * bobAmp + this.sway.y * (1 - a) - this.landDip * 0.5;
-    vm.position.z += this.kick * 0.06;
-    let rx = this.kick * 0.1, ry = 0, rz = 0;
+    const vmp = recoilProfileFor(w?.A); // H22: hand cannons flip the muzzle higher, roll right and shove back harder
+    vm.position.z += this.kick * 0.06 * (vmp?.push ?? 1);
+    let rx = this.kick * 0.1 * (vmp?.flip ?? 1), ry = 0, rz = vmp ? -this.kick * vmp.roll : 0;
     if (!this.superActive) {
       if (w.reloading) {
         const prog = 1 - w.reloadT / w.reloadMax, r = Math.sin(Math.PI * prog);

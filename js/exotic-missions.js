@@ -230,13 +230,14 @@ function handleShot(kind, seg, i) {
     S.eyes.forEach((_, k) => setEyeLit(S, k, 0));
     setEyeLit(S, i, 2);
     ui.feed('Wrong eye: the set resets', '#ff7a6b');
-    sfx.alert();
+    sfx.glyphWrong();
     const cfg = cfgOf(X, seg);
     if (cfg.wrongWave?.length) spawnKit(X, X.zones[seg], expandKit(cfg.wrongWave, M.fireteam), spec.spawns);
   } else {
-    setEyeLit(S, i, 1);
-    sfx.areaClear?.();
+    setEyeLit(S, i, 1, true);
+    sfx.glyphRight();
   }
+  if (net.isHost && M.coop) broadcast({ t: 'xfx', sg: seg, i, r: r === 'wrong' ? 0 : 1 }); // members play the same flare and sound
   refreshBoard(S);
   if (r === 'solved') {
     if (boss) openWindow(X);
@@ -529,6 +530,19 @@ function snapshot(X) {
     cp: G.mission.checkpoint.toArray().map((v) => Math.round(v * 100) / 100),
   };
 }
+
+/** Member: the host judged an eye shot. Same flare and sound as the host; the snapshot only mirrors the steady state. */
+export function onEyeFx(m) {
+  const M = G.mission, X = M?.exotic;
+  if (!X || !M.remote) return;
+  const S = X.mech.segs[m.sg], eye = S?.eyes[m.i];
+  if (!eye) return;
+  sparks(eye.group.getWorldPosition(_v), m.r ? 0x3affd8 : 0xff3a2a, 10, 5, 0.09, 0.4);
+  if (m.r) { setEyeLit(S, m.i, 1, true); sfx.glyphRight(); }
+  else { S.eyes.forEach((_, k) => setEyeLit(S, k, 0)); setEyeLit(S, m.i, 2); ui.feed('Wrong eye: the set resets', '#ff7a6b'); sfx.glyphWrong(); }
+}
+// A dedicated message type: net.on keeps one handler per type, and js/coop.js owns the other exotic types.
+net.on('xfx', (m) => { if (G.mission?.exotic) onEyeFx(m); });
 
 /** Member: mirror the host's state. */
 export function onSnapshot(m) {

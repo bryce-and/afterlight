@@ -5,6 +5,22 @@
 
 export const RELEASES = [
   {
+    version: '4.4.2', name: 'Hotfix', date: '2026-11-09', accent: '#ffb547', glyph: '✚',
+    summary: 'Smoother frame rate, especially in a fireteam, heavier hand cannons, and a clearer, better looking Whisper.',
+    notes: [
+      'Smoother frame rate: enemies are drawn far more cheaply (about 40% fewer draw calls and about half the render time with a big fight on screen), and fireteams send less network traffic',
+      'Fireteams now face fewer extra enemies (1.25x for two players, 1.5x for three, was 1.5x and 2x), each with a little more health (1.3x and 1.55x, was 1.15x and 1.3x). Legendary and Ultimate density still stacks on top',
+      'Hand cannons recoil like Destiny: each shot kicks up and to the right over a few frames and settles back, with a heavier muzzle flip. Precision Frame hand cannons kick straight up',
+      'The Whisper: glyph symbols are bigger and sit flat on the wall above each eye, the Blight Gallery board is no longer hidden inside its frame, and the boss board hangs on the back wall above Aurix',
+      'The Whisper: shooting the right eye makes it flare teal and plays a chime; a wrong eye has its own sound. Fireteam members now see and hear both',
+      'The Whisper: Aurix\'s health bar is split into three segments, one per damage phase',
+      'Blights in the Whisper and Blight Edge\'s bombs now share one look: a black orb with a pale glowing halo',
+      'Blight Edge has a new Taken look with a working reflex sight',
+      'Fixed the flickering black and white board frame in the Blight Gallery',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.4.1', name: 'Hotfix', date: '2026-11-08', accent: '#ffb547', glyph: '✚',
     summary: 'The Director shows the real enemy Light on Legendary and Ultimate.',
     notes: [

@@ -175,10 +175,60 @@ const EXO_LOOK = Object.fromEntries(EXOTIC_WEAPONS.map((e) => [e.name, e.look]))
 
 export function buildGunModel(item) {
   const look = item.rarity === 'exotic' ? EXO_LOOK[item.name] : null;
+  if (look?.model) return CUSTOM_GUNS[look.model](item, look); // H22: an exotic with its own model replaces the archetype's base
   const g = buildBaseGun(item, look);
   if (look) exoticParts(g, look);
   return g;
 }
+
+// ---------------------------------------------------------------------------
+// H22: exotics with a model of their own (look.model). Same conventions as buildBaseGun: f is forward of the grip,
+// S the sight line (the reticle sits exactly on it, so aiming down sights looks through it), finish() adds hands and muzzle.
+// ---------------------------------------------------------------------------
+const CUSTOM_GUNS = {
+  // Blight Edge: a Taken pump shotgun. Dark gunmetal receiver and pistol grip at the back; the boxy barrel shroud fades from
+  // gunmetal into glowing Taken white toward the muzzle, with a white muzzle brace hanging under it; a dark pump with honeycomb
+  // cut-outs under the barrel; an open reflex sight on the receiver.
+  blightEdge(item) {
+    const g = new THREE.Group();
+    const k = kit(g);
+    const { B, T, P, add } = k;
+    const gun = mat(0x1a2124), gun2 = mat(0x262f33), steel = mat(0x56616a), hex = mat(0x07090a);
+    const fade = [mat(0x59636a), mat(0x9aa3aa), mat(0xd9dee4, { emissive: 0xc8d4ff, emissiveIntensity: 0.25 })];
+    const white = mat(0xf4f7fb, { emissive: 0xdfe8ff, emissiveIntensity: 0.9 });
+    const S = 0.112;
+    // receiver and pistol grip (no stock)
+    P([[-0.11, 0.05], [0.16, 0.05], [0.18, 0.03], [0.18, -0.035], [0.06, -0.045], [-0.08, -0.045], [-0.11, -0.02]], 0.064, gun);
+    B(0.066, 0.012, 0.2, 0, 0.012, 0.02, gun2); // ejection-port band
+    for (const x of [-1, 1]) B(0.004, 0.008, 0.07, x * 0.034, 0.012, 0.06, steel); // side slots
+    k.add(new THREE.CylinderGeometry(0.012, 0.012, 0.07, 10).rotateZ(Math.PI / 2), gun2, 0, -0.005, 0.105); // receiver pin
+    P([[-0.035, -0.04], [0.02, -0.04], [-0.005, -0.16], [-0.06, -0.155], [-0.07, -0.13]], 0.038, gun2); // pistol grip, raked back
+    for (let i = 0; i < 4; i++) B(0.04, 0.004, 0.03, 0, -0.07 - i * 0.022, -0.02 - i * 0.006, hex); // grip texture
+    triggerGuard(k, gun, steel);
+    k.add(new THREE.CylinderGeometry(0.03, 0.03, 0.068, 12).rotateZ(Math.PI / 2), gun, 0, 0.012, -0.1); // rounded back end
+    // barrel shroud: four boxy sections fading from gunmetal to Taken white
+    const secs = [[0.17, 0.27, fade[0]], [0.27, 0.36, fade[1]], [0.36, 0.45, fade[2]], [0.45, 0.63, white]];
+    for (const [a, b, m] of secs) B(0.07, 0.068, b - a, 0, 0.012, (a + b) / 2, m);
+    B(0.05, 0.01, 0.42, 0, 0.051, 0.41, white); // top strip
+    for (let i = 0; i < 9; i++) for (const x of [-1, 1]) add(new THREE.SphereGeometry(0.0045, 6, 4), steel, x * 0.0355, 0.03, 0.22 + i * 0.045); // rivets
+    for (const x of [-1, 1]) B(0.004, 0.006, 0.3, x * 0.0355, -0.004, 0.42, fade[1]); // lower side seams
+    T(0.017, 0.02, 0, 0.012, 0.64, gun, 10); // bore
+    // white muzzle brace hanging under the barrel's end, ribbed
+    P([[0.56, -0.02], [0.64, -0.02], [0.66, -0.06], [0.64, -0.135], [0.6, -0.14], [0.585, -0.06]], 0.06, white);
+    for (let i = 0; i < 5; i++) B(0.064, 0.004, 0.012, 0, -0.07 - i * 0.014, 0.632 + (i % 2) * 0.002, fade[1]);
+    // pump: a dark rounded handguard with honeycomb cut-outs, on a tube under the barrel
+    T(0.014, 0.4, 0, -0.035, 0.38, steel, 10);
+    P([[0.22, -0.025], [0.5, -0.025], [0.52, -0.045], [0.5, -0.085], [0.24, -0.09], [0.22, -0.065]], 0.06, gun);
+    const hexGeo = new THREE.CylinderGeometry(0.0115, 0.0115, 0.004, 6).rotateZ(Math.PI / 2);
+    for (const x of [-1, 1]) for (let r = 0; r < 2; r++) for (let i = 0; i < 9; i++) add(hexGeo, hex, x * 0.0302, -0.046 - r * 0.02, 0.255 + i * 0.026 + r * 0.013);
+    B(0.05, 0.03, 0.04, 0, -0.05, 0.2, gun2); // pump collar
+    // open reflex sight on the receiver: a square hood over a lens, white reticle on the sight line
+    rail(k, gun, gun2, 0.055, -0.07, 0.12);
+    holo(k, gun2, S, 0.02, 0.06, 0xeaf6ff);
+    B(0.012, 0.03, 0.03, 0.04, S - 0.012, 0.0, gun2); // adjustment turret
+    return finish(g, { muzzleF: 0.65, muzzleY: 0.012, S, hip: [0.21, -0.21, -0.5], ads: 0.33, flash: 0xe8eeff });
+  },
+};
 
 function buildBaseGun(item, look) {
   const g = new THREE.Group();

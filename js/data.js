@@ -42,7 +42,9 @@ export const SLOT_NAMES = {
 // with a smaller point-blank bonus (1.3 to 1.15) and range 12 to 9 m, heavy weapons +10% damage.
 export const ARCHETYPES = {
   auto: { id: 'auto', name: 'Auto Rifle', slot: 'primary', dmg: 15, rpm: 650, mode: 'auto', mag: 34, reload: 1.9, spread: 0.028, ads: 0.0038, zoom: 1.35, prec: 1.6, range: 38, recoil: 0.010, bloom: 0.003 },
-  hand: { id: 'hand', name: 'Hand Cannon', slot: 'primary', dmg: 60, rpm: 140, mode: 'semi', mag: 11, reload: 1.7, spread: 0.014, ads: 0.001, zoom: 1.45, prec: 2.0, range: 32, recoil: 0.045 },
+  hand: { id: 'hand', name: 'Hand Cannon', slot: 'primary', dmg: 60, rpm: 140, mode: 'semi', mag: 11, reload: 1.7, spread: 0.014, ads: 0.001, zoom: 1.45, prec: 2.0, range: 32, recoil: 0.045,
+    // H22: Destiny-style kick. Each shot climbs up and to the right (angle degrees off vertical, jitter degrees random), applied over riseTime s, then `recover` of it eases back over recoverTime s. mag scales the base recoil. flip/roll/push/settle shape the viewmodel, shake/fov the camera punch.
+    recoilProfile: { angle: 15, jitter: 2, mag: 1.6, riseTime: 0.06, recover: 0.8, recoverTime: 0.3, flip: 3, roll: 0.04, push: 2.2, settle: 8, shake: 0.03, fov: 0.6 } },
   pulse: { id: 'pulse', name: 'Pulse Rifle', slot: 'primary', dmg: 22, rpm: 900, mode: 'burst', burst: 3, burstDelay: 0.3, mag: 30, reload: 2.0, spread: 0.02, ads: 0.0022, zoom: 1.5, prec: 1.7, range: 42, recoil: 0.012 },
   scout: { id: 'scout', name: 'Scout Rifle', slot: 'primary', dmg: 40, rpm: 200, mode: 'semi', mag: 16, reload: 2.1, spread: 0.02, ads: 0.0005, zoom: 1.7, prec: 1.8, range: 60, recoil: 0.02 },
   smg: { id: 'smg', name: 'Submachine Gun', slot: 'primary', dmg: 10, rpm: 900, mode: 'auto', mag: 42, reload: 1.6, spread: 0.04, ads: 0.009, zoom: 1.2, prec: 1.5, range: 15, recoil: 0.006, bloom: 0.002 },
@@ -243,7 +245,7 @@ export const EXOTIC_WEAPONS = [
   { name: 'Wavesplitter', arch: 'trace', element: 'void', perks: ['harmonic', 'supercharged'], mods: { dmg: 0.85 }, look: { body: 0x2a2236, accent: 0xb07cff, parts: ['fins'] }, flavor: 'Every wave breaks eventually.' },
   { name: 'Divinity', arch: 'trace', element: 'arc', perks: ['judgment', 'penance'], mods: { dmg: 0.9 }, look: { body: 0xf2ecdc, accent: 0xffd27a, parts: ['crystal'] }, flavor: 'The verdict is the light.' },
   // U21 Exotic Missions: earned only in the Whisper (mission), never from a random roll
-  { name: 'Blight Edge', mission: 'whisper', arch: 'shotgun', element: 'void', slot: 'special', perks: ['blightharvest'], look: { body: 0x14141a, accent: 0xf2f2f2, parts: ['blight'] }, flavor: 'What the Taken touch, they keep.' },
+  { name: 'Blight Edge', mission: 'whisper', arch: 'shotgun', element: 'void', slot: 'special', perks: ['blightharvest'], look: { body: 0x14141a, accent: 0xf2f2f2, parts: [], model: 'blightEdge' }, flavor: 'What the Taken touch, they keep.' },
 ];
 /** U21: the exotic weapons that can drop, roll in a reward menu or sell at the kiosk unowned (mission-only exotics excluded). */
 export const EXOTIC_RANDOM_WEAPONS = EXOTIC_WEAPONS.filter((e) => !e.mission);

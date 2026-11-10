@@ -21,7 +21,7 @@ export const EXOTIC_MISSIONS = {
     reward: 'Blight Edge',
     enemyLightOver: 10,
     g: 18,
-    boss: { name: 'Aurix, Hollowed Mind', model: 'takenMind', element: 'void' },
+    boss: { name: 'Aurix, Hollowed Mind', model: 'takenMind', element: 'void', segments: 3 }, // H22: segments = damage gates (bossFloorFrac), drawn on the boss bar
     attuneTime: 20, // seconds of Attuned a conduit gives (refreshed while you stand in its light)
     conduitRadius: 1.2,
     blightRadius: 5, // a Taken blight drains Attuned inside this radius

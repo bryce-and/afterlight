@@ -14,6 +14,7 @@ import * as ui from './ui.js';
 import { pickTarget, allPlayers, damageRemote, announceShot, announceGrenade, remoteBarrierBlocks, sendFx } from './coop.js';
 import { TIERS, FACTION_PROFILES, SHIELD, shieldFor, GRENADE, grenadeThrower, lobVelocity, JET, ENRAGE, isEnraged, SUICIDE_BLAST, suicideCore, BOSS_PHASE, bossPhaseTime, shieldBurstDamage } from './tiers.js';
 import { BOSS_MODELS } from './bosses.js';
+import { mergeEnemyModel } from './enemy-merge.js';
 import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, enemyColors } from './factions.js';
 import { taken } from './models-taken.js';
 import { scorn } from './models-scorn.js';
@@ -33,6 +34,15 @@ const easeOutBack = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 
 // Models face +z, stand on y = 0, and are ~2m tall before def.scale.
 // Head/eye meshes are tagged crit (precision hits).
 // ---------------------------------------------------------------------------
+/** H22: a part casts a shadow only when its largest side is at least 0.35 m and its middle side at least 0.12 m (thin spikes and trim do not). */
+function castsShadow(geo) {
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  const b = geo.boundingBox;
+  const x = b.max.x - b.min.x, y = b.max.y - b.min.y, z = b.max.z - b.min.z;
+  const hi = Math.max(x, y, z), lo = Math.min(x, y, z);
+  return hi >= 0.35 && x + y + z - hi - lo >= 0.12;
+}
+
 export function buildModel(e, C, faction) {
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: C.enemy, flatShading: true, roughness: 0.7, metalness: 0.15 });
@@ -43,7 +53,7 @@ export function buildModel(e, C, faction) {
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, z);
     if (r) mesh.rotation.set(r[0], r[1], r[2]);
-    mesh.castShadow = true;
+    mesh.castShadow = castsShadow(geo); // H22: only substantial parts cast; small details do not
     mesh.userData.enemy = e;
     mesh.userData.crit = crit;
     parent.add(mesh);
@@ -72,7 +82,9 @@ export function buildModel(e, C, faction) {
     g.add(shield);
   }
   g.scale.setScalar(0.01);
-  return { group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, lamp: c.lamp, aimLift: c.aimLift, onDeath: c.onDeath, deathStep: c.deathStep };
+  // H22: fold rigid same-material parts into few draw calls. Builders that capture meshes in death closures (onDeath/deathStep) are left alone.
+  const merged = c.onDeath || c.deathStep ? { geos: [] } : mergeEnemyModel(g, hit, e, [c]);
+  return { mergedGeos: merged.geos, group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, lamp: c.lamp, aimLift: c.aimLift, onDeath: c.onDeath, deathStep: c.deathStep };
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */
@@ -266,7 +278,7 @@ export class Enemy {
     sparks(this.center(_v), this.colors.eye, this.isBoss ? 40 : 10, this.isBoss ? 10 : 5, 0.1, 0.6);
   }
 
-  remove() { G.scene.remove(this.model.group); this.model.bodyMat.dispose(); }
+  remove() { G.scene.remove(this.model.group); this.model.bodyMat.dispose(); for (const g of this.model.mergedGeos) g.dispose(); }
 
   update(dt) {
     const m = this.model;
@@ -1050,7 +1062,7 @@ export class Enemy {
       const from = this.model.muzzle.getWorldPosition(new THREE.Vector3());
       const base = _v.set(P.pos.x, P.pos.y + 1, P.pos.z).sub(from).normalize();
       for (let i = -3; i <= 3; i++) {
-        const d = base.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), i * 0.09);
+        const d = _fan.copy(base).applyAxisAngle(_up, i * 0.09);
         fireEnemyShot(from, d, this.def.projSpeed * 0.9, this.def.dmg * this.dmgMult, this.colors.eye, 0.26, 2);
       }
       sfx.alert();
@@ -1061,7 +1073,7 @@ export class Enemy {
 // ---------------------------------------------------------------------------
 // Cover finding
 // ---------------------------------------------------------------------------
-const _c = new THREE.Vector3();
+const _c = new THREE.Vector3(), _c2 = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _fan = new THREE.Vector3();
 
 /** Finds a spot behind a collider that blocks the player's view, or null. */
 function findCover(e, avoid = null) {
@@ -1084,10 +1096,10 @@ function findCover(e, avoid = null) {
     const pd = Math.hypot(_c.x - P.pos.x, _c.z - P.pos.z);
     if (pd < 7 || pd > e.def.range) continue;
     if (_c.x < b.minX + 1 || _c.x > b.maxX - 1 || _c.z < b.minZ + 1 || _c.z > b.maxZ - 1) continue;
-    if (pointInColliders(_c.clone().setY(_c.y + 0.5), e.radius)) continue;
+    if (pointInColliders(_c2.copy(_c).setY(_c.y + 0.5), e.radius)) continue;
     if (avoid && Math.hypot(_c.x - avoid.x, _c.z - avoid.z) < 2.5) continue;
     if (!coverReachable(e, _c)) continue;
-    if (hasLOS(P.eye, _c.clone().setY(Math.min(1.0, h - 0.1)))) continue; // must actually block the view
+    if (hasLOS(P.eye, _c2.copy(_c).setY(Math.min(1.0, h - 0.1)))) continue; // must actually block the view
     const score = toE + Math.abs(pd - e.def.prefer) * 0.4;
     if (score < bestScore) { bestScore = score; best = _c.clone(); }
   }
@@ -1117,7 +1129,7 @@ function peekPoint(e, cover) {
   for (const s of Math.random() < 0.5 ? [1, -1] : [-1, 1]) {
     const p = new THREE.Vector3(cover.x + px * s * 1.8 + (dx / d) * 0.6, 0, cover.z + pz * s * 1.8 + (dz / d) * 0.6);
     p.y = groundAt(p.x, p.z);
-    if (!pointInColliders(p.clone().setY(p.y + 0.5), e.radius)) return p;
+    if (!pointInColliders(_c2.copy(p).setY(p.y + 0.5), e.radius)) return p;
   }
   return new THREE.Vector3(cover.x + (dx / d) * 1.5, 0, cover.z + (dz / d) * 1.5);
 }

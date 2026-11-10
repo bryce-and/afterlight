@@ -30,11 +30,12 @@ export function rollTier(typeId, g, r = Math.random(), campaign = 'base') {
 }
 
 // ---- fireteam table ----
-// Size 1 is the baseline and never changes. Count and boss health are the v2.3 numbers; regular health and damage are new.
+// Size 1 is the baseline and never changes. H22 trimmed count (2p 1.5 -> 1.25, 3p 2 -> 1.5) and raised regular health (2p 1.3, 3p 1.55)
+// so a fireteam fights fewer, tougher enemies: fewer bodies to draw, simulate and sync. Damage and boss health are unchanged.
 export const FIRETEAM_SCALE = {
   1: { count: 1, hp: 1, dmg: 1, boss: 1 },
-  2: { count: 1.5, hp: 1.15, dmg: 1.05, boss: 1.6 },
-  3: { count: 2, hp: 1.3, dmg: 1.12, boss: 2.2 },
+  2: { count: 1.25, hp: 1.3, dmg: 1.05, boss: 1.6 },
+  3: { count: 1.5, hp: 1.55, dmg: 1.12, boss: 2.2 },
 };
 export function fireteamScale(n) { return FIRETEAM_SCALE[Math.max(1, Math.min(3, Math.round(n) || 1))]; }
 

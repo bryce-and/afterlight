@@ -1375,6 +1375,14 @@ export function updateHUD(dt) {
     setStyle(hud.bossSh, 'bs', 'width', `${(boss.shield / boss.maxShield) * 100}%`);
     setStyle(hud.bossSh, 'bsc', 'background', ELEMENTS[boss.shieldEl].color);
   }
+  // H22: a boss with damage gates shows its bar split into that many segments (Destiny's divided boss bar)
+  const segs = boss ? (boss.hpSegments || (boss.isBoss && M.exotic?.def?.boss?.segments) || 0) : 0;
+  if (segs !== hud.bossSegN) {
+    hud.bossSegN = segs;
+    hud.boss.querySelectorAll('.boss-seg').forEach((d) => d.remove());
+    const track = hud.boss.querySelector('.boss-track');
+    for (let k = 1; k < segs; k++) { const d = document.createElement('div'); d.className = 'boss-seg'; d.style.left = `${(k / segs) * 100}%`; track.appendChild(d); }
+  }
   updateEnemyPlate(dt);
   updateBuffs();
   // waypoint

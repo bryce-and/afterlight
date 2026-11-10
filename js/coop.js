@@ -38,7 +38,9 @@ const r2 = (v) => Math.round(v * 100) / 100;
 export const remotes = new Map(); // id -> remote player record
 const netEnemies = new Map(); // member side: enemy netId -> proxy
 const lastHits = new Map(); // member side: enemy netId -> opts of my last hit
-let nextId = 1, sendT = 0, snapT = 0, rosterT = 0;
+let nextId = 1, sendT = 0, snapT = 0, rosterT = 0, snapClock = 0;
+const FAR2 = 60 * 60; // H22: enemies beyond 60 m of every player are sent less often
+const sqXZ = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z);
 
 export function profile() {
   const s = G.save;
@@ -263,7 +265,23 @@ export function netTick(dt) {
   if (net.isHost && snapT <= 0) {
     snapT = 1 / 15;
     const e = [];
-    for (const en of G.enemies) if (en.alive && en.netId) e.push([en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0) | (en.sk?.aim > 0 ? 16 : 0) | (en.sk?.guardOff > 0 ? 32 : 0) | (en.def.lampSlam && en.windup > 0 ? 64 : 0)]);
+    snapClock += 1 / 15;
+    // H22: send an enemy only when a packed field changed, or as a keyframe every 0.5 s; enemies far from everyone go at most every 0.2 s.
+    // Members never remove enemies for being absent from a snapshot (removal is the 'kill' message), so omitting rows is safe.
+    const pp = G.player.pos, near = [];
+    for (const r of remotes.values()) if (r.inMission && !r.dead) near.push(r.pos);
+    for (const en of G.enemies) {
+      if (!en.alive || !en.netId) continue;
+      const far = !(sqXZ(en.pos, pp) < FAR2) && !near.some((q) => sqXZ(en.pos, q) < FAR2);
+      const sn = en._snap;
+      if (sn && far && snapClock - sn.t < 0.2) continue;
+      const row = [en.netId, TYPES.indexOf(en.typeId), r2(en.pos.x), r2(en.pos.z), r2(en.yaw), Math.round((en.hp / en.maxHp) * 1000), en.maxShield ? Math.round((en.shield / en.maxShield) * 1000) : 0, debuffBits(en), Math.round(en.staggerT * 100), r2(en.pos.y), (en.cmWind > 0 || en.cmSwing > 0 ? 1 : 0) | (en.fuse > 0 ? 2 : 0) | (en.enraged ? 4 : 0) | (en.jet && en.jet.s !== 'ground' && en.jet.s !== 'crouch' ? 8 : 0) | (en.sk?.aim > 0 ? 16 : 0) | (en.sk?.guardOff > 0 ? 32 : 0) | (en.def.lampSlam && en.windup > 0 ? 64 : 0)];
+      let changed = !sn || snapClock - sn.t >= 0.5 || row[7] !== 0; // an active debuff is re-sent every time: the member lets it lapse in 0.3 s
+      if (!changed) for (let i = 1; i < row.length; i++) if (row[i] !== sn.row[i]) { changed = true; break; }
+      if (!changed) continue;
+      en._snap = { row, t: snapClock };
+      e.push(row);
+    }
     const M = G.mission;
     const z = M.zones[M.current];
     const ms = { pt: M.patrol ? patrolSnapshot() : 0, cur: M.current, zs: z ? z.state : 'cleared', obj: M.phase === 'loot' || M.phase === 'done' ? 'Open the cache' : M.objective, wp: M.waypoint ? [r2(M.waypoint.x), r2(M.waypoint.y || 0), r2(M.waypoint.z)] : null, cp: [r2(M.checkpoint.x), r2(M.checkpoint.z)], lv: M.lives, w: M.wave ?? 0, ob: objSnapshot() };

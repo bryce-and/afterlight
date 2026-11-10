@@ -322,6 +322,10 @@ export const sfx = {
     play('ui', notes.map((st, i) => ({ t: { freq: base * Math.pow(2, st / 12), dur: 0.3, gain: 0.09, delay: i * 0.07 } })), { send: 0.45, vary: 0 });
   },
   alert() { play('ui', [{ t: { freq: 440, dur: 0.12, type: 'square', gain: 0.05 } }, { t: { freq: 330, dur: 0.18, type: 'square', gain: 0.05, delay: 0.14 } }], { vary: 0 }); },
+  /** Right eye in the glyph puzzle: a short bright two-note rising chime. */
+  glyphRight() { play('ui', [{ t: { freq: 880, dur: 0.18, gain: 0.08 } }, { t: { freq: 1318.5, dur: 0.32, gain: 0.08, delay: 0.09 } }, { t: { freq: 1760, dur: 0.3, gain: 0.03, delay: 0.09, type: 'triangle' } }], { send: 0.5, vary: 0 }); },
+  /** Wrong eye: a low dissonant buzz with a dull thud. */
+  glyphWrong() { play('ui', [{ t: { freq: 110, freqEnd: 90, dur: 0.38, type: 'sawtooth', gain: 0.07 } }, { t: { freq: 117, freqEnd: 96, dur: 0.38, type: 'square', gain: 0.04 } }, { t: { freq: 60, freqEnd: 40, dur: 0.3, gain: 0.12 } }], { vary: 0 }); },
   areaClear() { play('ui', [523, 659, 784].map((f, i) => ({ t: { freq: f, dur: 0.4, gain: 0.08, delay: i * 0.1 } })).concat([{ t: { freq: 262, dur: 0.8, gain: 0.07, type: 'triangle' } }]), { send: 0.6, vary: 0 }); },
   bossIntro() {
     play('abilities', [{ t: { freq: 52, freqEnd: 40, dur: 2.0, type: 'sawtooth', gain: 0.2 } }, { t: { freq: 40, freqEnd: 28, dur: 2.2, type: 'sine', gain: 0.5 } }, { n: { dur: 1.8, freq: 160, freqEnd: 600, gain: 0.3 } }, { n: { dur: 0.05, freq: 3000, type: 'highpass', gain: 0.35 } }], { send: 0.8 });

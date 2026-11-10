@@ -1700,7 +1700,7 @@ test('U13b: fireteam table: solo is unchanged, three players get more enemies, h
   eq(TR.fireteamScale(1), { count: 1, hp: 1, dmg: 1, boss: 1 });
   const a = TR.fireteamScale(2), b = TR.fireteamScale(3);
   ok(b.count > a.count && a.count > 1 && b.hp > a.hp && a.hp > 1 && b.dmg > a.dmg && b.boss > a.boss, 'monotonic');
-  eq([a.count, b.count, a.boss, b.boss], [1.5, 2, 1.6, 2.2], 'the v2.3 counts are kept');
+  eq([a.count, b.count, a.boss, b.boss], [1.25, 1.5, 1.6, 2.2], 'H22 counts, v2.3 boss health kept');
 });
 test('U13b: shields are elemental per faction; a matching break bursts and hurts only nearby, less far out', () => {
   ok(TR.shieldFor('legion', 'heavy') && !TR.shieldFor('scrappers', 'heavy') && !TR.shieldFor('hollow', 'heavy'), 'Colossus has one, Brig and Ogre do not');
@@ -2939,7 +2939,7 @@ test('U21 exotic registry: the Whisper is valid (units exist, level 30, 20:00, r
   eq(EX.validateLayout(fakeLayout(), WHISPER), [], 'the contract accepts a well-formed layout');
   const bad = fakeLayout(); delete bad.segments[2].glyph; bad.segments[4].eyes.pop();
   ok(EX.validateLayout(bad, WHISPER).length >= 2, 'a layout with missing pieces is rejected');
-  eq(EX.expandKit([['tk_thrall', 2]], 1).length, 2); eq(EX.expandKit([['tk_thrall', 2]], 2).length, 3); eq(EX.expandKit([['tk_thrall', 2]], 3).length, 4);
+  eq(EX.expandKit([['tk_thrall', 2]], 1).length, 2); eq(EX.expandKit([['tk_thrall', 2]], 2).length, 3); eq(EX.expandKit([['tk_thrall', 2]], 3).length, 3); // H22: fireteam count 1.25 and 1.5
 });
 test('U21 the real Whisper layout (js/level-whisper.js) matches the contract and the registry', async () => {
   const m = await import('../js/level-whisper.js');
@@ -3067,6 +3067,125 @@ test('U21 Blight Harvest: 50% per kill, 100% on a precision kill, a bomb kill ha
 test('U21 the Attuned status exists and the exotic-mission pieces are wired into the registry', () => {
   const st = new StatusSet(); st.apply('attuned', { set: true }); eq(st.remaining('attuned'), 20); ok(STATUS.attuned.name === 'Attuned');
   for (const [seg, c] of Object.entries(WHISPER.segments)) ok(c, seg);
+});
+
+
+// ---- H22 perf and scaling tests ----
+const { mergeEnemyModel } = await import('../js/enemy-merge.js');
+function mergeRig(builder, t, merge) {
+  const g = new THREE.Group(), hit = [], e = { id: t };
+  const add = (geo, m, x, y, z, parent = g, crit = false, r = null) => {
+    const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); if (r) mesh.rotation.set(r[0], r[1], r[2]);
+    mesh.userData.enemy = e; mesh.userData.crit = crit; parent.add(mesh); hit.push(mesh); return mesh;
+  };
+  const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
+  const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+  const mk = (col) => new THREE.MeshStandardMaterial({ color: col });
+  const c = { g, add, B, pivot, bodyMat: mk(0xd8ccae), dark: mk(0x5a2622), accent: mk(0x7fd8ff), C: { accent: 0xa3281f, enemy: 0x888888, enemy2: 0x444444, eye: 0xff0000 }, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2.05 };
+  builder(c, t);
+  globalThis.__noEnemyMerge = !merge;
+  const r = mergeEnemyModel(g, hit, e, [c]);
+  globalThis.__noEnemyMerge = false;
+  g.updateMatrixWorld(true);
+  const meshes = []; g.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const tris = meshes.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+  return { g, hit, c, r, meshes, tris, box: new THREE.Box3().setFromObject(g, true), e };
+}
+test('H22: merging enemy parts cuts meshes, keeps crit parts, triangles and bounds', () => {
+  for (const [b, t] of [[fallen, 'grunt'], [fallen, 'captain'], [hive, 'rusher'], [cabal, 'grunt'], [scorn, 'sc_raider'], [scorn, 'sc_ravager'], [fallen, 'heavy']]) {
+    const a = mergeRig(b, t, false), m = mergeRig(b, t, true);
+    ok(m.meshes.length < a.meshes.length * 0.75, `${t}: ${a.meshes.length} -> ${m.meshes.length} meshes`);
+    eq(m.tris, a.tris);
+    const critTris = (r) => r.meshes.filter((x) => x.userData.crit).reduce((n, x) => n + (x.geometry.index ? x.geometry.index.count : x.geometry.attributes.position.count) / 3, 0);
+    ok(m.meshes.some((x) => x.userData.crit), `${t} keeps a crit mesh`);
+    eq(critTris(m), critTris(a));
+    ok(m.box.min.distanceTo(a.box.min) < 1e-3 && m.box.max.distanceTo(a.box.max) < 1e-3, `${t} bounds`);
+    ok(m.hit.every((x) => x.userData.enemy === m.e && x.parent), `${t}: every hit mesh has its enemy and is in the tree`);
+    ok(m.meshes.every((x) => m.hit.includes(x)), `${t}: every mesh is in the hit list`);
+    ok(m.c.legs.every((l) => l.parent) && (!m.c.torso || m.c.torso.parent), `${t}: animated pivots stay`);
+  }
+});
+test('H22: merge never merges referenced or named meshes, merges crit only with crit, and keeps parents apart', () => {
+  const g = new THREE.Group(), mt = new THREE.MeshStandardMaterial(), hit = [];
+  const mkm = (p) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mt); p.add(m); hit.push(m); return m; };
+  const piv = new THREE.Group(); g.add(piv);
+  const ref = mkm(g), named = mkm(g); named.name = 'x';
+  const crit = mkm(g); crit.userData.crit = true;
+  const crit2 = mkm(g); crit2.userData.crit = true;
+  mkm(g); mkm(g); mkm(piv); mkm(piv);
+  const r = mergeEnemyModel(g, hit, {}, [{ list: [ref], piv }]);
+  eq(r.geos.length, 3);
+  ok(ref.parent === g && named.parent === g, 'protected meshes stay');
+  eq(piv.children.length, 1);
+  eq(g.children.length, 5);
+  const cm = g.children.filter((x) => x.isMesh && x.userData.crit); eq(cm.length, 1); ok(cm[0] !== crit, 'the two crit parts became one crit mesh');
+});
+test('H22: fireteam table is pinned (fewer, tougher enemies for 2 and 3 players)', () => {
+  eq(TR.FIRETEAM_SCALE[1], { count: 1, hp: 1, dmg: 1, boss: 1 });
+  eq(TR.FIRETEAM_SCALE[2], { count: 1.25, hp: 1.3, dmg: 1.05, boss: 1.6 });
+  eq(TR.FIRETEAM_SCALE[3], { count: 1.5, hp: 1.55, dmg: 1.12, boss: 2.2 });
+});
+
+// ---- H22 hand cannon recoil tests ----
+const { recoilProfileFor, recoilKick, recoilQueue, recoilStep, newRecoilState } = await import('../js/frames.js');
+test('H22: hand cannon kick has positive pitch and goes right', () => {
+  const A = weaponHandling({ arch: 'hand', rarity: 'legendary', frame: 'adaptive' }), pr = recoilProfileFor(A);
+  const k = recoilKick(pr, 0.045, () => 0.5);
+  if (!(k.pitch > 0)) throw new Error('pitch should kick up');
+  if (!(k.yaw < 0)) throw new Error('yaw should decrease (screen right)');
+  if (Math.abs(Math.atan2(-k.yaw, k.pitch) * 180 / Math.PI - pr.angle) > 1e-6) throw new Error('angle off from profile');
+});
+test('H22: Precision hand cannon frame kicks straight up', () => {
+  const pr = recoilProfileFor(weaponHandling({ arch: 'hand', rarity: 'legendary', frame: 'precision' }));
+  const k = recoilKick(pr, 0.045, () => 0.5);
+  if (Math.abs(k.yaw) > 1e-9 || !(k.pitch > 0)) throw new Error('should be pure pitch');
+});
+test('H22: families without a profile keep the legacy kick', () => {
+  if (recoilProfileFor(weaponHandling({ arch: 'auto', rarity: 'legendary', frame: 'adaptive' })) !== null) throw new Error('auto has a profile');
+  if (recoilKick(null, 0.01) !== null) throw new Error('null profile should return null');
+});
+test('H22: recoil recovers exactly the recover fraction', () => {
+  const pr = recoilProfileFor(weaponHandling({ arch: 'hand', rarity: 'legendary', frame: 'adaptive' }));
+  const st = newRecoilState(), k = recoilKick(pr, 0.045, () => 0.5);
+  recoilQueue(st, pr, k);
+  let p = 0, y = 0;
+  for (let i = 0; i < 600; i++) { const d = recoilStep(st, pr, 1 / 60); p += d.pitch; y += d.yaw; }
+  if (Math.abs(p - k.pitch * (1 - pr.recover)) > 1e-5 || Math.abs(y - k.yaw * (1 - pr.recover)) > 1e-5) throw new Error('net ' + p + ' vs ' + k.pitch * (1 - pr.recover));
+});
+
+// ---- H22 Whisper glyph tests ----
+test('H22: the Whisper boss bar has one segment per damage gate', () => {
+  const segs = EX.EXOTIC_MISSIONS ? Object.values(EX.EXOTIC_MISSIONS).find((d) => d.boss?.name?.startsWith('Aurix'))?.boss.segments : null;
+  eq(segs, 3);
+  for (let k = 1; k <= segs; k++) ok(Math.abs(EX.bossFloorFrac(k) - (1 - k / segs)) < 1e-9, 'gate ' + k + ' matches a divider');
+});
+const WL = (await import('../js/level-whisper.js')).WHISPER_LAYOUT, WM = await import('../js/mechanics.js');
+test('H22: Gallery glyph board sits in front of its frame (front face x 179.45), sized to fill it', () => {
+  const g = WL.segments.find((x) => x.id === 'gallery');
+  ok(g.glyph[0] < 179.45, 'board x ' + g.glyph[0]);
+  ok(WM.boardWidth(g) >= 8, 'board width ' + WM.boardWidth(g));
+});
+test('H22: Falls glyph board is not in the boss and sits in front of the back wall', () => {
+  const f = WL.segments.find((x) => x.id === 'falls');
+  ok(Math.hypot(f.glyph[0] - f.boss[0], f.glyph[2] - f.boss[2]) > 4, 'far from the boss horizontally');
+  ok(f.glyph[0] < f.room.maxX && f.glyph[0] > f.room.maxX - 2, 'just in front of the back wall');
+  ok(f.glyph[1] > f.boss[1] + 10, 'high above the arena floor');
+  ok(WM.boardWidth(f) >= 10, 'board width ' + WM.boardWidth(f));
+});
+test('H22: boardWidth keeps the old defaults when glyphW is absent', () => {
+  eq([WM.boardWidth({ kind: 'boss' }), WM.boardWidth({ kind: 'encounter' }), WM.boardWidth({ glyphW: 7 })], [5, 4, 7]);
+});
+test('H22: eye glyph symbols are large and stand clear of the wall', () => {
+  ok(WM.EYE_SYM.size >= 1.2, 'size ' + WM.EYE_SYM.size);
+  ok(WM.EYE_SYM.z > 0 && WM.EYE_SYM.z < 0.2, 'flat on the wall, just in front of it');
+  // boards face into their room, snapped to a wall axis (the Gallery and Falls boards face -x)
+  ok(Math.abs(WM.boardYaw({ x: 179.2, z: 0 }, { x: 151, z: 0 }) + Math.PI / 2) < 1e-9, 'gallery board faces -x');
+  ok(Math.abs(WM.boardYaw({ x: 0, z: 0 }, { x: 1, z: 30 })) < 1e-9, 'snaps to +z');
+});
+test('H22: the right-shot flare settles to the steady lit glow', () => {
+  const e = { flareT: 0.6, iris: { material: { emissiveIntensity: 0 } }, ring: null, sym: null };
+  ok(WM.stepEyeFlare(e, 0.1), 'still flaring'); ok(e.iris.material.emissiveIntensity > 3, 'bright at first');
+  ok(!WM.stepEyeFlare(e, 1), 'done'); eq(e.iris.material.emissiveIntensity, 2.6);
 });
 
 

@@ -42,6 +42,7 @@ import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, an
 import { updatePatrol, leavePatrol } from './patrol.js';
 
 const _c = new THREE.Vector3();
+const _pt = new THREE.Vector3(), _pdir = new THREE.Vector3(), _pto = new THREE.Vector3(), _pbest = new THREE.Vector3(), _pk = new THREE.Vector3(), _ptgt = new THREE.Vector3(); // H22: per-frame scratch for projectiles and pickups
 const _sr = new THREE.Vector3(), _su = new THREE.Vector3(), _sd = new THREE.Vector3();
 const SHADOW_TEXEL = 100 / 2048; // the shadow box is 100 m across on a 2048 map
 
@@ -1032,7 +1033,7 @@ export function spawnPlayerProjectile(o) {
 }
 
 function updateProjectiles(dt) {
-  const tmp = new THREE.Vector3();
+  const tmp = _pt;
   for (let i = G.projectiles.length - 1; i >= 0; i--) {
     const p = G.projectiles[i];
     p.age += dt;
@@ -1045,14 +1046,14 @@ function updateProjectiles(dt) {
     }
     if (p.tracking) {
       const speed = p.vel.length();
-      const dir = p.vel.clone().normalize();
+      const dir = _pdir.copy(p.vel).normalize();
       let best = null, bd = Infinity;
       for (const e of G.enemies) {
         if (!e.alive) continue;
         e.center(tmp);
-        const to = tmp.clone().sub(p.pos);
+        const to = _pto.copy(tmp).sub(p.pos);
         const d = to.length();
-        if (d < 70 && to.normalize().dot(dir) > 0.4 && d < bd) { bd = d; best = to; }
+        if (d < 70 && to.normalize().dot(dir) > 0.4 && d < bd) { bd = d; best = _pbest.copy(to); }
       }
       if (best) p.vel.lerp(best.multiplyScalar(speed), Math.min(1, dt * 3.5)).setLength(speed);
     }
@@ -1127,13 +1128,13 @@ export function spawnPickup(type, pos, item = null) {
 
 function updatePickups(dt) {
   const P = G.player;
-  const tgt = new THREE.Vector3(P.pos.x, P.pos.y + 0.9, P.pos.z);
+  const tgt = _ptgt.set(P.pos.x, P.pos.y + 0.9, P.pos.z);
   for (let i = G.pickups.length - 1; i >= 0; i--) {
     const k = G.pickups[i];
     k.age += dt;
     const d = k.pos.distanceTo(tgt);
     if (!P.dead && k.age > 0.6 && d < 5) {
-      k.pos.addScaledVector(tgt.clone().sub(k.pos).normalize(), Math.min(d, 14 * dt));
+      k.pos.addScaledVector(_pk.copy(tgt).sub(k.pos).normalize(), Math.min(d, 14 * dt));
     } else {
       k.vel.y -= 15 * dt;
       k.pos.addScaledVector(k.vel, dt);

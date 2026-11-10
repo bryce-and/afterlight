@@ -15,9 +15,9 @@ export const FRAMES = {
     highimpact: { name: 'High-Impact Frame', desc: 'Slow-firing, hard-hitting, with a long reach.', stats: { rpm: 0.6, dmg: 1.62, range: 1.2, mag: 0.85 }, handling: { mult: { recoil: 1.4 } } },
   },
   hand: {
-    aggressive: { name: 'Aggressive Frame', desc: 'High damage, heavy recoil.', stats: { rpm: 0.857, dmg: 1.2, range: 1.05, mag: 0.8 }, handling: { mult: { recoil: 1.25 } } },
+    aggressive: { name: 'Aggressive Frame', desc: 'High damage, heavy recoil.', stats: { rpm: 0.857, dmg: 1.2, range: 1.05, mag: 0.8 }, handling: { mult: { recoil: 1.25 }, set: { recoilTweak: { flip: 3.8, roll: 0.05, push: 2.6, angle: 17 } } } },
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced damage and rate of fire.', stats: {} },
-    precision: { name: 'Precision Frame', desc: 'Recoil pattern is predictable and kicks straight up. Fires faster.', stats: { rpm: 1.286, dmg: 0.78, range: 0.95, mag: 1.15 }, handling: { mult: { recoil: 0.75 } } },
+    precision: { name: 'Precision Frame', desc: 'Recoil pattern is predictable and kicks straight up. Fires faster.', stats: { rpm: 1.286, dmg: 0.78, range: 0.95, mag: 1.15 }, handling: { mult: { recoil: 0.75 }, set: { recoilTweak: { angle: 0, jitter: 1.5, roll: 0.02, flip: 2.4 } } } },
     lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility while this weapon is held.', stats: { rpm: 1.07, dmg: 0.93, range: 0.95 }, handling: { set: { move: 1.06 } } },
   },
   pulse: {
@@ -418,6 +418,37 @@ export function weaponStats(item) {
   // a special-ammo type re-slotted as Heavy (Acrius, old saves) hits harder; frames and exotics that set their own slot tune their own damage
   if (item.slot === 'heavy' && A.slot !== 'heavy' && !fr?.slot) stats.dmg = +(stats.dmg * HEAVY_VERSION.dmg).toFixed(1);
   return stats;
+}
+
+// ---- H22: hand cannon recoil (pure math; the Player feeds it each shot and each frame) ----
+/** The weapon's recoil profile (archetype profile plus its frame's tweak), or null for families that keep the legacy kick. */
+export function recoilProfileFor(A) {
+  if (!A?.recoilProfile) return null;
+  return { ...A.recoilProfile, ...(A.recoilTweak || {}) };
+}
+/** One shot's camera kick in radians: pitch up, yaw RIGHT (yaw decreases to turn right, as with mouse dx). `mag` is the already-reduced base recoil. Null without a profile. */
+export function recoilKick(profile, mag, rand = Math.random) {
+  if (!profile) return null;
+  const m = mag * (profile.mag ?? 1);
+  const a = ((profile.angle ?? 0) + (rand() - 0.5) * 2 * (profile.jitter ?? 0)) * Math.PI / 180;
+  return { pitch: m * Math.cos(a), yaw: -m * Math.sin(a) };
+}
+export const newRecoilState = () => ({ pp: 0, py: 0, rp: 0, ry: 0 }); // pending kick, recoverable pool
+/** Queue a kick: it rises over riseTime and `recover` of it is added to the pool that eases back. */
+export function recoilQueue(st, profile, kick) {
+  st.pp += kick.pitch; st.py += kick.yaw;
+  st.rp += kick.pitch * profile.recover; st.ry += kick.yaw * profile.recover;
+}
+/** Advance one frame; returns the {pitch, yaw} camera delta (rise minus recovery). Only kick that has already risen recovers. */
+export function recoilStep(st, profile, dt) {
+  const k = profile.riseTime > 0 ? Math.min(1, dt / profile.riseTime) : 1;
+  const dp = st.pp * k, dy = st.py * k;
+  st.pp -= dp; st.py -= dy;
+  const r = Math.min(1, dt / (profile.recoverTime || 0.3));
+  const ap = st.rp - st.pp * profile.recover, ay = st.ry - st.py * profile.recover; // the risen part of the pool
+  const cp = ap * r, cy = ay * r;
+  st.rp -= cp; st.ry -= cy;
+  return { pitch: dp - cp, yaw: dy - cy };
 }
 
 /** The handling the Player fires with: family archetype, then the frame, then exotic overrides. */
