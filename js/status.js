@@ -26,6 +26,19 @@ export const STATUS = {
   lunafaction: { name: 'Lunafaction Rift', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   // U21 Exotic Missions: standing in a Vex conduit's light (the Whisper). Eyes show and phase blocks turn solid while it lasts; Taken blights drain it.
   attuned: { name: 'Attuned', group: 'general', glyph: '◈', color: '#5ff2dc', t: 20 },
+  // U22 Darkness: debuffs enemy Stasis and Strand put on you, and the Darkness aspect and fragment buffs
+  chilled: { name: 'Chilled', group: 'general', glyph: '❄', color: '#9fc0ff', t: 3, maxStacks: 3, debuff: true },
+  frozen: { name: 'Frozen', group: 'general', glyph: '❄', color: '#4d88ff', t: 2.4, debuff: true },
+  suspended: { name: 'Suspended', group: 'general', glyph: '⥉', color: '#35e366', t: 1.4, debuff: true },
+  wovenmail: { name: 'Woven Mail', group: 'general', glyph: '⬢', color: '#35e366', t: 6 },
+  diamondlance: { name: 'Diamond Lance', group: 'general', glyph: '◆', color: '#9fc0ff', t: 10 },
+  banner: { name: 'Banner of War', group: 'general', glyph: '⚑', color: '#35e366', t: 10 },
+  weavewalk: { name: 'Weavewalk', group: 'general', glyph: '◎', color: '#35e366', t: 3 },
+  hedrons: { name: 'Whisper of Hedrons', group: 'general', glyph: '▲', color: '#4d88ff', t: 6 },
+  ascent: { name: 'Thread of Ascent', group: 'general', glyph: '↻', color: '#35e366', t: 5 },
+  unraveling: { name: 'Unraveling Rounds', group: 'general', glyph: '⟆', color: '#35e366', t: 8 },
+  cryoclasm: { name: 'Cryoclasm', group: 'general', glyph: '»', color: '#4d88ff', t: 3 },
+  grapplemelee: { name: 'Grapple Melee', group: 'general', glyph: '⥉', color: '#35e366', t: 3 },
   // aspects and fragments (Paths of Light)
   sunspot: { name: 'Sunspot', group: 'general', glyph: '☀', color: '#ffb547' },
   roaring: { name: 'Roaring Flames', group: 'general', glyph: '▲', color: '#ff8b2b', t: 10, maxStacks: 3 },
@@ -92,7 +105,7 @@ export const STATUS = {
 // damage-over-time (the ticks come from the attacker). jolt: the next hits arc into nearby enemies.
 export const ENEMY_STATUS = {
   weaken: { name: 'Weakened', glyph: '▼', color: '#b07cff' },
-  slow: { name: 'Slowed', glyph: '≈', color: '#9fb4ff' },
+  slow: { name: 'Slowed', glyph: '≈', color: '#9fb4ff', maxStacks: 5 }, // U22: Stasis slow stacks; five freeze (darkness-rules.js chill)
   suppress: { name: 'Suppressed', glyph: '⊘', color: '#c9a6ff' },
   burn: { name: 'Scorched', glyph: '♨', color: '#ff8b2b' },
   corrosive: { name: 'Corrosive', glyph: '⬣', color: '#c8d84a' }, // Witherhoard only: a round stuck to the target, or standing in its pool
@@ -100,6 +113,12 @@ export const ENEMY_STATUS = {
   jolt: { name: 'Jolted', glyph: 'ϟ', color: '#5fd3ff' },
   judged: { name: 'Judged', glyph: '◈', color: '#ffd27a' }, // Divinity: weapon hits on the bubble are precision hits
   blind: { name: 'Blinded', glyph: '◌', color: '#e6d0ff' }, // U9: Sentinel Shield barrier; cannot attack
+  // U22 Darkness. frozen and suspend: cannot move or attack (bosses never get them). unravel: hits spin threads into
+  // enemies nearby. sever: deals 40% less damage.
+  frozen: { name: 'Frozen', glyph: '❄', color: '#4d88ff' },
+  suspend: { name: 'Suspended', glyph: '⥉', color: '#35e366' },
+  unravel: { name: 'Unraveled', glyph: '⟆', color: '#7dffa4' },
+  sever: { name: 'Severed', glyph: '✂', color: '#35e366' },
 };
 export const WEAKEN_MULT = 1.3;
 export const SLOW_MULT = 0.35;

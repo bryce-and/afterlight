@@ -34,6 +34,7 @@ import { buildVoidAxe } from './models.js';
 import { updateTower } from './tower.js';
 import { updateExotic, cleanupExotic, openExoticChest, startExotic } from './exotic-missions.js';
 import { mechTargets, mechSplash } from './mechanics.js';
+import { darkHit, darkUnravel, darkTargets, darkSplash, resetDark } from './darkness.js';
 import { gateDamage } from './exotic-rules.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
@@ -139,6 +140,7 @@ export function cleanupMission() {
   clearEffects();
   G.scene = null; G.level = null; G.player = null; G.mission = null;
   G.colliders = []; G.staticMeshes = []; G.hitTargets = []; G.nav = null;
+  resetDark(); // U22: crystals and tangles
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
 }
 
@@ -735,6 +737,7 @@ export function getHitTargets() {
     G.hitTargets = [...G.staticMeshes];
     for (const e of G.enemies) if (e.alive) for (const m of e.hitMeshes) G.hitTargets.push(m);
     if (G.mission?.exotic) for (const m of mechTargets()) G.hitTargets.push(m); // U21: Attuned eyes and live blights
+    for (const m of darkTargets()) G.hitTargets.push(m); // U22: your Stasis crystals and Strand tangles
     G.hitDirty = false;
   }
   return G.hitTargets;
@@ -773,6 +776,7 @@ export function dealDamage(e, amount, o = {}) {
   if (!o.raw && !o.jolted && !o.companion && o.element === 'arc' && (o.source === 'ability' || o.source === 'melee' || o.source === 'super')) G.player?.aftershock?.();
   // debuffs go on the registry (members show them on the plate; the owner's copy is the real one)
   for (const k of DEBUFFS) if (o[k]) e.status.apply(k, { t: o[k] });
+  darkHit(e, o, dmg); // U22: shatter a frozen target, then Stasis slow and freeze, Strand suspend
   if (o.suppress) e.flush?.();
   dmg = skillIncoming(e, dmg, o); // U14: wards, ally shields, front guards, totem auras
   if (e.exoBoss) { // U21: an exotic-mission boss is immune outside its damage window and loses at most a third of its health per phase
@@ -828,11 +832,12 @@ export function dealDamage(e, amount, o = {}) {
     sfx.hit(o.crit);
   }
   if (dealt > 0 && !o.jolted && e.status.has('jolt') && !(e.joltAt > G.time)) { e.joltAt = G.time + JOLT.cd; joltFrom(e); }
+  darkUnravel(e, o, dealt); // U22: threads from an unraveled target
   if (killed) killEnemy(e, o);
   return { killed, dealt };
 }
 
-const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive'];
+const DEBUFFS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive', 'unravel', 'sever']; // U22: frozen and suspend go through darkHit
 
 /** Jolt: a hit on a jolted enemy arcs lightning into it and up to JOLT.n enemies nearby. */
 function joltFrom(e) {
@@ -914,6 +919,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
   sendFx({ t: 'fx', k: 'boom', p: [Math.round(pos.x * 100) / 100, Math.round(pos.y * 100) / 100, Math.round(pos.z * 100) / 100], r: radius, c: col, s: o.small ? 1 : 0 });
   sfx.explosion(radius, pos, element);
   if (G.mission?.exotic) mechSplash(pos, radius); // U21: explosions reach eyes and blights
+  darkSplash(pos, radius); // U22: explosions shatter your crystals and set off your tangles
   const c = new THREE.Vector3();
   for (const e of G.enemies) {
     if (!e.alive) continue;

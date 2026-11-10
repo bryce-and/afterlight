@@ -9,10 +9,10 @@ export const ELEMENTS = {
   stasis: { id: 'stasis', name: 'Stasis', color: '#4d88ff', hex: 0x4d88ff, symbol: '<path d="M32 2 40 20 32 30 24 20zM32 62 24 44 32 34 40 44zM6 17l19 3 5 11-12-1zM58 47l-19-3-5-11 12 1zM6 47l11-15h12l-8 10zM58 17 47 32H35l8-10z"/>' },
   strand: { id: 'strand', name: 'Strand', color: '#35e366', hex: 0x35e366, symbol: '<path d="M32 4c10 8 10 20 0 28-10-8-10-20 0-28zm0 6c-4 6-4 12 0 16 4-4 4-10 0-16z"/><path d="M8 50c3-12 14-18 24-18-2 12-12 20-24 18zm6-4c8 0 13-4 15-10-6 1-12 4-15 10z"/><path d="M56 50c-12 2-22-6-24-18 10 0 21 6 24 18zm-6-4c-3-6-9-9-15-10 2 6 7 10 15 10z"/>' },
 };
-// Energy elements a non-exotic weapon can roll (Kinetic is primary-only). Stasis and Strand have no verbs yet (U17).
+// Energy elements a non-exotic weapon can roll (Kinetic is primary-only).
 export const ENERGY = ['solar', 'arc', 'void', 'stasis', 'strand'];
 // Enemy shields stay Light elements until Darkness (U17).
-export const SHIELD_ELEMENTS = ['solar', 'arc', 'void'];
+export const SHIELD_ELEMENTS = ['solar', 'arc', 'void', 'stasis', 'strand']; // U22: Darkness Captains carry Stasis or Strand shields
 
 export const RARITIES = [
   { id: 'common', name: 'Common', color: '#c9ced4', hex: 0xc9ced4, perks: 0, mult: 1.0 },
@@ -320,6 +320,22 @@ export const CLASSES = {
           super: { id: 'sentinel', camera: 'third', name: 'Sentinel Shield', desc: 'For 15s: click to throw a shield that ricochets through enemies and returns, hold right-click to guard, V to bash.' },
         },
       },
+      behemoth: { // U22 Darkness
+        name: 'Behemoth', unlockLevel: 28, element: 'stasis', color: '#4d88ff', tagline: 'Crystal walls and a frozen fist.',
+        defaults: { grenade: 'glacier', class: 'barricade', aspects: ['diamondlance'] },
+        abilities: {
+          melee: { id: 'shiver', name: 'Shiver Strike', cd: 10, desc: 'Lunge forward in a Stasis shoulder slam that slows the target and everything around it.' },
+          super: { id: 'glacialquake', camera: 'third', name: 'Glacial Quake', desc: 'For 14s wield a Stasis gauntlet: click to slam a shockwave of crystals that slows and freezes, right-click for a heavy slam that shatters everything frozen around you. Take 70% less damage.' },
+        },
+      },
+      berserker: { // U22 Darkness
+        name: 'Berserker', unlockLevel: 28, element: 'strand', color: '#35e366', tagline: 'Tear through them with a blade of thread.',
+        defaults: { grenade: 'shackle', class: 'barricade', aspects: ['bannerofwar'] },
+        abilities: {
+          melee: { id: 'frenzied', name: 'Frenzied Blade', cd: 10, desc: 'Dash forward and slash with a Strand blade, severing everything in your path.' },
+          super: { id: 'bladefury', camera: 'third', name: 'Bladefury', desc: 'For 13s wield two Strand blades: click for fast slashes that sever, right-click to hurl a blade that suspends where it lands. Take 70% less damage.' },
+        },
+      },
     },
   },
   stalker: {
@@ -350,6 +366,22 @@ export const CLASSES = {
           super: { id: 'staff', camera: 'third', name: 'Arc Staff', desc: 'For 14s, wield a staff: three-hit combos with a shockwave finisher, dodge freely with C, and take 70% less damage.' },
         },
       },
+      revenant: { // U22 Darkness
+        name: 'Revenant', unlockLevel: 28, element: 'stasis', color: '#4d88ff', tagline: 'Winter in a pair of kama.',
+        defaults: { grenade: 'coldsnap', class: 'marksman', aspects: ['wintersshroud'] },
+        abilities: {
+          melee: { id: 'withering', name: 'Withering Blade', cd: 9, desc: 'Throw two Stasis kunai that seek enemies and slow them.' },
+          super: { id: 'silencesquall', camera: 'third', name: 'Silence and Squall', desc: 'Throw two Stasis kama. Silence freezes every enemy where it lands; Squall becomes a storm that roams after enemies, slowing them.' },
+        },
+      },
+      threadrunner: { // U22 Darkness
+        name: 'Threadrunner', unlockLevel: 28, element: 'strand', color: '#35e366', tagline: 'Swing in on a thread and cut the line.',
+        defaults: { grenade: 'grapple', class: 'gambler', aspects: ['threadedspecter'] },
+        abilities: {
+          melee: { id: 'spike', name: 'Threaded Spike', cd: 9, desc: 'Throw a Strand spike that ricochets through up to three enemies, severing them, then returns to you.' },
+          super: { id: 'silkstrike', camera: 'third', name: 'Silkstrike', desc: 'For 12s wield a Strand rope dart: click to whip through enemies and unravel them, right-click to leap forward and slam. Take 70% less damage.' },
+        },
+      },
     },
   },
   arcanist: {
@@ -378,6 +410,22 @@ export const CLASSES = {
         abilities: {
           melee: { id: 'snap', name: 'Incinerator Snap', cd: 9, desc: 'Snap your fingers: three explosions burst down a line ahead and set enemies burning.' },
           super: { id: 'songflame', camera: 'first', name: 'Song of Flame', desc: 'For 10s keep your guns: grenades and melees recharge almost instantly, your weapons deal 30% more damage, and nearby allies are empowered.' },
+        },
+      },
+      shadebinder: { // U22 Darkness
+        name: 'Shadebinder', unlockLevel: 28, element: 'stasis', color: '#4d88ff', tagline: 'Hold the battlefield still.',
+        defaults: { grenade: 'duskfield', class: 'rift', aspects: ['frostpulse'] },
+        abilities: {
+          melee: { id: 'penumbral', name: 'Penumbral Blast', cd: 10, desc: 'Fire a burst of Stasis from your staff that slows the first enemy it hits and everyone near it.' },
+          super: { id: 'winterswrath', camera: 'third', name: "Winter's Wrath", desc: 'For 12s wield a Stasis staff: click to fire shards that slow and freeze, right-click to send out a shockwave that shatters every frozen enemy in front of you. Take 70% less damage.' },
+        },
+      },
+      broodweaver: { // U22 Darkness
+        name: 'Broodweaver', unlockLevel: 28, element: 'strand', color: '#35e366', tagline: 'Weave threadlings and let them hunt.',
+        defaults: { grenade: 'threadling', class: 'rift', aspects: ['weaverscall'] },
+        abilities: {
+          melee: { id: 'needle', name: 'Arcane Needle', cd: 9, desc: 'Throw three Strand needles that home in on enemies and unravel them.' },
+          super: { id: 'needlestorm', camera: 'third', name: 'Needlestorm', desc: 'Rain a storm of Strand needles on the ground in front of you. They unravel everything they hit, then become threadlings that hunt the survivors.' },
         },
       },
     },

@@ -40,6 +40,7 @@ import * as OB from '../js/objectives.js';
 import * as ST_ from '../js/story.js';
 import * as LI from '../js/light.js';
 import * as EX from '../js/exotic-rules.js';
+import * as DR from '../js/darkness-rules.js';
 import * as DATA from '../js/data.js';
 import { makeExotic } from '../js/loot.js';
 import * as Q from '../js/quests.js';
@@ -93,7 +94,8 @@ test('starter subclasses match the spec; the third unlocks at 10', () => {
   eq(starters('arcanist'), ['dawnblade', 'voidwalker']); // Nova Bomb + Dawnblade
   eq(starters('stalker'), ['gunslinger', 'nightstalker']); // Golden Gun + Shadowshot
   eq(subclassesUnlockedAt(10).map((x) => x.subId).sort(), ['arcstrider', 'sentinel', 'stormcaller']);
-  for (const c of Object.keys(CLASSES)) eq(Object.keys(CLASSES[c].subclasses).length, 3, c);
+  for (const c of Object.keys(CLASSES)) eq(Object.keys(CLASSES[c].subclasses).length, 5, c); // U22: three Light plus Stasis and Strand
+  eq(subclassesUnlockedAt(28).map((x) => x.subId).sort(), ['behemoth', 'berserker', 'broodweaver', 'revenant', 'shadebinder', 'threadrunner']);
 });
 test('rarity curve: no legendaries at 1, rare at 15, dominant at 40', () => {
   const share = (L, idx) => { const r = mulberry32(L * 7919); let n = 0; for (let i = 0; i < 10000; i++) if (rollRarity(L, 0, r) === idx) n++; return n / 10000; };
@@ -309,13 +311,16 @@ test('damage numbers drift mostly sideways, on alternating sides', () => {
 
 // ---------- subclasses: registry, loadouts, gating (Paths of Light) ----------
 const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasses).map((sid) => [c, sid]));
+const isDarkSub = (c, sid) => ['stasis', 'strand'].includes(CLASSES[c].subclasses[sid].element);
+const LIGHT_SUBS = SUBS.filter(([c, sid]) => !isDarkSub(c, sid)); // U22: the nine Light subclasses
+const DARK_SUBS = SUBS.filter(([c, sid]) => isDarkSub(c, sid));
 test('registry: 3 grenades per element, 2 class abilities per class, 4 aspects per subclass, 8 fragments per element', () => {
-  for (const el of ['solar', 'arc', 'void']) eq(SC.grenadesFor(el).length, 3, el);
+  for (const el of ['solar', 'arc', 'void', 'stasis', 'strand']) eq(SC.grenadesFor(el).length, 3, el);
   for (const [c, sid] of SUBS) eq(SC.classAbilitiesFor(c, sid).length, sid === 'dawnblade' ? 3 : 2, sid); // H4: Phoenix Dive is Dawnblade's third
-  // H3: each former subclass trait is an aspect; Bastion is gone, so Sentinel keeps 4 and the rest have 5
-  for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, sid === 'sentinel' ? 4 : 5, sid);
-  eq(Object.keys(SC.ASPECTS).length, 44);
-  eq([SC.fragmentsFor('solar').length, SC.fragmentsFor('arc').length, SC.fragmentsFor('void').length], [8, 8, 8]);
+  // H3: each former subclass trait is an aspect; Bastion is gone, so Sentinel keeps 4 and the rest have 5. U22: Darkness subclasses have Destiny 2's four
+  for (const [c, sid] of SUBS) eq(SC.aspectsFor(c, sid).length, sid === 'sentinel' || isDarkSub(c, sid) ? 4 : 5, sid);
+  eq(Object.keys(SC.ASPECTS).length, 68);
+  eq(['solar', 'arc', 'void', 'stasis', 'strand'].map((el) => SC.fragmentsFor(el).length), [8, 8, 8, 8, 8]);
   for (const a of Object.values(SC.ASPECTS)) ok(a.slots === 2 || a.slots === 3, a.name); // U9: one more slot each
 });
 test('every default loadout is valid and resolves to the expected abilities (H3: Sentinel keeps its barricade, Sunsinger grenades from Gift of the Sun)', () => {
@@ -323,6 +328,8 @@ test('every default loadout is valid and resolves to the expected abilities (H3:
     sunbreaker: ['solar', 33, 'barricade', 34], striker: ['pulse', 30, 'barricade', 34], sentinel: ['suppressor', 33, 'barricade', 34],
     gunslinger: ['swarm', 30, 'marksman', 13], nightstalker: ['axion', 30, 'marksman', 16], arcstrider: ['flux', 30, 'gambler', 12],
     voidwalker: ['vortex', 36, 'rift', 42], stormcaller: ['storm', 33, 'empower', 42], dawnblade: ['solar', 23, 'rift', 42],
+    behemoth: ['glacier', 33, 'barricade', 34], berserker: ['shackle', 33, 'barricade', 34], revenant: ['coldsnap', 30, 'marksman', 13],
+    threadrunner: ['grapple', 21, 'gambler', 12], shadebinder: ['duskfield', 30, 'rift', 42], broodweaver: ['threadling', 30, 'rift', 42],
   };
   for (const [c, sid] of SUBS) {
     const d = SC.defaultLoadout(c, sid);
@@ -416,8 +423,8 @@ test('every ability, aspect and fragment icon is distinct within its slot type',
 
 // ---------- Light Ascendant (v1.8) ----------
 test('supers: 12 new Light supers, 4 per class, each with a camera, a duration and a reward-track level', () => {
-  eq(Object.keys(SC.SUPERS).length, 12);
-  for (const c of Object.keys(CLASSES)) eq(Object.values(SC.SUPERS).filter((x) => x.cls === c).length, 4, c);
+  eq(Object.keys(SC.SUPERS).length, 18); // U22: plus one original Darkness super per Darkness subclass
+  for (const c of Object.keys(CLASSES)) eq(Object.values(SC.SUPERS).filter((x) => x.cls === c).length, 6, c);
   for (const [c, sid] of SUBS) {
     const ids = SC.supersFor(c, sid);
     ok(ids.length === 2 || ids.length === 3, `${sid} has its original super plus one or two`);
@@ -611,19 +618,19 @@ test('save v3 upgrades through v4: weapons gain archetypes and fixed stats; perk
   eq(Object.keys(a1.stats), ['mob', 'res', 'rec', 'dis', 'int', 'str'], 'armor moved to six stats');
   eq(s.vault[0].frame, frameFor(s.vault[0]), 'vault too');
 });
-test('elements: six with distinct symbols; Stasis and Strand roll on weapons; enemy shields stay Light', () => {
+test('elements: six with distinct symbols; Stasis and Strand roll on weapons; U22: enemy shields can be Stasis or Strand', () => {
   eq(Object.keys(ELEMENTS), ['kinetic', 'solar', 'arc', 'void', 'stasis', 'strand']);
   eq(new Set(Object.values(ELEMENTS).map((e) => e.symbol)).size, 6);
   eq(new Set(Object.values(ELEMENTS).map((e) => e.color)).size, 6);
   ok(ENERGY.includes('stasis') && ENERGY.includes('strand'), 'energy pool');
-  eq(SHIELD_ELEMENTS, ['solar', 'arc', 'void']);
+  eq(SHIELD_ELEMENTS, ['solar', 'arc', 'void', 'stasis', 'strand']);
   const els = new Set();
   for (let i = 0; i < 400; i++) els.add(rollItem(50, 3, 'primary').element); // U10: named legendaries carry Stasis and Strand
   ok(els.has('stasis') && els.has('strand'), 'rolled');
 });
 test('subclass traits are aspects now (H3): no passives, each subclass defaults to its former trait', () => {
   const former = { sunbreaker: 'pyre', striker: 'amplitude', sentinel: 'resolve', gunslinger: 'chainofwoe', nightstalker: 'abyssal', arcstrider: 'crackling', voidwalker: 'bloom', stormcaller: 'unlimitedpower', dawnblade: 'giftsun' };
-  for (const [c, sid] of SUBS) {
+  for (const [c, sid] of LIGHT_SUBS) {
     ok(!CLASSES[c].subclasses[sid].passive, `${sid} has no trait`);
     const a = SC.ASPECTS[former[sid]];
     ok(a && a.cls === c && a.sub === sid && SC.aspectLevel(former[sid]) === (CLASSES[c].subclasses[sid].unlockLevel ?? 1), `${sid} aspect opens with the subclass`);
@@ -1009,7 +1016,8 @@ test('v1.8.2: supers (Chaos Reach 9 s, Well 25 s, nerfs) and the rift and barric
 
 // ---------- Eyes Up, Guardian (v1.9) ----------
 test('v1.9: burst supers hover with 85% damage reduction, roaming keep 70%, Well and Ward slam', () => {
-  eq(C.BURST_SUPERS.slice().sort(), ['bladebarrage', 'gathering', 'nova', 'tether', 'twilight']);
+  eq(C.BURST_SUPERS.slice().sort(), ['absolutezero', 'avalanche', 'bladebarrage', 'cradle', 'gathering', 'needlestorm', 'nova', 'ripcord', 'silencesquall', 'tether', 'twilight']); // U22 adds six Darkness burst supers
+  for (const id of ['glacialquake', 'bladefury', 'rimeblades', 'silkstrike', 'winterswrath', 'loomwalker']) eq(C.SUPER_ARMOR[id], C.ROAM_ARMOR, id);
   for (const id of C.BURST_SUPERS) ok(Math.abs(100 * C.SUPER_ARMOR[id] - 15) < 1e-9, `${id}: 100 damage lands as 15`);
   for (const id of ['hammers', 'fists', 'maul', 'spectral', 'novawarp', 'chaosreach', 'daybreak']) eq(C.SUPER_ARMOR[id], C.ROAM_ARMOR, id);
   eq(C.SLAM_SUPERS.slice().sort(), ['wardofdawn', 'well']);
@@ -3190,6 +3198,88 @@ test('H22: the right-shot flare settles to the steady lit glow', () => {
 
 
 let pass = 0, fail = 0;
+// ---------------------------------------------------------------------------
+// U22 Darkness: Stasis and Strand
+// ---------------------------------------------------------------------------
+test('U22: six Darkness subclasses unlock at 28, one Stasis and one Strand per class, Destiny 2 names', () => {
+  eq(DR.DARK_UNLOCK, 28);
+  const want = { vanguard: ['behemoth', 'berserker'], stalker: ['revenant', 'threadrunner'], arcanist: ['shadebinder', 'broodweaver'] };
+  for (const [c, ids] of Object.entries(want)) {
+    eq(ids.map((id) => CLASSES[c].subclasses[id].element), ['stasis', 'strand'], c);
+    for (const id of ids) { eq(subclassLevel(c, id), 28, id); eq(CLASSES[c].subclasses[id].color, ELEMENTS[CLASSES[c].subclasses[id].element].color, `${id} color`); }
+  }
+  eq(DARK_SUBS.length, 6);
+  // a locked Darkness subclass's build is not usable below 28; its default is valid at 28
+  for (const [c, sid] of DARK_SUBS) {
+    const d = SC.defaultLoadout(c, sid);
+    eq(SC.sanitizeLoadout(c, sid, d, 28), d, `${sid} default valid at 28`);
+    eq(SC.sanitizeLoadout(c, sid, d, 27).aspects, [], `${sid} aspects locked below 28`);
+    eq(SC.supersFor(c, sid).length, 2, `${sid}: its Destiny 2 super and one original`);
+  }
+});
+
+test('U22: each Darkness subclass has a roaming and a burst super (the original is the opposite type), all third person', () => {
+  const pairs = { behemoth: ['glacialquake', 'avalanche'], berserker: ['bladefury', 'ripcord'], revenant: ['silencesquall', 'rimeblades'], threadrunner: ['silkstrike', 'cradle'], shadebinder: ['winterswrath', 'absolutezero'], broodweaver: ['needlestorm', 'loomwalker'] };
+  for (const [c, sid] of DARK_SUBS) {
+    const ids = SC.supersFor(c, sid);
+    eq(ids, pairs[sid], sid);
+    eq(ids.map((id) => C.BURST_SUPERS.includes(id)).sort(), [false, true], `${sid} one burst, one roaming`);
+    for (const id of ids) { eq(SC.superDef(c, sid, id).camera, 'third', id); ok(C.SUPER_TIME[id] > 0 && C.SUPER_TUNE[id], `${id} timed and tuned`); }
+  }
+  // second supers unlock on the reward track after the subclass (Stasis 32, Strand 35), one per class at each
+  for (const L of [32, 35]) for (const c of Object.keys(CLASSES)) eq(SC.buildUnlocksAt(L, c).length, 1, `${c} ${L}`);
+  for (const L of [32, 35]) eq(rewardAt(L), null, `no item reward at ${L}`);
+});
+
+test('U22: Stasis slow stacks freeze at five; bosses only slow; every damaging hit shatters except Stasis slows and freezes', () => {
+  let s = { stacks: 0, freeze: false };
+  for (let i = 0; i < 4; i++) { s = DR.chill(s.stacks, 1); ok(!s.freeze, `stack ${i + 1}`); }
+  eq(DR.chill(s.stacks, 1), { stacks: 0, freeze: true });
+  eq(DR.chill(3, 3), { stacks: 0, freeze: true }, 'overflow freezes');
+  eq(DR.chill(3, 9, true), { stacks: DR.STASIS.bossSlowCap, freeze: false }, 'a boss caps out slowed');
+  ok(!DR.canFreeze({ isBoss: true }) && !DR.canFreeze({ exoBoss: true }) && DR.canFreeze({ cls: 'heavy' }), 'freeze immunity');
+  ok(!DR.canSuspend({ isBoss: true }) && DR.canSuspend({ cls: 'grunt' }), 'suspend immunity');
+  ok(DR.freezeTime('heavy') < DR.freezeTime('captain') && DR.freezeTime('captain') < DR.freezeTime('grunt'), 'bigger units thaw sooner');
+  eq(DR.freezeTime('grunt', 1.4), DR.STASIS.freezeT.grunt * 1.4, 'Whisper of Durance');
+  ok(DR.shatters({ source: 'weapon' }, 10) && DR.shatters({ raw: true, remoteHit: true }, 10), 'weapon and relayed hits shatter');
+  ok(!DR.shatters({ slowAdd: 2 }, 10) && !DR.shatters({ freeze: 1 }, 10) && !DR.shatters({}, 0), 'Stasis slows, freezes and zero hits do not');
+  const B = DR.shatterBlast(), F = DR.shatterBlast(SC.FRAGMENT_TUNE.fissures);
+  ok(F.dmg === B.dmg * 1.5 && F.r === B.r + 1, 'Whisper of Fissures');
+});
+
+test('U22: players hit by enemy Darkness: three Chilled stacks freeze, Space breaks out; severed enemies hit softer', () => {
+  eq(DR.playerChill(0, 2), { stacks: 2, freeze: false });
+  eq(DR.playerChill(2, 1), { stacks: 0, freeze: true });
+  eq(DR.breakFree(1), 1 - DR.STASIS.player.breakStep);
+  eq(DR.breakFree(0.1), 0);
+  eq(DR.severMult(true), DR.STRAND.sever.mult); eq(DR.severMult(false), 1);
+  ok(DR.STRAND.sever.mult < 1 && DR.STRAND.woven.cut < 1, 'sever and Woven Mail reduce damage');
+  for (const id of ['chilled', 'frozen', 'suspended', 'wovenmail', 'diamondlance', 'banner', 'weavewalk', 'hedrons', 'ascent', 'unraveling', 'cryoclasm', 'grapplemelee']) ok(STATUS[id], `player status ${id}`);
+  for (const id of ['frozen', 'suspend', 'unravel', 'sever']) ok(ENEMY_STATUS[id], `enemy status ${id}`);
+  eq(ENEMY_STATUS.slow.maxStacks, DR.STASIS.freezeAt, 'slow stacks up to the freeze');
+});
+
+test('U22: Darkness Captains: Fallen roll Stasis shields, Cabal Strand; the shield element makes the wielder', () => {
+  ok(TR.shieldFor('scrappers', 'captain').includes('stasis') && !TR.shieldFor('scrappers', 'captain').includes('strand'), 'Fallen Stasis');
+  ok(TR.shieldFor('legion', 'captain').includes('strand') && !TR.shieldFor('legion', 'captain').includes('stasis'), 'Cabal Strand');
+  ok(!TR.shieldFor('hollow', 'captain').some((e) => DR.DARK_ELEMENTS.includes(e)), 'Hive stay Light');
+  eq(DR.darkWielder('captain', 'stasis'), 'stasis'); eq(DR.darkWielder('captain', 'arc'), null); eq(DR.darkWielder('heavy', 'strand'), null);
+  for (const el of DR.DARK_ELEMENTS) ok(DR.DARK_GRENADE[el].color, el);
+});
+
+test('U22: Darkness grenades, aspects and fragments: names, slots and tuning are complete', () => {
+  for (const id of ['glacier', 'duskfield', 'coldsnap', 'grapple', 'shackle', 'threadling']) ok(SC.GRENADES[id] && SC.GRENADES[id].kind === id && SC.GRENADES[id].cd > 0, id);
+  for (const [c, sid] of DARK_SUBS) {
+    const sc = CLASSES[c].subclasses[sid];
+    ok(sc.abilities.melee.name && sc.abilities.melee.cd > 0, `${sid} melee`);
+    ok(SC.aspectsFor(c, sid).includes(sc.defaults.aspects[0]), `${sid} default aspect is its own`);
+    eq(SC.GRENADES[sc.defaults.grenade].element, sc.element, `${sid} default grenade`);
+  }
+  for (const id of [...SC.fragmentsFor('stasis'), ...SC.fragmentsFor('strand')]) ok(SC.FRAGMENT_TUNE[id] !== undefined, `${id} tuned`);
+  for (const id of Object.keys(SC.DARK_ASPECT_TUNE)) ok(SC.ASPECTS[id], `${id} tuning has an aspect`);
+  for (const text of [...Object.values(SC.ASPECTS), ...Object.values(SC.FRAGMENTS), ...Object.values(SC.GRENADES)].map((x) => x.desc)) ok(!/[\u2013\u2014]/.test(text), 'no dashes in player text');
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }

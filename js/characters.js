@@ -275,7 +275,81 @@ export const SUPER_POSE_KINDS = {
   slam: { r: [-0.5, -0.1], l: [-0.5, 0.1], lean: 0.55, crouch: 0.25 }, // fists driven into the ground (Well, Ward)
 };
 /** Which held pose a super uses, by super id (supers not listed keep the shouldered aim). */
-export const SUPER_POSES = { nova: 'overhead', gathering: 'overhead', tether: 'bow', bladebarrage: 'fan', stormtrance: 'channel', chaosreach: 'channel', novawarp: 'channel', well: 'slam', wardofdawn: 'slam' };
+export const SUPER_POSES = { nova: 'overhead', gathering: 'overhead', tether: 'bow', bladebarrage: 'fan', stormtrance: 'channel', chaosreach: 'channel', novawarp: 'channel', well: 'slam', wardofdawn: 'slam',
+  // U22 Darkness: Stasis and Strand supers (the roaming ones keep the shouldered aim, like the Maul)
+  avalanche: 'slam', ripcord: 'overhead', absolutezero: 'overhead', needlestorm: 'fan', silencesquall: 'fan', cradle: 'channel', winterswrath: 'channel', loomwalker: 'channel' };
+
+
+// ---- U22 Darkness super props: shared Stasis crystal and Strand thread builders ----
+const STASIS = 0x4d88ff, STASIS_CORE = 0xe8f2ff, STRAND = 0x35e366, STRAND_CORE = 0xc8ffd8;
+/** Small seeded PRNG (mulberry32) so every screen builds the same prop. */
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+/** A cluster of n jagged crystal spikes fanning out from the origin (bias = axis the spikes lean towards, e.g. {x:0,y:0,z:1}), with a white-hot core. */
+function crystalCluster(n, size, seed, bias = null, color = STASIS, core = STASIS_CORE) {
+  const g = new THREE.Group(), rnd = seeded(seed);
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.3, flatShading: true });
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < n; i++) {
+    const len = size * (0.55 + rnd() * 0.8), w = size * (0.1 + rnd() * 0.1);
+    const d = new THREE.Vector3(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1);
+    if (bias) d.add(new THREE.Vector3(bias.x, bias.y, bias.z).multiplyScalar(1.4));
+    if (d.lengthSq() < 0.01) d.set(0, 1, 0);
+    d.normalize();
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(w, len, 4).translate(0, len / 2, 0), mat);
+    spike.quaternion.setFromUnitVectors(up, d);
+    spike.position.copy(d).multiplyScalar(size * 0.12);
+    spike.rotateY(rnd() * 3);
+    g.add(spike);
+  }
+  const c = new THREE.Mesh(new THREE.OctahedronGeometry(size * 0.28, 0), new THREE.MeshBasicMaterial({ color: core }));
+  g.add(c);
+  return g;
+}
+/** A jagged Strand thread blade of length len growing along +z: a thin glowing spine with two sharp barbs. */
+function threadBlade(len, color = STRAND, core = STRAND_CORE) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2.2, flatShading: true });
+  const blade = new THREE.Mesh(new THREE.ConeGeometry(0.07, len, 4).rotateX(Math.PI / 2).translate(0, 0, len / 2), m);
+  blade.scale.y = 0.45;
+  g.add(blade);
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.015, len * 0.95).translate(0, 0, len * 0.5), new THREE.MeshBasicMaterial({ color: core })));
+  for (const [f, sy] of [[0.45, 1], [0.7, -1]]) {
+    const barb = new THREE.Mesh(new THREE.ConeGeometry(0.035, len * 0.28, 3).rotateX(Math.PI / 2).translate(0, 0, len * 0.14), m);
+    barb.position.z = len * f; barb.rotation.x = -sy * 0.5;
+    g.add(barb);
+  }
+  return g;
+}
+/** A curved Stasis crystal kama blade (scale s) growing along +z, curling down; optional trailing shards. */
+function crystalKama(s = 1, shards = 0, seed = 1) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: STASIS, emissive: STASIS, emissiveIntensity: 1.6, flatShading: true });
+  let y = 0, z = 0, ang = 0;
+  for (let i = 0; i < 4; i++) {
+    const l = 0.3 * s * (1 - i * 0.15);
+    const seg = new THREE.Mesh(new THREE.ConeGeometry(0.06 * s * (1 - i * 0.2), l, 4).translate(0, l / 2, 0), m);
+    seg.rotation.x = Math.PI / 2 + ang;
+    seg.position.set(0, y, z);
+    seg.scale.x = 0.5;
+    g.add(seg);
+    z += Math.cos(ang) * l; y += Math.sin(ang) * l;
+    ang += 0.5;
+  }
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.8 * s).translate(0, 0.04 * s, 0.4 * s), new THREE.MeshBasicMaterial({ color: STASIS_CORE })));
+  if (shards) {
+    const rnd = seeded(seed);
+    for (let i = 0; i < shards; i++) {
+      const l = (0.18 + rnd() * 0.18) * s;
+      const sh = new THREE.Mesh(new THREE.ConeGeometry(0.03 * s, l, 3).rotateX(-Math.PI / 2), m);
+      sh.position.set((rnd() - 0.5) * 0.14 * s, (rnd() - 0.2) * 0.2 * s, -0.1 * s - i * 0.09 * s);
+      g.add(sh);
+    }
+  }
+  return g;
+}
 
 /** Builds a class model wearing `look` ({ helmet, arms, chest, legs, shader }, see style.js appearance). Returns { group, update(dt) }. */
 export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
@@ -431,6 +505,74 @@ export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
         bar.add(face, edge, edge2);
         bar.scale.setScalar(0.001); bar.visible = false;
         barrier = bar; bar.userData.face = face;
+      } else if (type === 'glacialquake') {
+        // Glacial Quake: a big crystal-encrusted gauntlet around the right fist
+        put(R, crystalCluster(9, 0.55, 22, { x: 0, y: -0.2, z: 1 }), 0, -0.5, 0.05).scale.setScalar(1.15);
+      } else if (type === 'avalanche') {
+        for (const [arm, sd] of [[R, 31], [L, 32]]) put(arm, crystalCluster(7, 0.42, sd, { x: 0, y: -0.3, z: 0.6 }), 0, -0.5, 0.05);
+      } else if (type === 'silencesquall' || type === 'rimeblades') {
+        const big = type === 'rimeblades';
+        [[R, 41], [L, 42]].forEach(([arm, sd], i) => put(arm, crystalKama(big ? 1.5 : 1, big ? 4 : 0, sd), 0, -0.48, 0.05).rotation.z = i ? 0.25 : -0.25);
+      } else if (type === 'winterswrath') {
+        // Winter's Wrath: a long staff in the right hand topped with an icy crystal burst
+        const st = put(R, new THREE.Group(), 0, -0.47, 0);
+        st.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.7, 6).rotateX(Math.PI / 2).translate(0, 0, 0.55), new THREE.MeshStandardMaterial({ color: 0x39455c, flatShading: true })));
+        const top = crystalCluster(10, 0.5, 51, { x: 0, y: 0, z: 1 }); top.position.z = 1.42; st.add(top);
+      } else if (type === 'absolutezero') {
+        for (const [arm, sd] of [[R, 61], [L, 62]]) {
+          put(arm, crystalCluster(6, 0.3, sd), 0, -0.62, 0.15);
+        }
+      } else if (type === 'bladefury') {
+        for (const arm of [R, L]) put(arm, threadBlade(1.2), 0, -0.48, 0.05);
+      } else if (type === 'ripcord') {
+        // Ripcord: a heavy Strand anchor, hook head on a thread line
+        const an = put(R, new THREE.Group(), 0, -0.47, 0);
+        const m = new THREE.MeshStandardMaterial({ color: STRAND, emissive: STRAND, emissiveIntensity: 1.8, flatShading: true });
+        an.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.9).translate(0, 0, 0.45), new THREE.MeshStandardMaterial({ color: 0x23402c, flatShading: true })));
+        const head = new THREE.Group(); head.position.z = 1.0; an.add(head);
+        head.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.3), m));
+        for (const sx of [-1, 1]) {
+          const fluke = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.5, 4).translate(0, 0.25, 0), m);
+          fluke.position.set(sx * 0.16, 0.0, 0.1); fluke.rotation.z = -sx * 1.1; head.add(fluke);
+        }
+        head.add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 4).rotateX(Math.PI / 2).translate(0, 0, 0.3), m));
+        head.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), new THREE.MeshBasicMaterial({ color: STRAND_CORE })));
+      } else if (type === 'silkstrike') {
+        // Silkstrike: a rope dart, a thread coiled from the hand ending in a sharp dart
+        const rd = put(R, new THREE.Group(), 0, -0.47, 0);
+        const tm = new THREE.MeshStandardMaterial({ color: STRAND, emissive: STRAND, emissiveIntensity: 2.2, flatShading: true });
+        for (let i = 0; i < 3; i++) { const loop = new THREE.Mesh(new THREE.TorusGeometry(0.14 + i * 0.01, 0.012, 3, 8), tm); loop.position.z = 0.1 + i * 0.05; rd.add(loop); }
+        rd.add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.8).translate(0, 0, 0.55), new THREE.MeshBasicMaterial({ color: STRAND_CORE })));
+        rd.add(new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.32, 4).rotateX(Math.PI / 2).translate(0, 0, 1.12), tm));
+      } else if (type === 'cradle') {
+        // Cradle: a woven spool of thread in the right hand
+        const sp = put(R, new THREE.Group(), 0, -0.52, 0.1);
+        const tm = new THREE.MeshStandardMaterial({ color: STRAND, emissive: STRAND, emissiveIntensity: 1.8, flatShading: true });
+        sp.add(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.26, 8).rotateZ(Math.PI / 2), tm));
+        for (const sx of [-1, 1]) sp.add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 8).rotateZ(Math.PI / 2).translate(sx * 0.15, 0, 0), new THREE.MeshStandardMaterial({ color: 0x23402c, flatShading: true })));
+        sp.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), new THREE.MeshBasicMaterial({ color: STRAND_CORE })));
+        for (let i = 0; i < 3; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.012, 3, 10), new THREE.MeshBasicMaterial({ color: STRAND_CORE })); ring.rotation.set(0.5 * i, Math.PI / 2, 0); sp.add(ring); }
+      } else if (type === 'needlestorm') {
+        const rnd = seeded(71);
+        for (const arm of [R, L]) {
+          const cl = put(arm, new THREE.Group(), 0, -0.62, 0.15);
+          const nm = new THREE.MeshStandardMaterial({ color: STRAND, emissive: STRAND, emissiveIntensity: 2.6, flatShading: true });
+          for (let i = 0; i < 6; i++) {
+            const nd = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.36, 3), nm);
+            nd.position.set((rnd() - 0.5) * 0.3, (rnd() - 0.5) * 0.25, (rnd() - 0.5) * 0.3);
+            nd.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+            cl.add(nd);
+          }
+          cl.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.05, 0), new THREE.MeshBasicMaterial({ color: STRAND_CORE })));
+        }
+      } else if (type === 'loomwalker') {
+        // Loomwalker: thread loops wrapped around both forearms with glowing needle tips
+        for (const arm of [R, L]) {
+          const lm = new THREE.MeshStandardMaterial({ color: STRAND, emissive: STRAND, emissiveIntensity: 2, flatShading: true });
+          const wrap = put(arm, new THREE.Group(), 0, -0.2, 0);
+          for (let i = 0; i < 4; i++) { const loop = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.014, 3, 8).rotateX(Math.PI / 2), lm); loop.position.y = -i * 0.08; loop.rotation.z = (i % 2 ? 0.2 : -0.2); wrap.add(loop); }
+          put(arm, new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.4, 3).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: STRAND_CORE })), 0, -0.5, 0.25);
+        }
       } else if (type === 'stormtrance') {
         for (const arm of [R, L]) {
           put(arm, new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), new THREE.MeshBasicMaterial({ color: 0xbfefff })), 0, -0.52, 0);

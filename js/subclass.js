@@ -17,6 +17,13 @@ export const GRENADES = {
   vortex: { name: 'Vortex Grenade', element: 'void', kind: 'vortex', cd: 24, desc: 'Creates a void singularity that pulls and shreds enemies.' },
   axion: { name: 'Axion Bolt', element: 'void', kind: 'axion', cd: 20, desc: 'Releases two void bolts that hunt down enemies and weaken them.' },
   suppressor: { name: 'Suppressor Grenade', element: 'void', kind: 'suppressor', cd: 22, desc: 'Explodes and suppresses enemies: they cannot attack for 4s and take extra damage.' },
+  // U22 Darkness (behavior in darkness.js)
+  glacier: { name: 'Glacier Grenade', element: 'stasis', kind: 'glacier', cd: 22, desc: 'Raises a wall of Stasis crystals that freezes enemies near it. Shoot or strike a crystal to shatter it.' },
+  duskfield: { name: 'Duskfield Grenade', element: 'stasis', kind: 'duskfield', cd: 20, desc: 'Creates a Stasis field for 6s that slows enemies inside, building up until they freeze.' },
+  coldsnap: { name: 'Coldsnap Grenade', element: 'stasis', kind: 'coldsnap', cd: 20, desc: 'Sends a seeker along the ground that freezes the first enemy it reaches, then seeks one more.' },
+  grapple: { name: 'Grapple', element: 'strand', kind: 'grapple', cd: 14, desc: 'Fire a Strand line and pull yourself to where it lands. Your next powered melee within 3s is a Grapple Melee that suspends enemies around the target.' },
+  shackle: { name: 'Shackle Grenade', element: 'strand', kind: 'shackle', cd: 22, desc: 'Bursts into Strand threads that suspend every enemy nearby.' },
+  threadling: { name: 'Threadling Grenade', element: 'strand', kind: 'threadling', cd: 20, desc: 'Bursts into three threadlings that hunt enemies and explode on contact.' },
 };
 
 export const CLASS_ABILITIES = {
@@ -85,6 +92,32 @@ export const ASPECTS = {
   heatrises: { cls: 'arcanist', sub: 'dawnblade', name: 'Heat Rises', slots: 3, desc: 'While airborne your grenade and melee recharge 50% faster, and kills in the air grant Restoration.' },
   icarus: { cls: 'arcanist', sub: 'dawnblade', name: 'Icarus Dash', slots: 3, desc: 'In the air, press Shift to dash in your movement direction. 2 charges, each recharging in 6s.' },
   hellion: { cls: 'arcanist', sub: 'dawnblade', name: 'Hellion', slots: 3, desc: 'Any class ability summons a Hellion for 8s: a solar turret that follows you and lobs burning bolts at nearby enemies.' },
+  // ---- U22 Darkness: Stasis ----
+  diamondlance: { cls: 'vanguard', sub: 'behemoth', name: 'Diamond Lance', slots: 3, desc: 'Shattering an enemy or a crystal forms a Diamond Lance in your hand for 10s. Your next quick melee (B) hurls it: it freezes enemies where it lands.' },
+  howlstorm: { cls: 'vanguard', sub: 'behemoth', name: 'Howl of the Storm', slots: 2, desc: 'Your powered melee while sprinting sends a wave of Stasis crystals rolling forward that freezes enemies in its path.' },
+  tectonic: { cls: 'vanguard', sub: 'behemoth', name: 'Tectonic Harvest', slots: 3, desc: 'Shattering a Stasis crystal gives you 10% grenade energy and 10% melee energy.' },
+  cryoclasm: { cls: 'vanguard', sub: 'behemoth', name: 'Cryoclasm', slots: 2, desc: 'Sprinting into a Stasis crystal or a frozen enemy shatters it, and your sprint is 15% faster for 3s.' },
+  shatterdive: { cls: 'stalker', sub: 'revenant', name: 'Shatterdive', slots: 2, desc: 'Dodging in the air dives you to the ground in a Stasis burst that shatters crystals and frozen enemies around you.' },
+  grimharvest: { cls: 'stalker', sub: 'revenant', name: 'Grim Harvest', slots: 3, desc: 'Defeating a slowed or frozen enemy gives you 8% grenade, melee and class ability energy.' },
+  touchwinter: { cls: 'stalker', sub: 'revenant', name: 'Touch of Winter', slots: 2, desc: 'Stasis grenades are upgraded: Glacier raises more crystals, Duskfield is bigger, Coldsnap seeks two more enemies.' },
+  wintersshroud: { cls: 'stalker', sub: 'revenant', name: "Winter's Shroud", slots: 3, desc: 'Dodging slows every enemy within 6m.' },
+  bleakwatcher: { cls: 'arcanist', sub: 'shadebinder', name: 'Bleak Watcher', slots: 2, desc: 'Your grenade becomes a Bleak Watcher: a Stasis turret that stands for 10s and fires slowing bolts at nearby enemies.' },
+  frostpulse: { cls: 'arcanist', sub: 'shadebinder', name: 'Frostpulse', slots: 3, desc: 'Casting your rift releases a burst of Stasis that freezes every enemy within 6m.' },
+  glacialharvest: { cls: 'arcanist', sub: 'shadebinder', name: 'Glacial Harvest', slots: 3, desc: 'Freezing an enemy gives you 5% grenade, melee and class ability energy (at most twice a second).' },
+  iceflare: { cls: 'arcanist', sub: 'shadebinder', name: 'Iceflare Bolts', slots: 2, desc: 'Shattering an enemy releases two seeker bolts that hunt nearby enemies and slow them.' },
+  // ---- U22 Darkness: Strand ----
+  intothefray: { cls: 'vanguard', sub: 'berserker', name: 'Into the Fray', slots: 3, desc: 'Strand ability kills give you Woven Mail for 6s: you take 45% less damage.' },
+  drengrslash: { cls: 'vanguard', sub: 'berserker', name: "Drengr's Lash", slots: 2, desc: 'Raising a barricade sends a wave of threads forward that suspends enemies in its path.' },
+  flechette: { cls: 'vanguard', sub: 'berserker', name: 'Flechette Storm', slots: 2, desc: 'Your powered melee dashes three times instead of once.' },
+  bannerofwar: { cls: 'vanguard', sub: 'berserker', name: 'Banner of War', slots: 3, desc: 'Melee kills raise your banner for 10s: you slowly heal and your powered melee recharges 50% faster.' },
+  widowssilk: { cls: 'stalker', sub: 'threadrunner', name: "Widow's Silk", slots: 2, desc: 'Grapple recharges twice as fast, and the tangles you leave last twice as long.' },
+  ensnaring: { cls: 'stalker', sub: 'threadrunner', name: 'Ensnaring Slam', slots: 3, desc: 'Dodging in the air slams you to the ground and suspends enemies within 6m.' },
+  maelstrom: { cls: 'stalker', sub: 'threadrunner', name: 'Whirling Maelstrom', slots: 2, desc: 'Shooting a tangle spins up a maelstrom of blades for 4s that cuts and severs enemies around it.' },
+  threadedspecter: { cls: 'stalker', sub: 'threadrunner', name: 'Threaded Specter', slots: 3, desc: 'Dodging leaves a decoy of thread behind. When an enemy comes close or 6s pass, it bursts into three threadlings.' },
+  weaverscall: { cls: 'arcanist', sub: 'broodweaver', name: "Weaver's Call", slots: 3, desc: 'Casting your rift weaves three threadlings that hunt enemies.' },
+  mindspun: { cls: 'arcanist', sub: 'broodweaver', name: 'Mindspun Invocation', slots: 2, desc: 'Strand grenades are upgraded: Shackle reaches farther and suspends longer, Threadling releases two more, Grapple leaves a tangle where it lands.' },
+  wanderer: { cls: 'arcanist', sub: 'broodweaver', name: 'The Wanderer', slots: 2, desc: 'Strand grenades that hit an enemy suspend it and everything within 4m.' },
+  weavewalk: { cls: 'arcanist', sub: 'broodweaver', name: 'Weavewalk', slots: 3, desc: 'While sprinting, Q wraps you in Weavewalk for 3s instead of throwing a grenade: 70% less damage, 20% faster, and your melee recharges.' },
 };
 
 // Tuning for the Light Ascendant aspects and fragments.
@@ -114,6 +147,33 @@ export const FRAGMENT_TUNE = {
   searing: 0.1, combustion: { r: 4, dmg: 180 }, benevolence: 1.3, tempering: 2,
   resistance: { n: 3, r: 8, cut: 0.8 }, discharge: 0.3, magnitude: { pulses: 2, storm: 1, flux: 2 },
   remnants: 1.5, obscurity: 3, leeching: 0.6,
+  // U22 Darkness
+  rime: 20, shards: 0.08, bonds: 2, fissures: 0.5, hedrons: { t: 6, dmg: 1.15 }, durance: 1.4, hunger: 0.1, chains: { r: 6, cut: 0.75 },
+  generation: 0.01, continuity: 1.5, fury: 0.1, warding: 4, ascent: { t: 5, reload: 0.75 }, wisdom: 2, propagation: 8, rebirth: 1,
+};
+// U22 Darkness aspect tuning (behavior in darkness.js).
+export const DARK_ASPECT_TUNE = {
+  diamondlance: { t: 10, r: 4, dmg: 200 },
+  howlstorm: { n: 5, step: 2, r: 2.2, dmg: 120 },
+  tectonic: { grenade: 0.1, melee: 0.1 },
+  cryoclasm: { r: 1.6, t: 3, speed: 1.15 },
+  shatterdive: { r: 5, dmg: 160, speed: 30 },
+  grimharvest: { energy: 0.08 },
+  wintersshroud: { r: 6, stacks: 2 },
+  bleakwatcher: { life: 10, tick: 1.1, range: 14, dmg: 30, stacks: 1 },
+  frostpulse: { r: 6 },
+  glacialharvest: { energy: 0.05, gap: 0.5 },
+  iceflare: { n: 2, dmg: 70, r: 15 },
+  intothefray: { t: 6 },
+  drengrslash: { n: 5, step: 2, r: 2.4, dmg: 60 },
+  flechette: { dashes: 3 },
+  bannerofwar: { t: 10, heal: 0.03, melee: 1.5 }, // heal: share of health per second
+  ensnaring: { r: 6, dmg: 120, speed: 30 },
+  maelstrom: { t: 4, r: 4, tick: 0.4, dmg: 30 },
+  threadedspecter: { life: 6, r: 3, n: 3 },
+  weaverscall: { n: 3 },
+  wanderer: { r: 4 },
+  weavewalk: { t: 3, cut: 0.3, speed: 1.2 },
 };
 
 // Sunspots (Sol Invictus and Hammer of Sol): enemies inside burn; the caster's copy deals the damage.
@@ -151,6 +211,24 @@ export const FRAGMENTS = {
   remnants: { element: 'void', name: 'Echo of Remnants', desc: 'Your lingering void effects last 50% longer: Vortex Grenades and Snare Bomb clouds.' },
   obscurity: { element: 'void', name: 'Echo of Obscurity', desc: 'Powered melee kills turn you invisible for 3s.' },
   leeching: { element: 'void', name: 'Echo of Leeching', desc: 'Melee kills heal you for 60% of your health.' },
+  // U22 Stasis: Whispers
+  rime: { element: 'stasis', name: 'Whisper of Rime', desc: 'Shattering an enemy or a crystal gives you a small overshield.' },
+  shards: { element: 'stasis', name: 'Whisper of Shards', desc: 'Shattering an enemy or a crystal gives you 8% grenade energy.' },
+  bonds: { element: 'stasis', name: 'Whisper of Bonds', desc: 'Freezing an enemy gives you 2% super energy.' },
+  fissures: { element: 'stasis', name: 'Whisper of Fissures', desc: 'Your shatters hit 50% harder and reach 1m farther.' },
+  hedrons: { element: 'stasis', name: 'Whisper of Hedrons', desc: 'Freezing an enemy gives you +15% weapon damage for 6s.' },
+  durance: { element: 'stasis', name: 'Whisper of Durance', desc: 'Enemies you freeze stay frozen 40% longer.' },
+  hunger: { element: 'stasis', name: 'Whisper of Hunger', desc: 'Stasis ability kills give you 10% melee energy.' },
+  chains: { element: 'stasis', name: 'Whisper of Chains', desc: 'While a frozen enemy or a Stasis crystal is within 6m, you take 25% less damage.' },
+  // U22 Strand: Threads
+  generation: { element: 'strand', name: 'Thread of Generation', desc: 'Weapon hits give you 1% grenade energy.' },
+  continuity: { element: 'strand', name: 'Thread of Continuity', desc: 'Enemies you suspend stay suspended 50% longer.' },
+  fury: { element: 'strand', name: 'Thread of Fury', desc: 'Severing an enemy gives you 10% melee energy.' },
+  warding: { element: 'strand', name: 'Thread of Warding', desc: 'Defeating a suspended enemy gives you Woven Mail for 4s.' },
+  ascent: { element: 'strand', name: 'Thread of Ascent', desc: 'Using your grenade makes you reload 25% faster for 5s.' },
+  wisdom: { element: 'strand', name: 'Thread of Wisdom', desc: 'Defeating an unraveled enemy gives you 2% super energy.' },
+  propagation: { element: 'strand', name: 'Thread of Propagation', desc: 'Powered melee kills give you Unraveling Rounds for 8s: your weapon hits unravel enemies.' },
+  rebirth: { element: 'strand', name: 'Thread of Rebirth', desc: 'Defeating a severed or unraveled enemy weaves a threadling that hunts the next one.' },
 };
 
 // Light Ascendant: the Destiny 2 Light supers each subclass was missing. The subclass's original super
@@ -168,6 +246,13 @@ export const SUPERS = {
   novawarp: { cls: 'arcanist', sub: 'voidwalker', name: 'Nova Warp', camera: 'third', unlockLevel: 17, desc: 'For 10s: press Space to warp a short distance and release Void seekers that weaken enemies; click to detonate (hold to charge a bigger blast). Take 70% less damage.' },
   chaosreach: { cls: 'arcanist', sub: 'stormcaller', name: 'Chaos Reach', camera: 'third', unlockLevel: 23, desc: 'Channel a long arc beam that pierces and jolts for up to 9s. Press F again to end it early and keep some of your super energy.' },
   daybreak: { cls: 'arcanist', sub: 'dawnblade', name: 'Daybreak', camera: 'third', unlockLevel: 26, desc: 'For 12s soar on solar wings: your jump goes far higher and you hover, sinking slowly. Hurl solar blades that explode and scorch. Take 70% less damage.' },
+  // U22 Darkness: each Darkness subclass's second super is an original one of the opposite type (burst if its Destiny 2 super roams, roaming if it bursts)
+  avalanche: { cls: 'vanguard', sub: 'behemoth', name: 'Avalanche', camera: 'third', unlockLevel: 32, desc: 'Leap into the air and smash down: a ring of Stasis crystals erupts around you and freezes every enemy within 10m. The crystals shatter a moment later.' },
+  ripcord: { cls: 'vanguard', sub: 'berserker', name: 'Ripcord', camera: 'third', unlockLevel: 35, desc: 'Hurl a Strand anchor. It suspends every enemy within 9m, drags them together and then snaps them into the ground.' },
+  rimeblades: { cls: 'stalker', sub: 'revenant', name: 'Rime Blades', camera: 'third', unlockLevel: 32, desc: 'For 12s wield two Stasis kama: slashes slow, every third slash freezes, right-click throws a kama that freezes where it lands. Take 70% less damage.' },
+  cradle: { cls: 'stalker', sub: 'threadrunner', name: "Cat's Cradle", camera: 'third', unlockLevel: 35, desc: 'Throw a spool that spins a web over 10m: everything caught is suspended and unraveled, then the web snaps tight for heavy damage.' },
+  absolutezero: { cls: 'arcanist', sub: 'shadebinder', name: 'Absolute Zero', camera: 'third', unlockLevel: 32, desc: 'Rise and release a Stasis nova that freezes every enemy within 12m, then shatters them all in a second pulse.' },
+  loomwalker: { cls: 'arcanist', sub: 'broodweaver', name: 'Loomwalker', camera: 'third', unlockLevel: 35, desc: 'For 12s weave from your hands: hold fire for a stream of needles that unravel, and every kill weaves a threadling. You wear Woven Mail and take 70% less damage.' },
 };
 
 // Class jumps (Light Ascendant). The class's original jump stays the default; `sub` limits a jump to one subclass.

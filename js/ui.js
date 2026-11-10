@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DARK_ELEMENTS, DARK_UNLOCK } from './darkness-rules.js';
 import { G, lockPointer, unlockPointer } from './state.js';
 import { scrambleName } from './light.js';
 import { SPEAKERS, CHAPTERS, linesFor, lineDuration } from './story.js';
@@ -604,12 +605,13 @@ function renderLevel(main) {
   const info = levelInfo(s.progression.xp);
   const node = (L) => {
     const kind = rewardAt(L), state = rewardState(s, L);
-    const sub = subclassesUnlockedAt(L).find((x) => x.classId === s.classId);
+    const subs = subclassesUnlockedAt(L).filter((x) => x.classId === s.classId); // U22: two Darkness subclasses unlock together at 28
+    const sub = subs[0];
     const build = buildUnlocksAt(L, s.classId)[0]; // an aspect or fragment that unlocks here
     const reached = info.level >= L;
     let icon = '', label = '';
     if (kind) { const r = RARITIES[rarityIndex(kind)]; icon = `<i class="lt-engram" style="--rc:${r.color}"></i>`; label = r.name; } // the best rarity usable at that level
-    else if (sub) { icon = subclassIcon(CLASSES[s.classId].subclasses[sub.subId].color); label = sub.name; }
+    else if (sub) { icon = subclassIcon(CLASSES[s.classId].subclasses[sub.subId].color); label = subs.map((x) => x.name).join(' and '); }
     else if (build) {
       const color = build.type === 'fragment' ? ELEMENTS[build.element].color : CLASSES[s.classId].subclasses[build.sub].color;
       icon = abilityIcon(build.type, build.id, color);
@@ -625,14 +627,14 @@ function renderLevel(main) {
       : unlock && reached ? '<span class="lt-done">Unlocked</span>' : '';
     return `<div class="${cls}"><div class="lt-l">${L}</div><div class="lt-r">${icon}</div><div class="lt-label">${label}</div>${action}</div>`;
   };
-  const third = Object.keys(CLASSES[s.classId].subclasses).map((id) => subclassLevel(s.classId, id)).reduce((a, b) => Math.max(a, b), 1);
+  const third = Object.keys(CLASSES[s.classId].subclasses).filter((id) => !DARK_ELEMENTS.includes(CLASSES[s.classId].subclasses[id].element)).map((id) => subclassLevel(s.classId, id)).reduce((a, b) => Math.max(a, b), 1);
   main.innerHTML = `
     <div class="lvl">
       <div class="lvl-head">
         <div><div class="eyebrow">Guardian Level</div><div class="lvl-big">${info.level}<small>/ ${LEVEL_CAP}</small></div></div>
         <div class="lvl-xp">${info.max ? '<b>Max level</b>' : `<div class="xp-track big"><div class="xp-fill" style="width:${((info.into / info.need) * 100).toFixed(1)}%"></div></div>
           <div class="lvl-xp-t">${info.into.toLocaleString()} / ${info.need.toLocaleString()} XP to level ${info.level + 1}</div>`}</div>
-        <p class="desc">Earn XP from every kill, mission and cache. An engram every three levels in the best rarity you can use there (Rares from 5, Legendaries from 10), Exotics at 20 and 40, your third subclass at level ${third}, then new supers, its last aspect and new fragments. Item rewards wait here until you claim them.</p>
+        <p class="desc">Earn XP from every kill, mission and cache. An engram every three levels in the best rarity you can use there (Rares from 5, Legendaries from 10), Exotics at 20 and 40, your third subclass at level ${third}, then new supers, its last aspect and new fragments, and your Stasis and Strand subclasses at level ${DARK_UNLOCK}. Item rewards wait here until you claim them.</p>
       </div>
       <div class="lt-track" id="lt-track">${Array.from({ length: LEVEL_CAP }, (_, i) => node(i + 1)).join('')}</div>
     </div>`;

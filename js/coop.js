@@ -30,7 +30,7 @@ import * as ui from './ui.js';
 //  - Everyone rolls their own loot from kill events (client-side loot).
 
 const TYPES = ['grunt', 'rusher', 'captain', 'heavy', 'boss', 'suicide', ...Object.keys(UNITS)]; // U14: unit ids are appended so earlier indices never change
-const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive']; // snapshot bit order
+const DEBUFF_BITS = ['weaken', 'slow', 'suppress', 'burn', 'poison', 'jolt', 'blind', 'judged', 'corrosive', 'frozen', 'suspend', 'unravel', 'sever']; // snapshot bit order (U22: Darkness appended)
 /** Host: an enemy's debuffs as a bitmask. */
 const debuffBits = (en) => DEBUFF_BITS.reduce((b, k, i) => (en.status.has(k) ? b | (1 << i) : b), 0);
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -213,8 +213,8 @@ export function announceLoot(pos) {
   if (net.isHost) broadcast({ t: 'loot', x: r2(pos.x), z: r2(pos.z) });
 }
 
-export function announceGrenade(from, vel, dmg, color) {
-  if (net.isHost) broadcast({ t: 'gr', f: [r2(from.x), r2(from.y), r2(from.z)], v: [r2(vel.x), r2(vel.y), r2(vel.z)], m: dmg, c: color });
+export function announceGrenade(from, vel, dmg, color, el = null) {
+  if (net.isHost) broadcast({ t: 'gr', f: [r2(from.x), r2(from.y), r2(from.z)], v: [r2(vel.x), r2(vel.y), r2(vel.z)], m: dmg, c: color, el });
 }
 
 export function announceShot(from, dir, speed, dmg, color, size, splash) {
@@ -229,7 +229,7 @@ export function damageRemote(r, dmg, from) {
 /** Member: report a hit on a host-owned enemy. */
 export function sendHit(e, dmg, o) {
   lastHits.set(e.netId, { weapon: o.weapon, crit: o.crit, source: o.source, blightDepth: o.blightDepth, blightDmg: o.blightDmg });
-  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, co: o.corrosive || 0, sb: o.shieldBreaker ? 1 : 0, gb: o.guardBreak ? 1 : 0 });
+  send({ t: 'hit', id: e.netId, m: Math.round(dmg * 10) / 10, el: o.element || 'kinetic', c: o.crit ? 1 : 0, src: o.source || 'weapon', wk: o.weaken || 0, sl: o.slow || 0, su: o.suppress || 0, bu: o.burn || 0, po: o.poison || 0, jo: o.jolt || 0, bl: o.blind || 0, jg: o.judged || 0, co: o.corrosive || 0, sb: o.shieldBreaker ? 1 : 0, gb: o.guardBreak ? 1 : 0, sa: o.slowAdd || 0, fz: o.freeze || 0, ss: o.suspend || 0, un: o.unravel || 0, sv: o.sever || 0 }); // U22: Darkness debuffs
 }
 
 export function sendFx(msg) { if (net.active && G.state === 'playing') send(msg); }
@@ -477,7 +477,7 @@ net.on('p', (m, from) => { if (inMission()) ensureRemote({ ...m, id: from }); })
 net.on('hit', (m, from) => {
   if (!inMission()) return;
   const e = getEnemyByNetId(m.id);
-  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, judged: m.jg, corrosive: m.co, shieldBreaker: !!m.sb, guardBreak: !!m.gb });
+  if (e && e.alive) dealDamage(e, m.m, { raw: true, element: m.el, crit: !!m.c, source: m.src, by: from, remoteHit: true, weaken: m.wk, slow: m.sl, suppress: m.su, burn: m.bu, poison: m.po, jolt: m.jo, blind: m.bl, judged: m.jg, corrosive: m.co, shieldBreaker: !!m.sb, guardBreak: !!m.gb, slowAdd: m.sa, freeze: m.fz, suspend: m.ss, unravel: m.un, sever: m.sv });
 });
 
 // both: effects
@@ -558,7 +558,7 @@ net.on('ih', (m, from) => { const r = remotes.get(from); if (r) { if (m.on && !r
 net.on('say', (m) => { if (inMission()) ui.say(m.w, m.x); });
 net.on('bn', (m) => { if (inMission()) { ui.centerMessage(m.ti, m.su, m.du); sfx[m.so]?.(); } });
 net.on('es', (m) => { if (inMission()) fireEnemyShot(new THREE.Vector3(...m.f), new THREE.Vector3(...m.d), m.v, m.m, m.c, m.s, m.sp, true); });
-net.on('gr', (m) => { if (inMission()) spawnEnemyGrenade(new THREE.Vector3(...m.f), new THREE.Vector3(...m.v), m.m, m.c, true); });
+net.on('gr', (m) => { if (inMission()) spawnEnemyGrenade(new THREE.Vector3(...m.f), new THREE.Vector3(...m.v), m.m, m.c, true, m.el || null); });
 net.on('dmg', (m) => { if (inMission() && !G.player.dead) damagePlayer(m.m, new THREE.Vector3(m.x, 0, m.z)); });
 net.on('loot', (m) => {
   const M = G.mission;

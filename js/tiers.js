@@ -43,9 +43,9 @@ export function fireteamScale(n) { return FIRETEAM_SCALE[Math.max(1, Math.min(3,
 // Destiny 2: shields are elemental, a few units per faction carry one, and breaking one with its own element makes it explode.
 export const SHIELD = {
   // weighted element lists per faction and unit type (an element repeated is a likelier roll)
-  scrappers: { captain: ['arc', 'arc', 'arc', 'void', 'solar'] },
+  scrappers: { captain: ['arc', 'arc', 'arc', 'void', 'solar', 'stasis', 'stasis'] }, // U22: a Stasis-shielded Captain wields Stasis (darkness-rules.js darkWielder)
   hollow: { captain: ['solar', 'solar', 'solar', 'void', 'arc'] },
-  legion: { captain: ['solar', 'solar', 'solar', 'arc', 'void'], heavy: ['arc'], heavyHp: 260 },
+  legion: { captain: ['solar', 'solar', 'solar', 'arc', 'void', 'strand', 'strand'], heavy: ['arc'], heavyHp: 260 }, // U22: a Strand-shielded Centurion wields Strand
 };
 export const SHIELD_BURST = { radius: 5, dmgMul: 0.5, base: 60 };
 /** Damage an enemy takes from a neighbour's shield bursting at distance d (none outside the radius). */

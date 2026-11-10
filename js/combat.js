@@ -30,11 +30,12 @@ export const URSA = { perDmg: 0.25, max: 50 }; // Ursa Furiosa: super % per poin
 // Damage taken while each super is active. H3: every roaming super takes 70% less (ROAM_ARMOR).
 // U9: burst supers hover the caster while casting and take 85% less (BURST_ARMOR); Well and Ward slam down first.
 export const ROAM_ARMOR = 0.3, BURST_ARMOR = 0.15;
-export const BURST_SUPERS = ['nova', 'tether', 'bladebarrage', 'gathering', 'twilight'];
+export const BURST_SUPERS = ['nova', 'tether', 'bladebarrage', 'gathering', 'twilight', 'avalanche', 'ripcord', 'silencesquall', 'cradle', 'absolutezero', 'needlestorm']; // U22: the six Darkness burst supers
 export const SLAM_SUPERS = ['well', 'wardofdawn'];
 export const SUPER_ARMOR = {
   hammers: ROAM_ARMOR, fists: ROAM_ARMOR, stormtrance: ROAM_ARMOR, revolver: ROAM_ARMOR, staff: ROAM_ARMOR, sentinel: ROAM_ARMOR, songflame: ROAM_ARMOR,
   maul: ROAM_ARMOR, thundercrash: ROAM_ARMOR, spectral: ROAM_ARMOR, stormsedge: ROAM_ARMOR, novawarp: ROAM_ARMOR, chaosreach: ROAM_ARMOR, daybreak: ROAM_ARMOR,
+  glacialquake: ROAM_ARMOR, bladefury: ROAM_ARMOR, rimeblades: ROAM_ARMOR, silkstrike: ROAM_ARMOR, winterswrath: ROAM_ARMOR, loomwalker: ROAM_ARMOR, // U22 Darkness roaming supers
   wardofdawn: 0.6, well: 0.6,
   ...Object.fromEntries(BURST_SUPERS.map((id) => [id, BURST_ARMOR])),
 };
@@ -73,7 +74,9 @@ export const SUPER_POWER = 2.0;
 export const SONG = { duration: 10, abilityRegen: 25 }; // v1.1: 12 s, 8x; H3: 4x; H4: 25x, near-instant grenades and melees
 // How long each super lasts (seconds). Burst supers are short: the cast, then their effects play out.
 export const SUPER_TIME = { hammers: 15, revolver: 12, nova: 0.8, fists: 14, tether: 10, stormtrance: 12, staff: 14, sentinel: 15, songflame: SONG.duration,
-  maul: 15, thundercrash: 3.2, wardofdawn: 0.8, twilight: 6, bladebarrage: 1.2, spectral: 12, gathering: 1.6, stormsedge: 6, well: 1.0, novawarp: 10, chaosreach: 9, daybreak: 12 }; // H3: Chaos Reach 4.5 to 9 s
+  maul: 15, thundercrash: 3.2, wardofdawn: 0.8, twilight: 6, bladebarrage: 1.2, spectral: 12, gathering: 1.6, stormsedge: 6, well: 1.0, novawarp: 10, chaosreach: 9, daybreak: 12, // H3: Chaos Reach 4.5 to 9 s
+  // U22 Darkness
+  glacialquake: 14, bladefury: 13, rimeblades: 12, silkstrike: 12, winterswrath: 12, loomwalker: 12, avalanche: 1.4, ripcord: 2.2, silencesquall: 1.4, cradle: 2.6, absolutezero: 2.0, needlestorm: 1.6 };
 // Light Ascendant supers (base numbers before superDmg scaling). Tuned so a full cast deals about what
 // the subclass's original super does: roughly 2,500 to 3,000 to one target, more spread over a crowd.
 // How long a cast rift or barricade lasts (the caster sees it as a timer above the ability bar).
@@ -92,6 +95,19 @@ export const SUPER_TUNE = {
   novawarp: { chargeT: 1, r0: 3.5, r1: 7, dmg0: 350, dmg1: 900, warp: 6, seekers: 3, seekR: 15, seekDmg: 60, weaken: 4 },
   chaos: { range: 45, dmg: 60, refund: 45 }, // fires from the start; F again ends it (refund scales with time left)
   daybreak: { r: 3, dmg: 340, burn: 20 },
+  // U22 Darkness (base numbers before superDmg). Roaming: per hit; burst: per target.
+  glacialquake: { slam: 260, slamR: 4.5, slamCd: 0.6, stacks: 3, heavy: 520, heavyR: 7, heavyCd: 1.6, crystals: 4 },
+  bladefury: { slash: 230, slashR: 3, slashCd: 0.32, throw: 420, throwR: 4.5, throwCd: 1.2, sever: 6 },
+  rimeblades: { slash: 250, slashR: 3, slashCd: 0.4, stacks: 2, throw: 380, throwR: 4.5, throwCd: 1.3 },
+  silkstrike: { whip: 240, whipRange: 7, whipCd: 0.45, leap: 480, leapR: 5, leapCd: 1.6 },
+  winterswrath: { shard: 160, shardCd: 0.35, stacks: 2, wave: 600, waveRange: 14, waveCd: 2 },
+  loomwalker: { needle: 46, tick: 0.12, range: 40 },
+  avalanche: { r: 10, dmg: 900, shatter: 1500, delay: 0.9 },
+  ripcord: { r: 9, dmg: 1600, pull: 0.9 },
+  silencesquall: { silenceR: 6, silence: 700, shatter: 1300, squallR: 4, squall: 40, life: 8, speed: 5 },
+  cradle: { r: 10, dmg: 2000, delay: 1.4 },
+  absolutezero: { r: 12, dmg: 600, shatter: 1600, delay: 1.0 },
+  needlestorm: { r: 7, dmg: 1500, threadlings: 4 },
 };
 
 // ---------- weapon damage ----------

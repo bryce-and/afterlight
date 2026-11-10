@@ -1,6 +1,10 @@
 // Subclass screen icons: a frame shape per slot type (super, grenade, melee, class, jump,
 // aspect, fragment) around a glyph generated from the ability's id, in its element color.
 // Pure string building (no DOM, no Three.js), so the tests can check every icon is distinct.
+// The svg compares glyph+turn only; the frame is the same within a slot.
+
+import { GRENADES, ASPECTS, FRAGMENTS, CLASS_ABILITIES, SUPERS, JUMPS } from './subclass.js';
+import { CLASSES } from './data.js';
 
 const FRAMES = {
   super: '<path d="M32 2 58 17 58 47 32 62 6 47 6 17z"/>',
@@ -60,13 +64,41 @@ const GLYPHS = [
   },
 ];
 
+/** The glyph and its rotation for an id; `salt` re-rolls both (used only to break a collision). */
+function glyphFor(slot, id, salt = 0) {
+  const k = salt ? `${id}#${salt}` : id;
+  const h = hash(`${slot}:${k}`);
+  return { glyph: GLYPHS[h % GLYPHS.length](h >>> 3), turn: (hash(`turn:${k}`) % 12) * 30 };
+}
+
+// U22: with the Darkness ids added, a few hashes land on the same glyph and turn. Walk every registry in its
+// fixed order and re-salt only a later id that collides with an earlier one, so older icons never change.
+let salts = null;
+function buildSalts() {
+  salts = new Map();
+  const ids = {
+    grenade: Object.keys(GRENADES), aspect: Object.keys(ASPECTS), fragment: Object.keys(FRAGMENTS),
+    class: Object.values(CLASS_ABILITIES).flatMap(Object.keys), jump: Object.values(JUMPS).flatMap(Object.keys),
+    melee: Object.values(CLASSES).flatMap((c) => Object.values(c.subclasses).map((sc) => sc.abilities.melee.id)),
+    super: [...Object.values(CLASSES).flatMap((c) => Object.values(c.subclasses).map((sc) => sc.abilities.super.id)), ...Object.keys(SUPERS)],
+  };
+  for (const [slot, list] of Object.entries(ids)) {
+    const seen = new Set();
+    for (const id of new Set(list)) {
+      let salt = 0, g = glyphFor(slot, id);
+      while (seen.has(g.glyph + g.turn)) g = glyphFor(slot, id, ++salt);
+      seen.add(g.glyph + g.turn);
+      if (salt) salts.set(`${slot}:${id}`, salt);
+    }
+  }
+}
+
 /** SVG markup for an ability, aspect or fragment. slot: a key of FRAMES. */
 export function abilityIcon(slot, id, color) {
   const frame = FRAMES[slot];
   if (!frame) throw new Error(`No icon frame for slot "${slot}"`);
-  const h = hash(`${slot}:${id}`);
-  const glyph = GLYPHS[h % GLYPHS.length](h >>> 3);
-  const turn = (hash(`turn:${id}`) % 12) * 30;
+  if (!salts) buildSalts();
+  const { glyph, turn } = glyphFor(slot, id, salts.get(`${slot}:${id}`) || 0);
   return `<svg viewBox="0 0 64 64" class="ab-svg" aria-hidden="true" style="color:${color}"><g fill="#0b0e13" stroke="currentColor" stroke-width="3" stroke-linejoin="round">${frame}</g><g transform="rotate(${turn} 32 32)" fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="0">${glyph}</g></svg>`;
 }
 

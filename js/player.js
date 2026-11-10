@@ -16,6 +16,7 @@ import { fxTracer, requestLife, DOWN_TIME, sendHit, sendFx, allPlayers } from '.
 import { deathOutcome, blightChance, BLIGHT } from './exotic-rules.js';
 import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
+import { installDarkness } from './darkness.js';
 import { makeShieldDome, buildCharacter, SUPER_POSES } from './characters.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
@@ -362,7 +363,9 @@ export class Player {
       this.pitch -= rec; this.recoilAcc -= rec;
     }
     if (updateGhost(this, dt, () => abandonMission())) return; // Tab, hold E for the Sparrow, hold O for orbit
+    if (this.darkHeld(dt)) { this.updateRegen(dt); this.updateCamera(dt); this.updateViewmodel(dt); this.updateBody(dt); return; } // U22: frozen or suspended by enemy Darkness
     this.updateMovement(dt);
+    this.darkTick(dt); // U22: grapple pull, Cryoclasm, Banner of War, Shatterdive and Ensnaring Slam landings
     if (!this.social && !this.ghostBusy && !this.mount) { this.updateCombat(dt); this.updateAbilities(dt); }
     this.updateRegen(dt);
     this.updateCamera(dt);
@@ -399,6 +402,7 @@ export class Player {
     if (this.superActive?.type === 'maul' || this.superActive?.type === 'spectral') speed *= 1.15;
     if (this.status.has('tempered')) speed *= ASPECT_TUNE.tempered.speed; // Tempered Metal
     if (this.asp.has('prowl') && this.status.has('invisible')) speed *= ASPECT_TUNE.prowl.speed; // On the Prowl
+    speed *= this.darkSpeed(); // U22: Chilled, Weavewalk, Cryoclasm, Darkness supers
     const accel = this.onGround ? 14 : (JUMP_TUNE[this.cls.jump]?.air ?? 2.5);
     this.vel.x = damp(this.vel.x, wx * speed, accel, dt);
     this.vel.z = damp(this.vel.z, wz * speed, accel, dt);
@@ -527,7 +531,7 @@ export class Player {
 
     if (inp.pressed.KeyR) this.startReload(w);
     if (w.reloading) {
-      w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1) * (this.status.has('amplified') ? ASPECT_TUNE.amplitude.reload : 1) * (1 + MODS_TUNE.loader * (this.ap[LOADER_MOD[w.idx]] || 0));
+      w.reloadT -= dt * (this.status.has('rift') ? 1.6 : 1) * (this.status.has('amplified') ? ASPECT_TUNE.amplitude.reload : 1) * (1 + MODS_TUNE.loader * (this.ap[LOADER_MOD[w.idx]] || 0)) * this.darkReload(); // U22: Chilled, Thread of Ascent
       if (w.reloadT <= 0) this.finishReload(w);
     }
     if (inp.mouse.rightPressed && w.A.sword) { // Sword: a right-click is the heavy attack (after a short beat); a second click inside that beat, held, is the guard
@@ -669,7 +673,7 @@ export class Player {
   }
 
   getSpread(w) {
-    return spreadFor({ hip: w.s.spread, ads: w.A.ads, adsT: this.adsT, moving: Math.hypot(this.vel.x, this.vel.z) > 1, air: !this.onGround, steady: w.has('steady'), bloom: w.bloom }) * (1 - MODS_TUNE.target * (this.ap[TARGET_MOD[w.idx]] || 0) * this.adsT);
+    return spreadFor({ hip: w.s.spread, ads: w.A.ads, adsT: this.adsT, moving: Math.hypot(this.vel.x, this.vel.z) > 1, air: !this.onGround, steady: w.has('steady'), bloom: w.bloom }) * (1 - MODS_TUNE.target * (this.ap[TARGET_MOD[w.idx]] || 0) * this.adsT) * this.darkSpread(); // U22: Chilled
   }
 
   muzzlePos(out) {
@@ -741,6 +745,7 @@ export class Player {
     if (this.status.has('radiant')) m *= 1.15; // Ember of Torches
     if (this.status.has('wol')) m *= SUPER_TUNE.ward.wol; // Ward of Dawn: Weapons of Light
     if (this.status.has('well')) m *= SUPER_TUNE.well.dmg; // Well of Radiance
+    m *= this.darkWeaponMult(); // U22: Whisper of Hedrons
     return m;
   }
 
@@ -941,9 +946,10 @@ export class Player {
     if (prowl) this.prowlUsed = true;
     this.prowlShot = false;
     const jolt = !o.isSuper && w.has('jolting') && this.joltingHit(w, e) ? LOOT_PERKS.joltT : 0; // Jolting Feedback
-    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...o.deal });
+    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...(o.isSuper ? null : this.darkDeal()), ...o.deal });
     if (o.isSuper) return res;
     w.hitCount++;
+    this.darkWeaponHit(); // U22: Thread of Generation
     this.lootPerksOnHit(w, e, crit);
     if (this.status.has('voltshot', w.idx)) {
       // Voltshot: the charged hit jolts nearby enemies
@@ -1597,6 +1603,7 @@ export class Player {
     this.buildOnKill(e, o);
     this.modsOnKill(e, o, chain);
     this.traitOnKill(e, o);
+    this.darkOnKill(e, o); // U22 Darkness aspects and fragments
     if (!chain) this.setsOnKill(o);
     if (this.exo.has('nighthawk') && o.source === 'super' && this.superActive?.type === 'revolver') this.hawkKill = true; // refund when the super ends
     if (this.exo.has('starfire') && !chain && o.source === 'ability' && G.time < this.grenadeWin && this.cls.abilities.grenade.element === 'solar') {
@@ -2044,6 +2051,7 @@ export class Player {
     if (this.dash > 0) amount *= 0.5;
     if (this.status.has('juggernaut')) amount *= 0.5; // Juggernaut: frontal shield while sprinting
     if (this.status.has('contraverse')) amount *= 0.8; // Contraverse Hold
+    amount *= this.darkResist(); // U22: Woven Mail, Weavewalk, Whisper of Chains
     const cw = this.weapon;
     if (cw?.has('conductor')) { if (this.status.has('conductor', cw.idx)) amount *= 0.75; this.status.apply('conductor', { scope: cw.idx, set: true }); }
     if (this.ap.plating) amount *= Math.max(0.6, 1 - 0.08 * this.ap.plating);
@@ -2202,7 +2210,7 @@ export class Player {
     const exo = (this.status.has('quietone') ? QUIET.regen : 1) * (hallow ? HALLOWFIRE.regen : 1);
     const grav = this.exo.has('graviton') && this.status.has('invisible') ? GRAVITON.melee : 1;
     for (const k of ['grenade', 'melee', 'class']) {
-      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.status.has('heart', k) ? 1.6 : 1) * nez * boost[k] * exo * (k === 'melee' ? grav : 1));
+      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.status.has('heart', k) ? 1.6 : 1) * nez * boost[k] * exo * (k === 'melee' ? grav : 1) * this.darkRegen(k)); // U22: Chilled, Banner of War, Weavewalk
     }
     const IC = ASPECT_TUNE.icarus; // Icarus Dash: charges come back one at a time
     if (this.icarus.n < IC.charges && (this.icarus.t -= dt) <= 0) { this.icarus.n++; this.icarus.t = IC.cd; }
@@ -2294,6 +2302,7 @@ export class Player {
   useGrenade() {
     if (this.status.has('fragout')) { this.throwFrag(); return; } // the frag stands in for your grenade until it is thrown
     if (this.cd.grenade > 0 && this.status.has('gunpowder')) { this.throwGunpowder(); return; }
+    if (this.darkGrenadeUse()) return; // U22: Weavewalk
     if (this.asp.has('unbreakable')) { this.unbreakable(); return; }
     const free = this.status.has('sunbracers') && this.cls.abilities.grenade.element === 'solar'; // Sunbracers
     if (free) {
@@ -2307,6 +2316,7 @@ export class Player {
     const g = this.cls.abilities.grenade;
     if (this.exo.has('contraverse') && g.element === 'void') this.status.apply('contraverse', { t: 3, set: true }); // Void grenades only
     this.empowerOthers('grenade');
+    this.darkOnGrenade(); // U22: Thread of Ascent
     const el = g.element;
     const fwd = this.getForward(new THREE.Vector3());
     const start = this.eye.clone().addScaledVector(fwd, 0.6);
@@ -2356,6 +2366,7 @@ export class Player {
   }
 
   detonateGrenade(g, pt, hitEnemy = null) {
+    if (this.isDarkGrenade(g)) { this.darkGrenade(g, pt, hitEnemy); return; } // U22: Stasis and Strand grenades (darkness.js)
     pt.y = Math.max(pt.y, 0.3);
     if (this.exo.has('contraverse') && g.element === 'void' && enemiesNear(pt, 6).length) this.cd.grenade *= 0.7; // refund 30% (Void grenades)
     if (this.exo.has('raspberry') && g.element === 'arc') {
@@ -2448,6 +2459,7 @@ export class Player {
   /** B: plain melee. Lunges a short way toward a close target. */
   basicMelee() {
     if (this.meleeLock > 0 || this.superActive?.type === 'nova') return;
+    if (this.darkBasicMelee()) { this.meleeLock = 0.5; return; } // U22: a Diamond Lance in hand is thrown instead
     this.meleeT = 0.6;
     this.meleeLock = 0.6;
     this.throwFist(0.3, true);
@@ -2492,6 +2504,7 @@ export class Player {
     if (this.frag.has('frequency')) this.status.apply('frequency', { set: true }); // Spark of Frequency
     if (this.asp.has('consecration')) this.consecrate(fwd);
     if (this.asp.has('surge') && this.sprinting) { this.lightningSurge(fwd); return; }
+    if (this.isDarkMelee(id)) { this.darkMelee(id, fwd); return; } // U22: Stasis and Strand melees, Grapple Melee (darkness.js)
     if (id === 'knife' || id === 'snare') {
       this.throwFist(0.3);
       const start = this.eye.clone().addScaledVector(fwd, 0.5).add(new THREE.Vector3(0, -0.08, 0));
@@ -2826,6 +2839,7 @@ export class Player {
     }
     // Hellion (U9): any class ability summons it, and it follows you
     if (this.asp.has('hellion')) castFx('companion', { p: this.pos.clone(), kind: 'hellion', life: ASPECT_TUNE.hellion.life });
+    this.darkOnClass(id, airborne); // U22 Darkness class-ability aspects
   }
 
   /** Hunter dodges. Marksman's reloads, Gambler's recharges the melee; aspects add the rest. */
@@ -3135,6 +3149,7 @@ export class Player {
       if (Math.random() < 0.6) ember(hand, Math.random() < 0.5 ? 0xffb547 : 0xff6a2b, 0.04, 1.2, 0.5);
     }
     this.updateAscendantSuper(S, dt, fwd, hand, flash);
+    this.updateDarkSuper(S, dt, fwd, hand); // U22: the twelve Darkness supers (darkness.js)
     if (S.t <= 0) {
       this.superActive = null; this.status.remove('nighthawk'); this.status.remove('stormdancer'); this.showModel();
       if (this.hawkKill) { this.hawkKill = false; this.superCharge = Math.min(100, this.superCharge + NIGHTHAWK.refund); } // Celestial Nighthawk
@@ -3533,3 +3548,4 @@ export class Player {
   }
 }
 
+installDarkness(Player); // U22: Stasis and Strand behavior (darkness.js)

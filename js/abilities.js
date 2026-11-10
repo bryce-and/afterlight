@@ -11,6 +11,7 @@ import { SUNSPOT, HEAL_ORB, ASPECT_TUNE } from './subclass.js';
 import { sfx } from './audio.js';
 import { buildVoidAxe } from './models.js';
 import * as ui from './ui.js';
+import { darkFx } from './darkness.js';
 
 // Every ability effect lives here once. The caster runs it with local = true
 // (visuals + damage); fireteam members replay the same effect from a network
@@ -667,6 +668,6 @@ export function abilityFx(kind, o, local) {
       break;
     }
     default:
-      console.warn('Unknown ability effect', kind);
+      if (!darkFx(kind, o, local)) console.warn('Unknown ability effect', kind); // U22: Stasis and Strand effects live in darkness.js
   }
 }

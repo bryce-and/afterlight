@@ -24,6 +24,8 @@ import { hive } from './models-hive.js';
 import { cabal } from './models-cabal.js';
 import { skillInit, skillUpdate, skillOnDeath, spinAngle, drawAim, hideAim, guardStep, lampSlamStep, lampPose } from './enemy-skills.js';
 import { StatusSet, ENEMY_STATUS, SLOW_MULT } from './status.js';
+import { darkHold, darkEnemyInit, darkEnemyStep, darkGrenadeBoom, SEVER_MULT } from './darkness.js';
+import { DARK_GRENADE } from './darkness-rules.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const shotGeo = new THREE.IcosahedronGeometry(1, 0);
@@ -194,7 +196,8 @@ export class Enemy {
     const shieldBase = ownEls ? (def.shield || 0) : (def.shield || (this.cls === 'heavy' && shieldEls && !def.noShield ? SHIELD[faction].heavyHp : 0));
     this.maxShield = shieldBase ? shieldBase * o.hpMult * T.hp : 0; this.shield = this.maxShield;
     this.shieldEl = o.element || (shieldEls ? pick(shieldEls) : 'arc');
-    this.dmgMult = o.dmgMult * T.dmg;
+    this.baseDmgMult = o.dmgMult * T.dmg; // dmgMult (getter) adds sever
+    darkEnemyInit(this); // U22: a Stasis or Strand shield makes a Captain a Darkness wielder
     this.zone = o.zone;
     this.alive = true; this.dieT = 0; this.spawnT = 0;
     this.status = new StatusSet(ENEMY_STATUS); // debuffs: weaken, slow, suppress, burn, poison, jolt
@@ -237,8 +240,10 @@ export class Enemy {
     skillInit(this, o);
   }
 
-  center(out) { return out.set(this.pos.x, this.pos.y + this.fly + this.height * 0.5, this.pos.z); }
-  headPos(out) { return out.set(this.pos.x, this.pos.y + this.fly + this.height * 0.95, this.pos.z); }
+  center(out) { return out.set(this.pos.x, this.pos.y + this.fly + (this.darkLift || 0) + this.height * 0.5, this.pos.z); }
+  headPos(out) { return out.set(this.pos.x, this.pos.y + this.fly + (this.darkLift || 0) + this.height * 0.95, this.pos.z); }
+  /** Outgoing damage multiplier; U22: severed enemies deal 40% less. */
+  get dmgMult() { return this.baseDmgMult * (this.status.has('sever') ? SEVER_MULT : 1); }
 
   /** Flinch: stop moving and attacking for t seconds; a cooldown follows so it can't chain. */
   stagger(t) {
@@ -299,7 +304,9 @@ export class Enemy {
       return true;
     }
     this.status.tick(dt);
+    const held = darkHold(this, dt); // U22: frozen or suspended (bosses never are)
     if (this.remote) { this.remoteStep(dt); return true; }
+    if (held) return true;
     if (!this.skillStep(dt)) return true;
     // target the nearest living fireteam member (just the local player when solo)
     this.tgtT = (this.tgtT ?? 0) - dt;
@@ -539,7 +546,7 @@ export class Enemy {
       } else {
         const swinging = def.closeMelee ? this.closeMeleeStep(dt, dist, P) : false;
         if (swinging) this.burstLeft = 0;
-        else this.grenadeStep(dt, dist, P);
+        else { this.grenadeStep(dt, dist, P); darkEnemyStep(this, dt, dist, P); }
         this.fireT -= dt;
         if (this.plantT > 0) this.plantT -= dt;
         const jetBusy = this.jet && this.jet.s !== 'ground' && this.jet.s !== 'hover';
@@ -573,7 +580,7 @@ export class Enemy {
 
     m.group.position.copy(this.pos);
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
-    m.group.position.y += this.fly;
+    m.group.position.y += this.fly + (this.darkLift || 0); // U22: a suspended enemy hangs in the air
     if (m.spin && this.def.spinGuard) m.spin.rotation.y = spinAngle(this);
     if (m.spinners) for (const sp of m.spinners) sp.obj.rotation.y = G.time * sp.speed + this.seed; // U18: slowly turning parts (Shrieker shell halves)
     m.group.rotation.y = this.yaw;
@@ -730,13 +737,15 @@ export class Enemy {
     sfx.alert();
   }
 
-  throwGrenade(P) {
+  /** el: a Darkness Captain's Stasis or Strand grenade (U22), otherwise the faction's own. */
+  throwGrenade(P, el = null) {
     const from = this.model.muzzle.getWorldPosition(new THREE.Vector3());
     from.y += 0.3;
     const lead = 0.4;
     const L = lobVelocity(P.pos.x + (P.vel?.x ?? 0) * lead - from.x, P.pos.y + 0.4 - from.y, P.pos.z + (P.vel?.z ?? 0) * lead - from.z);
     const vel = new THREE.Vector3(L.vx, L.vy, L.vz);
-    spawnEnemyGrenade(from, vel, GRENADE.dmg * this.dmgMult, GRENADE[this.faction].color);
+    if (el) spawnEnemyGrenade(from, vel, DARK_GRENADE.dmg * this.dmgMult, DARK_GRENADE[el].color, false, el);
+    else spawnEnemyGrenade(from, vel, GRENADE.dmg * this.dmgMult, GRENADE[this.faction].color);
   }
 
   /** Leave cover and don't look for more for a while: splash, suppression and flanking all drive a unit out. */
@@ -943,7 +952,7 @@ export class Enemy {
     if (m.shield) m.shield.visible = this.shield > 0;
     m.group.position.copy(this.pos);
     if (m.hover) m.group.position.y += 0.35 + 0.25 * Math.sin(G.time * 1.8 + this.seed);
-    m.group.position.y += this.fly;
+    m.group.position.y += this.fly + (this.darkLift || 0); // U22: a suspended enemy hangs in the air
     if (m.spin && this.def.spinGuard) m.spin.rotation.y = spinAngle(this);
     if (m.spinners) for (const sp of m.spinners) sp.obj.rotation.y = G.time * sp.speed + this.seed; // U18: slowly turning parts (Shrieker shell halves)
     m.group.rotation.y = this.yaw;
@@ -1188,13 +1197,13 @@ export function updateEnemyShots(dt) {
 // Enemy grenades (U13b): lobbed, land, show a ring, explode. They hurt Guardians only.
 // Every fireteam member simulates its own copy and damages itself, like enemy shots.
 // ---------------------------------------------------------------------------
-export function spawnEnemyGrenade(from, vel, dmg, color, fromNet = false) {
-  if (!fromNet) announceGrenade(from, vel, dmg, color);
+export function spawnEnemyGrenade(from, vel, dmg, color, fromNet = false, el = null) {
+  if (!fromNet) announceGrenade(from, vel, dmg, color, el);
   const mesh = new THREE.Mesh(shotGeo, basicMat(color));
   mesh.scale.setScalar(0.22);
   mesh.position.copy(from);
   G.scene.add(mesh);
-  (G.enemyGrenades ||= []).push({ pos: from.clone(), vel: vel.clone(), dmg, color, mesh, fuse: -1, life: 8 });
+  (G.enemyGrenades ||= []).push({ pos: from.clone(), vel: vel.clone(), dmg, color, mesh, fuse: -1, life: 8, el });
 }
 
 export function updateEnemyGrenades(dt) {
@@ -1227,6 +1236,7 @@ export function updateEnemyGrenades(dt) {
     explosionFx(g.pos, GRENADE.radius * 0.5, g.color);
     flashLight(g.pos, g.color, 30, GRENADE.radius * 3, 0.2);
     sfx.explosion(GRENADE.radius, g.pos);
+    if (g.el) darkGrenadeBoom(g.el, g.pos); // U22: Stasis chills, Strand suspends
     if (!P.dead) {
       const d = Math.hypot(P.pos.x - g.pos.x, P.pos.y + 1 - g.pos.y, P.pos.z - g.pos.z);
       const dm = blastDamage(g.dmg, d, GRENADE.radius);
