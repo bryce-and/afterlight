@@ -303,3 +303,11 @@
 | 2026-11-09 | Bosses with damage gates show a segmented health bar (Destiny style); the Whisper's damage window ending early at a gate is intended. | Bryce |
 | 2026-11-09 | One blight look for decor, mechanic blights and Blight Edge bombs, after Bryce's Destiny reference: black orb, pale halo. | Bryce |
 | 2026-11-09 | Exotics can define a full custom model (`look.model`); Blight Edge is the first. | Bryce (look); Claude (mechanism) |
+| 2026-11-09 | U22 shipped whole (Stasis and Strand in one update) instead of the proposed U22a/U22b split. | Bryce |
+| 2026-11-09 | Darkness subclasses unlock at level 28 (all six). Their original second supers unlock at 32 (Stasis) and 35 (Strand), levels with no item reward. | Bryce (28), Claude (32/35) |
+| 2026-11-09 | Darkness subclasses have Destiny 2's four aspects each (Light subclasses keep five because H3 made the old traits aspects). Darkness kits use the shared class abilities and jumps. | Claude |
+| 2026-11-09 | Freeze: five Stasis slow stacks freeze an enemy; any damaging hit except a Stasis slow or freeze shatters it (shatter splash can chain). Bosses and exotic-mission bosses are slowed but never frozen or suspended. | Claude |
+| 2026-11-09 | Darkness enemies: a Fallen Captain whose shield rolls Stasis, or a Cabal Centurion whose shield rolls Strand, wields that element (Darkness grenades). Enemy shields can be Stasis or Strand (supersedes the U4 decision that enemy shields stay Light until Darkness). | Claude |
+| 2026-11-09 | Co-op approximation: crystals and tangles are only shootable by their caster (teammates see them); shatter fragment effects (Rime, Shards, Diamond Lance) apply to the fireteam leader's shatters only when a member's hit causes the shatter on the leader's copy. | Claude |
+| 2026-11-09 | Some Destiny aspects were adapted to this game's kit: Cryoclasm shatters on sprint (no slide), Widow's Silk speeds Grapple recharge (no grapple charges), Banner of War heals only you, Weavewalk is Q while sprinting. | Claude |
+| 2026-11-09 | Thrown burst supers (Silence and Squall, Ripcord, Cat's Cradle) lob onto the crosshair point. | Claude |

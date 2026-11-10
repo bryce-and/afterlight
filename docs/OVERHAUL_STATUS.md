@@ -15,7 +15,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | R44 | Map collision fix | Oriented colliders since v2.3; partly assessed in v2.6, no new collision bugs reproduced | U15 | Not assessed |
 | R52 | New enemy types: temporary shields (some), grenades, distinct models and names | Missing | U13b (permanent elemental shields, see DECISIONS 2026-10-20; grenades), U14 (models) | Complete and published (v2.4) |
 | R53 | Distinct faction behaviors | Missing (names and models only) | U13b | Complete and published (v2.4) |
-| R54 | Darkness supers and abilities | Missing | U22 | Planned |
 
 ## Optional (nice to have)
 
@@ -36,7 +35,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | ID | Requirement | Update | Status |
 |---|---|---|---|
 | V23 | Harder with 3 players (retune) | U13b | Complete and published (v2.4) |
-| V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U22 | Planned |
 | V30 | End every update session with a co-op connection check | Process | In place |
 | V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U26 (optional) | Planned |
 

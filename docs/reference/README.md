@@ -125,3 +125,10 @@ In `enemies/`, two images per unit, named `fallen-<unit>-<n>`: Dreg, Vandal, Cap
 ## Hive units (U18, Bryce, 2026-11-05)
 
 In `enemies/`, two images per unit, named `hive-<unit>-<n>`: Thrall, Cursed Thrall, Acolyte, Knight, Ogre, Shrieker, Wizard. Bosses are not in this pass. Colour (Bryce, 2026-11-05): each unit matches its own reference. Where a unit's two images disagree, the bone-led one is used so the line-up reads as one faction: Acolyte `-2` (bone with mauve chitin, grey-green tabard), Knight `-1` (mauve, not the orange `-2`), Ogre `-2` (bone, green shoulders, purple brain, not the dark `-1`). Three more Shrieker images (`hive-shrieker-3` to `-5`, Bryce 2026-11-05) are the design guide for its blades: upper blades meeting at a crown, lower ones at a keel, wings flaring at the middle, armour panels, white running lights, violet undersides. The Wizard is a new regular unit (`hv_wizard`). Line-up of the built models: `hive-lineup-u18.png`.
+
+## Stasis (U22, Bryce, 2026-11-09)
+
+| File | Note |
+|---|---|
+| `stasis/stasis-guardians.webp` | Titan with a crystal gauntlet, Warlock with a crystal-topped staff, Hunter with a crystal kama, ice-encased armor |
+| `stasis/stasis-infographic.webp` | Destiny 2 Beyond Light Stasis verbs: slow, freeze, shatter, crystals, Stasis field |

@@ -185,3 +185,5 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | F34 | Ultimate enemy Light = max(your Light, mission Light) + 50 | U20b | Complete and published (v4.3) |
 | F35 | Legendary 1.25x and Ultimate 1.5x enemy density on waves and boss adds, stacking with fireteam scaling | U20b | Complete and published (v4.3) |
 | R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | U21 | Complete and published (v4.4) |
+| R54 | Darkness supers and abilities | U22 | Complete and published (v4.5) |
+| V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U22 | Complete and published (v4.5) |
