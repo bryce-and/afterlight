@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '4.5.3', name: 'Hotfix', date: '2026-11-10', accent: '#ffb547', glyph: '✚',
+    summary: 'Avalanche slams down where you land, and fireteams can meet in the Tower together.',
+    notes: [
+      'Avalanche: you leap up, then slam down to the ground; the ring of crystals, the freeze and the shatter go off where you land (they used to go off in the air while you hovered)',
+      'The Tower is open to fireteams: the leader takes the whole fireteam to the Tower and you can see each other there. The Postmaster, kiosks and shooting range stay personal. A member who leaves goes back to Orbit alone; when the leader returns to Orbit, the fireteam goes too',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.5.2', name: 'Hotfix', date: '2026-11-10', accent: '#ffb547', glyph: '✚',
     summary: 'Perched threadlings are smaller and jump off on any hit you deal, Penumbral Blast and Winter\'s Wrath freeze, Iceflare Bolts hit instantly, Diamond Lance is held in third person, Glacial Quake raises crystal clusters you can walk through, and barricades and crystals stand on the floor.',
     notes: [

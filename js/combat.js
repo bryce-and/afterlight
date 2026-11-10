@@ -31,7 +31,7 @@ export const URSA = { perDmg: 0.25, max: 50 }; // Ursa Furiosa: super % per poin
 // U9: burst supers hover the caster while casting and take 85% less (BURST_ARMOR); Well and Ward slam down first.
 export const ROAM_ARMOR = 0.3, BURST_ARMOR = 0.15;
 export const BURST_SUPERS = ['nova', 'tether', 'bladebarrage', 'gathering', 'twilight', 'avalanche', 'ripcord', 'silencesquall', 'cradle', 'absolutezero', 'needlestorm']; // U22: the six Darkness burst supers
-export const SLAM_SUPERS = ['well', 'wardofdawn'];
+export const SLAM_SUPERS = ['well', 'wardofdawn', 'avalanche']; // H25: Avalanche leaps, then slams down and casts where it lands
 export const SUPER_ARMOR = {
   hammers: ROAM_ARMOR, fists: ROAM_ARMOR, stormtrance: ROAM_ARMOR, revolver: ROAM_ARMOR, staff: ROAM_ARMOR, sentinel: ROAM_ARMOR, songflame: ROAM_ARMOR,
   maul: ROAM_ARMOR, thundercrash: ROAM_ARMOR, spectral: ROAM_ARMOR, stormsedge: ROAM_ARMOR, novawarp: ROAM_ARMOR, chaosreach: ROAM_ARMOR, daybreak: ROAM_ARMOR,
@@ -102,7 +102,7 @@ export const SUPER_TUNE = {
   silkstrike: { whip: 240, whipRange: 7, whipCd: 0.45, leap: 480, leapR: 5, leapCd: 1.6 },
   winterswrath: { shard: 160, shardCd: 0.35, stacks: 2, wave: 600, waveRange: 14, waveCd: 2 },
   loomwalker: { needle: 46, tick: 0.12, range: 40 },
-  avalanche: { r: 10, dmg: 900, shatter: 1500, delay: 0.9 },
+  avalanche: { r: 10, dmg: 900, shatter: 1500, delay: 0.9, hop: 13, hopT: 0.42, slamMax: 3 }, // H25: a higher leap than Well/Ward (SUPER_HOVER.hop), then the dive
   ripcord: { r: 9, dmg: 1600, pull: 0.9 },
   silencesquall: { silenceR: 6, silence: 700, shatter: 1300, squallR: 4, squall: 40, life: 8, speed: 5 },
   cradle: { r: 10, dmg: 2000, delay: 1.4 },

@@ -1130,7 +1130,7 @@ const methods = {
         break;
       // ---------- burst: cast once after the caster rises ----------
       default:
-        if (S.launched || S.age < 0.35) break;
+        if (S.launched || S.slam || S.age < 0.35) break; // H25: a slamming super (Avalanche) casts on landing instead
         S.launched = true;
         this.darkBurst(S.type, T, fwd, flat, hand);
     }

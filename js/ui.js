@@ -26,9 +26,11 @@ import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
-import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic } from './coop.js';
+import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower } from './coop.js';
 import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
 import { startTower } from './tower.js';
+/** H25: the Tower, solo or (leader only) with the whole fireteam. */
+function goTower() { initAudio(); lockPointer(); if (net.active) launchTower(); else startTower(); }
 import { TOWER_LOC } from './level-tower.js';
 import { startPatrol } from './patrol.js';
 import { startExotic } from './exotic-missions.js';
@@ -233,7 +235,7 @@ function renderOrbit() {
       <nav class="tabs">
         ${['director', 'quests', 'activities', 'character', 'level', 'rolls'].map((t) => `<button class="tab ${orbitTab === t ? 'on' : ''}" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}${t === 'quests' && dueStop(s) ? '<span class="badge">!</span>' : ''}${t === 'character' && newCount ? `<span class="badge">${newCount}</span>` : ''}${t === 'level' && readyRewards ? `<span class="badge">${readyRewards}</span>` : ''}</button>`).join('')}
       </nav>
-      <button class="btn tower-btn${dueStop(s) ? ' due' : ''}" id="go-tower" title="${net.active ? 'Leave your fireteam to visit the Tower' : 'Land at the Tower'}" ${net.active ? 'disabled' : ''}>The Tower</button>
+      <button class="btn tower-btn${dueStop(s) ? ' due' : ''}" id="go-tower" title="${net.isClient ? 'The leader takes the fireteam to the Tower' : net.active ? 'Take the fireteam to the Tower' : 'Land at the Tower'}" ${net.isClient ? 'disabled' : ''}>The Tower</button>
       <button class="btn install-app hidden" id="install-app" title="Install Afterlight as an app">Install App</button>
       <div class="pstats">
         <span class="cls-chip" style="--cc:${cls.color}">${cls.name}</span>
@@ -250,7 +252,7 @@ function renderOrbit() {
     if (net.active) leaveFireteam();
     showTitle();
   });
-  $('#go-tower').addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
+  $('#go-tower').addEventListener('click', goTower);
   $('#install-app').addEventListener('click', async () => {
     const p = G.installPrompt;
     if (!p) return;
@@ -308,7 +310,7 @@ function renderDirector(main) {
       <p class="desc">${esc(TOWER_LOC.desc)}</p>
       ${due ? `<div class="tower-due"><b>Quest:</b> ${esc(due.text)}.</div>` : ''}
       <div class="launch-row"><div class="power-cmp">Safe ground</div>
-        <button id="launch" class="btn primary" ${net.active ? 'disabled title="Leave your fireteam to visit the Tower"' : ''}>Land</button></div>
+        <button id="launch" class="btn primary" ${net.isClient ? 'disabled title="The leader takes the fireteam to the Tower"' : ''}>Land</button></div>
     </section>`;
   } else if (dirFocus !== null) {
     selLoc = dirFocus;
@@ -327,7 +329,7 @@ function renderDirector(main) {
         <div class="eyebrow">${CHAPTERS[loc.id]?.title || loc.planetName}  ·  ${loc.planetName}  ·  ${loc.faction}</div>
         <h1 class="screen-title">${loc.name}</h1>
         <p class="desc">${loc.desc}</p>
-        ${dueStop(s) ? `<div class="tower-due"><b>Quest:</b> ${esc(dueStop(s).text)}. <button class="btn" id="due-tower" ${net.active ? 'disabled' : ''}>Go to the Tower</button></div>` : ''}
+        ${dueStop(s) ? `<div class="tower-due"><b>Quest:</b> ${esc(dueStop(s).text)}. <button class="btn" id="due-tower" ${net.isClient ? 'disabled' : ''}>Go to the Tower</button></div>` : ''}
         ${tierRowHTML(s, tier)}
         <div class="missions">
           ${missions.map((mm, mi) => {
@@ -378,10 +380,10 @@ function renderDirector(main) {
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
     lockPointer();
-    if (dirFocus === 'tower') startTower(); else startMission(selLoc, selMission, tier);
+    if (dirFocus === 'tower') { if (net.active) launchTower(); else startTower(); } else startMission(selLoc, selMission, tier);
   });
   $('#launch-patrol', main)?.addEventListener('click', () => { initAudio(); lockPointer(); if (net.active) launchPatrol(selLoc); else startPatrol(selLoc); });
-  $('#due-tower', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
+  $('#due-tower', main)?.addEventListener('click', goTower);
   wireFireteam(main);
 }
 
@@ -414,7 +416,7 @@ function renderQuests(main) {
         <div class="q-step"><div class="eyebrow">Current step</div>
           <div class="q-now">${esc(r.step)}</div>
           ${r.place ? `<div class="q-place">${esc(r.place)}${r.npcs?.length ? '  ·  ' + r.npcs.map((n) => NPC[n]).join(', ') : ''}</div>` : ''}
-          ${dueStop(s) && r.quest.id === 'campaign' ? '<button class="btn primary" id="q-tower"' + (net.active ? ' disabled' : '') + '>Go to the Tower</button>' : ''}
+          ${dueStop(s) && r.quest.id === 'campaign' ? '<button class="btn primary" id="q-tower"' + (net.isClient ? ' disabled' : '') + '>Go to the Tower</button>' : ''}
         </div>
         <div class="eyebrow">Progress</div>
         <ul class="q-log">${r.log.length ? r.log.slice().reverse().map((l) => `<li>${esc(l)}</li>`).join('') : '<li>Nothing yet.</li>'}</ul>
@@ -423,7 +425,7 @@ function renderQuests(main) {
     </div>`;
   $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); selQuest = b.dataset.q; renderOrbit(); }));
   $('#q-abandon', main)?.addEventListener('click', () => { if (!confirm(`Abandon ${r.quest.name}? You can pick it up again at the Quest Kiosk in the Tower.`)) return; const e = abandonQuest(s, r.quest.id); if (e) alert(e); else { writeSave(s); renderOrbit(); } });
-  $('#q-tower', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startTower(); });
+  $('#q-tower', main)?.addEventListener('click', goTower);
 }
 
 function renderActivities(main) {
@@ -1717,7 +1719,7 @@ export function showPause() {
       </div>
       <div class="row-btns">
         <button class="btn primary" id="p-resume">Resume</button>
-        <button class="btn danger" id="p-abandon">${G.mission.tower ? 'Return to Orbit' : coop ? (net.isHost ? 'End Mission for Fireteam' : 'Leave Mission') : 'Abandon Mission'}</button>
+        <button class="btn danger" id="p-abandon">${G.mission.tower ? (coop && net.isHost ? 'Return Fireteam to Orbit' : 'Return to Orbit') : coop ? (net.isHost ? 'End Mission for Fireteam' : 'Leave Mission') : 'Abandon Mission'}</button>
       </div>
       <div class="ctl-grid">${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</div>
     </div>`;

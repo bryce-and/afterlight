@@ -3177,15 +3177,22 @@ export class Player {
     if (id === 'thundercrash') { this.vel.set(0, 15, 0); this.onGround = false; S.dir = this.aimForward(new THREE.Vector3()); }
     if (id === 'spectral') this.goInvisible(3);
     // U9: Well and Ward slam to the ground first (a dive from the air), then cast where you land
-    if (SLAM_SUPERS.includes(id)) { S.slam = true; if (this.onGround) { this.vel.set(0, SUPER_HOVER.hop, 0); this.onGround = false; } }
-    // U9: burst supers lift the caster and hold them in the air while casting
-    if (BURST_SUPERS.includes(id)) { S.hoverY = this.pos.y + SUPER_HOVER.lift; this.onGround = false; }
+    if (SLAM_SUPERS.includes(id)) { S.slam = true; if (this.onGround) { this.vel.set(0, SUPER_TUNE[id]?.hop ?? SUPER_HOVER.hop, 0); this.onGround = false; } }
+    // U9: burst supers lift the caster and hold them in the air while casting (H25: not the ones that slam, such as Avalanche)
+    if (BURST_SUPERS.includes(id) && !S.slam) { S.hoverY = this.pos.y + SUPER_HOVER.lift; this.onGround = false; }
   }
 
   /** Well of Radiance / Ward of Dawn, once the caster has slammed into the ground. */
   castSlamSuper(S) {
     S.slam = false;
     this.shake = 0.5;
+    if (S.type === 'avalanche') { // H25: the crystal ring, freeze and shatter go off where you land
+      S.launched = true;
+      const fwd = this.getForward(new THREE.Vector3()), flat = fwd.clone().setY(0).normalize();
+      this.darkBurst('avalanche', SUPER_TUNE.avalanche, fwd, flat, this.pos.clone());
+      this.throwFist(0.4, true);
+      return;
+    }
     castFx('slam', { p: this.pos.clone().setY(this.pos.y + 0.3), el: this.cls.element, r: 4 });
     if (S.type === 'wardofdawn') {
       castFx('ward', { p: this.pos.clone(), r: SUPER_TUNE.ward.r, life: SUPER_TUNE.ward.life, wol: true });
@@ -3236,8 +3243,9 @@ export class Player {
     if (S.slam) {
       // Well / Ward: dive straight down, then cast on landing (the super's timer waits)
       S.t = S.max;
-      if (S.age < SUPER_HOVER.hopT) return true; // a short leap from the ground first
-      if (!this.onGround && S.age < SUPER_HOVER.slamMax) { this.vel.set(0, -SUPER_HOVER.slamSpeed, 0); return true; }
+      const ST = SUPER_TUNE[S.type];
+      if (S.age < (ST?.hopT ?? SUPER_HOVER.hopT)) return true; // a short leap from the ground first
+      if (!this.onGround && S.age < (ST?.slamMax ?? SUPER_HOVER.slamMax)) { this.vel.set(0, -SUPER_HOVER.slamSpeed, 0); return true; }
       this.castSlamSuper(S);
       return true;
     }

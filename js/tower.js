@@ -12,6 +12,8 @@ import { initEffects } from './effects.js';
 import { playMusic } from './music.js';
 import { sfx } from './audio.js';
 import { cleanupMission } from './game.js';
+import { onMissionStart, onAbandon } from './coop.js';
+import { net } from './net.js';
 import { TOWER_LOC } from './level-tower.js';
 import { TOWER_SPOTS } from './tower-data.js';
 import { buildNpc, NPC_INFO } from './models-npc.js';
@@ -26,6 +28,7 @@ const _v = new THREE.Vector3();
 
 export function startTower() {
   cleanupMission();
+  onMissionStart(); // H25: teammates' avatars are rebuilt in the Tower's scene
   const def = { id: 'tower', name: 'The Tower', power: 0, boss: { name: '', model: null }, mood: null };
   const level = buildLevel(TOWER_LOC, def);
   G.level = level;
@@ -40,7 +43,7 @@ export function startTower() {
   G.mission = {
     tower: { npcs: [], dummies: [], pads: [], inRange: false, talkCd: 0, panel: false, run: { total: 0, best: 0, samples: [], idle: 0 } },
     loc: TOWER_LOC, def, li: -1, mi: -1, g: 0, phase: 'tower', current: 0, zones: [],
-    fireteam: 1, coop: false, remote: false, revives: 3, lives: 0, bossModel: null, kills: 0, crits: 0, deaths: 0, loot: [],
+    fireteam: net.count(), coop: net.active, remote: net.isClient, revives: 3, // H25: fireteams visit together lives: 0, bossModel: null, kills: 0, crits: 0, deaths: 0, loot: [],
     xp: 0, startTime: performance.now(), hpMult: 1, dmgMult: 1, playerDmgMult: 1, incomingMult: 1,
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
   };
@@ -60,6 +63,7 @@ export function startTower() {
 
 /** Leaves the Tower for Orbit. */
 export function leaveTower() {
+  if (G.mission?.coop) onAbandon(); // H25: the leader takes everyone back to Orbit; a member leaves alone
   showRangeHud(false);
   ui.prompt(null);
   G.mpMenu = false;

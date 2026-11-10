@@ -1020,7 +1020,7 @@ test('v1.9: burst supers hover with 85% damage reduction, roaming keep 70%, Well
   for (const id of ['glacialquake', 'bladefury', 'rimeblades', 'silkstrike', 'winterswrath', 'loomwalker']) eq(C.SUPER_ARMOR[id], C.ROAM_ARMOR, id);
   for (const id of C.BURST_SUPERS) ok(Math.abs(100 * C.SUPER_ARMOR[id] - 15) < 1e-9, `${id}: 100 damage lands as 15`);
   for (const id of ['hammers', 'fists', 'maul', 'spectral', 'novawarp', 'chaosreach', 'daybreak']) eq(C.SUPER_ARMOR[id], C.ROAM_ARMOR, id);
-  eq(C.SLAM_SUPERS.slice().sort(), ['wardofdawn', 'well']);
+  eq(C.SLAM_SUPERS.slice().sort(), ['avalanche', 'wardofdawn', 'well'], 'H25: Avalanche slams too');
   ok(C.SUPER_HOVER.lift > 0 && C.SUPER_HOVER.slamSpeed > 0, 'hover and slam tuned');
   for (const id of Object.keys(C.SUPER_TIME)) ok(C.SUPER_ARMOR[id] !== undefined, `${id} has a damage value`);
 });
@@ -3291,6 +3291,12 @@ test('H24: perched threadlings sit small and low and release on any direct hit; 
   eq(floorBelow(0, 0, 10), 6.3, 'the highest floor at or below the caster');
   eq(floorBelow(5, 5, 3.6), 0, 'open ground; pass-through boxes (barricades) are not floors');
   G.colliders = keepC; G.level = keepL;
+});
+
+test('H25: Avalanche leaps higher than Well and Ward, then slams where it lands', () => {
+  const A = C.SUPER_TUNE.avalanche;
+  ok(C.SLAM_SUPERS.includes('avalanche') && C.BURST_SUPERS.includes('avalanche'), 'Avalanche slams and keeps its burst armor');
+  ok(A.hop > C.SUPER_HOVER.hop && A.hopT > C.SUPER_HOVER.hopT && A.slamMax >= C.SUPER_HOVER.slamMax, 'a higher leap and a longer dive window');
 });
 
 test('U22: players hit by enemy Darkness: three Chilled stacks freeze, Space breaks out; severed enemies hit softer', () => {

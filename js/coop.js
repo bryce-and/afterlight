@@ -19,6 +19,7 @@ import { sfx } from './audio.js';
 import { stinger } from './music.js';
 import { buildSparrowModel } from './sparrow.js';
 import { startPatrol, patrolSnapshot, applyPatrolSnapshot, receivePatrolReward } from './patrol.js';
+import { startTower } from './tower.js';
 import { blightBombFx } from './mechanics.js';
 import { BLIGHT } from './exotic-rules.js';
 import { startExotic, exoticWipe, onSnapshot, onRemoteShot, onChest, onReset, onWipe, failOutOfTime } from './exotic-missions.js';
@@ -95,6 +96,12 @@ export function launchExotic(id) {
 export function launchPatrol(li) {
   if (net.isHost) broadcast({ t: 'start', li, mi: -1, lp: playerPower(G.save) });
   startPatrol(li);
+}
+
+/** H25: host takes the whole fireteam to the Tower (a social space: everyone sees each other, kiosks stay personal). */
+export function launchTower() {
+  if (net.isHost) broadcast({ t: 'start', tower: 1, lp: playerPower(G.save) });
+  startTower();
 }
 
 /** Host: a patrol reward (engrams and XP) is rolled by every member on their own machine. */
@@ -458,8 +465,9 @@ net.on('start', (m) => {
   G.leaderLight = m.lp; // U19: read by combatLight() while this machine is a member
   ui.hideOverlays();
   if (m.exo) startExotic(m.exo).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the exotic mission: ${e.message}`); });
+  else if (m.tower) startTower(); // H25
   else if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi, m.tier || 'base');
-  ui.feed('Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
+  ui.feed(m.tower ? 'Fireteam leader took the fireteam to the Tower. Click to capture the mouse.' : 'Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
 });
 net.on('end', () => { if (inMission()) { abandonMission(true); ui.orbitNotice('The fireteam leader ended the mission.'); } });
 net.on('hostgone', () => { if (G.mission && G.state !== 'complete') { abandonMission(true); } });
