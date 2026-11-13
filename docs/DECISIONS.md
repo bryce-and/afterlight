@@ -338,3 +338,10 @@
 | 2026-11-12 | Raid and dungeon bosses use DPS windows, not damage gates; their final bosses have a DPS-phase enrage and a final stand. Exotic missions need neither. | Bryce |
 | 2026-11-12 | Lethal wrong answers are allowed as a design option, not required; The Whisper has none. | Bryce |
 | 2026-11-12 | The Whisper's hidden cache drops a legendary every run it is opened (no save change). | Bryce |
+| 2026-11-12 | H27 rebinds remap at the input source (js/main.js) onto the canonical codes gameplay reads (KeyQ, mouse:left, wheel:1 and so on), so gameplay, co-op relays and prompts did not change. | Claude |
+| 2026-11-12 | H27 Esc, Ctrl and Cmd (and CapsLock, ContextMenu) can never be bound: Esc is Pause; Ctrl/Cmd combine with movement keys into browser shortcuts the page cannot block (Ctrl+W). On a Mac, Ctrl+click counts as the right button. | Claude |
+| 2026-11-12 | H27 Magic Mouse / trackpad preset: ADS on X and secondary click, melee on G, Next weapon on T plus wheel, scroll guard on (40 px step, 220 ms quiet). | Claude |
+| 2026-11-12 | H27 Three named custom keybind slots; GitHub Issues is the contact in the Terms. | Bryce |
+| 2026-11-12 | H27 Terms & Privacy agreement is versioned on its own localStorage key (not the save) so it applies before a Guardian exists and survives a reset; bumping TERMS_VERSION asks everyone again. | Claude |
+| 2026-11-12 | H27 docs/reference/ (183 Destiny screenshots) untracked and gitignored so GitHub Pages stops serving them; local copies kept; purging old history (force-push) not approved. | Bryce |
+| 2026-11-12 | H27 also ships the Light-flow changes (engram rate, cache Light, lowest slot, weapon infusion) that were in progress on the same branch. | Bryce |
