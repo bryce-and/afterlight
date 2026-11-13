@@ -332,3 +332,9 @@
 | 2026-11-10 | H26 Drop gate: `exoticArmorLevel(classId, name)` returns the subclass unlock level (28); `exoticArmorFor(classId, level)` and `rollItem(..., level)` leave them out below it. Random drops, activity rewards, tier exotics, level rewards, reward menus and the Exotic Kiosk all pass the player's level. The Collections view still lists them. | Claude |
 | 2026-11-10 | H26 Effects: Hoarfrost-Z raises 5 crystals (size 1.15, 1.1 m apart) instead of the barricade and keeps the reload; Abeyant Leap class cooldown x0.7 and Drengr's Lash reach x1.5; Renewal Grasps Duskfield radius x1.5 and a 0.7 damage-taken multiplier for any Guardian inside (relayed with the duskfield fx, so teammates get it on their machines); Cyrtarachne's Facade Woven Mail 6s on grapple; Osmiomancy Gloves reuse the Starfire Protocol banked second charge for Coldsnap and refund 20% grenade energy on a hit (at most once a second); Swarmers +1 threadling per weave and threadling life x1.5. | Claude |
 | 2026-11-10 | H26 Each class now has 10 exotic armor pieces (the slot lists hold 2 or 3). | Claude |
+| 2026-11-12 | Exotic missions, dungeons and raids follow `docs/ENDGAME_RULES.md`. | Bryce |
+| 2026-11-12 | Traversal gaps are measured against every class jump and glide at Mobility 50 (typical full legendary set), not 100 and not exotics; Blink and Strand grapple are exempt. | Bryce |
+| 2026-11-12 | Enemies never walk off ledges by themselves; players can still knock them off. | Bryce |
+| 2026-11-12 | Raid and dungeon bosses use DPS windows, not damage gates; their final bosses have a DPS-phase enrage and a final stand. Exotic missions need neither. | Bryce |
+| 2026-11-12 | Lethal wrong answers are allowed as a design option, not required; The Whisper has none. | Bryce |
+| 2026-11-12 | The Whisper's hidden cache drops a legendary every run it is opened (no save change). | Bryce |

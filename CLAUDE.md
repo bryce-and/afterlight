@@ -37,4 +37,5 @@ Use 4 to 7 bullets, one line each, plain language. Only claim what was verified.
 - The in-game Roadmap is curated and undated; never copy the internal plan into it.
 - The title screen shows the current major update's name, "Version X.Y" and its own artwork; refresh them on every major update (U8, U9, ...). Hotfixes (H1, H2, vX.Y.Z) get no artwork and leave the title card alone; they only add an entry to the in-game Update Log.
 - Specs: "Afterlight Update V3" plus "V4" (2026-10-14). Where they conflict, V4 wins (for example, armor mods replace armor perks).
+- Exotic missions, dungeons and raids follow `docs/ENDGAME_RULES.md` (traversal, enemies, puzzle feedback, symbols, boss DPS, enrage, final stand).
 - Keep Destiny names. Versions: v1.0 baseline, +0.1 per update.
