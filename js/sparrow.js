@@ -11,6 +11,7 @@ import * as ui from './ui.js';
 import { SPARROW } from './patrol-data.js';
 import { ghost } from './characters.js';
 import { sparks } from './effects.js';
+import { keyName } from './keybinds.js';
 
 export { SPARROW };
 
@@ -131,8 +132,8 @@ function ensureHud() {
   root.className = 'hidden';
   root.innerHTML = `
     <div class="gh-mode">NAV MODE</div>
-    <div class="gh-row" data-k="summon"><kbd>E</kbd><span class="gh-name">SUMMON VEHICLE</span><i class="gh-fill"></i></div>
-    <div class="gh-row" data-k="orbit"><kbd>O</kbd><span class="gh-name">GO TO ORBIT</span><i class="gh-fill"></i></div>`;
+    <div class="gh-row" data-k="summon"><kbd>${keyName('interact')}</kbd><span class="gh-name">SUMMON VEHICLE</span><i class="gh-fill"></i></div>
+    <div class="gh-row" data-k="orbit"><kbd>${keyName('orbit')}</kbd><span class="gh-name">GO TO ORBIT</span><i class="gh-fill"></i></div>`;
   document.getElementById('hud').appendChild(root);
   hud = { root, summon: root.querySelector('[data-k=summon] .gh-fill'), orbit: root.querySelector('[data-k=orbit] .gh-fill'), summonRow: root.querySelector('[data-k=summon]') };
   return hud;
@@ -141,6 +142,8 @@ function ensureHud() {
 function setGhostHud(P) {
   const h = ensureHud();
   h.root.classList.toggle('hidden', !(P.ghostOut && P.ghostT >= 1));
+  const kE = keyName('interact'), kO = keyName('orbit'); // H27: follow rebinds
+  if (h.kE !== kE || h.kO !== kO) { h.kE = kE; h.kO = kO; h.root.querySelector('[data-k=summon] kbd').textContent = kE; h.root.querySelector('[data-k=orbit] kbd').textContent = kO; }
   h.summonRow.classList.toggle('off', !sparrowAllowed());
   h.summon.style.transform = `scaleX(${clamp(P.ghostHold.summon / SPARROW.summonHold, 0, 1)})`;
   h.orbit.style.transform = `scaleX(${clamp(P.ghostHold.orbit / SPARROW.orbitHold, 0, 1)})`;

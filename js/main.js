@@ -6,6 +6,8 @@ import { loadSave } from './save.js';
 import { setVolume, initAudio } from './audio.js';
 import { updateGame } from './game.js';
 import * as ui from './ui.js';
+import { openTerms, termsAccepted } from './terms.js';
+import { syncLive, liveKeybinds, liveTargets, mousePhys, wheelState, wheelStep } from './keybinds.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
@@ -25,15 +27,39 @@ if (G.save) setVolume(G.save.settings.volume);
 
 ui.initUI();
 ui.showTitle();
+if (!termsAccepted()) openTerms({ required: true }); // H27: the first-launch agreement
 
 // ---------------------------------------------------------------------------
 // Input
 // ---------------------------------------------------------------------------
 const inp = G.input;
-const GAME_KEYS = new Set(['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyV', 'KeyB', 'KeyC', 'KeyE', 'KeyR', 'ShiftLeft']);
+// H27: physical inputs go through the player's binds (js/keybinds.js) onto the canonical inputs gameplay reads.
+const MAC = /Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent || '');
+const held = new Set(); // physical inputs held right now
+const wheel = wheelState();
+const kb = () => { syncLive(G.save?.settings.keybinds); return liveKeybinds(); };
+const typing = (e) => /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) || e.target?.isContentEditable;
+function drive(phys, down, repeat = false, tap = false) {
+  kb();
+  for (const t of liveTargets(phys)) {
+    if (t.startsWith('wheel:')) { if (down && !repeat) inp.mouse.wheel += +t.slice(6); continue; }
+    if (t.startsWith('mouse:')) {
+      const b = t.slice(6);
+      if (down) { if (!tap) inp.mouse[b] = true; if (!repeat) inp.mouse[b + 'Pressed'] = true; }
+      else if (!anyHeld(t)) inp.mouse[b] = false;
+      continue;
+    }
+    if (down) { if (!tap) inp.keys[t] = true; if (!repeat) inp.pressed[t] = true; }
+    else if (!anyHeld(t)) inp.keys[t] = false;
+  }
+}
+// another held input bound to the same target keeps it held
+const anyHeld = (t) => [...held].some((p) => liveTargets(p).includes(t));
 addEventListener('keydown', (e) => {
-  if (G.state === 'playing' && GAME_KEYS.has(e.code)) e.preventDefault();
-  if (e.code === 'KeyI' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) && !e.target?.isContentEditable) {
+  if (G.bindCapture) { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) G.bindCapture(e.code); return; }
+  const targets = typing(e) ? [] : (kb(), liveTargets(e.code));
+  if (G.state === 'playing' && targets.length) e.preventDefault();
+  if (targets.includes('KeyI') && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (['orbit', 'playing', 'paused'].includes(G.state) || G.invOpen) { ui.toggleCharacter(); return; }
   }
   if (e.code === 'Escape') {
@@ -41,19 +67,32 @@ addEventListener('keydown', (e) => {
     if (G.state === 'paused' || G.mpMenu) { ui.resumeGame(); return; }
     if (G.state === 'playing' && !document.pointerLockElement) { ui.showPause(); return; }
   }
-  inp.keys[e.code] = true;
-  if (!e.repeat) inp.pressed[e.code] = true;
+  if (typing(e) || e.metaKey || e.ctrlKey) return; // Cmd/Ctrl combos are browser shortcuts, never game input
+  held.add(e.code);
+  drive(e.code, true, e.repeat);
 });
-addEventListener('keyup', (e) => { inp.keys[e.code] = false; });
-addEventListener('blur', () => { inp.keys = {}; inp.mouse.left = inp.mouse.right = false; });
-canvas.addEventListener('mousedown', (e) => {
+addEventListener('keyup', (e) => { held.delete(e.code); drive(e.code, false); });
+addEventListener('blur', () => { held.clear(); inp.keys = {}; inp.mouse.left = inp.mouse.right = false; });
+// Capture phase, so a rebind can take any button even over the pause menu.
+addEventListener('mousedown', (e) => {
+  const phys = mousePhys(e.button, e.ctrlKey, MAC);
+  if (G.bindCapture) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    // the click (or context menu) this press makes must not land on the button under the cursor
+    const eat = (ev) => { ev.preventDefault(); ev.stopImmediatePropagation(); };
+    for (const t of ['click', 'auxclick', 'contextmenu']) addEventListener(t, eat, { capture: true, once: true });
+    setTimeout(() => { for (const t of ['click', 'auxclick', 'contextmenu']) removeEventListener(t, eat, { capture: true }); }, 400);
+    G.bindCapture(phys); return;
+  }
+  if (e.target !== canvas) return;
   if (G.state === 'playing' && !document.pointerLockElement) lockPointer();
-  if (e.button === 0) { inp.mouse.left = true; inp.mouse.leftPressed = true; }
-  if (e.button === 2) { inp.mouse.right = true; inp.mouse.rightPressed = true; }
-});
+  if (e.button === 1) e.preventDefault(); // no autoscroll
+  held.add(phys);
+  drive(phys, true);
+}, true);
 addEventListener('mouseup', (e) => {
-  if (e.button === 0) inp.mouse.left = false;
-  if (e.button === 2) inp.mouse.right = false;
+  if ((e.button === 3 || e.button === 4) && G.state === 'playing') e.preventDefault(); // side buttons: no browser back/forward mid-fight
+  for (const p of [`Mouse${e.button}`, mousePhys(e.button, true, MAC)]) if (held.delete(p)) drive(p, false);
 });
 addEventListener('mousemove', (e) => {
   if (!document.pointerLockElement) return;
@@ -61,7 +100,13 @@ addEventListener('mousemove', (e) => {
   inp.mouse.dy += clampMove(e.movementY);
 });
 const clampMove = (v) => Math.max(-250, Math.min(250, v || 0));
-canvas.addEventListener('wheel', (e) => { if (G.state === 'playing') { inp.mouse.wheel += Math.sign(e.deltaY); e.preventDefault(); } }, { passive: false });
+addEventListener('wheel', (e) => {
+  if (G.bindCapture && e.deltaY) { e.preventDefault(); G.bindCapture(e.deltaY < 0 ? 'WheelUp' : 'WheelDown'); return; }
+  if (e.target !== canvas || G.state !== 'playing') return;
+  e.preventDefault();
+  const step = wheelStep(wheel, e.deltaY, performance.now(), kb().guard);
+  if (step) drive(step < 0 ? 'WheelUp' : 'WheelDown', true, false, true);
+}, { passive: false });
 addEventListener('contextmenu', (e) => { if (G.state === 'playing' || e.target === canvas) e.preventDefault(); });
 document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === canvas;

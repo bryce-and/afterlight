@@ -11,7 +11,7 @@ import { buildNav, NAV, floodReach, cellIndex, nearestWalkable } from './nav.js'
 import { updateNavDebug } from './navdebug.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
-import { addItem, sendToPostmaster, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic } from './save.js';
+import { addItem, sendToPostmaster, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic, lowestSlot } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, capRarity, maxRarityIndex } from './progression.js';
 import { unlockEvents, tierExoticDue, rollTierExotic } from './rewards.js';
 import { tierOf, tierPower, tierEnemyLight, tierClears, recordClear, capRoll, selectedTier } from './campaign.js';
@@ -21,7 +21,7 @@ import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
-import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE } from './combat.js';
+import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, CACHE_LIGHT, ENGRAM_LIGHT, engramLight } from './combat.js';
 import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from './tiers.js';
 import { WEAKEN_MULT } from './status.js';
 import { effectiveLight, lightGap, lightMults, scrambleName } from './light.js';
@@ -42,6 +42,7 @@ import { makeObjective, tickObjective, wantsReinforcement, objectiveText, object
 import { linesFor, objectiveFor, UNLOCKS } from './story.js';
 import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
 import { updatePatrol, leavePatrol } from './patrol.js';
+import { keyName } from './keybinds.js';
 
 const _c = new THREE.Vector3();
 const _pt = new THREE.Vector3(), _pdir = new THREE.Vector3(), _pto = new THREE.Vector3(), _pbest = new THREE.Vector3(), _pk = new THREE.Vector3(), _ptgt = new THREE.Vector3(); // H22: per-frame scratch for projectiles and pickups
@@ -381,7 +382,7 @@ function updateMission(dt) {
     M.lootT = (M.lootT ?? LOOT_WINDOW) - dt;
     ui.endTimer(M.lootT);
     const near = P.pos.distanceTo(M.chest.pos) < 3.2;
-    ui.prompt(near ? '[E]  Open Cache' : null);
+    ui.prompt(near ? `[${keyName('interact')}]  Open Cache` : null);
     if (near && G.input.pressed.KeyE) openChest();
     else if (M.lootT <= 0) openChest(true); // unclaimed: it opens itself and the rewards wait at the Postmaster
   } else if (M.phase === 'done') {
@@ -545,7 +546,7 @@ export function syncObjMarkers(ob) {
   });
   const P = G.player;
   const near = ob.pts.find(([x, z, d]) => !d && Math.hypot(P.pos.x - x, P.pos.z - z) < (ob.t === 'hold' ? OBJ.holdRadius : OBJ.interactRange));
-  const text = near && !P.dead ? (ob.t === 'activate' ? '[Hold E]  Activate' : ob.t === 'retrieve' ? '[E]  Take' : null) : null;
+  const text = near && !P.dead ? (ob.t === 'activate' ? `[Hold ${keyName('interact')}]  Activate` : ob.t === 'retrieve' ? `[${keyName('interact')}]  Take` : null) : null;
   if (text) { ui.prompt(text); M.cliPrompt = true; } else if (M.cliPrompt) { ui.prompt(null); M.cliPrompt = false; }
 }
 
@@ -580,8 +581,8 @@ function tickZoneObjective(z, dt, alive) {
   // E prompt for the local player
   let prompt = null;
   const near = (p, r) => p && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r && !P.dead;
-  if (o.t === 'activate') { const n = o.nodes.find((x) => !x.done && near(x.pos, OBJ.interactRange)); if (n) prompt = n.prog > 0 ? `Activating  ${Math.round((n.prog / OBJ.activateTime) * 100)}%` : '[Hold E]  Activate'; }
-  else if (o.t === 'retrieve' && !o.item.taken && near(o.item.pos, OBJ.interactRange)) prompt = '[E]  Take';
+  if (o.t === 'activate') { const n = o.nodes.find((x) => !x.done && near(x.pos, OBJ.interactRange)); if (n) prompt = n.prog > 0 ? `Activating  ${Math.round((n.prog / OBJ.activateTime) * 100)}%` : `[Hold ${keyName('interact')}]  Activate`; }
+  else if (o.t === 'retrieve' && !o.item.taken && near(o.item.pos, OBJ.interactRange)) prompt = `[${keyName('interact')}]  Take`;
   else if (o.t === 'hold' && !o.done && !near(o.pos, OBJ.holdRadius) && o.prog < o.need) prompt = 'Return to the ring';
   if (prompt) { ui.prompt(prompt); M.objPrompt = true; } else if (M.objPrompt) { ui.prompt(null); M.objPrompt = false; }
   if (!was && o.done) {
@@ -659,10 +660,11 @@ function openChest(auto = false) {
     const lvl = playerLevel(G.save);
     let rIdx = capRarity(Math.max(i === 0 ? 2 : 1, rollRarity(lvl, first ? 5 : 2)), lvl);
     if (first && M.mi === M.loc.missions.length - 1 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
-    rewards.push(rollItem(Math.min(cap, base + randInt(1, 4)), rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save)));
+    const slot = i === 0 && RARITIES[rIdx].id !== 'exotic' ? lowestSlot(G.save) : null; // H27: the first item fills your lowest slot (an exotic keeps its own pool)
+    rewards.push(rollItem(Math.min(cap, base + randInt(...CACHE_LIGHT)), rIdx, slot, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save)));
   }
   // U20b: Legendary drops an exotic on every clear of the campaign's final mission (its boss), Ultimate on every mission's first clear
-  if (tierExoticDue(M.tier || 'base', M.def.id === ALL_MISSIONS[ALL_MISSIONS.length - 1].id, first)) rewards.push(rollTierExotic(G.save, Math.min(cap, base + randInt(1, 4)), M.loc.id));
+  if (tierExoticDue(M.tier || 'base', M.def.id === ALL_MISSIONS[ALL_MISSIONS.length - 1].id, first)) rewards.push(rollTierExotic(G.save, Math.min(cap, base + randInt(...CACHE_LIGHT)), M.loc.id));
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it, auto); }, 300 + i * 450));
   // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
   const shader = rollShader(G.save.shaders.owned, first && M.mi === M.loc.missions.length - 1);
@@ -895,8 +897,7 @@ export function rollDrops(e) {
     if (brick) spawnPickup(brick, pos);
   }
   if (Math.random() < (ENGRAM_CHANCE[e.cls] ?? 0)) dropEngram(pos);
-  if (e.isBoss) {
-    dropEngram(pos); dropEngram(pos);
+  if (e.isBoss) { // H27: no boss engrams, the mission cache pays out
     spawnPickup('heavy', pos); spawnPickup('special', pos);
   }
 }
@@ -909,7 +910,7 @@ export function dropEngram(pos) {
   const M = G.mission;
   const pp = playerPower(G.save);
   const rIdx = rollRarity(playerLevel(G.save));
-  const power = clamp(Math.max(pp, (M.power ?? M.def.power) - 3) + randInt(-1, 2), 1, tierOf(M.tier).cap);
+  const power = engramLight(pp, M.power ?? M.def.power, tierOf(M.tier).cap, randInt(...ENGRAM_LIGHT));
   spawnPickup('engram', pos, rollItem(power, rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save)));
 }
 
@@ -1373,7 +1374,7 @@ function updateActChest(dt) {
   if (!c) return;
   if (c.opened) { c.lid.rotation.x = Math.max(-1.9, c.lid.rotation.x - dt * 4); return; }
   const near = !P.dead && P.pos.distanceTo(c.pos) < 3.2;
-  ui.prompt(near ? '[E]  Open Cache' : null);
+  ui.prompt(near ? `[${keyName('interact')}]  Open Cache` : null);
   if (near && G.input.pressed.KeyE) openActChest();
   if (c.final && M.remote) { M.objective = 'Open the cache'; M.waypoint = c.pos; }
 }

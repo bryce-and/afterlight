@@ -3,7 +3,7 @@ import { DARK_ELEMENTS, DARK_UNLOCK } from './darkness-rules.js';
 import { G, lockPointer, unlockPointer } from './state.js';
 import { scrambleName } from './light.js';
 import { SPEAKERS, CHAPTERS, linesFor, lineDuration } from './story.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, CONTROLS, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, activeMods, energyCap, energyUsed, usesCharge } from './armor.js';
 import { openMods } from './mods-ui.js';
 import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
@@ -35,6 +35,9 @@ import { TOWER_LOC } from './level-tower.js';
 import { startPatrol } from './patrol.js';
 import { startExotic } from './exotic-missions.js';
 import { renderRollTracker } from './rolltracker.js';
+import { controlsList, keyName, syncLive, liveKeybinds } from './keybinds.js';
+import { openControls } from './keybinds-ui.js';
+import { openTerms, termsAccepted } from './terms.js';
 import { exoticList, exoticDef, exoticUnlocked, exoticLockText, exoticRecord, clock } from './exotic-rules.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -58,6 +61,7 @@ export function initUI() {
     lockPointer(); // works when the leader's own click was the last ready; otherwise the next click captures the mouse
   };
   $('#title').addEventListener('click', () => {
+    if (!termsAccepted()) { openTerms({ required: true }); return; } // H27: nothing starts before the agreement
     initAudio();
     sfx.ui();
     if (G.save) showCharacterSelect(); else showClassSelect();
@@ -66,6 +70,7 @@ export function initUI() {
   for (const el of [$('#t-links'), $('#t-panel'), $('#t-notice')]) el.addEventListener('click', (e) => e.stopPropagation());
   $('#t-log').addEventListener('click', () => { sfx.ui(); openTitlePanel('log'); });
   $('#t-road').addEventListener('click', () => { sfx.ui(); openTitlePanel('roadmap'); });
+  $('#t-terms').addEventListener('click', () => { sfx.ui(); openTerms({ required: !termsAccepted() }); });
   addEventListener('keydown', (e) => { if (e.code === 'Escape' && G.state === 'title') closeTitlePanel(); });
 }
 
@@ -486,7 +491,7 @@ function renderActivities(main) {
             <div class="m-desc">Fights take place in the boss arenas of every destination, in a random order. Wave ${a.arenaEvery}, ${a.arenaEvery * 2} and ${a.arenaEvery * 3} bring that arena's boss. Each new arena sends denser waves. Enemies scale to your Light and get tougher every wave.</div>
             <div class="m-foot"><span class="tag">Cache every ${a.chestEvery} waves</span><span class="tag">New arena every ${a.arenaEvery} waves</span>${a.waves === Infinity ? '' : '<span class="tag exo">Guaranteed exotic at the end</span>'}</div></div>
           <div class="mission"><div class="m-top"><span class="m-name">Fireteam lives</span></div>
-            <div class="m-desc">Solo: 3 revives. Two players share 3 lives, three players share 5. Hold E next to a downed teammate to revive them for free; after ${18} seconds a life brings them back. If everyone goes down with no lives left, the run ends.</div></div>
+            <div class="m-desc">Solo: 3 revives. Two players share 3 lives, three players share 5. Hold ${esc(keyName('interact'))} next to a downed teammate to revive them for free; after ${18} seconds a life brings them back. If everyone goes down with no lives left, the run ends.</div></div>
         </div>
         <div class="launch-row">
           <div class="power-cmp">Your Light <b>◆ ${playerPower(s)}</b><span class="ok">Scales to you</span></div>
@@ -755,7 +760,7 @@ function renderCharScreen(main) {
     if (e.target.closest('#cs-shader')) { toggleFly('shader', e.target.closest('#cs-shader')); return; }
     if (t && t.dataset.id) {
       const it = getItem(s, t.dataset.id);
-      if (t.closest('.cs-slot') && !(e.shiftKey && it.kind === 'armor')) { toggleFly(it.slot, t); return; } // U20a: Shift+Click infuses equipped armor in place
+      if (t.closest('.cs-slot') && !e.shiftKey) { toggleFly(it.slot, t); return; } // U20a, H27: Shift+Click infuses equipped armor and weapons in place
       if (e.shiftKey) { if (infuseItem(s, it.id)) { sfx.engram(3); flySlot = null; renderOrbit(); } else sfx.denied(); return; }
       const blocker = equipItem(s, it.id);
       if (typeof blocker === 'string') { sfx.denied(); orbitNotice(blocker); return; }
@@ -962,7 +967,7 @@ function tipHTML(it, side) {
   const foot = side === 'vault' ? `<div class="tt-foot"><span>Click: Move to character</span>${lockLine}</div>`
     : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span>${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span><i class="tt-hold"><em></em></i></div>`
     : equipped
-    ? `<div class="tt-foot">Equipped${lockLine}${it.kind === 'armor' && inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}</div>`
+    ? `<div class="tt-foot">Equipped${lockLine}${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}</div>`
     : `<div class="tt-foot"><span>Click: Equip</span>${it.kind === 'weapon' ? '<span>Right-click: Inspect</span>' : ''}${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span>${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}<i class="tt-hold"><em></em></i></div>`;
   return `<div class="tt-head r-${it.rarity}" style="--rc:${rar.color}"><div class="tt-name">${esc(it.name)}</div><div class="tt-type">${rar.name} ${typeLine(it)}</div></div><div class="tt-body">${body}</div>${foot}`;
 }
@@ -1068,7 +1073,7 @@ function openSubclass() {
       return `<button class="sp-sub${id === cls.subclassId ? ' on' : ''}${open ? '' : ' locked'}" data-sub="${id}" style="--ec:${sc.color}" ${open ? '' : 'disabled'}><span class="sp-sub-ico">${subclassIcon(open ? sc.color : '#5b6470')}</span><b>${sc.name}</b><span>${open ? ELEMENTS[sc.element].name : `Unlocks at level ${subclassLevel(s.classId, id)}`}</span></button>`;
     }).join('')}</div>
     <button class="btn primary sp-modify" id="sp-modify" style="--ec:${el.color}">Modify ${esc(cls.subclass)}</button>
-    <details class="sp-controls"><summary>All controls</summary>${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</details>
+    <details class="sp-controls"><summary>All controls</summary>${controlsList(liveBinds()).map(([k, v]) => `<div class="ctl"><kbd>${esc(k)}</kbd><span>${v}</span></div>`).join('')}</details>
     <div class="row-btns"><button class="btn" id="change-class">Change Class</button></div>`;
   p.classList.remove('hidden');
   $$('.sp-sub', p).forEach((b) => b.addEventListener('click', () => {
@@ -1347,7 +1352,7 @@ export function updateHUD(dt) {
   });
   const w = P.weapon;
   setClass(hud.reload, 'rl', 'show', !S && !w.reloading && w.ammo <= Math.ceil(w.mag * 0.25) && w.reserve > 0);
-  setText(hud.reload, 'rlt', w.ammo === 0 && w.reserve === 0 ? 'NO AMMO' : 'RELOAD [R]');
+  setText(hud.reload, 'rlt', w.ammo === 0 && w.reserve === 0 ? 'NO AMMO' : `RELOAD [${keyName('reload')}]`);
   // crosshair
   const spread = S ? 0.004 : P.getSpread(w);
   const px = (spread / Math.tan((cam.fov * Math.PI) / 360)) * (innerHeight / 2);
@@ -1695,6 +1700,12 @@ export function setLockHint(show) { $('#lock-hint').classList.toggle('hidden', !
 // ---------------------------------------------------------------------------
 // Pause / complete / failed
 // ---------------------------------------------------------------------------
+/** H27: redraw the pause menu from a sub-screen (Controls); showPause itself only opens it from play. */
+function backToPause() {
+  if (G.mpMenu) G.mpMenu = false; else if (G.state === 'paused') G.state = 'playing';
+  showPause();
+}
+
 export function showPause() {
   if (G.state !== 'playing' || G.mpMenu) return;
   const coop = !!G.mission?.coop;
@@ -1719,9 +1730,11 @@ export function showPause() {
       </div>
       <div class="row-btns">
         <button class="btn primary" id="p-resume">Resume</button>
+        <button class="btn" id="p-controls">Controls</button>
         <button class="btn danger" id="p-abandon">${G.mission.tower ? (coop && net.isHost ? 'Return Fireteam to Orbit' : 'Return to Orbit') : coop ? (net.isHost ? 'End Mission for Fireteam' : 'Leave Mission') : 'Abandon Mission'}</button>
       </div>
-      <div class="ctl-grid">${CONTROLS.map(([k, v]) => `<div class="ctl"><kbd>${k}</kbd><span>${v}</span></div>`).join('')}</div>
+      <div class="ctl-grid">${controlsList(liveBinds()).map(([k, v]) => `<div class="ctl"><kbd>${esc(k)}</kbd><span>${v}</span></div>`).join('')}</div>
+      <p class="terms-link"><a href="#" id="p-terms">Terms &amp; Privacy</a></p>
     </div>`;
   const P = G.player;
   $('#s-sens').addEventListener('input', (e) => { s.sens = +e.target.value; $('#v-sens').textContent = s.sens.toFixed(2); P.sens = 0.0022 * s.sens; writeSave(G.save); });
@@ -1732,6 +1745,8 @@ export function showPause() {
   $('#s-fx').addEventListener('input', (e) => { s.effectsVolume = +e.target.value; $('#v-fx').textContent = `${Math.round(s.effectsVolume * 100)}%`; setEffectsVolume(s.effectsVolume); writeSave(G.save); });
   $('#s-vol').addEventListener('input', (e) => { s.volume = +e.target.value; $('#v-vol').textContent = `${Math.round(s.volume * 100)}%`; setVolume(s.volume); writeSave(G.save); });
   $('#p-resume').addEventListener('click', resumeGame);
+  $('#p-controls').addEventListener('click', () => { sfx.ui(); openControls(el, backToPause); }); // H27
+  $('#p-terms').addEventListener('click', (e) => { e.preventDefault(); openTerms(); });
   $('#p-abandon').addEventListener('click', () => { el.classList.add('hidden'); G.mpMenu = false; abandonMission(); });
 }
 
@@ -1763,7 +1778,7 @@ function renderCharOverlay() {
     <header class="topbar">
       <div class="cm-title">Character</div>
       <div class="cm-sub">${esc(G.mission.def.name)}  ·  ${G.mission.coop ? 'Your fireteam keeps playing' : 'Paused'}</div>
-      <button class="btn primary" id="cm-close">Back to the fight <kbd>I</kbd></button>
+      <button class="btn primary" id="cm-close">Back to the fight <kbd>${esc(keyName('character'))}</kbd></button>
     </header>
     <main id="orbit-main" class="tab-character"></main>`;
   $('#cm-close').addEventListener('click', resumeGame);
@@ -1908,3 +1923,6 @@ export function orbitNotice(text) {
 export function refreshInstall() {
   $('#install-app')?.classList.toggle('hidden', !G.installPrompt);
 }
+
+/** H27: the live bind table (the save's, once one is loaded). */
+function liveBinds() { syncLive(G.save?.settings.keybinds); return liveKeybinds().binds; }

@@ -181,7 +181,13 @@ export function waveStep(alive, waveIdx, waveCount, isBoss = false) {
 
 // ---------- drops ----------
 // Engram chance per kill (v1.3: grunt 0.06, rusher 0.05, captain 0.3, heavy 0.45). Bosses always drop one.
-export const ENGRAM_CHANCE = { grunt: 0.02, rusher: 0.02, captain: 0.05, heavy: 0.08, boss: 1 };
+// H27: rates cut 20%; bosses drop none (every mission ends in a cache)
+export const ENGRAM_CHANCE = { grunt: 0.016, rusher: 0.016, captain: 0.04, heavy: 0.064, boss: 0 };
+/** H27: Light added to a mission cache item, over the higher of your Light and the mission's (was +1 to +4). */
+export const CACHE_LIGHT = [3, 6];
+/** H27: an engram's Light: the higher of your Light and the mission's, plus `add` (-1 to +2), held to 1..cap. It used to start 3 under the mission. */
+export const ENGRAM_LIGHT = [-1, 2];
+export const engramLight = (pp, missionLight, cap, add) => Math.max(1, Math.min(cap, Math.max(pp, missionLight) + add));
 // U13b: ammo no longer drops by chance. A hidden meter per player decides it (js/tiers.js AMMO_METER, game.js rollDrops).
 
 // ---------- thrown hammer ----------

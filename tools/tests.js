@@ -22,6 +22,8 @@ import * as ST from '../js/style.js';
 import { sfx, SHOT_RECIPES, ELEMENT_TINT, ABILITY_RECIPES, FACTION_SOUND, spatial } from '../js/audio.js';
 import { musicSectionFor } from '../js/music.js';
 import { G } from '../js/state.js';
+import * as KB from '../js/keybinds.js';
+import * as TM from '../js/terms.js';
 import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody, rayGround, groundAt, floorBelow } from '../js/colliders.js';
 import { buildTerrain, steepest, routeSlope, MAX_SLOPE } from '../js/terrain.js';
 import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV, ledgeStep, addLeapLinks } from '../js/nav.js';
@@ -492,8 +494,15 @@ test('waves: spawning the last wave never clears the zone in the same check', ()
   eq(C.waveStep(0, 1, 1, true), { spawn: false, cleared: true }, 'boss zone');
   eq(C.waveStep(2, 1, 1, true).cleared, false);
 });
-test('drops: engram chances cut, bosses still drop', () => {
-  eq(C.ENGRAM_CHANCE, { grunt: 0.02, rusher: 0.02, captain: 0.05, heavy: 0.08, boss: 1 });
+test('H27 drops: engram chances cut 20%, bosses drop none', () => {
+  eq(C.ENGRAM_CHANCE, { grunt: 0.016, rusher: 0.016, captain: 0.04, heavy: 0.064, boss: 0 });
+});
+test('H27 Light: caches roll +3 to +6, engrams never start under the mission or your Light', () => {
+  eq(C.CACHE_LIGHT, [3, 6]); eq(C.ENGRAM_LIGHT, [-1, 2]);
+  eq(C.engramLight(210, 250, 300, 0), 250, 'under the mission: the mission Light (was 247)');
+  eq(C.engramLight(260, 250, 300, 2), 262, 'over the mission: your Light');
+  eq(C.engramLight(299, 250, 300, 2), 300, 'held to the tier cap');
+  eq(C.engramLight(1, 1, 300, -1), 1, 'never under 1');
 });
 test('Celestial Nighthawk: Golden Gun only, 5x single shot (v1.7, base Golden Gun cut), kill refunds 30% super', () => {
   eq(C.NIGHTHAWK, { goldenGun: 5, refund: 30 });
@@ -2678,6 +2687,26 @@ test('U20a equipped armor can be infused in place: it takes the best Light in it
   eq(S.getEquipped(s, 'helmet').power, better.power);
 });
 
+test('H27 equipped weapons infuse in place too', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  const worn = S.getEquipped(s, 'primary');
+  const better = { ...worn, id: 'h27-better', power: worn.power + 25 };
+  s.inventory.push(better); s.glimmer = 1e6;
+  ok(S.infuseItem(s, worn.id), 'infused');
+  eq(S.getEquipped(s, 'primary').id, worn.id, 'still equipped');
+  eq(S.getEquipped(s, 'primary').power, better.power);
+});
+test('H27 lowestSlot: the equipped slot with the lowest Light, ties split at random', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  SLOTS.forEach((sl, i) => { S.getEquipped(s, sl).power = 100 + i; });
+  S.getEquipped(s, 'legs').power = 50;
+  eq(S.lowestSlot(s), 'legs');
+  S.getEquipped(s, 'special').power = 50;
+  eq(S.lowestSlot(s, () => 0), 'special'); eq(S.lowestSlot(s, () => 0.99), 'legs');
+});
+
 // ---------- U20b Legend and Ultimate II ----------
 const exoticCount = (s, kind) => (kind === 'weapon' ? ['primary', 'special', 'heavy'] : ['helmet', 'arms', 'chest', 'legs']).filter((sl) => S.getEquipped(s, sl)?.rarity === 'exotic').length;
 const lvl40 = (s) => { s.progression.xp = xpForLevel(40); };
@@ -3500,6 +3529,68 @@ test('U21b secret path: three hidden eyes, a chest on the last side block, and t
 test('U21b the timer stays 20:00 and segment checkpoints are inside their regions', () => {
   eq(EX.exoticDef('whisper').timeLimit, 1200);
   for (const S of WL.segments) { const c = S.checkpoint, r = S.region; ok(c[0] >= r.minX && c[0] <= r.maxX && c[2] >= r.minZ && c[2] <= r.maxZ, S.id + ' checkpoint in region'); }
+});
+
+// ---------- H27 keybinds and terms ----------
+test('H27 keybinds: the Keyboard scheme is the old layout; every action has a target', () => {
+  const b = KB.presetBinds('keyboard');
+  eq(b.grenade, ['KeyQ', null]); eq(b.fire, ['Mouse0', null]); eq(b.ads, ['Mouse2', null]); eq(b.nextWeapon, ['WheelDown', null]);
+  const L = KB.buildLookup(b);
+  eq(L.get('KeyQ'), ['KeyQ']); eq(L.get('Mouse2'), ['mouse:right']); eq(L.get('WheelDown'), ['wheel:1']); eq(L.get('WheelUp'), ['wheel:-1']);
+  for (const a of KB.ACTIONS) ok(b[a.id].filter(Boolean).length === 1, `${a.id} bound once`);
+  eq(new Set(KB.ACTIONS.map((a) => a.target)).size, KB.ACTIONS.length, 'targets are unique');
+});
+test('H27 keybinds: the trackpad scheme aims from X or a secondary click, keeps a key for Next weapon, and guards the wheel', () => {
+  const b = KB.presetBinds('trackpad');
+  eq(b.ads, ['KeyX', 'Mouse2']); eq(b.nextWeapon, ['KeyT', 'WheelDown']); eq(b.melee, ['KeyG', null]);
+  eq(KB.PRESETS.trackpad.guard, true); eq(KB.PRESETS.keyboard.guard, false);
+  const all = Object.values(b).flat().filter(Boolean);
+  eq(new Set(all).size, all.length, 'no input bound twice');
+});
+test('H27 keybinds: assign swaps a taken input; null clears; reserved keys throw', () => {
+  const b = KB.presetBinds('keyboard');
+  const r = KB.assign(b, 'grenade', 0, 'KeyE');
+  eq(r.binds.grenade[0], 'KeyE'); eq(r.binds.interact[0], 'KeyQ', 'interact takes the old grenade key'); eq(r.swapped, [{ action: 'interact', slot: 0 }]);
+  eq(b.grenade[0], 'KeyQ', 'the input table is not mutated');
+  eq(KB.assign(b, 'melee', 1, 'KeyG').binds.melee, ['KeyB', 'KeyG']);
+  eq(KB.assign(b, 'melee', 0, null).binds.melee, [null, null]);
+  for (const k of ['Escape', 'ControlLeft', 'MetaLeft', 'Bogus']) { let threw = false; try { KB.assign(b, 'melee', 0, k); } catch { threw = true; } ok(threw, `${k} refused`); }
+});
+test('H27 keybinds: a saved table is cleaned (bad, reserved and duplicate inputs dropped, missing actions defaulted)', () => {
+  const kb = KB.sanitizeKeybinds({ scheme: 'slot2', binds: { grenade: ['KeyG', 'Escape'], melee: ['KeyG'], fire: 'nope', made_up: ['KeyZ'] }, guard: 1, slots: [{ name: '  Nathan  ', binds: {} }, 'junk'] });
+  eq(kb.binds.grenade, ['KeyG', null]); eq(kb.binds.melee, [null, null], 'duplicate dropped'); eq(kb.binds.fire, ['Mouse0', null], 'malformed falls back');
+  ok(!('made_up' in kb.binds)); eq(kb.guard, true);
+  eq(kb.slots.length, KB.CUSTOM_SLOTS); eq(kb.slots[0].name, 'Nathan'); eq(kb.slots[1], null);
+  eq(kb.scheme, null, 'a scheme pointing at an empty slot becomes unsaved');
+  eq(KB.sanitizeKeybinds(undefined), KB.defaultKeybinds());
+});
+test('H27 keybinds: an old save loads with the Keyboard scheme (no save version change)', () => {
+  fresh();
+  const s = S.createSave('stalker');
+  delete s.settings.keybinds; S.writeSave(s);
+  const back = S.loadSave();
+  eq(back.settings.keybinds.scheme, 'keyboard'); eq(back.settings.keybinds.binds.super, ['KeyF', null]);
+});
+test('H27 scroll guard: one swap per swipe; off, every event counts', () => {
+  const st = KB.wheelState();
+  const swipe = (t0, n, d) => { let sum = 0; for (let i = 0; i < n; i++) sum += KB.wheelStep(st, d, t0 + i * 16, true); return sum; };
+  eq(swipe(0, 30, 6), 1, 'a long swipe down is one Next');
+  eq(swipe(2000, 30, -6), -1, 'after a pause, a swipe up is one Previous');
+  eq(swipe(2600, 3, 6), 0, 'a nudge under the step does nothing');
+  const off = KB.wheelState(); let n = 0; for (let i = 0; i < 5; i++) n += KB.wheelStep(off, 3, i, false); eq(n, 5);
+});
+test('H27 keybinds: labels, Mac Ctrl+click and the controls list follow the binds', () => {
+  eq(KB.physLabel('KeyQ'), 'Q'); eq(KB.physLabel('Mouse2'), 'RMB'); eq(KB.physLabel('WheelDown'), 'Wheel ↓'); eq(KB.physLabel('ShiftLeft'), 'L-Shift');
+  eq(KB.mousePhys(0, true, true), 'Mouse2'); eq(KB.mousePhys(0, true, false), 'Mouse0'); eq(KB.mousePhys(3), 'Mouse3');
+  const b = KB.assign(KB.presetBinds('trackpad'), 'grenade', 0, 'KeyZ').binds;
+  const list = KB.controlsList(b);
+  eq(list.find(([, v]) => v === 'Grenade')[0], 'Z'); eq(list.find(([, v]) => v === 'Aim down sights')[0], 'X / RMB');
+});
+test('H27 terms: only an acceptance of the current version counts', () => {
+  ok(!TM.termsCurrent(null)); ok(!TM.termsCurrent({ v: 'x' }));
+  ok(TM.termsCurrent({ v: TM.TERMS_VERSION })); ok(!TM.termsCurrent({ v: TM.TERMS_VERSION }, TM.TERMS_VERSION + 1), 'new text asks again');
+  ok(TM.TERMS_SECTIONS.some(([h]) => h === 'Privacy') && TM.TERMS_SECTIONS.some(([h]) => h === 'Built with AI'));
+  ok(TM.TERMS_SECTIONS.flat(2).join(' ').includes('not affiliated with Bungie'));
 });
 
 for (const t of tests) {

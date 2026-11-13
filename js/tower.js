@@ -22,6 +22,7 @@ import { TOWER_TALKS, TOWER_IDLE, KADI_LINES } from './story.js';
 import { writeSave } from './save.js';
 import { openPostmaster, openExoticKiosk, openQuestKiosk, showRangeHud, setRangeHud } from './tower-ui.js';
 import { pick } from './util.js';
+import { keyName } from './keybinds.js';
 
 export const inTower = () => !!G.mission?.tower;
 const _v = new THREE.Vector3();
@@ -248,6 +249,6 @@ export function updateTower(dt) {
     if (lp) consider(lp, lp.r, lp.label, lp.act);
   }
   if (T.panel) best = null;
-  ui.prompt(best ? `[E]  ${best.label}` : null);
+  ui.prompt(best ? `[${keyName('interact')}]  ${best.label}` : null);
   if (best && G.input.pressed.KeyE) best.act();
 }

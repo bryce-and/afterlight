@@ -21,6 +21,7 @@ import { PATROL_TALKS } from './story.js';
 import { net } from './net.js';
 import { onMissionStart, allPlayers, announcePatrolReward } from './coop.js';
 import { clamp, rand } from './util.js';
+import { keyName } from './keybinds.js';
 
 export const inPatrol = () => !!G.mission?.patrol;
 
@@ -331,7 +332,7 @@ function updateNpcs(Pt, dt) {
     if (d < 3.4 && !P.dead && !P.mount && !P.ghostBusy) near = n;
   }
   if (near) {
-    ui.prompt(`[E]  Talk to ${NPC_INFO[near.meeting.npc].name}`);
+    ui.prompt(`[${keyName('interact')}]  Talk to ${NPC_INFO[near.meeting.npc].name}`);
     if (G.input.pressed.KeyE) { if (near.talker) talk(near.talker); else meet(Pt, near); }
   } else if (Pt.npcPrompt) ui.prompt(null);
   Pt.npcPrompt = !!near;
@@ -375,7 +376,7 @@ function ensureUi() {
   card = document.createElement('div');
   card.id = 'beacon-card';
   card.className = 'hidden';
-  card.innerHTML = '<div class="bc-type"></div><div class="bc-name"></div><div class="bc-blurb"></div><div class="bc-reward"></div><div class="bc-key"><kbd>E</kbd> Activate</div>';
+  card.innerHTML = `<div class="bc-type"></div><div class="bc-name"></div><div class="bc-blurb"></div><div class="bc-reward"></div><div class="bc-key"><kbd>${keyName('interact')}</kbd> Activate</div>`;
   document.getElementById('hud').appendChild(card);
 }
 function hideCard() { if (card && !card.classList.contains('hidden')) card.classList.add('hidden'); }
@@ -403,7 +404,7 @@ function updateCard(Pt) {
   }
   const act = best.state === 'active';
   card.classList.toggle('active', act);
-  card.querySelector('.bc-key').innerHTML = act ? 'In progress' : bd < PATROL_TUNE.beaconUse ? '<kbd>E</kbd> Activate' : 'Move closer';
+  card.querySelector('.bc-key').innerHTML = act ? 'In progress' : bd < PATROL_TUNE.beaconUse ? `<kbd>${keyName('interact')}</kbd> Activate` : 'Move closer';
   card.style.left = `${(_p.x * 0.5 + 0.5) * 100}%`;
   card.style.top = `${(-_p.y * 0.5 + 0.5) * 100}%`;
   card.classList.remove('hidden');

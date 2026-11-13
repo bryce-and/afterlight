@@ -24,6 +24,7 @@ import { blightBombFx } from './mechanics.js';
 import { BLIGHT } from './exotic-rules.js';
 import { startExotic, exoticWipe, onSnapshot, onRemoteShot, onChest, onReset, onWipe, failOutOfTime } from './exotic-missions.js';
 import * as ui from './ui.js';
+import { keyName } from './keybinds.js';
 
 // Glue between the network layer and the game.
 //  - Host: runs enemies + mission; sends snapshots (15/s), enemy shots, kills.
@@ -191,7 +192,7 @@ function reviveNearby(dt) {
     }
   } else {
     P.reviveT = 0;
-    ui.prompt(`[Hold E]  Revive ${target.name}`);
+    ui.prompt(`[Hold ${keyName('interact')}]  Revive ${target.name}`);
   }
 }
 

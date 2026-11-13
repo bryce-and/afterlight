@@ -8,6 +8,7 @@ import { MODS, blankMods, migrateArmorStats } from './armor.js';
 import { newQuests, ensureQuests, actOpen } from './quests.js';
 import { setForLegacy, appearance, shaderFor, SHADERS } from './style.js';
 import { tierClears, capRoll, overloadOn, overloadUnlocked } from './campaign.js';
+import { sanitizeKeybinds } from './keybinds.js';
 
 const KEY = 'afterlight_save_v2';
 // First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
@@ -205,6 +206,7 @@ export function loadSave() {
       writeSave(s);
     }
     s.settings = { ...DEFAULT_SETTINGS, ...(s.settings || {}) };
+    s.settings.keybinds = sanitizeKeybinds(s.settings.keybinds); // H27: additive, a save without binds gets the Keyboard scheme
     const refreshed = refreshWeapons(s);
     if (enforceGates(s) || refreshed) writeSave(s);
     return s;
@@ -231,6 +233,7 @@ export function createSave(classId) {
     progression: { xp: 0, claimed: [] },
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
   };
+  s.settings.keybinds = sanitizeKeybinds(s.settings.keybinds);
   writeSave(s);
   return s;
 }
@@ -479,6 +482,13 @@ export function dismantleItem(s, id) {
   s.glimmer += v;
   writeSave(s);
   return v;
+}
+
+/** H27: the equipped slot with the lowest Light (ties pick at random with `r`). A mission cache's first item drops for it. */
+export function lowestSlot(s, r = Math.random) {
+  const low = Math.min(...SLOTS.map((sl) => getEquipped(s, sl)?.power ?? 0));
+  const slots = SLOTS.filter((sl) => (getEquipped(s, sl)?.power ?? 0) === low);
+  return slots[Math.floor(r() * slots.length)];
 }
 
 export function infuseInfo(s, it) {
