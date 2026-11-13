@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import * as ui from './ui.js';
 import { buildLevel } from './world.js';
-import { buildNav } from './nav.js';
+import { buildNav, heightAt, nearestWalkable } from './nav.js';
 import { Player } from './player.js';
 import { fireEnemyShot } from './enemies.js';
 import { initEffects, sparks, ringFx, flashLight } from './effects.js';
@@ -23,7 +23,7 @@ import { XP } from './progression.js';
 import { rarityIndex } from './data.js';
 import {
   buildMechanics, disposeMechanics, updateMech, setPuzzle, refreshBoard, setEyeLit, setConduitLit, setGate, setBlightsOn, setBlightHp,
-  setActiveSegment, rebuildTargets,
+  setActiveSegment, rebuildTargets, flashBoard, setSecretEye, setSecretRevealed, resetSecret,
 } from './mechanics.js';
 import {
   exoticDef, validateLayout, inRegion, newTimer, stepTimer, freezeTimer, timeUsed, timerRed, deathOutcome, wipeOutcome, trackSafe, inVoid,
@@ -93,6 +93,8 @@ function buildExotic(d, loc, layout) {
   G.player.spawn(spawn);
   X.mech = buildMechanics(layout, { blightRadius: d.blightRadius, blightHits: d.blightHits, conduitRadius: d.conduitRadius, attuneTime: d.attuneTime });
   X.mech.onShot = (kind, seg, i) => onShot(kind, seg, i);
+  X.mech.onPush = onPistonHit;
+  X.mech.onTrapped = (P) => { P.pos.set(X.safe.x, X.safe.y, X.safe.z); P.vel.set(0, 0, 0); ui.feed('Pulled clear of the piston', '#ff7a6b'); }; // never left inside a solid
   setActiveSegment(X.mech, 0);
   G.state = 'playing';
   playMusic('io');
@@ -108,6 +110,7 @@ export function cleanupExotic() {
   const X = G.mission?.exotic;
   if (!X) return;
   disposeMechanics(X.mech);
+  dropSecretChest(X);
   ui.exoTimer(null);
 }
 
@@ -141,6 +144,7 @@ function resetSegment(i) {
   setBlightsOn(S, false);
   S.conduits.forEach((_, k) => setConduitLit(S, k, true));
   if (S.gate) setGate(S, false);
+  resetSecret(S); dropSecretChest(X); // the hidden eyes, the side path and the cache go back as they were
   S.done = false;
   setActiveSegment(X.mech, i);
   G.player?.status.remove('attuned');
@@ -159,10 +163,21 @@ export function onReset() {
 const alivePlayers = () => allPlayers().filter((p) => p && !p.dead);
 const cfgOf = (X, i) => X.def.segments[X.layout.segments[i].id];
 
+/** U21b: a spawn on a standable nav cell at the spot's height. A jittered point that lands on a foothold's edge band or over the void
+ *  (a unit spawned there falls) falls back to the spot itself, then to the nearest standable cell at that height. */
+function standSpot(x, y, z, sp) {
+  const nav = G.nav, ok = (px, pz) => !nav || Math.abs(heightAt(nav, px, pz) - y) <= 0.3;
+  if (ok(x, z)) return new THREE.Vector3(x, y, z);
+  if (ok(sp[0], sp[2])) return new THREE.Vector3(sp[0], y, sp[2]);
+  const w = nearestWalkable(nav, sp[0], sp[2], 4);
+  if (w && ok(w.x, w.z)) return new THREE.Vector3(w.x, y, w.z);
+  console.warn(`Whisper spawn at ${sp.join(', ')} has no standable cell nearby`);
+  return new THREE.Vector3(sp[0], y, sp[2]);
+}
 function spawnKit(X, zone, types, spots) {
   types.forEach((t, k) => {
     const sp = spots[k % spots.length];
-    const pos = new THREE.Vector3(sp[0] + (Math.random() - 0.5) * 1.4, sp[1], sp[2] + (Math.random() - 0.5) * 1.4);
+    const pos = standSpot(sp[0] + (Math.random() - 0.5) * 1.4, sp[1], sp[2] + (Math.random() - 0.5) * 1.4, sp);
     const e = spawnUnit(zone, t, pos, {});
     e.pos.y = sp[1];
   });
@@ -211,11 +226,14 @@ function handleShot(kind, seg, i) {
   const M = G.mission, X = M.exotic;
   if (seg !== X.seg || X.state[seg].s !== 'active') return;
   const S = X.mech.segs[seg], spec = X.layout.segments[seg];
+  if (kind === 'seye') { handleSecretEye(X, seg, i); return; }
   if (kind === 'blight') {
     const b = S.blights[i];
     if (!b || !b.on || !b.alive) return;
     setBlightHp(S, i, b.hp - 1);
     sparks(b.p, 0xffffff, 6, 5, 0.08, 0.3);
+    if (b.alive) sfx.blightHit();
+    else { sfx.blightDown(); ui.feed('Blight destroyed', '#cfc8ff'); }
     return;
   }
   const eye = S.eyes[i];
@@ -224,7 +242,10 @@ function handleShot(kind, seg, i) {
   if (!puzzle) return;
   const boss = spec.kind === 'boss';
   const r = boss ? X.fsm.shoot(i) : glyphShoot(puzzle, i);
-  if (r === 'ignored') return;
+  if (r === 'ignored') { // an eye that is already lit: a faint tick and a spark, so the shot is not silent
+    if (G.time - (X.againT ?? -9) > 0.3) { X.againT = G.time; sfx.eyeAgain(); sparks(eye.group.getWorldPosition(_v), 0xcfeee8, 3, 3, 0.06, 0.25); }
+    return;
+  }
   sparks(eye.group.getWorldPosition(_v), r === 'wrong' ? 0xff3a2a : 0x3affd8, 10, 5, 0.09, 0.4);
   if (r === 'wrong') {
     S.eyes.forEach((_, k) => setEyeLit(S, k, 0));
@@ -238,6 +259,7 @@ function handleShot(kind, seg, i) {
     sfx.glyphRight();
   }
   if (net.isHost && M.coop) broadcast({ t: 'xfx', sg: seg, i, r: r === 'wrong' ? 0 : 1 }); // members play the same flare and sound
+  flashBoard(S, r === 'wrong' ? 'bad' : 'ok');
   refreshBoard(S);
   if (r === 'solved') {
     if (boss) openWindow(X);
@@ -251,6 +273,76 @@ function onShot(kind, seg, i) {
 }
 /** Host: a member shot an eye or blight. */
 export function onRemoteShot(m) { if (G.mission?.exotic && !G.mission.remote) handleShot(m.k, m.s, m.i); }
+
+// ---------------------------------------------------------------------------
+// The hidden eyes, the side path and the cache (a traversal's `secret`). Host or solo judges the eyes; everyone sees the result.
+// ---------------------------------------------------------------------------
+function handleSecretEye(X, seg, i) {
+  const M = G.mission, S = X.mech.segs[seg], sec = S.secret, eye = sec?.eyes[i];
+  if (!eye) return;
+  if (sec.lit[i]) { // already lit: a faint tick, so the shot is not silent
+    if (G.time - (X.againT ?? -9) > 0.3) { X.againT = G.time; sfx.eyeAgain(); }
+    return;
+  }
+  setSecretEye(S, i, 1, true);
+  const n = sec.lit.filter(Boolean).length;
+  secretEyeFx(eye, n, sec.eyes.length);
+  if (net.isHost && M.coop) broadcast({ t: 'xfx', sg: seg, i, r: 1, k: 's', n });
+  if (n >= sec.eyes.length) revealSecret(X, seg, false);
+}
+/** The picture and sound of a hidden eye counting (host and members): a spark burst, a ring, a rising ping and the count in the feed. */
+function secretEyeFx(eye, n, of) {
+  const at = eye.group.getWorldPosition(_v);
+  sparks(at, 0xffd27a, 14, 6, 0.1, 0.5);
+  ringFx(at.clone(), 1.8, 0xffb347, 0.5);
+  sfx.hiddenEye(n);
+  ui.feed(`Hidden eye ${n} of ${of}`, '#ffd27a');
+}
+/** The side path appears and the cache with it. */
+function revealSecret(X, seg, instant) {
+  const S = X.mech.segs[seg];
+  if (!S.secret || S.secret.revealed) return;
+  setSecretRevealed(S, true, instant);
+  showSecretChest(X, S);
+  if (!instant) { banner('A Hidden Path Opens', 'Phase blocks lead to a Vex cache', 3.2, null); sfx.pathOpen(); }
+}
+function showSecretChest(X, S) {
+  if (X.secretChest || !S.secret) return;
+  const at = S.secret.chestAt, c = spawnChest(at.clone());
+  c.group.position.copy(at); c.pos.copy(at);
+  if (G.mission.secretLooted) { c.opened = true; c.beam.visible = false; c.lid.rotation.x = -1.9; }
+  X.secretChest = c;
+}
+function dropSecretChest(X) {
+  if (!X.secretChest) return;
+  G.scene.remove(X.secretChest.group);
+  X.secretChest = null;
+  if (X.chestPrompt) { ui.prompt(null); X.chestPrompt = false; }
+}
+/** Each frame: the cache's lid, its prompt, and opening it. One legendary at your own Light, once per run (G.mission.secretLooted); no save change. */
+function secretChestTick(X, P, dt) {
+  const c = X.secretChest, M = G.mission;
+  if (!c) return;
+  if (c.opened) c.lid.rotation.x = Math.max(-1.9, c.lid.rotation.x - dt * 4);
+  const near = !P.dead && !c.opened && P.pos.distanceTo(c.pos) < 3.2;
+  if (near !== !!X.chestPrompt) { ui.prompt(near ? '[E]  Open Vex Cache' : null); X.chestPrompt = near; }
+  if (!near || !G.input.pressed.KeyE) return;
+  c.opened = true; c.beam.visible = false;
+  X.chestPrompt = false; ui.prompt(null);
+  sfx.chest();
+  sparks(c.pos.clone().setY(c.pos.y + 1), 0xf4c542, 30, 8, 0.1, 0.8);
+  if (M.secretLooted) { ui.feed('The cache is empty: you already took what it held', '#8aa'); return; }
+  M.secretLooted = true;
+  const s = G.save, it = rollItem(playerPower(s), rarityIndex('legendary'), null, M.loc.id ?? 'io', s.classId, s.exoticsFound);
+  grantItem(it);
+  ui.feed('Vex cache: a legendary', '#f4c542');
+}
+/** The local player was hit by a piston: the thud and the line. */
+function onPistonHit() {
+  sfx.pistonHit();
+  const X = G.mission?.exotic;
+  if (X && G.time - (X.pushT ?? -9) > 1.2) { X.pushT = G.time; ui.feed('A Vex piston knocks you back', '#ff7a6b'); }
+}
 
 // ---------------------------------------------------------------------------
 // The boss: Aurix, Hollowed Mind
@@ -451,7 +543,7 @@ function objectiveFor(X) {
     if (!p) return spec.name;
     return att ? `Shoot ${p.mode === 'any' ? `${p.len} eyes` : 'the eyes in glyph order'}  ·  ${p.progress}/${p.len}` : 'Stand in a conduit to become Attuned';
   }
-  if (spec.kind === 'traversal') { wp(spec.exit.p); return att ? `Cross the ${spec.name}` : `Cross the ${spec.name}  ·  conduits keep you Attuned`; }
+  if (spec.kind === 'traversal') { wp(spec.exit.p); return att ? `Cross ${spec.name}  ·  Attuned ${Math.ceil(X.mech.attuneLeft)}s` : `Cross ${spec.name}  ·  conduits keep you Attuned`; }
   const f = X.fsm;
   wp(null);
   if (!f) return `Defeat ${X.def.boss.name}`;
@@ -464,10 +556,17 @@ export function updateExotic(dt) {
   const auth = !M.remote;
   stepTimer(X.timer, dt);
   ui.exoTimer(X.timer.left, timerRed(X.timer), X.timer.frozen);
+  X.mech.clock = timeUsed(X.timer); // one clock for the pistons: the host's timer, mirrored to members by the snapshots
   const ev = updateMech(X.mech, dt, P);
   if (ev === 'attuned') { ui.feed('Attuned: eyes and phase blocks answer to you', '#5ff2dc'); sfx.ui(); }
-  else if (ev === 'faded') ui.feed('Attunement fades', '#8aa');
+  else if (ev === 'faded') { // every way Attuned ends says so: time out (a falling chime) or a blight (a buzz)
+    const c = X.mech.fadeCause;
+    if (c === 'blight') { ui.feed('A blight drains your attunement', '#ff7a6b'); sfx.attuneDrain(); }
+    else if (c === 'time') { ui.feed('Attunement fades: stand in a conduit to renew it', '#8aa'); sfx.attuneFade(); }
+  }
+  if (X.mech.smother && G.time - (X.smotherT ?? -9) > 3) { X.smotherT = G.time; ui.feed('A blight smothers this conduit: shoot it down first', '#ff7a6b'); sfx.attuneDrain(); }
   if (M.phase === 'loot' || M.phase === 'done') return;
+  secretChestTick(X, P, dt);
 
   // the local player: the last safe spot and the void
   if (!P.dead) {
@@ -525,6 +624,7 @@ function snapshot(X) {
     t: 'xs', sg: X.seg, tl: Math.round(X.timer.left * 10) / 10, fz: X.timer.frozen ? 1 : 0, st: X.state.map((s) => s.s[0]),
     gt: X.mech.segs.map((s) => (s.gate?.open ? 1 : 0)), dn: X.mech.segs.map((s) => (s.done ? 1 : 0)),
     ey: S.eyes.map((e) => e.lit), bl: S.blights.map((b) => b.hp), bo: S.blightsOn ? 1 : 0,
+    sc: S.secret ? { l: S.secret.lit, r: S.secret.revealed ? 1 : 0 } : 0,
     pz: S.puzzle ? { m: S.puzzle.mode, o: S.puzzle.order, sy: S.puzzle.symbols, pr: S.puzzle.progress, li: S.puzzle.lit } : 0,
     fs: f ? { im: f.immune ? 1 : 0, wl: Math.round(f.windowLeft * 10) / 10, lit: f.lit, ph: f.phase } : 0,
     cp: G.mission.checkpoint.toArray().map((v) => Math.round(v * 100) / 100),
@@ -535,9 +635,12 @@ function snapshot(X) {
 export function onEyeFx(m) {
   const M = G.mission, X = M?.exotic;
   if (!X || !M.remote) return;
-  const S = X.mech.segs[m.sg], eye = S?.eyes[m.i];
+  const S = X.mech.segs[m.sg];
+  if (m.k === 's') { const se = S?.secret?.eyes[m.i]; if (se) { setSecretEye(S, m.i, 1, true); secretEyeFx(se, m.n, S.secret.eyes.length); } return; }
+  const eye = S?.eyes[m.i];
   if (!eye) return;
   sparks(eye.group.getWorldPosition(_v), m.r ? 0x3affd8 : 0xff3a2a, 10, 5, 0.09, 0.4);
+  flashBoard(S, m.r ? 'ok' : 'bad');
   if (m.r) { setEyeLit(S, m.i, 1, true); sfx.glyphRight(); }
   else { S.eyes.forEach((_, k) => setEyeLit(S, k, 0)); setEyeLit(S, m.i, 2); ui.feed('Wrong eye: the set resets', '#ff7a6b'); sfx.glyphWrong(); }
 }
@@ -561,6 +664,11 @@ export function onSnapshot(m) {
     refreshBoard(S);
   } else if (S.puzzle) { S.puzzle = null; S._pzKey = null; }
   m.ey.forEach((v, i) => { if (S.eyes[i].lit !== v) setEyeLit(S, i, v); });
+  if (m.sc && S.secret) {
+    m.sc.l.forEach((v, i) => { if (S.secret.lit[i] !== v) setSecretEye(S, i, v); });
+    if (m.sc.r && !S.secret.revealed) revealSecret(X, m.sg, false);
+    else if (!m.sc.r && S.secret.revealed) { setSecretRevealed(S, false); dropSecretChest(X); }
+  }
   m.bl.forEach((hp, i) => { if (S.blights[i].hp !== hp) setBlightHp(S, i, hp); });
   if (S.blightsOn !== !!m.bo) { setBlightsOn(S, !!m.bo); rebuildTargets(X.mech); }
   X.fs = m.fs;
@@ -569,4 +677,35 @@ export function onSnapshot(m) {
     const b = G.enemies.find((e) => e.isBoss);
     if (b) { b.exoBoss = true; b.exoImm = !!m.fs.im; b.maxShield = 1; b.shield = 0; }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Dev tools (browser console): jump a running Whisper to a segment, and the route and symbol checks.
+// ---------------------------------------------------------------------------
+/** Dev: puts a running Whisper at a segment's checkpoint with every earlier segment solved (gates open). Use after startExotic('whisper'). */
+export function devJumpToSegment(id) {
+  const M = G.mission, X = M?.exotic;
+  if (!X) throw new Error('Start The Whisper first (/whispermission)');
+  const i = X.layout.segments.findIndex((s) => s.id === id);
+  if (i < 0) throw new Error(`No segment "${id}": ${X.layout.segments.map((s) => s.id).join(', ')}`);
+  removeAllEnemies();
+  X.layout.segments.forEach((spec, k) => {
+    const S = X.mech.segs[k];
+    X.state[k] = { s: k < i ? 'solved' : 'pending', waveIdx: 0, ambush: [] };
+    S.done = k < i;
+    if (S.gate) setGate(S, k < i, true);
+  });
+  X.seg = i;
+  M.checkpoint.set(...X.layout.segments[i].checkpoint);
+  setActiveSegment(X.mech, i);
+  G.player.status.remove('attuned');
+  G.player.spawn(new THREE.Vector3(...X.layout.segments[i].checkpoint));
+  return `At ${X.layout.segments[i].name}`;
+}
+/** Dev: starts The Whisper and jumps to a segment. */
+export async function devStartWhisperAt(id = 'descent') { await startExotic('whisper'); return devJumpToSegment(id); }
+if (typeof window !== 'undefined') {
+  window.whisperTo = (id) => devJumpToSegment(id);
+  window.checkWhisperSymbols = async () => { const r = (await import('./level-whisper.js')).checkWhisperSymbols(); console.log(r.rows.join('\n')); console.log(r.problems.length ? `PROBLEMS:\n${r.problems.join('\n')}` : 'No symbol problems'); return r; };
+  window.checkWhisperRoute = async () => { const r = (await import('./level-whisper.js')).checkWhisperRoute(); console.log(r.rows.join('\n')); console.log(r.problems.length ? `PROBLEMS:\n${r.problems.join('\n')}` : 'No route problems'); return r; };
 }

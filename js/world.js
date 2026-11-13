@@ -665,7 +665,7 @@ export function buildLevel(loc, def) {
   const bossIdx = zones.findIndex((z) => z.isBoss);
   if (bossIdx > 0 && set.lockIn !== false) for (const d of doors) if (d.zone === bossIdx - 1) d.lock = bossIdx;
 
-  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights: updateAll, openDoors, updateDoors, syncLocks, voidAt, voidBelow: set.voidBelow, fallText: set.fallText, groundAt: gAt, terrain, patrol: set.patrol };
+  return { scene, sun, sunOffset, colliders, staticMeshes, zones, spawn, bounds, doors, updateLights: updateAll, openDoors, updateDoors, syncLocks, voidAt, voidBelow: set.voidBelow, fallText: set.fallText, groundAt: gAt, terrain, patrol: set.patrol, leapLinks: set.leapLinks };
 }
 
 /**

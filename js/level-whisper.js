@@ -1,28 +1,40 @@
 // U21 "The Whisper": the exotic mission map (static geometry only). Five Vex caverns deep under Io, one linear path:
 // The Descent (encounter), The Red Shaft (climb), Blight Gallery (encounter), The Green Chasm (descent), The Falls (boss).
-// Interactive things (conduits, eyes, phase blocks, glyphs, blights, gates) are built by js/exotic-missions.js and js/mechanics.js from
-// WHISPER_LAYOUT; this file builds terrain, walls, ceilings, ledges, decor, lights and the per-segment fog.
+// Interactive things (conduits, eyes, phase blocks, movers, glyphs, blights, gates) are built by js/exotic-missions.js and js/mechanics.js from
+// WHISPER_LAYOUT; this file builds terrain, walls, ceilings, footholds, decor, lights and the per-segment fog.
 //
 // HOW THE FLOOR WORKS. Every walkable surface is TERRAIN (js/terrain.js plateaus and ramps), so ground height, enemy nav, spawn heights
-// and the nav "abyss" all work as on the Tangled Shore. Between the ledges the ground is 0, and `voidBelow: 1` makes ground under 1 m
-// a void: no floor, you fall (WHISPER_LAYOUT.voidY = -40 is where a fall is called). The terrain mesh is removed in build(); each ledge
-// is drawn as a slab that matches its plateau exactly. Walls, ceilings and cover are solid boxes at ABSOLUTE heights.
-// Terrain is single valued, so no ledge may sit over another: the Red Shaft climbs in three rows side by side, not in a spiral.
+// and the nav "abyss" all work as on the Tangled Shore. Between the footholds the ground is 0, and `voidBelow: 1` makes ground under 1 m
+// a void: no floor, you fall (WHISPER_LAYOUT.voidY = -40 is where a fall is called). The terrain mesh is removed in build(); each foothold
+// is drawn as a slab, a floating Vex fragment ("rock": a plateau drawn as a hanging rock, nothing solid under it), a broken pillar or a
+// wall shelf, always matching its plateau exactly. Walls, ceilings and cover are solid boxes at ABSOLUTE heights.
+// Terrain is single valued, so no static foothold may sit over another. Phase blocks are NOT terrain (solid boxes while Attuned), so they
+// may pass over or under footholds with clearance; checkWhisperRoute() checks that.
 //
-// JUMP LIMITS (from js/player.js and js/armor.js, BASE jump only: no double / triple jump, no glide, no blink):
-//   gravity 24 m/s^2, jump velocity 8.2 m/s (jumpV = 8.2 + 0.0125 * Mobility), walk 6.2 m/s (sprint x1.5 = 9.3, only forward), body radius 0.4.
+// THE TRAVERSALS (U21b). The Red Shaft climbs 24.8 m in four stages and The Green Chasm drops 12 m in two. A STAGE is a group of static
+// footholds at one height (a "comp") plus a chain of phase blocks to the next one. A class jump cannot skip a stage:
+//   climb  : the next stage is 6.2 m higher, more than any class jump rises (js/jump-reach.js: about 5.1 m for Lift at Mobility 50, sprinting,
+//            plus a 0.5 m margin), so only the blocks get you up.
+//   descent: the next stage is farther than the best glide at Mobility 50 (about 47 m for a 6 m drop, 57 m for 12 m) plus 2.3 m.
+// checkWhisperRoute() proves it: it joins all static footholds with the base-jump links AND every class-jump reach (js/jump-reach.js: lift,
+// highlift, strafelift, highjump, strafejump, Hunter triple jump, the three glides; sprinting in the air; blink and the Strand grapple excluded)
+// and reports a problem if the start can still reach the exit without a phase block.
+//
+// BASE JUMP LIMITS (js/player.js and js/armor.js, no air jump): gravity 24 m/s^2, jump velocity 8.2 m/s (jumpV = 8.2 + 0.0125 * Mobility),
+// walk 6.2 m/s (sprint x1.5 = 9.3, only forward), body radius 0.4.
 //   max rise      = 8.2^2 / (2 * 24)                        = 1.40 m   (design limit 0.9 m, 64 percent)
-//   max flat gap  = 6.2 * 2 * 8.2 / 24                      = 4.24 m walking, 6.36 m sprinting (design limit 2.8 m flat, 66 percent of walking)
-//   gap at rise r = 6.2 * (8.2 + sqrt(8.2^2 - 48 r)) / 24   (rise +0.8: 3.51 m, design limit 2.2; drop -2.0: 5.42 m, design limit 3.2)
-//   every jump is at most 70 percent of the walking figure for its own rise or drop, so it needs no sprint. The player can step up 0.6 m
-//   (stairs) and walk ramps up to slope 0.55 (these use 0.45). checkWhisperRoute() re-checks every hop and prints the margin.
-//   PHASE spans are 15.6 m of void: more than a sprint jump at 100 Mobility (about 11.8 m), so only the phase blocks cross them.
-//   One-way drops (the Green Chasm) are 2.0 m; falling is free, climbing back is not meant to be possible.
+//   max flat gap  = 6.2 * 2 * 8.2 / 24                      = 4.24 m walking (design limit 70 percent: 2.97 m flat)
+//   gap at rise r = 6.2 * (8.2 + sqrt(8.2^2 - 48 r)) / 24   (rise +0.78: 3.53 m, limit 2.47; drop -2.0: 5.42 m, limit 3.8)
+//   every intended hop is at most 70 percent of the walking figure for its own rise or drop, so it needs no sprint. The player can step up
+//   0.6 m (stairs) and walk ramps up to slope 0.55 (these use 0.45). checkWhisperRoute() re-checks every hop and prints the margin.
 import * as THREE from 'three';
 import { blightOrb } from './blight-look.js';
+import { moverSafe, EYE_SYM, boardWidth, boardYaw } from './exotic-rules.js';
+import { reachTable, bestReach, bestRise, riseOf, reachOf, REACH_MODES, REACH_MOBILITY, REACH_MARGIN, RISE_MARGIN } from './jump-reach.js';
+export { REACH_MODES, REACH_MOBILITY, reachOf, riseOf, bestReach, bestRise, reachTable, REACH_MARGIN, RISE_MARGIN };
 
 export const WHISPER_JUMP = { v: 8.2, g: 24, walk: 6.2, sprint: 9.3, step: 0.6, r: 0.4 };
-/** Farthest horizontal distance a jump can cover when it ends `rise` metres above (negative: below) where it started. */
+/** Farthest horizontal distance a base jump can cover when it ends `rise` metres above (negative: below) where it started. */
 export const maxGap = (rise, speed = WHISPER_JUMP.walk, v = WHISPER_JUMP.v) => {
   const d = v * v - 2 * WHISPER_JUMP.g * rise;
   return d < 0 ? 0 : (speed * (v + Math.sqrt(d))) / WHISPER_JUMP.g;
@@ -39,19 +51,24 @@ const C_WALL = 0x2a4a52, C_WALL2 = 0x356068, C_LEDGE = 0x3d6a70, C_MOSS = 0x4f7a
 const F_WALL = 0x30241a, F_RIB = 0x5a4026, F_FLOOR = 0x7a4a2a, F_GRASS = 0xb88a3a, F_GOLD = 0xffc860, F_WATER = 0xfff6dc; // The Falls
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Data: platforms, ramps, hops (pure, so the route can be checked without building anything)
+// Data: footholds, ramps, hops, chains (pure, so the route can be checked without building anything)
 // ---------------------------------------------------------------------------------------------------------------------------------
-const PL = new Map();   // id -> { id, x0, x1, z0, z1, top, kind: 'floor' | 'ledge' | 'block' | 'dead', seg }
+const PL = new Map();   // id -> { id, x0, x1, z0, z1, top, kind: 'floor' | 'ledge' | 'shelf' | 'rock' | 'pillar' | 'block', seg, dead, secret }
 const RAMPS = [];       // { id, from, to, x0, z0, x1, z1, w }
 const HOPS = [];        // [from, to, kind]: 'jump' (two way), 'drop' (one way), 'phase' (a jump onto / between phase blocks), 'walk' (flush)
-const SPANS = [];       // [from, to, [blocks]]: a void that only phase blocks cross
-const plat = (id, seg, kind, x0, x1, z0, z1, top) => { PL.set(id, { id, seg, kind, x0, x1, z0, z1, top }); return id; };
+const CHAINS = [];      // { id, seg, from, to, blocks: [ids] }: a run of phase blocks between two static footholds
+const REST = [];        // ids of rest blocks (bigger phase blocks that carry a conduit)
+const plat = (id, seg, kind, x0, x1, z0, z1, top, o = {}) => { if (PL.has(id)) throw new Error('duplicate foothold ' + id); PL.set(id, { id, seg, kind, x0, x1, z0, z1, top, dead: !!o.dead, secret: !!o.secret }); return id; };
 const hop = (a, b, kind = 'jump') => HOPS.push([a, b, kind]);
 const ramp = (id, from, to, x0, z0, x1, z1, w = 3.2) => RAMPS.push({ id, from, to, x0, z0, x1, z1, w });
+const r2 = (v) => Math.round(v * 100) / 100;
 
 const YD = 10;        // Descent floor
-const YG = 21.6;      // Blight Gallery floor (top of the Red Shaft)
-const YB = 5.6;       // The Falls floor (bottom of the Green Chasm)
+const YG = 34.8;      // Blight Gallery floor (top of the Red Shaft)
+const YB = 22.8;      // The Falls floor (bottom of the Green Chasm)
+const STAGE = r2((YG - YD) / 4); // 6.2 m: more than any class jump climbs
+const SH = [0, 1, 2, 3, 4].map((i) => r2(YD + STAGE * i));
+const DROP = r2((YG - YB) / 2);  // 6 m per Chasm stage
 
 // ---- Descent, tunnels and halls: big floors (terrain only; the hall builder draws them) ----
 plat('d_floor', 'descent', 'floor', -1, 57, -23, 23, YD);
@@ -62,57 +79,113 @@ plat('t3_floor', 'gallery', 'floor', 180.5, 199, -3, 3, YG);
 plat('t4_floor', 'chasm', 'floor', 290.5, 311, -3, 3, YB);
 plat('f_floor', 'falls', 'floor', 309, 381, -31, 31, YB);
 
-// ---- The Red Shaft: three rows side by side (z 0, -9.5, -19), x 76..106, never over one another ----
-plat('sh_p0', 'shaft', 'ledge', 75.5, 82, -3, 8, YD);
-plat('sh_l1', 'shaft', 'ledge', 93, 96, -1.6, 1.6, 15);
-ramp('sh_r1', 'sh_p0', 'sh_l1', 82, 0, 93, 0);
-plat('sh_t1', 'shaft', 'ledge', 98.2, 106, -11.1, 1.6, 15.8);
-plat('sh_b1', 'shaft', 'block', 91.8, 95.4, -11.1, -7.9, 15.8);
-plat('sh_b2', 'shaft', 'block', 85.4, 89, -11.1, -7.9, 15.8);
-plat('sh_w2', 'shaft', 'ledge', 76, 82.6, -20.6, -7.9, 15.8);
-plat('sh_l3', 'shaft', 'ledge', 93.6, 96.6, -20.6, -17.4, 20.8);
-ramp('sh_r3', 'sh_w2', 'sh_l3', 82.6, -19, 93.6, -19);
-plat('sh_e3', 'shaft', 'ledge', 98.8, 106, -20.6, -17.4, YG);
-plat('sh_d1', 'shaft', 'dead', 93.6, 96.6, 4, 7.6, 15);
-plat('sh_d2a', 'shaft', 'dead', 84.2, 87.2, 4, 8, YD);
-plat('sh_d2b', 'shaft', 'dead', 89.4, 92.4, 4, 8, 10.8);
-hop('sh_l1', 'sh_t1');
-hop('sh_t1', 'sh_b1', 'phase'); hop('sh_b1', 'sh_b2', 'phase'); hop('sh_b2', 'sh_w2', 'phase');
-SPANS.push(['sh_t1', 'sh_w2', ['sh_b1', 'sh_b2']]);
-hop('sh_l3', 'sh_e3');
-hop('sh_l1', 'sh_d1'); hop('sh_p0', 'sh_d2a'); hop('sh_d2a', 'sh_d2b');
+// ---- phase chains ----
+const GAP = 2.4, BLK = 3.0, PITCH = GAP + BLK; // a 2.4 m gap, under the 70 percent design limit at a +0.78 rise
+const DIRS = { '+x': [1, 0], '-x': [-1, 0], '+z': [0, 1], '-z': [0, -1] };
+/**
+ * A run of phase blocks from static foothold `from`: `steps` is [[dir, count], ...] (dir '+x' '-x' '+z' '-z'); `lat` the centre of the first block across the
+ * first direction. The tops climb (or fall) evenly from the foothold to `topEnd` over the blocks and the pad after them (the first `flat` blocks stay level);
+ * `big` maps a block index to a bigger size (rest blocks). With `o.endAt` the last block is itself the end (a side path: no pad). Returns what endPad needs.
+ */
+function chain(id, seg, from, steps, lat, topEnd, o = {}) {
+  const F = PL.get(from), seq = [];
+  for (const [d, n] of steps) for (let i = 0; i < n; i++) seq.push(d);
+  const n = seq.length, d0 = DIRS[seq[0]], ids = [], flat = o.flat ?? 0, span = o.endAt ? n - flat : n - flat + 1;
+  let cx, cz;
+  if (d0[0]) { cx = (d0[0] > 0 ? F.x1 : F.x0) + d0[0] * (GAP + BLK / 2); cz = lat; }
+  else { cz = (d0[1] > 0 ? F.z1 : F.z0) + d0[1] * (GAP + BLK / 2); cx = lat; }
+  let prev = from;
+  for (let k = 0; k < n; k++) {
+    if (k > 0) { cx += DIRS[seq[k]][0] * PITCH; cz += DIRS[seq[k]][1] * PITCH; }
+    const sz = o.big?.[k] ?? BLK, top = k < flat ? F.top : r2(F.top + ((topEnd - F.top) * (k - flat + 1)) / span), bid = `${id}${k}`;
+    plat(bid, seg, 'block', cx - sz / 2, cx + sz / 2, cz - sz / 2, cz + sz / 2, top, { secret: !!o.secret });
+    if (o.big?.[k]) REST.push(bid);
+    hop(prev, bid, 'phase'); prev = bid; ids.push(bid);
+  }
+  return { id, seg, from, ids, dir: seq[n - 1], last: PL.get(prev), topEnd };
+}
+/** The static foothold a chain ends on: `w0`..`w1` across the last direction, `depth` along it, adjacent to the last block. */
+function endPad(id, kind, ch, w0, w1, depth, o = {}) {
+  const L = ch.last, d = DIRS[ch.dir];
+  let x0, x1, z0, z1;
+  if (d[0]) { x0 = d[0] > 0 ? L.x1 + GAP : L.x0 - GAP - depth; x1 = x0 + depth; z0 = w0; z1 = w1; }
+  else { z0 = d[1] > 0 ? L.z1 + GAP : L.z0 - GAP - depth; z1 = z0 + depth; x0 = w0; x1 = w1; }
+  plat(id, ch.seg, kind, r2(x0), r2(x1), r2(z0), r2(z1), ch.topEnd, o);
+  hop(L.id, id, 'phase');
+  CHAINS.push({ id: ch.id, seg: ch.seg, from: ch.from, to: id, blocks: ch.ids });
+  return id;
+}
 
-// ---- The Green Chasm: a zigzag down a 19 m wide canyon, 2.0 m drops, one phase bridge ----
-plat('ch_c0', 'chasm', 'ledge', 198, 204, -4, 8, YG);
-plat('ch_c1', 'chasm', 'ledge', 207.2, 212.2, -8, -1, 19.6);
-plat('ch_c2', 'chasm', 'ledge', 215.4, 220.4, -4, 3, 17.6);
-plat('ch_c3', 'chasm', 'ledge', 223.6, 228.6, 1, 8, 15.6);
-plat('ch_c4', 'chasm', 'ledge', 231.8, 236.8, -3, 5, 13.6);
-plat('ch_b1', 'chasm', 'block', 239.6, 243.2, -1, 3, 13.6);
-plat('ch_b2', 'chasm', 'block', 246, 249.6, -1, 3, 13.6);
-plat('ch_c5', 'chasm', 'ledge', 252.4, 257.4, -4, 4, 13.6);
-plat('ch_c6', 'chasm', 'ledge', 260.6, 265.6, -8, -1, 11.6);
-plat('ch_c7', 'chasm', 'ledge', 268.8, 273.8, -4, 3, 9.6);
-plat('ch_c8', 'chasm', 'ledge', 277, 282, 1, 8, 7.6);
-plat('ch_c9', 'chasm', 'ledge', 285.2, 291.2, -4, 8, YB);
-plat('ch_dA', 'chasm', 'dead', 216, 221, 5.8, 8.8, 17.6);
-plat('ch_dB', 'chasm', 'dead', 261, 266, 1.8, 4.8, 11.6);
-for (const [a, b] of [['ch_c0', 'ch_c1'], ['ch_c1', 'ch_c2'], ['ch_c2', 'ch_c3'], ['ch_c3', 'ch_c4'], ['ch_c5', 'ch_c6'], ['ch_c6', 'ch_c7'], ['ch_c7', 'ch_c8'], ['ch_c8', 'ch_c9']]) hop(a, b, 'drop');
-hop('ch_c4', 'ch_b1', 'phase'); hop('ch_b1', 'ch_b2', 'phase'); hop('ch_b2', 'ch_c5', 'phase');
-SPANS.push(['ch_c4', 'ch_c5', ['ch_b1', 'ch_b2']]);
-hop('ch_c2', 'ch_dA'); hop('ch_c6', 'ch_dB');
+// ---- The Red Shaft: four stages, a zigzag up four lanes (x 79.5, 86.5, 94.5, 102.5), the hall runs z -21.5 .. 78 ----
+// stage 1 (y 10): the tunnel mouth. Stage 2 (y 16.2): north end, west. Stage 3 (y 22.4): south, middle. Stage 4 (y 28.6): north end, east. Stage 5 (y 34.8): the exit.
+plat('sh_p0', 'shaft', 'ledge', 75.5, 83, -3, 9, SH[0]);
+plat('sh_dd', 'shaft', 'rock', 85.6, 89.4, -2, 1.8, SH[0], { dead: true });
+hop('sh_p0', 'sh_dd');
+const shA = chain('sh_a', 'shaft', 'sh_p0', [['+z', 7]], 79.5, SH[1]);
+endPad('sh_c2a', 'shelf', shA, 76, 83, 7.8);
+plat('sh_c2p', 'shaft', 'pillar', 85.6, 88.4, 50.4, 53.2, SH[1]);
+hop('sh_c2a', 'sh_c2p');
+const shB = chain('sh_b', 'shaft', 'sh_c2p', [['-z', 7]], 86.5, SH[2]);
+endPad('sh_c3a', 'ledge', shB, 83.5, 90, 7.8);
+plat('sh_c3b', 'shaft', 'rock', 92.5, 96.5, 3, 7, SH[2]);
+hop('sh_c3a', 'sh_c3b');
+plat('sh_c3c', 'shaft', 'pillar', 98.4, 101, 3.4, 6, SH[2], { dead: true });
+hop('sh_c3b', 'sh_c3c');
+const shC = chain('sh_c', 'shaft', 'sh_c3b', [['+z', 7]], 94.5, SH[3]);
+endPad('sh_c4a', 'rock', shC, 91, 98, 7.8);
+plat('sh_c4s', 'shaft', 'shelf', 100.2, 105.8, 49.8, 52.6, SH[3]);
+hop('sh_c4a', 'sh_c4s');
+const shD = chain('sh_d', 'shaft', 'sh_c4s', [['-z', 12]], 102.5, SH[4], { flat: 3, big: { 6: 4.6 } });
+endPad('sh_e5', 'ledge', shD, 96.5, 106, 3.2);
+// the hidden side path off stage 2: three blocks north to a rest block that holds the cache (revealed by three hidden eyes)
+const shS = chain('sh_s', 'shaft', 'sh_c2a', [['+z', 3]], 79.5, SH[1] + 1.2, { endAt: true, secret: true, big: { 2: 4.6 } });
+CHAINS.push({ id: 'sh_s', seg: 'shaft', from: 'sh_c2a', to: shS.ids[2], blocks: shS.ids, secret: true });
+
+// ---- The Green Chasm: a vast canyon, two long stages (y 34.8 -> 28.8 -> 22.8), the hall runs x 198..292, z -16..70 ----
+// the glide at Mobility 50 covers about 47 m of a 6 m drop (57 m of 12 m), so the stages are 49 m and 60 m apart
+plat('ch_c0', 'chasm', 'ledge', 198, 206, -4, 10, YG);
+plat('ch_s1', 'chasm', 'shelf', 198, 204.4, -10, -6.4, YG, { dead: true });
+plat('ch_c1', 'chasm', 'rock', 208.4, 212.4, -2, 2, YG);
+hop('ch_c0', 'ch_s1'); hop('ch_c0', 'ch_c1');
+const chA = chain('ch_a', 'chasm', 'ch_c0', [['+z', 9], ['+x', 6]], 202, YG - DROP, { big: { 6: 4.6, 12: 4.6 } });
+endPad('ch_c2a', 'ledge', chA, 53, 62, 8.8);
+plat('ch_c2b', 'chasm', 'rock', 249.8, 253.8, 56, 60, YG - DROP);
+plat('ch_c2c', 'chasm', 'pillar', 256.4, 259.2, 56.4, 59.2, YG - DROP);
+plat('ch_c2d', 'chasm', 'ledge', 261.8, 268.2, 55, 64, YG - DROP);
+hop('ch_c2a', 'ch_c2b'); hop('ch_c2b', 'ch_c2c'); hop('ch_c2c', 'ch_c2d');
+const chB = chain('ch_b', 'chasm', 'ch_c2d', [['-z', 5], ['+x', 3], ['-z', 4]], 265, YB, { big: { 5: 4.6 } });
+endPad('ch_c3a', 'ledge', chB, 277.5, 284.5, 8);
+plat('ch_exit', 'chasm', 'ledge', 286.9, 291.4, -4, 6, YB);
+hop('ch_c3a', 'ch_exit');
+
+/** Per traversal: the hall bounds, where you start and where you must get to. */
+export const HALLS = {
+  shaft: { x0: 76, x1: 106, z0: -21.5, z1: 78, start: 'sh_p0', goal: 'sh_e5' },
+  chasm: { x0: 198, x1: 292, z0: -16, z1: 70, start: 'ch_c0', goal: 'ch_exit' },
+};
 
 /** The raw route data, for tools and the in-browser jump test. */
-export const WHISPER_DATA = { PL, RAMPS, HOPS, SPANS };
+export const WHISPER_DATA = { PL, RAMPS, HOPS, CHAINS, REST, HALLS, SH, STAGE };
 
 /** Rectangle distance in the ground plane. */
 const rectGap = (a, b) => Math.hypot(Math.max(0, a.x0 - b.x1, b.x0 - a.x1), Math.max(0, a.z0 - b.z1, b.z0 - a.z1));
+const overlap2d = (a, b, pad = 0) => a.x0 < b.x1 - pad && b.x0 < a.x1 - pad && a.z0 < b.z1 - pad && b.z0 < a.z1 - pad;
 const MAXRISE = 0.9, FRAC = 0.7;
 const hopOk = (A, B, frac = FRAC) => { const rise = B.top - A.top, gap = rectGap(A, B); return rise <= MAXRISE && gap <= frac * maxGap(rise) + 1e-9; };
 
-/** Checks every hop with the base jump and every phase span against the strongest possible jump. Returns { problems, rows }. */
-export function checkWhisperRoute() {
-  const problems = [], rows = [];
+/**
+ * Checks the whole route. `{ sprint }` (default true: Shift held in the air too) picks the class-jump model at Mobility 50 (js/jump-reach.js).
+ * What it proves, as problems:
+ *   - every intended hop (static and phase) is makeable with the BASE jump (70 percent of the walking max), both ways unless a one way drop;
+ *   - ramps are flush and walkable;
+ *   - no class jump (lift, highlift, strafelift, highjump, strafejump, triple jump, glide, balanced glide, strafe glide) can get from a traversal's start
+ *     to its exit through static footholds alone: the graph of base links plus every class reach (plus 2.3 m) must not join them. Each chain is also
+ *     reported on its own (rise, void, best class jump);
+ *   - static footholds never overlap in plan, phase blocks keep 4.2 m of clearance over / under anything they cross in plan, everything is inside its hall.
+ * Returns { problems, rows }.
+ */
+export function checkWhisperRoute(opts = {}) {
+  const sprint = opts.sprint ?? true, problems = [], rows = [];
   for (const [a, b, kind] of HOPS) {
     const A = PL.get(a), B = PL.get(b), rise = B.top - A.top, gap = rectGap(A, B), lim = maxGap(rise);
     rows.push(`${a} -> ${b} ${kind}: gap ${gap.toFixed(2)} m, rise ${rise.toFixed(2)} m, ${(100 * gap / lim).toFixed(0)} percent of the walking max (${lim.toFixed(2)} m)`);
@@ -128,27 +201,77 @@ export function checkWhisperRoute() {
     if (!edge(A, r.x0, r.z0)) problems.push(`ramp ${r.id} does not start on ${r.from}`);
     if (!edge(B, r.x1, r.z1)) problems.push(`ramp ${r.id} does not end on ${r.to}`);
   }
-  const strong = (rise) => maxGap(rise, WHISPER_JUMP.sprint * 1.5, WHISPER_JUMP.v + 0.0125 * 100) + 2 * WHISPER_JUMP.r;
-  for (const [a, b] of SPANS) {
-    const A = PL.get(a), B = PL.get(b), gap = rectGap(A, B), lim = strong(B.top - A.top);
-    rows.push(`span ${a} -> ${b}: void ${gap.toFixed(1)} m, best jump at 100 Mobility ${lim.toFixed(1)} m`);
-    if (gap < lim + 1.5) problems.push(`span ${a} -> ${b} (${gap.toFixed(1)} m) can be jumped without the phase blocks`);
+  // ---- class jumps: every chain on its own, then the whole static graph of each traversal ----
+  const top = bestRise(REACH_MOBILITY, sprint);
+  rows.push(`class jumps at Mobility ${REACH_MOBILITY}, sprint ${sprint}: highest climb ${top.toFixed(2)} m, margin ${RISE_MARGIN} m rise / ${REACH_MARGIN.toFixed(1)} m distance`);
+  for (const c of CHAINS) {
+    if (c.secret) continue;
+    const A = PL.get(c.from), B = PL.get(c.to), rise = B.top - A.top, gap = rectGap(A, B), reach = reachTable(rise, REACH_MOBILITY, sprint);
+    rows.push(`chain ${c.id} (${c.blocks.length} blocks) ${c.from} -> ${c.to}: rise ${rise.toFixed(2)} m, void ${gap.toFixed(1)} m, ` + (reach === null ? `no class jump climbs ${rise.toFixed(1)} m (best ${top.toFixed(2)})` : `best class jump ${reach.toFixed(1)} m`));
   }
-  // notes (not problems): ledges that could be jumped between without being linked on the route
-  const route = [...PL.values()].filter((p) => p.kind === 'ledge' || p.kind === 'block');
-  for (const A of route) for (const B of route) {
-    if (A === B || A.seg !== B.seg || B.top - A.top > MAXRISE) continue;
-    const linked = HOPS.some(([x, y]) => (x === A.id && y === B.id) || (x === B.id && y === A.id)) || RAMPS.some((r) => (r.from === A.id && r.to === B.id) || (r.from === B.id && r.to === A.id));
-    const rise = B.top - A.top, gap = rectGap(A, B);
-    if (!linked && gap <= maxGap(rise, WHISPER_JUMP.walk) && A.top - B.top < 4) rows.push(`note: ${A.id} could also reach ${B.id} (gap ${gap.toFixed(2)}, rise ${rise.toFixed(2)})`);
+  for (const [seg, H] of Object.entries(HALLS)) {
+    const nodes = [...PL.values()].filter((p) => p.seg === seg && p.kind !== 'block' && p.kind !== 'floor');
+    const adj = new Map(nodes.map((p) => [p.id, new Map()]));
+    const edge = (a, b, why) => { if (adj.has(a) && adj.has(b) && !adj.get(a).has(b)) adj.get(a).set(b, why); };
+    for (const [a, b, kind] of HOPS) { if (kind === 'phase') continue; edge(a, b, 'hop'); if (kind !== 'drop') edge(b, a, 'hop'); }
+    for (const r of RAMPS) { edge(r.from, r.to, 'ramp'); edge(r.to, r.from, 'ramp'); }
+    let tight = Infinity, tightRow = '';
+    for (const A of nodes) for (const B of nodes) {
+      if (A === B) continue;
+      const rise = B.top - A.top, reach = reachTable(rise, REACH_MOBILITY, sprint);
+      if (reach === null) continue; // no class jump climbs that high
+      const gap = rectGap(A, B), slack = gap - (reach + REACH_MARGIN);
+      if (slack < 0) edge(A.id, B.id, `class jump (${gap.toFixed(1)} m of void, rise ${rise.toFixed(1)}, reach ${reach.toFixed(1)})`);
+      else if (slack < tight && !adj.get(A.id).has(B.id) && (A.top !== B.top || gap > 8)) { tight = slack; tightRow = `${A.id} -> ${B.id} (void ${gap.toFixed(1)}, rise ${rise.toFixed(1)}, reach ${reach.toFixed(1)})`; }
+    }
+    const seen = new Map([[H.start, null]]), q = [H.start];
+    while (q.length) { const a = q.shift(); for (const [b, why] of adj.get(a)) if (!seen.has(b)) { seen.set(b, [a, why]); q.push(b); } }
+    if (seen.has(H.goal)) {
+      const path = []; let c = H.goal;
+      while (c) { const s = seen.get(c); path.unshift(c + (s ? ` (${s[1]})` : '')); c = s?.[0]; }
+      problems.push(`${seg}: ${H.start} reaches ${H.goal} without a phase block: ${path.join(' <- ')}`);
+    } else rows.push(`${seg}: the start reaches ${seen.size} of ${nodes.length} static footholds (all before the first phase stage); the exit is out of reach. Tightest class jump left: ${tightRow} with ${tight.toFixed(1)} m to spare`);
+  }
+  // ---- plan overlaps and clearances ----
+  const all = [...PL.values()].filter((p) => p.kind !== 'floor' || p.seg === 'shaft' || p.seg === 'chasm');
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+    const A = all[i], B = all[j];
+    if (A.seg !== B.seg || !overlap2d(A, B, 0.05)) continue;
+    const dy = Math.abs(A.top - B.top);
+    if (A.kind !== 'block' && B.kind !== 'block') { if (!(A.kind === 'floor' || B.kind === 'floor') || dy > 0.01) problems.push(`${A.id} and ${B.id} overlap in plan (terrain is single valued)`); continue; }
+    if (dy < 4.2) problems.push(`${A.id} and ${B.id} overlap in plan with only ${dy.toFixed(1)} m between them (4.2 m needed)`);
+  }
+  for (const p of PL.values()) {
+    const H = HALLS[p.seg]; if (!H || p.kind === 'floor') continue;
+    if (p.x0 < H.x0 - 0.6 || p.x1 > H.x1 + 0.6 || p.z0 < H.z0 || p.z1 > H.z1) problems.push(`${p.id} sticks out of the ${p.seg} hall`);
+  }
+  // ---- movers: every one needs a safe window to cross ----
+  for (const S of WHISPER_LAYOUT.segments) for (const m of S.movers || []) {
+    const w = moverSafe(m);
+    rows.push(`mover ${m.id}: safe ${w.safe.toFixed(1)} s of ${m.period} s, crossing needs ${w.need.toFixed(1)} s`);
+    if (w.safe < w.need) problems.push(`mover ${m.id} has ${w.safe.toFixed(1)} s safe but a crossing needs ${w.need.toFixed(1)} s`);
   }
   return { problems, rows };
 }
+/** Every pair of static footholds a base jump links (never onto a phase block), as the leap links the Taken nav can use: { a: [x, y, z], b: [x, y, z], two }. */
+export function whisperLeapLinks() {
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v)), out = [];
+  for (const [a, b, kind] of HOPS) {
+    if (kind !== 'jump' && kind !== 'drop') continue;
+    const A = PL.get(a), B = PL.get(b);
+    if (A.kind === 'block' || B.kind === 'block') continue;
+    const inset = (P, x, z) => [r2(clamp(x, P.x0 + 0.5, P.x1 - 0.5)), P.top, r2(clamp(z, P.z0 + 0.5, P.z1 - 0.5))];
+    const cb = [(B.x0 + B.x1) / 2, (B.z0 + B.z1) / 2], ca = [(A.x0 + A.x1) / 2, (A.z0 + A.z1) / 2];
+    out.push({ a: inset(A, cb[0], cb[1]), b: inset(B, ca[0], ca[1]), two: kind === 'jump' });
+  }
+  return out;
+}
+
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Terrain: plateaus and ramps from the data above
 // ---------------------------------------------------------------------------------------------------------------------------------
-const EDGE = 0.12; // a short skirt: the ledge edge is a cliff (a landing on the skirt slides off into the void)
+const EDGE = 0.12; // a short skirt: the foothold edge is a cliff (a landing on the skirt slides off into the void)
 function terrainFeatures() {
   const out = [];
   for (const p of PL.values()) {
@@ -176,6 +299,15 @@ export const WHISPER_LOC = {
 // Layout contract (see docs/U21_PROPOSAL.md). Phase block `p` is the block CENTRE, `s` its full size. Everything else: y is the floor to stand on.
 // ---------------------------------------------------------------------------------------------------------------------------------
 const blk = (id, sy = 0.8) => { const b = PL.get(id); return { p: [(b.x0 + b.x1) / 2, b.top - sy / 2, (b.z0 + b.z1) / 2], s: [b.x1 - b.x0, sy, b.z1 - b.z0] }; };
+/** A point on a foothold or block: fx, fz are 0..1 across it; y is the floor to stand on. */
+const at = (id, fx = 0.5, fz = 0.5) => { const p = PL.get(id); return [r2(p.x0 + (p.x1 - p.x0) * fx), p.top, r2(p.z0 + (p.z1 - p.z0) * fz)]; };
+/** A Vex piston: tucked beside a phase block, it slams across it in the direction it fires, pushing out whoever stands on it. */
+function pistonAcross(id, blockId, dir, o = {}) {
+  const B = PL.get(blockId), th = 1.6, wid = 5, h = 3.4, clear = 0.4, d = DIRS[dir], axis = d[0] ? 'x' : 'z', sgn = d[0] || d[1];
+  const lo = axis === 'x' ? B.x0 : B.z0, hi = axis === 'x' ? B.x1 : B.z1, mid = axis === 'x' ? (B.z0 + B.z1) / 2 : (B.x0 + B.x1) / 2;
+  const c0 = sgn > 0 ? lo - clear - th / 2 : hi + clear + th / 2, cEnd = sgn > 0 ? hi + clear - th / 2 : lo - clear + th / 2, cy = B.top + 1;
+  return { id, p: axis === 'x' ? [r2(c0), r2(cy), r2(mid)] : [r2(mid), r2(cy), r2(c0)], s: axis === 'x' ? [th, h, wid] : [wid, h, th], axis, travel: r2(cEnd - c0), period: o.period ?? 7, phase: o.phase ?? 0, push: 9, lane: wid };
+}
 export const WHISPER_LAYOUT = {
   spawn: [8, YD, 0],
   voidY: -40,
@@ -191,15 +323,27 @@ export const WHISPER_LAYOUT = {
     },
     {
       id: 'shaft', name: 'The Red Shaft', kind: 'traversal',
-      checkpoint: [79, YD, 0], region: { minX: 74, maxX: 108, minZ: -22, maxZ: 9, minY: -45, maxY: 41 },
-      conduits: [[79, YD, 4], [102, 15.8, -2]],
-      phaseBlocks: [blk('sh_b1'), blk('sh_b2')],
-      spawns: [[94.5, 15, 0], [104, 15.8, -5], [79, 15.8, -14], [95, 20.8, -19], [103, YG, -19]],
+      checkpoint: [79, YD, 0], region: { minX: 74, maxX: 108, minZ: -22, maxZ: 80, minY: -45, maxY: YG + 8 },
+      conduits: [[79, YD, 4], at('sh_c2a'), at('sh_c3a'), at('sh_c4a'), at(shD.ids[6]), at('sh_e5')], // one per stage and a rest block half way up the last chain
+      phaseBlocks: [shA, shB, shC, shD].flatMap((c) => c.ids.map((id) => blk(id))),
+      movers: [
+        pistonAcross('sm1', 'sh_a4', '+x', { period: 6.8, phase: 0 }),
+        { id: 'sm2', p: [77, SH[1] + 1, 53], s: [1.6, 3.4, 5.2], axis: 'x', travel: 5, period: 7.4, phase: 2.2, push: 9, lane: 5.2 },
+        pistonAcross('sm3', 'sh_c3', '-x', { period: 7.0, phase: 3.1 }),
+        pistonAcross('sm4', 'sh_d8', '+x', { period: 7.6, phase: 1.4 }),
+      ],
+      secret: { eyes: [{ p: [76, SH[1] + 7, 30], n: [1, 0] }, { p: [92, SH[2] + 9, -21.5], n: [0, 1] }, { p: [106, SH[3] + 6, 22], n: [-1, 0] }], blocks: shS.ids.map((id) => blk(id)), chest: at(shS.ids[2]) },
+      spawns: [at('sh_c2a', 0.4, 0.4), at('sh_c3a', 0.5, 0.6), at('sh_c4a', 0.3, 0.5), at('sh_c2p'), at('sh_c3b'), at('sh_c4a', 0.7, 0.5), at('sh_c4s'), at('sh_e5', 0.3, 0.5), at('sh_c3a', 0.3, 0.3), at('sh_c2a', 0.7, 0.8)],
+      ambush: [
+        { p: at('sh_c2a'), r: 7, spawns: [at('sh_c3a', 0.3, 0.3), at('sh_c3b'), at('sh_c3a', 0.7, 0.7)] },
+        { p: at('sh_c3a'), r: 7, spawns: [at('sh_c4a', 0.3, 0.5), at('sh_c4a', 0.7, 0.5), at('sh_c4s')] },
+        { p: at('sh_c4a'), r: 7, spawns: [at('sh_e5', 0.3, 0.5), at('sh_e5', 0.7, 0.5), at('sh_e5', 0.5, 0.5)] },
+      ],
       exit: { p: [109, YG, -19], r: 2.2 },
     },
     {
       id: 'gallery', name: 'Blight Gallery', kind: 'encounter',
-      checkpoint: [126, YG, -19], region: { minX: 120, maxX: 182, minZ: -27, maxZ: 27, minY: YG - 2, maxY: 44 },
+      checkpoint: [126, YG, -19], region: { minX: 120, maxX: 182, minZ: -27, maxZ: 27, minY: YG - 2, maxY: YG + 22.4 },
       conduits: [[132, YG, -18], [172, YG, 18]],
       eyes: [
         { p: [140, YG + 5, -26], n: [0, 1] }, { p: [160, YG + 6.5, -26], n: [0, 1] }, { p: [134, YG + 6, 26], n: [0, -1] },
@@ -212,19 +356,26 @@ export const WHISPER_LAYOUT = {
     },
     {
       id: 'chasm', name: 'The Green Chasm', kind: 'traversal',
-      checkpoint: [201, YG, 0], region: { minX: 196, maxX: 294, minZ: -10, maxZ: 10, minY: -45, maxY: 76 },
-      conduits: [[234.3, 13.6, 1]],
-      phaseBlocks: [blk('ch_b1'), blk('ch_b2')],
+      checkpoint: [201, YG, 0], region: { minX: 196, maxX: 294, minZ: -18, maxZ: 72, minY: -45, maxY: YG + 56 },
+      conduits: [at('ch_c0', 0.5, 0.4), at(chA.ids[6]), at(chA.ids[12]), at('ch_c2a'), at(chB.ids[5]), at('ch_c3a')],
+      phaseBlocks: [chA, chB].flatMap((c) => c.ids.map((id) => blk(id))),
+      movers: [
+        pistonAcross('cm1', 'ch_a3', '+x', { period: 7.2, phase: 0.8 }),
+        pistonAcross('cm2', 'ch_a10', '-z', { period: 6.9, phase: 3.4 }),
+        pistonAcross('cm3', 'ch_b6', '+z', { period: 7.6, phase: 2.0 }),
+        { id: 'cm4', p: [242.6, YG - DROP + 1, 63.2], s: [4.4, 3.4, 1.6], axis: 'z', travel: -8.4, period: 8, phase: 4.6, push: 9, lane: 4.4 },
+      ],
+      spawns: [at('ch_c1'), at('ch_c2a', 0.4, 0.4), at('ch_c2b'), at('ch_c2d', 0.3, 0.5), at('ch_c2a', 0.7, 0.7), at('ch_c2c'), at('ch_c2d', 0.7, 0.5), at('ch_c3a', 0.5, 0.3), at('ch_c3a', 0.5, 0.7), at('ch_exit')],
       ambush: [
-        { p: [205, YG, 0], r: 7, spawns: [[212, 19.6, -4], [218, 17.6, -1], [225, 15.6, 5]] },
-        { p: [234, 13.6, 1], r: 6, spawns: [[254, 13.6, -1], [256, 13.6, 2], [263, 11.6, -5]] },
-        { p: [270, 9.6, 0], r: 7, spawns: [[279, 7.6, 4], [288, YB, 0], [289, YB, 3]] },
+        { p: at('ch_c0'), r: 8, spawns: [at('ch_c1'), at('ch_s1'), at('ch_c1', 0.3, 0.3)] },
+        { p: at('ch_c2a'), r: 8, spawns: [at('ch_c2d', 0.3, 0.4), at('ch_c2d', 0.7, 0.6), at('ch_c2c')] },
+        { p: at('ch_c2d'), r: 8, spawns: [at('ch_c3a', 0.5, 0.3), at('ch_c3a', 0.5, 0.7), at('ch_exit')] },
       ],
       exit: { p: [289, YB, 0], r: 2.5 },
     },
     {
       id: 'falls', name: 'The Falls', kind: 'boss',
-      checkpoint: [315, YB, 0], region: { minX: 309, maxX: 381, minZ: -31, maxZ: 31, minY: YB - 2, maxY: 58 },
+      checkpoint: [315, YB, 0], region: { minX: 309, maxX: 381, minZ: -31, maxZ: 31, minY: YB - 2, maxY: YB + 52.4 },
       room: { minX: 310, maxX: 372, minZ: -30, maxZ: 30 },
       boss: [356, YB, 0], glyph: [371.2, YB + 18, 0], glyphW: 10, // high on the back wall (face x 372), behind the boss, framed
       conduits: [[334, YB, -22], [334, YB, 22], [366, YB, -22], [366, YB, 22]],
@@ -362,6 +513,28 @@ function pillar(K, x, z, y0, h, w, color, band, glow) {
   for (const f of [0.08, 0.5, 0.92]) vb(K, x, y0 + h * f, z, w * 1.14, 0.5, w * 1.14, band);
   if (glow) { vb(K, x, y0 + h * 0.5, z, w + 0.08, h * 0.6, 0.18, glow.color, { glow: glow.k }); vb(K, x, y0 + h * 0.5, z, 0.18, h * 0.6, w + 0.08, glow.color, { glow: glow.k }); }
 }
+/** A static foothold by kind: a bronze wall ledge or shelf, a floating Vex fragment (tilted, with a dark underside and a glowing core), a broken pillar or a slab. */
+function footV(K, p, c) {
+  const w = p.x1 - p.x0, d = p.z1 - p.z0, cx = (p.x0 + p.x1) / 2, cz = (p.z0 + p.z1) / 2, dead = p.dead;
+  if (p.kind === 'pillar') { solidless(K, p, c); return; }
+  if (p.kind === 'rock') {
+    // a floating fragment: a slab, a tapering underside and a glowing core, nothing holding it up
+    vx(K, p.x0, p.x1, p.top - 0.7, p.top, p.z0, p.z1, dead ? c.dead : c.floor, { shadow: true });
+    vx(K, p.x0 + w * 0.15, p.x1 - w * 0.15, p.top - 1.9, p.top - 0.7, p.z0 + d * 0.15, p.z1 - d * 0.15, c.dead);
+    vx(K, p.x0 + w * 0.32, p.x1 - w * 0.32, p.top - 2.9, p.top - 1.9, p.z0 + d * 0.32, p.z1 - d * 0.32, c.dead);
+    vx(K, p.x0 - 0.04, p.x1 + 0.04, p.top - 0.2, p.top - 0.03, p.z0 - 0.04, p.z1 + 0.04, c.trim, { glow: dead ? 0.3 : 0.7 });
+    vb(K, cx, p.top - 1.5, cz, 0.5, 0.5, 0.5, c.glow, { glow: 1.4, rz: 0.6, rx: 0.6 });
+    return;
+  }
+  ledgeV(K, p, dead ? c.dead : c.floor, c.trim, dead ? 0.35 : 0.8);
+  if (p.kind === 'shelf') { vx(K, p.x0, p.x1, p.top - 4, p.top - 1.4, p.z0, p.z1, c.pillar); vb(K, cx, p.top - 0.9, cz, w * 0.5, 0.3, 0.3, c.band); }
+}
+function solidless(K, p, c) {
+  const w = p.x1 - p.x0, cx = (p.x0 + p.x1) / 2, cz = (p.z0 + p.z1) / 2, h = 9;
+  vx(K, p.x0, p.x1, p.top - h, p.top, p.z0, p.z1, c.pillar, { shadow: true });
+  for (const f of [0.1, 0.5, 0.9]) vb(K, cx, p.top - h * f, cz, w * 1.14, 0.45, (p.z1 - p.z0) * 1.14, c.band);
+  vx(K, p.x0 - 0.04, p.x1 + 0.04, p.top - 0.2, p.top - 0.03, p.z0 - 0.04, p.z1 + 0.04, c.trim, { glow: p.dead ? 0.3 : 0.8 });
+}
 /** Wall socket: a bronze ring round a dim teal disc, facing (fx, fz). */
 function socket(K, x, y, z, fxd, fzd, r, k = 0.5, ring = BRONZE2) {
   const ry = fxd ? Math.PI / 2 : 0, flat = new THREE.CylinderGeometry(r * 0.78, r * 0.78, 0.22, 14);
@@ -384,7 +557,8 @@ function blightDecor(K, x, y, z, s) {
 // ---------------------------------------------------------------------------------------------------------------------------------
 const WHISPER = {
   spawn: [8, 0],            // x, z only: the terrain height under it is 0 (the void). Use WHISPER_LAYOUT.spawn (y = 10) to place the player.
-  bounds: [-20, 390, -45, 45],
+  bounds: [-20, 390, -45, 100],
+  leapLinks: whisperLeapLinks(), // the static footholds a class jump could hop between (U21b); the route check proves none skips a phase stretch
   zones: [],
   terrain: terrainFeatures(),
   noEdge: true, merge: true, hideBulbs: true, lightPool: 8, lockIn: false,
@@ -425,32 +599,35 @@ const WHISPER = {
 
     // ============================== 2. THE RED SHAFT: vertical, red light, teal sockets ==============================
     {
-      const x0 = 76, x1 = 106, z0 = -21.5, z1 = 8, y0 = -70, y1 = 40;
+      const H = HALLS.shaft, x0 = H.x0, x1 = H.x1, z0 = H.z0, z1 = H.z1, y0 = -70, y1 = YG + 22, ym = (y0 + y1) / 2, hh = y1 - y0;
+      const eyeSpots = (WHISPER_LAYOUT.segments.find((s) => s.id === 'shaft').secret?.eyes || []).map((e) => e.p);
+      const nearEye = (wallX, wallZ, u) => eyeSpots.some((p) => (wallX !== null ? Math.abs(p[0] - wallX) < 0.5 && Math.abs(p[2] - u) < 3.4 : Math.abs(p[2] - wallZ) < 0.5 && Math.abs(p[0] - u) < 3.4));
       vx(K, x0, x1, y0, y0 + 1, z0, z1, 0x050305); // the dark far below
       hall(K, { x0, x1, z0, z1, y0, y1, color: S_WALL, roof: 0x241010, gaps: { w: [{ a: -3, b: 3, top: YD + 6.5 }], e: [{ a: -20.6, b: -17.4, top: YG + 5.5 }] } });
-      // deep wall panels: dark red ribs on the long walls, bands up the shaft
-      for (let u = x0 + 2; u < x1 - 1; u += 5) for (const [z, dz] of [[z0, 1], [z1, -1]]) { vb(K, u, 5, z + dz * 0.25, 1.1, 70, 0.5, S_RIB); vb(K, u, 5, z + dz * 0.52, 0.16, 70, 0.06, S_GLOW, { glow: 0.5 }); }
-      for (let u = z0 + 2; u < z1 - 1; u += 5) for (const [x, dx] of [[x0, 1], [x1, -1]]) { if (Math.abs(u - (-19)) < 2.2 && dx < 0) continue; vb(K, x + dx * 0.25, 5, u, 0.5, 70, 1.1, S_RIB); vb(K, x + dx * 0.52, 5, u, 0.06, 70, 0.16, S_GLOW, { glow: 0.5 }); }
-      for (const y of [12, 18, 24, 30, 36]) { vb(K, 91, y, z0 + 0.2, x1 - x0, 0.5, 0.4, S_RIB); vb(K, 91, y, z1 - 0.2, x1 - x0, 0.5, 0.4, S_RIB); }
-      // the wall sockets of the reference: bronze rings round dim teal eyes, up all four walls
-      const SK = [[0, 15, 1], [0, 21, 1], [0, 27, 1], [0, 33, 1]];
-      for (const [, y] of SK) {
-        for (const u of [82, 94, 100]) { socket(K, u, y + (u === 94 ? 2 : 0), z0 + 0.3, 0, 1, u === 94 ? 1.5 : 1.1, 0.35); socket(K, u + 2, y + 1, z1 - 0.3, 0, -1, u === 100 ? 1.5 : 1.1, 0.35); }
-        socket(K, x0 + 0.3, y + 1, -14, 1, 0, 1.2, 0.35); socket(K, x0 + 0.3, y + 3, -2, 1, 0, 1.4, 0.35); socket(K, x1 - 0.3, y + 1, -5, -1, 0, 1.3, 0.35); socket(K, x1 - 0.3, y + 3, 4, -1, 0, 1.1, 0.35);
+      // deep wall panels: dark red ribs up all four walls (kept clear of the tunnel mouths and the hidden eyes)
+      for (let u = x0 + 2; u < x1 - 1; u += 5) for (const [z, dz] of [[z0, 1], [z1, -1]]) { if (nearEye(null, z, u)) continue; vb(K, u, ym, z + dz * 0.25, 1.1, hh, 0.5, S_RIB); vb(K, u, ym, z + dz * 0.52, 0.16, hh, 0.06, S_GLOW, { glow: 0.5 }); }
+      for (let u = z0 + 2; u < z1 - 1; u += 5) for (const [x, dx] of [[x0, 1], [x1, -1]]) {
+        if ((Math.abs(u - (-19)) < 2.4 && dx < 0) || (Math.abs(u) < 3.6 && dx > 0) || nearEye(x, null, u)) continue;
+        vb(K, x + dx * 0.25, ym, u, 0.5, hh, 1.1, S_RIB); vb(K, x + dx * 0.52, ym, u, 0.06, hh, 0.16, S_GLOW, { glow: 0.5 });
+      }
+      for (let y = 18; y < y1; y += 6) { vb(K, 91, y, z0 + 0.2, x1 - x0, 0.5, 0.4, S_RIB); vb(K, 91, y, z1 - 0.2, x1 - x0, 0.5, 0.4, S_RIB); }
+      // the wall sockets of the reference: bronze rings round dim teal eyes, up all four walls (decor: they never answer to a shot)
+      for (let y = YD + 5; y < y1 - 4; y += 6.5) {
+        for (const u of [82, 100]) { if (!nearEye(null, z0, u)) socket(K, u, y + (u === 100 ? 2 : 0), z0 + 0.3, 0, 1, 1.1, 0.35); if (!nearEye(null, z1, u + 2)) socket(K, u + 2, y + 1, z1 - 0.3, 0, -1, 1.1, 0.35); }
+        for (const z of [-14, 14, 44, 66]) { if (!nearEye(x0, null, z)) socket(K, x0 + 0.3, y + 1, z, 1, 0, 1.2, 0.35); if (!nearEye(x1, null, z + 3)) socket(K, x1 - 0.3, y + 3, z + 3, -1, 0, 1.2, 0.35); }
       }
       // a great fallen slab across the top, as in the reference, and a red shaft of light from above
-      vb(K, 92, 34, -6, 34, 2.4, 9, 0x4a1a18, { rz: 0.32, ry: 0.1 });
-      vb(K, 92, 34.6, -6, 34, 0.3, 9.2, S_GLOW, { rz: 0.32, ry: 0.1, glow: 0.4 });
-      vb(K, 96, y1 - 0.05, -10, 1, 1, 1, S_GLOW, { geo: new THREE.CircleGeometry(7, 5).rotateX(Math.PI / 2), glow: 1.6 });
-      fx(K, new THREE.CylinderGeometry(7.2, 3.4, 26, 5, 1, true), S_GLOW, 0.11, 96, 27, -10, { add: true });
-      fx(K, new THREE.CylinderGeometry(3, 1.4, 16, 5, 1, true), 0xff7a5a, 0.08, 96, 30, -10, { add: true });
-      // ledges, ramps and the blocks' bases (the blocks themselves are built by mechanics.js)
-      for (const p of PL.values()) if (p.seg === 'shaft' && p.kind !== 'floor' && p.kind !== 'block') ledgeV(K, p, p.kind === 'dead' ? 0x4a2420 : S_FLOOR, S_GLOW, p.kind === 'dead' ? 0.35 : 0.8);
-      for (const r of RAMPS) if (r.id.startsWith('sh_')) rampV(K, r, S_FLOOR, S_GLOW);
-      // dead ends read as inviting: a bronze Vex shard on each
-      for (const [x, y, z] of [[95, 15, 5.8], [90.9, 10.8, 6]]) { vb(K, x, y + 0.9, z, 0.7, 1.8, 0.7, BRONZE2); vb(K, x, y + 1.9, z, 0.5, 0.5, 0.5, RED, { glow: 2.2 }); }
+      vb(K, 92, y1 - 7, 8, 34, 2.4, 9, 0x4a1a18, { rz: 0.32, ry: 0.1 });
+      vb(K, 92, y1 - 6.4, 8, 34, 0.3, 9.2, S_GLOW, { rz: 0.32, ry: 0.1, glow: 0.4 });
+      vb(K, 96, y1 - 0.05, 30, 1, 1, 1, S_GLOW, { geo: new THREE.CircleGeometry(7, 5).rotateX(Math.PI / 2), glow: 1.6 });
+      fx(K, new THREE.CylinderGeometry(7.2, 3.4, 40, 5, 1, true), S_GLOW, 0.11, 96, y1 - 20, 30, { add: true });
+      fx(K, new THREE.CylinderGeometry(3, 1.4, 24, 5, 1, true), 0xff7a5a, 0.08, 96, y1 - 12, 30, { add: true });
+      // footholds: wall shelves, floating Vex fragments, broken pillars and slabs (the blocks themselves are built by mechanics.js)
+      for (const p of PL.values()) if (p.seg === 'shaft' && p.kind !== 'floor' && p.kind !== 'block') footV(K, p, { floor: S_FLOOR, dead: 0x4a2420, trim: S_GLOW, pillar: 0x3a1816, band: BRONZE2, glow: RED });
+      // the hidden cache's alcove: a dark Vex niche over the far end of the side path, seen only when you know to look
+      { const b = PL.get('sh_s2'), cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2; vb(K, cx, b.top + 2.6, z1 - 0.3, 6.4, 6.4, 0.5, 0x120808); vb(K, cx, b.top + 2.6, z1 - 0.6, 6.8, 6.8, 0.2, BRONZE2); vb(K, cx, b.top + 5.7, z1 - 0.7, 1.2, 1.2, 0.2, AMBER, { glow: 1.2 }); lamp(K, cx, b.top + 3, cz, AMBER, 5, 12); }
       tunnel(K, 106, 122, -20.6, -17.4, YG, YG + 5.5, S_WALL, { color: S_GLOW, k: 0.6 });
-      for (const [x, y, z, i] of [[80, 12, 4, 13], [100, 19, -2, 14], [80, 18, -14, 13], [100, 25, -19, 14], [90, 30, -8, 10], [112, YG + 3.5, -19, 8]]) lamp(K, x, y, z, S_GLOW, i, 30);
+      for (const [x, y, z, i] of [[80, 13, 4, 13], [79.5, SH[1] + 3, 53, 13], [86.5, SH[2] + 3, 6, 13], [94.5, SH[3] + 3, 51, 13], [102.5, YG + 3, -19, 14], [80, SH[1] + 1, 30, 10], [86.5, SH[2] + 1, 30, 10], [94.5, SH[3] + 1, 30, 10], [102.5, SH[4] - 1, 20, 10], [112, YG + 3.5, -19, 8]]) lamp(K, x, y, z, S_GLOW, i, 30);
     }
 
     // ============================== 3. BLIGHT GALLERY: black and white, Taken blight ==============================
@@ -482,29 +659,33 @@ const WHISPER = {
 
     // ============================== 4. THE GREEN CHASM: mossy teal canyon, light from above ==============================
     {
-      const x0 = 198, x1 = 292, z0 = -9.5, z1 = 9.5, y0 = -70, y1 = 74;
+      const H = HALLS.chasm, x0 = H.x0, x1 = H.x1, z0 = H.z0, z1 = H.z1, y0 = -70, y1 = YG + 40, ym = (y0 + y1) / 2, hh = y1 - y0;
       vx(K, x0, x1, y0, y0 + 1, z0, z1, 0x03090b); // the dark far below
       hall(K, { x0, x1, z0, z1, y0, y1, color: C_WALL, roof: 0x0a1a1e, gaps: { w: [{ a: -3, b: 3, top: YG + 6.5 }], e: [{ a: -3, b: 3, top: YB + 6.5 }] } });
-      // tall slab faces and great leaning slabs, as in the reference
+      // tall slab faces down every wall, and great leaning slabs overhead, as in the reference
       for (let u = x0 + 4; u < x1; u += 9) for (const [z, dz, k] of [[z0, 1, 0], [z1, -1, 1]]) {
-        vb(K, u, 24, z + dz * 0.4, 5.5, 108, 0.8, k ? C_WALL2 : C_LEDGE);
-        vb(K, u + 4.2, 20, z + dz * 0.25, 0.4, 108, 0.5, 0x1d3a42);
+        vb(K, u, ym, z + dz * 0.4, 5.5, hh, 0.8, k ? C_WALL2 : C_LEDGE);
+        vb(K, u + 4.2, ym, z + dz * 0.25, 0.4, hh, 0.5, 0x1d3a42);
       }
-      for (const [x, y, z, w, h, rz, ry] of [[216, 46, 5, 26, 2, 0.5, 0.05], [262, 52, -6, 30, 2.4, -0.48, -0.06], [240, 62, 0, 22, 2, 0.3, 0.12], [284, 40, 7, 18, 1.8, 0.4, 0]]) vb(K, x, y, z, w, h, 6, C_WALL2, { rz, ry });
+      for (let u = z0 + 6; u < z1 - 2; u += 11) for (const [x, dx, k] of [[x0, 1, 0], [x1, -1, 1]]) {
+        if (Math.abs(u) < 5) continue; // the tunnel mouths
+        vb(K, x + dx * 0.4, ym, u, 0.8, hh, 5.5, k ? C_WALL2 : C_LEDGE);
+      }
+      for (const [x, y, z, w, h, rz, ry] of [[216, y1 - 22, 5, 26, 2, 0.5, 0.05], [262, y1 - 18, 40, 30, 2.4, -0.48, -0.06], [240, y1 - 10, 20, 22, 2, 0.3, 0.12], [284, y1 - 26, 55, 18, 1.8, 0.4, 0], [225, y1 - 16, 50, 20, 2, -0.3, 0.2]]) vb(K, x, y, z, w, h, 6, C_WALL2, { rz, ry });
       // the bright slit high above and the shafts of teal light falling down the canyon
       vx(K, x0 + 4, x1 - 4, y1 - 0.3, y1 - 0.02, -1.4, 1.4, C_LIGHT, { glow: 2.4 });
-      for (let x = 206; x < 290; x += 17) fx(K, new THREE.BoxGeometry(5, 70, 3.6), 0x6ad8e0, 0.07, x, y1 - 36, 0, { add: true, rz: 0.06 });
-      // ledges drawn as slabs, with moss over them
+      vx(K, x0 + 4, x1 - 4, y1 - 0.3, y1 - 0.02, 38, 41, C_LIGHT, { glow: 2.4 });
+      for (let x = 206; x < 290; x += 17) for (const z of [0, 40]) fx(K, new THREE.BoxGeometry(5, 70, 3.6), 0x6ad8e0, 0.07, x, y1 - 36, z, { add: true, rz: 0.06 });
+      // footholds: slabs, floating fragments, pillars and shelves, with moss over them
       for (const p of PL.values()) if (p.seg === 'chasm' && p.kind !== 'floor' && p.kind !== 'block') {
-        ledgeV(K, p, p.kind === 'dead' ? 0x2e5258 : C_LEDGE, TEALG, 0.35);
+        footV(K, p, { floor: C_LEDGE, dead: 0x2e5258, trim: TEALG, pillar: C_WALL2, band: 0x1d3a42, glow: TEALG });
         const w = p.x1 - p.x0, d = p.z1 - p.z0;
         vx(K, p.x0 + w * 0.15, p.x0 + w * 0.55, p.top + 0.01, p.top + 0.06, p.z0 + d * 0.2, p.z0 + d * 0.65, C_MOSS, { glow: 0.05 });
-        if (p.kind !== 'dead') vb(K, p.x0 + w * 0.7, p.top + 0.35, p.z0 + d * 0.3, 1.1, 0.7, 0.9, 0x4a7a22, { rz: 0.2, ry: p.x0 });
+        if (!p.dead && w > 3) vb(K, p.x0 + w * 0.7, p.top + 0.35, p.z0 + d * 0.3, 1.1, 0.7, 0.9, 0x4a7a22, { rz: 0.2, ry: p.x0 });
       }
-      for (const [x, y, z, s] of [[203, YG + 0.6, 6.5, 0.9], [218, 17.6 + 0.6, 7.4, 0.8], [244, 18, -6.5, 1.1], [262, 11.6 + 0.6, 3.4, 0.7], [280, 7.6 + 0.6, 3, 0.8]]) vb(K, x, y, z, 1, 1, 1, 0x4a7a22, { geo: new THREE.DodecahedronGeometry(s, 0), ry: x, glow: 0.1 });
       // a dark seam down the middle of the far wall (the reference's black crack)
-      vb(K, 291.3, 36, 0, 0.3, 80, 1.2, 0x04121a);
-      for (const [x, y, z, i] of [[204, YG + 6, 2, 12], [222, 22, 3, 12], [240, 20, 1, 12], [256, 20, 0, 12], [272, 16, 0, 12], [286, 12, 2, 11]]) lamp(K, x, y, z, 0x6ad8d8, i, 40);
+      vb(K, 291.3, YG + 2, 0, 0.3, 80, 1.2, 0x04121a);
+      for (const [x, y, z, i] of [[204, YG + 6, 2, 12], [202, 40, 36, 12], [222, 40, 56, 12], [244, YG - DROP + 6, 58, 12], [262, 36, 38, 12], [272, 31, 16, 12], [282, YB + 6, 2, 11], [236, 46, 20, 10]]) lamp(K, x, y, z, 0x6ad8d8, i, 40);
       tunnel(K, 294, 310, -3, 3, YB, YB + 6.5, C_WALL, { color: TEALG, k: 0.5 });
       lamp(K, 302, YB + 4.5, 0, 0x7ad8e0, 7, 22);
     }
@@ -593,5 +774,82 @@ const WHISPER = {
     K.scene.add(driver);
   },
 };
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// U21b: glyph readability check. Builds the level into a recorder (no renderer), then for every shootable eye and every glyph board
+// checks, from the places a player stands in that segment: (1) the symbol is not embedded in a wall or decor, (2) a clear line of sight
+// exists from somewhere it can be read, (3) its angular size there is big enough. Console: checkWhisperSymbols().
+// ---------------------------------------------------------------------------------------------------------------------------------
+export const SYMBOL_MIN_DEG = 4;      // an eye's symbol (EYE_SYM.size) must span at least this many degrees from its best viewing spot
+export const BOARD_MIN_DEG = 12;      // a glyph board must span at least this many degrees (its width) from its best viewing spot
+function recordWhisper() {
+  const boxes = [], scene = new THREE.Scene();
+  const K = { scene, mat: () => new THREE.MeshBasicMaterial(), light: () => {}, ground: () => 0,
+    box: (cx, cz, w, h, d, color, o = {}) => { const y0 = o.abs ? o.y : (o.y ?? 0); boxes.push({ x0: cx - w / 2, x1: cx + w / 2, y0, y1: y0 + h, z0: cz - d / 2, z1: cz + d / 2 }); } };
+  WHISPER.build(K);
+  scene.updateMatrixWorld(true);
+  const ub = UB(), tmp = new THREE.Box3();
+  for (const m of scene.children) if (m.isMesh && m.geometry === ub && !m.rotation.x && !m.rotation.y && !m.rotation.z) {
+    tmp.setFromObject(m);
+    if (m.material?.transparent) continue;
+    boxes.push({ x0: tmp.min.x, x1: tmp.max.x, y0: tmp.min.y, y1: tmp.max.y, z0: tmp.min.z, z1: tmp.max.z, visual: true });
+  }
+  return boxes;
+}
+/** True when the open segment a -> b passes through the box (a small `inset` shrinks the box so a surface the target sits on does not count). */
+function segHits(a, b, bx, inset = 0.02) {
+  let t0 = 0, t1 = 1;
+  for (const k of [0, 1, 2]) {
+    const lo = [bx.x0, bx.y0, bx.z0][k] + inset, hi = [bx.x1, bx.y1, bx.z1][k] - inset, o = a[k], d = b[k] - a[k];
+    if (hi <= lo) return false;
+    if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) return false; continue; }
+    let ta = (lo - o) / d, tb = (hi - o) / d; if (ta > tb) [ta, tb] = [tb, ta];
+    t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); if (t0 > t1) return false;
+  }
+  return true;
+}
+const inBox = (p, bx, e = 0.02) => p[0] > bx.x0 + e && p[0] < bx.x1 - e && p[1] > bx.y0 + e && p[1] < bx.y1 - e && p[2] > bx.z0 + e && p[2] < bx.z1 - e;
+/** Checks every eye symbol and glyph board. Returns { problems: [string], rows: [string] }. */
+export function checkWhisperSymbols() {
+  const boxes = recordWhisper(), problems = [], rows = [];
+  for (const seg of WHISPER_LAYOUT.segments) {
+    const views = [seg.checkpoint, ...(seg.conduits || []), ...(seg.spawns || []), seg.gate?.p, seg.exit?.p].filter(Boolean).map((v) => [v[0], v[1] + 1.7, v[2]]);
+    // a traversal is read while climbing: add the static footholds of the segment
+    for (const f of PL.values()) if (f.seg === seg.id && f.kind !== 'block') views.push([(f.x0 + f.x1) / 2, f.top + 1.7, (f.z0 + f.z1) / 2]);
+    const rg = seg.region, face = rg ? { x: (rg.minX + rg.maxX) / 2, z: (rg.minZ + rg.maxZ) / 2 } : null;
+    const targets = [];
+    (seg.eyes || []).forEach((e, i) => {
+      const nx = e.n[0], nz = e.n[1], rx = -nz, rz = nx, h = EYE_SYM.size / 2, c = [e.p[0] + nx * EYE_SYM.z, e.p[1] + EYE_SYM.y, e.p[2] + nz * EYE_SYM.z];
+      targets.push({ name: `${seg.id} eye ${i}`, c, n: [nx, 0, nz], size: EYE_SYM.size, min: SYMBOL_MIN_DEG,
+        pts: [c, ...[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [c[0] + rx * u * h, c[1] + v * h, c[2] + rz * u * h])] });
+    });
+    if (seg.glyph) {
+      const w = boardWidth(seg), h = w / 8, yaw = boardYaw({ x: seg.glyph[0], z: seg.glyph[2] }, face), nx = Math.sin(yaw), nz = Math.cos(yaw), rx = nz, rz = -nx, c = seg.glyph;
+      targets.push({ name: `${seg.id} board`, c, n: [nx, 0, nz], size: w, min: BOARD_MIN_DEG,
+        pts: [c, ...[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [c[0] + rx * u * w / 2, c[1] + v * h, c[2] + rz * u * w / 2])] });
+    }
+    for (const t of targets) {
+      const embedded = t.pts.filter((q) => boxes.some((bx) => inBox(q, bx)));
+      if (embedded.length) problems.push(`${t.name}: ${embedded.length} of 5 symbol points sit inside a wall or decor box`);
+      let best = null, facing = 0, seen = 0;
+      for (const v of views) {
+        const dx = v[0] - t.c[0], dy = v[1] - t.c[1], dz = v[2] - t.c[2], d = Math.hypot(dx, dy, dz);
+        if (d < 1 || (dx * t.n[0] + dz * t.n[2]) / d < 0.25) continue;
+        facing++;
+        // line of sight to the centre and to at least 3 of the 4 corners, so a pillar cannot hide half of it
+        const clear = t.pts.filter((q) => { const e = [q[0] + (v[0] - q[0]) * 0.02, q[1] + (v[1] - q[1]) * 0.02, q[2] + (v[2] - q[2]) * 0.02]; return !boxes.some((bx) => segHits(v, e, bx)); });
+        if (!clear.includes(t.pts[0]) || clear.length < 4) continue;
+        seen++;
+        const deg = 2 * Math.atan(t.size / 2 / d) * 180 / Math.PI;
+        if (!best || deg > best.deg) best = { deg, d, v };
+      }
+      const ok = best && best.deg >= t.min;
+      rows.push(`${t.name}: ${best ? `${best.deg.toFixed(1)} deg from ${best.d.toFixed(1)} m` : 'NOT SEEN'} (best of ${seen} clear views, ${facing} facing) ${ok ? 'ok' : 'PROBLEM'}`);
+      if (!best) problems.push(`${t.name}: no standing spot in the segment has a clear line of sight to it`);
+      else if (!ok) problems.push(`${t.name}: only ${best.deg.toFixed(1)} deg from its best spot (needs ${t.min})`);
+    }
+  }
+  return { problems, rows };
+}
 
 export default { whisper: WHISPER };

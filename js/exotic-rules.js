@@ -28,9 +28,9 @@ export const EXOTIC_MISSIONS = {
     blightHits: 6, // shots to destroy a blight
     segments: {
       descent: { puzzle: { mode: 'any', need: 3 }, waves: [[['tk_thrall', 3], ['tk_acolyte', 2]], [['tk_acolyte', 2], ['tk_vandal', 1], ['tk_thrall', 2]]], wrongWave: [] },
-      shaft: { harass: [['tk_vandal', 2], ['tk_psion', 2], ['tk_acolyte', 1]] },
+      shaft: { harass: [['tk_vandal', 2], ['tk_psion', 2], ['tk_acolyte', 3], ['tk_thrall', 3]], ambushKit: [['tk_thrall', 2], ['tk_acolyte', 2], ['tk_psion', 1]] }, // U21b: spread over the stages, plus an ambush at each
       gallery: { puzzle: { mode: 'order', need: 4, of: 6 }, waves: [[['tk_thrall', 3], ['tk_acolyte', 3], ['tk_captain', 1]]], wrongWave: [['tk_thrall', 3], ['tk_acolyte', 1]] },
-      chasm: { ambushKit: [['tk_thrall', 3], ['tk_acolyte', 2], ['tk_psion', 1]] },
+      chasm: { harass: [['tk_vandal', 2], ['tk_psion', 2], ['tk_acolyte', 2], ['tk_thrall', 2]], ambushKit: [['tk_thrall', 3], ['tk_acolyte', 2], ['tk_psion', 1]] },
       falls: { windowTime: 12, litMove: 15, phaseLens: [3, 4, 5], eyeCount: 8, addsKit: [['tk_thrall', 3], ['tk_acolyte', 2], ['tk_goblin', 1]], wrongWave: [['tk_thrall', 2]], pulseEvery: 9, orbEvery: 3.6 },
     },
   },
@@ -139,9 +139,101 @@ export function trackSafe(prev, pos, onGround, overPhase) {
 export const inVoid = (y, voidY) => y < voidY;
 
 // ---------------------------------------------------------------------------
+// Glyph panels (U21b): sizes and placement shared by mechanics.js (which draws them) and level-whisper.js (checkWhisperSymbols).
+// ---------------------------------------------------------------------------
+/** Eye glyph panel: size and placement in the eye's local frame (+z is out of the wall, +y up). U21b: big (2.4 m) so it reads from across a hall. */
+export const EYE_SYM = { size: 2.4, y: 1.95, z: 0.06 };
+/** Board width in metres: the layout's glyphW when given, else 5 for a boss room and 4 elsewhere. */
+export function boardWidth(seg) { return seg.glyphW ?? (seg.kind === 'boss' ? 5 : 4); }
+/** H22: the board's yaw so its face (+z) points at `face` (the segment's room centre), snapped to the nearest wall axis. */
+export function boardYaw(p, face) {
+  if (!face) return 0;
+  const a = Math.atan2(face.x - p.x, face.z - p.z);
+  return Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
+}
+
+// ---------------------------------------------------------------------------
+// Movers (U21b): Vex pistons that slam across a lane on a period. Pure and deterministic from mission time, so a fireteam sees one clock.
+// A cycle is: tucked (rest), a charge-up you can see and hear (tele), a fast slam (fire), held out (hold), a slow retract (ret).
+// ---------------------------------------------------------------------------
+export const MOVER = { tele: 1.0, fire: 0.22, hold: 0.7, ret: 1.3 };
+/** Where a mover is at mission time t: u 0 (tucked) .. 1 (fully out), tele 0..1 while it charges, and the phase name. */
+export function moverState(m, t) {
+  const T = m.period, rest = T - MOVER.tele - MOVER.fire - MOVER.hold - MOVER.ret;
+  let x = (((t + (m.phase || 0)) % T) + T) % T;
+  if (x < rest) return { u: 0, tele: 0, phase: 'rest' };
+  x -= rest;
+  if (x < MOVER.tele) return { u: 0, tele: x / MOVER.tele, phase: 'tele' };
+  x -= MOVER.tele;
+  if (x < MOVER.fire) { const k = x / MOVER.fire; return { u: 1 - (1 - k) * (1 - k), tele: 1, phase: 'fire' }; }
+  x -= MOVER.fire;
+  if (x < MOVER.hold) return { u: 1, tele: 0, phase: 'hold' };
+  x -= MOVER.hold;
+  const k = Math.min(1, x / MOVER.ret);
+  return { u: 1 - k * k * (3 - 2 * k), tele: 0, phase: 'ret' };
+}
+/** The box of a mover at extension u: { min: [x, y, z], max: [x, y, z] }. */
+export function moverBox(m, u) {
+  const c = [m.p[0], m.p[1], m.p[2]];
+  c[m.axis === 'x' ? 0 : 2] += m.travel * u;
+  return { min: c.map((v, i) => v - m.s[i] / 2), max: c.map((v, i) => v + m.s[i] / 2) };
+}
+/** Seconds a player can cross the lane with no danger (tucked or charging, minus the last quarter second before the slam) and what a crossing needs (the swept width, the body, then a 0.7 s margin). */
+export function moverSafe(m, walk = 6.2) {
+  const hot = MOVER.fire + MOVER.hold + MOVER.ret;
+  return { safe: m.period - hot - 0.25, need: (m.lane + 0.8) / walk + 0.7 };
+}
+
+// ---------------------------------------------------------------------------
 // Glyph puzzles
 // ---------------------------------------------------------------------------
-export const GLYPH_SYMBOLS = ['▲', '●', '■', '◆', '✚', '★', '⬢', '☾'];
+// U21b: the eight glyph symbols are vector shapes (polygons, even-odd filled), not font characters, picked for very different silhouettes at range.
+// Coordinates are in a unit square (-1..1, y down). mechanics.js draws them on canvas; the tests rasterize the same polygons to prove they differ.
+export const GLYPH_SYMBOLS = ['triangle', 'ring', 'cross', 'crescent', 'bars', 'chevron', 'star', 'hourglass'];
+const arc = (cx, cy, r, a0, a1, n) => Array.from({ length: n + 1 }, (_, i) => { const a = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+const circle = (r, n = 28) => arc(0, 0, r, 0, 360, n).slice(0, n);
+export const GLYPH_SHAPES = {
+  triangle: [[[0, -0.95], [0.98, 0.8], [-0.98, 0.8]]],
+  ring: [circle(0.97), circle(0.52)],
+  cross: [[[-0.27, -0.97], [0.27, -0.97], [0.27, -0.27], [0.97, -0.27], [0.97, 0.27], [0.27, 0.27], [0.27, 0.97], [-0.27, 0.97], [-0.27, 0.27], [-0.97, 0.27], [-0.97, -0.27], [-0.27, -0.27]]],
+  crescent: [[...arc(0, 0, 0.97, -45.4, -314.6, 22), ...arc(0.42, 0, 0.72, 69.9, 290.1, 18)]],
+  bars: [[[-0.85, -0.97], [-0.3, -0.97], [-0.3, 0.97], [-0.85, 0.97]], [[0.3, -0.97], [0.85, -0.97], [0.85, 0.97], [0.3, 0.97]]],
+  chevron: [[[-0.97, 0], [0, -0.95], [0.97, 0], [0.97, 0.37], [0, -0.55], [-0.97, 0.37]], [[-0.97, 0.6], [0, -0.35], [0.97, 0.6], [0.97, 0.97], [0, 0.05], [-0.97, 0.97]]], // two stacked carets (double chevron): thin bands, unlike the solid triangle
+  star: [Array.from({ length: 10 }, (_, i) => { const a = (-90 + i * 36) * Math.PI / 180, r = i % 2 ? 0.42 : 1; return [r * Math.cos(a), r * Math.sin(a)]; })],
+  hourglass: [[[-0.85, -0.97], [0.85, -0.97], [0.12, 0], [0.85, 0.97], [-0.85, 0.97], [-0.12, 0]]],
+};
+/** True when (x, y) is inside a shape (even-odd over its polygons). */
+export function inGlyph(name, x, y) {
+  let inside = false;
+  for (const poly of GLYPH_SHAPES[name]) {
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+  }
+  return inside;
+}
+/** A symbol as an n by n occupancy grid (1 = inside), for comparing silhouettes. */
+export function glyphMask(name, n = 32) {
+  const m = new Uint8Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) m[j * n + i] = inGlyph(name, ((i + 0.5) / n) * 2 - 1, ((j + 0.5) / n) * 2 - 1) ? 1 : 0;
+  return m;
+}
+/** Overlap of two silhouettes (intersection over union, 0..1), also against the best of the other one turned 90, 180 and 270 degrees. */
+export function glyphOverlap(a, b, n = 32) {
+  const A = glyphMask(a, n), B = glyphMask(b, n);
+  let best = 0;
+  for (let rot = 0; rot < 4; rot++) {
+    let inter = 0, uni = 0;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const [u, v] = rot === 0 ? [i, j] : rot === 1 ? [n - 1 - j, i] : rot === 2 ? [n - 1 - i, n - 1 - j] : [j, n - 1 - i];
+      const x = A[j * n + i], y = B[v * n + u];
+      inter += x & y; uni += x | y;
+    }
+    best = Math.max(best, uni ? inter / uni : 0);
+  }
+  return best;
+}
 
 /** Fisher-Yates with an injectable random source. */
 export function shuffled(list, rnd = Math.random) {
@@ -299,6 +391,8 @@ export function validateLayout(layout, d) {
     } else if (s.kind === 'traversal') {
       need(s.exit && pt(s.exit.p) && s.exit.r > 0, `${w}: exit`);
       need((s.phaseBlocks || []).every((b) => pt(b.p) && pt(b.s)), `${w}: phaseBlocks`);
+      need((s.movers || []).every((m) => m.id && pt(m.p) && pt(m.s) && ['x', 'z'].includes(m.axis) && Number.isFinite(m.travel) && m.travel !== 0 && m.period >= 5 && Number.isFinite(m.phase) && m.push > 0 && m.lane > 0), `${w}: movers`);
+      if (s.secret) need((s.secret.eyes || []).length === 3 && s.secret.eyes.every((e) => pt(e.p) && Array.isArray(e.n) && e.n.length === 2) && (s.secret.blocks || []).every((b) => pt(b.p) && pt(b.s)) && pt(s.secret.chest), `${w}: secret (three eyes, blocks, chest)`);
       if (cfg?.harass) need((s.spawns || []).length >= 1, `${w}: spawns`);
       if (cfg?.ambushKit) need((s.ambush || []).length >= 1 && s.ambush.every((a) => pt(a.p) && a.r > 0 && (a.spawns || []).length >= 1), `${w}: ambush`);
     } else if (s.kind === 'boss') {

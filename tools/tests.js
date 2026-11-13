@@ -24,7 +24,7 @@ import { musicSectionFor } from '../js/music.js';
 import { G } from '../js/state.js';
 import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody, rayGround, groundAt, floorBelow } from '../js/colliders.js';
 import { buildTerrain, steepest, routeSlope, MAX_SLOPE } from '../js/terrain.js';
-import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV } from '../js/nav.js';
+import { buildNav, findPath, lineClear, heightAt, floodReach, ledgeSpots, nearestWalkable, NAV, ledgeStep, addLeapLinks } from '../js/nav.js';
 import * as AI from '../js/ai.js';
 import * as TR from '../js/tiers.js';
 import { fallen } from '../js/models-fallen.js';
@@ -2930,9 +2930,9 @@ const fakeLayout = () => {
     spawn: [1, 0, 1], voidY: -40,
     segments: [
       { id: 'descent', name: 'The Descent', kind: 'encounter', checkpoint: [1, 0, 1], region: r, conduits: [[2, 0, 2]], eyes: [0, 1, 2, 3].map(eye), gate: { p: [5, 0, 9], w: 4, h: 3, axis: 'x' }, spawns: [[3, 0, 3]], exit: null },
-      { id: 'shaft', name: 'The Red Shaft', kind: 'traversal', checkpoint: [1, 0, 1], region: r, conduits: [[2, 0, 2]], phaseBlocks: [{ p: [3, 5, 3], s: [2, 0.5, 2] }], spawns: [[3, 0, 3]], exit: { p: [4, 9, 4], r: 2 } },
+      { id: 'shaft', name: 'The Red Shaft', kind: 'traversal', checkpoint: [1, 0, 1], region: r, conduits: [[2, 0, 2]], phaseBlocks: [{ p: [3, 5, 3], s: [2, 0.5, 2] }], spawns: [[3, 0, 3]], ambush: [{ p: [5, 0, 5], r: 4, spawns: [[6, 0, 6]] }], exit: { p: [4, 9, 4], r: 2 } },
       { id: 'gallery', name: 'Blight Gallery', kind: 'encounter', checkpoint: [1, 0, 1], region: r, conduits: [[2, 0, 2], [8, 0, 8]], eyes: [0, 1, 2, 3, 4, 5].map(eye), glyph: [5, 3, 0], blights: [[5, 0, 5]], gate: { p: [5, 0, 9], w: 4, h: 3, axis: 'z' }, spawns: [[3, 0, 3]] },
-      { id: 'chasm', name: 'The Green Chasm', kind: 'traversal', checkpoint: [1, 0, 1], region: r, phaseBlocks: [], conduits: [], ambush: [{ p: [5, 0, 5], r: 4, spawns: [[6, 0, 6]] }], exit: { p: [4, -9, 4], r: 2 } },
+      { id: 'chasm', name: 'The Green Chasm', kind: 'traversal', checkpoint: [1, 0, 1], region: r, phaseBlocks: [], conduits: [], spawns: [[3, 0, 3]], ambush: [{ p: [5, 0, 5], r: 4, spawns: [[6, 0, 6]] }], exit: { p: [4, -9, 4], r: 2 } },
       { id: 'falls', name: 'The Falls', kind: 'boss', checkpoint: [1, 0, 1], region: r, room: r, boss: [5, 0, 5], glyph: [5, 6, 5], conduits: [[1, 0, 1], [2, 0, 2], [3, 0, 3], [4, 0, 4]], eyes: [0, 1, 2, 3, 4, 5, 6, 7].map(eye), blights: [[6, 0, 6]], spawns: [[7, 0, 7]], chest: [5, 0, 8] },
     ],
   };
@@ -3367,6 +3367,139 @@ test('H23: Roll Tracker covers every weapon, searches by perk and name, and give
   ok(RT.searchTracker('', { element: 'void' }).every((e) => e.element === 'void'), 'element filter');
   const mission = D.EXOTIC_WEAPONS.find((x) => x.mission);
   if (mission) ok(all.find((e) => e.name === mission.name).sources[0].startsWith('Exotic mission:'), 'mission exotic names its mission');
+});
+
+// ---- U21b ledge guard and leap links ----
+// A 10 x 3 grid of 1 m cells with a 2 m abyss strip at columns 4 and 5; row 2 column 7 is a 3 m pit-side drop (row 1 column 8 is a platform at 3 m).
+function gapNav() {
+  const W = 10, D = 3, hgt = new Float32Array(W * D), abyss = new Uint8Array(W * D);
+  for (let j = 0; j < D; j++) for (const i of [4, 5]) { hgt[j * W + i] = -1; abyss[j * W + i] = 1; }
+  hgt[1 * W + 8] = 3; // column 8: row 1 is a 3 m platform, row 2 floor
+  return { cell: 1, minX: 0, minZ: 0, W, D, hgt, base: new Float32Array(W * D), abyss, links: null };
+}
+test('U21b ledge guard refuses a self-driven step into the abyss', () => {
+  const nav = gapNav();
+  eq(ledgeStep(nav, 3.5, 1.5, 3.9, 1.5), 3, 'a step that stays on the platform is allowed');
+  eq(ledgeStep(nav, 3.9, 1.5, 4.2, 1.5) & 1, 0, 'a pure x step over the edge is refused (the zero z part may pass)');
+  eq(ledgeStep(nav, 3.9, 1.5, 4.2, 1.9), 2, 'a diagonal over the edge slides along z');
+});
+test('U21b ledge guard holds a unit standing on a platform edge cell (non-standable, not the abyss)', () => {
+  const nav = gapNav();
+  nav.hgt[1 * nav.W + 3] = -1; // column 3 row 1: the edge band of the left platform (blocked for pathing, solid ground)
+  eq(ledgeStep(nav, 3.5, 1.5, 4.5, 1.5, 0) & 1, 0, 'a step from the edge band into the abyss is refused');
+  eq(ledgeStep(nav, 3.5, 1.5, 2.5, 1.5, 0), 3, 'a step back onto the platform is allowed');
+});
+test('U21b ledge guard refuses a drop taller than NAV.hop but allows a small one', () => {
+  const nav = gapNav();
+  eq(ledgeStep(nav, 8.5, 1.5, 8.5, 2.5) & 2, 0, 'a 3 m drop is refused (NAV.hop is ' + NAV.hop + ')');
+  nav.hgt[1 * nav.W + 8] = 1; // a 1 m crate edge
+  eq(ledgeStep(nav, 8.5, 1.5, 8.5, 2.5) & 2, 2, 'a 1 m drop is allowed');
+});
+test('U21b ledge guard lets a unit already off the grid or over the void move freely, and knock is never checked', () => {
+  const nav = gapNav();
+  eq(ledgeStep(nav, 4.5, 1.5, 5.5, 1.5), 3, 'a unit already in the abyss is not held');
+  // knock is applied by the caller without ledgeStep: a plain position add crosses the strip
+  let x = 3.9; x += 6 * 0.5; // 6 m/s knock for 0.5 s
+  eq(heightAt(nav, x, 1.5) >= 0, true, 'knock carried it across to the far platform');
+  x = 3.9 + 1.5 * 1; ok(heightAt(nav, x, 1.5) < 0, 'knock that ends over the strip leaves it over the abyss (it falls)');
+});
+test('U21b leap links appear as path edges in findPath', () => {
+  const nav = gapNav();
+  const before = findPath(nav, 1.5, 1.5, 8.5, 0.5);
+  ok(before && before.partial, 'with no leap link the far platform is unreachable (partial path)');
+  addLeapLinks(nav, [{ a: [3.5, 0, 1.5], b: [6.5, 0, 1.5], two: false }]);
+  const r = findPath(nav, 1.5, 1.5, 8.5, 0.5);
+  ok(r && !r.partial, 'with a leap link the path reaches the far platform');
+  const leap = r.pts.find((p) => p.leap);
+  ok(leap, 'one waypoint is a leap');
+  eq([leap.x, leap.y, leap.z, leap.ax, leap.az], [6.5, 0, 1.5, 3.5, 1.5], 'the leap lands exactly at b and launches at a');
+  const back = findPath(nav, 8.5, 0.5, 1.5, 1.5);
+  ok(back.partial, 'a one way link (two: false) does not route back');
+  addLeapLinks(nav, [{ a: [3.5, 0, 1.5], b: [6.5, 0, 1.5], two: true }]);
+  ok(!findPath(nav, 8.5, 0.5, 1.5, 1.5).partial, 'a two way link routes both ways');
+});
+test('U21b buildNav picks leap links from the option or G.level and marks the abyss', () => {
+  const nav = buildNav([boxC(0, 0, 0, 12, 0.4, 12)], navBounds, { leapLinks: [{ a: [-3, 0.4, 0], b: [3, 0.4, 0], two: true }] });
+  ok(nav.links && nav.links.size === 2, 'two directed edges from a two way link');
+  const none = buildNav([boxC(0, 0, 0, 12, 0.4, 12)], navBounds);
+  eq(none.links, null, 'no links by default');
+});
+
+// ---- U21b Whisper traversal ----
+const JR = await import('../js/jump-reach.js');
+const WLV = await import('../js/level-whisper.js');
+test('U21b reach model: glide at Mobility 50 beats the old 15.6 m figure, every mode has a finite reach and a rise', () => {
+  const flat = Object.fromEntries(JR.REACH_MODES.map((m) => [m, JR.reachOf(m, 0)]));
+  ok(flat.glide > 15.6, 'glide ' + flat.glide.toFixed(1));
+  ok(flat.strafeglide > 15.6 && flat.balanced > 15.6, 'all glides beat 15.6');
+  for (const m of JR.REACH_MODES) ok(flat[m] > 3 && flat[m] < 120, `${m} flat reach ${flat[m].toFixed(1)}`);
+  ok(flat.base < flat.double && flat.double < flat.glide, 'base < Hunter triple < glide');
+  ok(JR.reachOf('glide', -2) > flat.glide && JR.reachOf('glide', 2) < flat.glide, 'dropping extends the glide, climbing cuts it');
+  ok(JR.bestRise() > 4 && JR.bestRise() < 6.2, 'best climb ' + JR.bestRise().toFixed(2));
+  ok(JR.reachOf('lift', 99) === 0 && JR.reachTable(99) === null, 'an unreachable rise gives no reach');
+});
+test('U21b every phase stretch is unskippable: pad to pad is an unclimbable rise or a gap over every class jump by 1.5 m', () => {
+  const D = WLV.WHISPER_DATA, top = JR.bestRise() + JR.RISE_MARGIN;
+  ok(D.CHAINS.length >= 6, 'chains ' + D.CHAINS.length);
+  for (const c of D.CHAINS.filter((x) => !D.PL.get(x.blocks[0]).secret)) {
+    const A = D.PL.get(c.from), B = D.PL.get(c.to), rise = B.top - A.top;
+    const gx = Math.max(0, A.x0 - B.x1, B.x0 - A.x1), gz = Math.max(0, A.z0 - B.z1, B.z0 - A.z1), gap = Math.hypot(gx, gz);
+    const need = rise > top ? 0 : JR.reachTable(rise) + 1.5;
+    ok(rise > top || gap >= need, `${c.id} rise ${rise.toFixed(1)} gap ${gap.toFixed(1)} needs ${need.toFixed(1)}`);
+  }
+});
+test('U21b checkWhisperRoute finds no problems (no class jump skips a phase stretch, base hops within 70 percent, movers safe)', () => {
+  const r = WLV.checkWhisperRoute();
+  eq(r.problems, []);
+  ok(r.rows.length > 20, 'rows ' + r.rows.length);
+  eq(WLV.checkWhisperRoute({ sprint: false }).problems, []);
+});
+test('U21b the route check can fail: a foothold bridging two stages is reported', () => {
+  const D = WLV.WHISPER_DATA, a = D.PL.get('sh_c2a');
+  D.PL.set('zz_bridge', { id: 'zz_bridge', x0: a.x0, x1: a.x1, z0: a.z1 + 2, z1: a.z1 + 4, top: a.top + 6.5, seg: 'shaft', kind: 'ledge', dead: false, secret: false });
+  const n = D.HOPS.length; D.HOPS.push(['sh_c2a', 'zz_bridge', 'jump']); D.HOPS.push(['zz_bridge', 'sh_e5', 'jump']);
+  const bad = WLV.checkWhisperRoute().problems.length; D.PL.delete('zz_bridge'); D.HOPS.length = n;
+  ok(bad > 0, 'a planted bridge is found');
+  eq(WLV.checkWhisperRoute().problems, []);
+});
+test('U21b the level exports leap links between static footholds only', () => {
+  const l = WLV.default.whisper.leapLinks;
+  ok(Array.isArray(l) && l.length >= 6, 'links ' + l.length);
+  for (const k of l) ok(k.a.length === 3 && k.b.length === 3 && typeof k.two === 'boolean', 'link shape');
+});
+test('U21b movers: every layout mover has a safe crossing window and a deterministic cycle', () => {
+  let n = 0;
+  for (const S of WL.segments) for (const m of S.movers || []) {
+    n++; const w = EX.moverSafe(m);
+    ok(w.safe >= w.need, `${m.id} safe ${w.safe.toFixed(1)} need ${w.need.toFixed(1)}`);
+    for (const t of [0, 1.7, 5.3]) { eq(EX.moverState(m, t), EX.moverState(m, t)); eq(EX.moverState(m, t).phase, EX.moverState(m, t + m.period).phase); }
+    ok(EX.moverState(m, -m.phase).phase === 'rest' || m.period > 0, 'cycle');
+    const phases = new Set(); for (let t = 0; t < m.period; t += 0.05) phases.add(EX.moverState(m, t).phase);
+    ok(['rest', 'tele', 'fire', 'hold', 'ret'].every((x) => phases.has(x)), `${m.id} shows its telegraph`);
+  }
+  ok(n >= 8, 'movers ' + n);
+});
+test('U21b symbols: eight distinct vector shapes, no font characters, pairwise silhouettes differ', () => {
+  eq(EX.GLYPH_SYMBOLS.length, 8); eq(new Set(EX.GLYPH_SYMBOLS).size, 8);
+  for (const n of EX.GLYPH_SYMBOLS) { ok(Array.isArray(EX.GLYPH_SHAPES[n]) && EX.GLYPH_SHAPES[n].length >= 1, n + ' has polygons'); const m = EX.glyphMask(n); ok(m.reduce((a, b) => a + b, 0) > 80, n + ' fills area'); }
+  for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) { const o = EX.glyphOverlap(EX.GLYPH_SYMBOLS[i], EX.GLYPH_SYMBOLS[j]); ok(o < 0.6, `${EX.GLYPH_SYMBOLS[i]} vs ${EX.GLYPH_SYMBOLS[j]} overlap ${o.toFixed(2)}`); }
+});
+test('U21b checkWhisperSymbols: every eye symbol and board is readable, in line of sight and not inside a wall', () => {
+  const r = WLV.checkWhisperSymbols();
+  eq(r.problems, []);
+  ok(r.rows.filter((x) => x.includes('eye')).length >= 17, 'eyes checked ' + r.rows.length);
+  ok(r.rows.some((x) => x.includes('gallery board')) && r.rows.some((x) => x.includes('falls board')), 'both boards checked');
+});
+test('U21b secret path: three hidden eyes, a chest on the last side block, and the side blocks are not on the main chain', () => {
+  const sh = WL.segments.find((x) => x.id === 'shaft');
+  eq(sh.secret.eyes.length, 3); ok(sh.secret.blocks.length >= 2 && sh.secret.chest.length === 3, 'chest');
+  const main = new Set(sh.phaseBlocks.map((b) => b.p.join()));
+  ok(sh.secret.blocks.every((b) => !main.has(b.p.join())), 'separate blocks');
+  eq(EX.validateLayout(WL, EX.exoticDef('whisper')), [], 'the real layout passes the contract');
+});
+test('U21b the timer stays 20:00 and segment checkpoints are inside their regions', () => {
+  eq(EX.exoticDef('whisper').timeLimit, 1200);
+  for (const S of WL.segments) { const c = S.checkpoint, r = S.region; ok(c[0] >= r.minX && c[0] <= r.maxX && c[2] >= r.minZ && c[2] <= r.maxZ, S.id + ' checkpoint in region'); }
 });
 
 for (const t of tests) {

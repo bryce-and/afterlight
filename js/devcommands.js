@@ -110,6 +110,16 @@ export const COMMANDS = {
       return { ok: true, msg: `Player level is now ${playerLevel(ctx.save)}.` };
     },
   },
+  whispermission: {
+    usage: '/whispermission [descent|shaft|gallery|chasm|falls]',
+    options: () => ['descent', 'shaft', 'gallery', 'chasm', 'falls'],
+    run(args) {
+      const seg = args.trim().toLowerCase() || 'shaft';
+      if (!['descent', 'shaft', 'gallery', 'chasm', 'falls'].includes(seg)) return { ok: false, msg: 'Segments: descent, shaft, gallery, chasm, falls' };
+      import('./exotic-missions.js').then((m) => m.devStartWhisperAt(seg)).catch((err) => console.error(err));
+      return { ok: true, msg: `Starting The Whisper (the real mission) at ${seg}. In the console: whisperTo('chasm'), checkWhisperSymbols(), checkWhisperRoute().` };
+    },
+  },
   whisperlevel: {
     usage: '/whisperlevel [descent|shaft|gallery|chasm|falls]',
     options: () => ['descent', 'shaft', 'gallery', 'chasm', 'falls'],

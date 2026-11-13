@@ -334,4 +334,26 @@ export const sfx = {
   missionComplete() { play('ui', [392, 523, 659, 784, 1046].map((f, i) => ({ t: { freq: f, dur: 0.7, gain: 0.09, delay: i * 0.12 } })).concat([{ t: { freq: 196, dur: 1.4, gain: 0.09, type: 'triangle' } }]), { send: 0.7, vary: 0 }); duck(0.6, 1.2, 1.5); },
   chest() { play('abilities', [{ n: { dur: 0.4, freq: 500, freqEnd: 3000, type: 'bandpass', gain: 0.3 } }], { send: 0.4 }); sfx.engram(3); },
   ui() { play('ui', [{ t: { freq: 900, dur: 0.04, type: 'triangle', gain: 0.05 } }], { vary: 0 }); },
+  // U21b Whisper feedback: every interaction answers with its own sound (right: bright and rising, wrong or lost: low and falling)
+  /** Attunement is about to fade while you stand on a phase block: a short tick, faster and higher when under two seconds. */
+  attuneTick(urgent) { play('ui', [{ t: { freq: urgent ? 1500 : 1100, dur: 0.05, type: 'square', gain: 0.045 } }], { vary: 0 }); },
+  /** Attunement ended: two falling notes. */
+  attuneFade() { play('ui', [{ t: { freq: 520, freqEnd: 400, dur: 0.22, type: 'triangle', gain: 0.07 } }, { t: { freq: 330, freqEnd: 220, dur: 0.4, type: 'triangle', gain: 0.07, delay: 0.14 } }], { vary: 0, send: 0.3 }); },
+  /** A blight smothers your attunement. */
+  attuneDrain() { play('ui', [{ t: { freq: 300, freqEnd: 70, dur: 0.5, type: 'sawtooth', gain: 0.07 } }, { n: { dur: 0.4, freq: 900, freqEnd: 200, type: 'bandpass', gain: 0.12 } }], { vary: 0 }); },
+  /** A piston charges: a rising hum at its housing (spatial). */
+  pistonHum(at) { play('abilities', [{ t: { freq: 70, freqEnd: 190, dur: 1.0, type: 'sawtooth', gain: 0.07 } }, { n: { dur: 1.0, freq: 300, freqEnd: 1400, type: 'bandpass', gain: 0.1 } }], { at, vary: 0, send: 0.2 }); },
+  /** The piston slams out. */
+  pistonSlam(at) { play('abilities', [{ n: { dur: 0.16, freq: 1800, freqEnd: 300, type: 'bandpass', gain: 0.3 } }, { t: { freq: 90, freqEnd: 40, dur: 0.3, gain: 0.3 } }], { at, vary: 0, send: 0.3 }); },
+  /** The piston hits you. */
+  pistonHit() { play('abilities', [{ t: { freq: 140, freqEnd: 45, dur: 0.3, gain: 0.35 } }, { n: { dur: 0.12, freq: 900, type: 'bandpass', gain: 0.25 } }], { vary: 0 }); },
+  /** A hidden eye shot: a pitched glassy ping, higher for each of the three. */
+  hiddenEye(n) { const f = 660 * Math.pow(2, (n - 1) * 4 / 12); play('ui', [{ t: { freq: f, dur: 0.5, gain: 0.09 } }, { t: { freq: f * 2.01, dur: 0.35, gain: 0.04, type: 'triangle' } }], { send: 0.6, vary: 0 }); },
+  /** The side path opens: a rising sweep and a chord. */
+  pathOpen() { play('ui', [{ t: { freq: 220, freqEnd: 880, dur: 0.9, type: 'triangle', gain: 0.07 } }, ...[523, 659, 784, 1046].map((f, i) => ({ t: { freq: f, dur: 0.6, gain: 0.06, delay: 0.5 + i * 0.08 } }))], { send: 0.6, vary: 0 }); },
+  /** A shot on a blight: a dull pulse. Destroyed: a burst. */
+  blightHit() { play('abilities', [{ t: { freq: 170, freqEnd: 120, dur: 0.1, type: 'square', gain: 0.1 } }, { n: { dur: 0.08, freq: 2400, type: 'highpass', gain: 0.1 } }], { vary: 0 }); },
+  blightDown() { play('abilities', [{ n: { dur: 0.45, freq: 2200, freqEnd: 400, type: 'bandpass', gain: 0.25 } }, { t: { freq: 440, freqEnd: 880, dur: 0.3, gain: 0.08 } }], { vary: 0, send: 0.4 }); },
+  /** A shot on an eye that is already lit (nothing changes): a faint tick. */
+  eyeAgain() { play('ui', [{ t: { freq: 1320, dur: 0.05, type: 'triangle', gain: 0.03 } }], { vary: 0 }); },
 };

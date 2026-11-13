@@ -9,7 +9,10 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { mat } from './world.js';
 import { sparks, ringFx, basicMat } from './effects.js';
-import { GLYPH_SYMBOLS } from './exotic-rules.js';
+import { GLYPH_SHAPES, GLYPH_SYMBOLS, EYE_SYM, boardWidth, boardYaw, moverState, moverBox } from './exotic-rules.js';
+import { sfx } from './audio.js';
+import { pointInColliders } from './colliders.js';
+export { EYE_SYM, boardWidth, boardYaw };
 import { blightOrb, disposeBlightOrb } from './blight-look.js';
 
 const TEAL = 0x3affd8, BRONZE = 0x8a6a3a, DARK = 0x2b2118, PALE = 0xdff3ff;
@@ -30,17 +33,24 @@ export function mechSplash(pos, radius) {
 
 const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
-// ---------- canvas panels (glyph symbols and the glyph board) ----------
-function symbolTexture(sym, color = '#7ffff0') {
+// ---------- canvas panels (glyph symbols and the glyph board): vector shapes (exotic-rules.js GLYPH_SHAPES), not font characters ----------
+/** Fills one symbol on a canvas, centred at (cx, cy), `r` pixels from the centre to the farthest edge, with a dark outline so it reads on any wall. */
+function drawGlyph(ctx, name, cx, cy, r, fill, outline = 0.16) {
+  ctx.beginPath();
+  for (const poly of GLYPH_SHAPES[name]) {
+    poly.forEach(([x, y], i) => (i ? ctx.lineTo(cx + x * r, cy + y * r) : ctx.moveTo(cx + x * r, cy + y * r)));
+    ctx.closePath();
+  }
+  ctx.lineJoin = 'round'; ctx.lineWidth = r * outline; ctx.strokeStyle = 'rgba(2,6,8,0.95)'; ctx.stroke();
+  ctx.fillStyle = fill; ctx.fill('evenodd');
+}
+function symbolTexture(sym) {
   const c = document.createElement('canvas');
-  c.width = c.height = 128;
+  c.width = c.height = 256;
   const x = c.getContext('2d');
-  x.fillStyle = 'rgba(8,14,16,0.7)'; x.beginPath(); x.arc(64, 64, 58, 0, Math.PI * 2); x.fill();
-  x.strokeStyle = color; x.lineWidth = 6; x.stroke();
-  x.fillStyle = color; x.font = 'bold 76px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.fillText(GLYPH_SYMBOLS[sym], 64, 70);
-  const t = new THREE.CanvasTexture(c);
-  return t;
+  x.fillStyle = 'rgba(6,12,14,0.62)'; x.beginPath(); x.arc(128, 128, 124, 0, Math.PI * 2); x.fill(); // a dark plate: the symbol is white, the material tints it
+  drawGlyph(x, GLYPH_SYMBOLS[sym], 128, 128, 92, '#ffffff');
+  return new THREE.CanvasTexture(c);
 }
 /** H22: a flat glyph panel fixed to the wall (a unit plane facing +z, sized by scale), not a sprite that turns to face the camera. */
 function makeFlat(tex, w, h) {
@@ -49,24 +59,26 @@ function makeFlat(tex, w, h) {
   return s;
 }
 
-/** Draws a glyph board: the symbols in order, done ones teal, the next one white, the rest dim. Returns nothing; call again to update. */
+/** Draws a glyph board: the symbols in order, done ones teal, the next one white, the rest dim. A shot sets board.flash ('ok' or 'bad') for a short colour pulse of the frame. Call again to update. */
 export function drawBoard(board, puzzle) {
   const { canvas, ctx, tex } = board;
-  const n = puzzle ? puzzle.order.length : 0;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = 'rgba(8,14,16,0.72)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#d9b36a'; ctx.lineWidth = 6; ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
-  ctx.font = 'bold 84px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const n = puzzle ? puzzle.order.length : 0, W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const fl = board.flashT > 0 ? board.flash : null;
+  ctx.fillStyle = fl === 'bad' ? 'rgba(60,8,8,0.8)' : fl === 'ok' ? 'rgba(6,50,44,0.8)' : 'rgba(8,14,16,0.72)'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = fl === 'bad' ? '#ff3a2a' : fl === 'ok' ? '#3affd8' : '#d9b36a'; ctx.lineWidth = fl ? 16 : 8; ctx.strokeRect(6, 6, W - 12, H - 12);
+  const r = Math.min(H * 0.4, (W / Math.max(n, 1)) * 0.4);
   for (let k = 0; k < n; k++) {
-    const x = ((k + 0.5) / n) * canvas.width;
-    ctx.fillStyle = k < puzzle.progress ? '#3affd8' : k === puzzle.progress ? '#ffffff' : 'rgba(255,255,255,0.35)';
-    ctx.fillText(GLYPH_SYMBOLS[puzzle.symbols[puzzle.order[k]]], x, canvas.height / 2 + 6);
+    const x = ((k + 0.5) / n) * W;
+    drawGlyph(ctx, GLYPH_SYMBOLS[puzzle.symbols[puzzle.order[k]]], x, H / 2, r, k < puzzle.progress ? '#3affd8' : k === puzzle.progress ? '#ffffff' : 'rgba(255,255,255,0.4)');
   }
   tex.needsUpdate = true;
 }
+/** A shot on the board's puzzle: flash its frame teal (right) or red (wrong) for 0.6 s. */
+export function flashBoard(S, kind) { if (S.board) { S.board.flash = kind; S.board.flashT = 0.6; if (S.puzzle) drawBoard(S.board, S.puzzle); } }
 function makeBoard(p, w, face) {
   const canvas = document.createElement('canvas');
-  canvas.width = 640; canvas.height = 160;
+  canvas.width = 1024; canvas.height = 256;
   const tex = new THREE.CanvasTexture(canvas);
   const sprite = makeFlat(tex, w, w / 4);
   sprite.position.copy(p);
@@ -74,16 +86,6 @@ function makeBoard(p, w, face) {
   return { canvas, ctx: canvas.getContext('2d'), tex, sprite };
 }
 
-/** Board width in metres: the layout's glyphW when given, else 5 for a boss room and 4 elsewhere. */
-export function boardWidth(seg) { return seg.glyphW ?? (seg.kind === 'boss' ? 5 : 4); }
-/** H22: the board's yaw so its face (+z) points at `face` (the segment's room centre), snapped to the nearest wall axis. */
-export function boardYaw(p, face) {
-  if (!face) return 0;
-  const a = Math.atan2(face.x - p.x, face.z - p.z);
-  return Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
-}
-/** Eye glyph sprite: size and placement in the eye's local frame (+z is out of the wall, +y up). */
-export const EYE_SYM = { size: 1.5, y: 1.55, z: 0.06 }; // H22: flat on the wall above the eye (the eye group already sits 0.12 m out)
 const FLARE_T = 0.6;
 
 // ---------- builders ----------
@@ -170,6 +172,46 @@ function buildGate(spec) {
   return { p: v3(spec.p), w, h, axis: spec.axis, group: g, slab, seam, col, open: false, sink: 0 };
 }
 
+// ---------- movers: Vex pistons (data: layout segment `movers`, rules: exotic-rules.js moverState) ----------
+function buildMover(spec, root) {
+  const [sx, sy, sz] = spec.s, ai = spec.axis, sgn = Math.sign(spec.travel), th = ai === 'x' ? sx : sz;
+  const g = new THREE.Group();
+  g.position.set(spec.p[0], spec.p[1], spec.p[2]);
+  const glow = new THREE.MeshBasicMaterial({ color: 0x401008, fog: false });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat(0x6e4c2a));
+  const face = new THREE.Mesh(ai === 'x' ? new THREE.BoxGeometry(0.08, sy * 0.78, sz * 0.9) : new THREE.BoxGeometry(sx * 0.9, sy * 0.78, 0.08), glow); // the face it slams with
+  face.position[ai] = sgn * (th / 2 + 0.02);
+  const bandA = new THREE.Mesh(new THREE.BoxGeometry(sx + 0.06, 0.16, sz + 0.06), glow), bandB = bandA.clone();
+  bandA.position.y = sy * 0.34; bandB.position.y = -sy * 0.34;
+  g.add(body, face, bandA, bandB);
+  const house = new THREE.Mesh(ai === 'x' ? new THREE.BoxGeometry(1.4, sy + 0.8, sz + 0.8) : new THREE.BoxGeometry(sx + 0.8, sy + 0.8, 1.4), mat(0x4a3320)); // the bronze housing it comes out of
+  house.position.set(spec.p[0], spec.p[1], spec.p[2]); house.position[ai === 'x' ? 'x' : 'z'] -= sgn * (th / 2 + 0.7);
+  const len = Math.abs(spec.travel) + th, rail = new THREE.Mesh(ai === 'x' ? new THREE.BoxGeometry(len, 0.12, 0.3) : new THREE.BoxGeometry(0.3, 0.12, len), new THREE.MeshBasicMaterial({ color: 0xffa83a, transparent: true, opacity: 0.55, fog: false })); // its lane, drawn so the danger is readable
+  rail.position.set(spec.p[0], spec.p[1] - sy / 2 - 0.02, spec.p[2]); rail.position[ai === 'x' ? 'x' : 'z'] += spec.travel / 2;
+  root.add(g, house, rail);
+  const b = moverBox(spec, 0);
+  const col = { min: { x: b.min[0], y: b.min[1], z: b.min[2] }, max: { x: b.max[0], y: b.max[1], z: b.max[2] }, mover: true };
+  G.colliders.push(col);
+  return { spec, group: g, glow, col, house, rail, phase: 'rest', u: 0 };
+}
+
+/** A set of hidden eyes (seen and shot only while Attuned) that reveals a side path of phase blocks and a cache. layout segment `secret`. */
+function buildSecret(spec, segI, mech, root) {
+  const eyes = spec.eyes.map((e, i) => {
+    const eye = buildEye(e, segI, i);
+    eye.secret = true;
+    eye.iris.material = mat(SECRET_EYE, { emissive: SECRET_EYE, emissiveIntensity: 1.9 });
+    eye.ring = new THREE.Mesh(new THREE.RingGeometry(0.66, 0.86, 24), new THREE.MeshBasicMaterial({ color: SECRET_EYE, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, fog: false, blending: THREE.AdditiveBlending }));
+    eye.ring.position.z = 0.04; eye.group.add(eye.ring);
+    eye.hit.userData.mechShot = (pt) => mech.onShot?.('seye', segI, i, pt);
+    root.add(eye.group);
+    return eye;
+  });
+  const blocks = spec.blocks.map((b) => { const bl = buildBlock(b); bl.mesh.visible = false; bl.edges.visible = false; root.add(bl.mesh, bl.edges); return bl; });
+  return { spec, eyes, blocks, lit: eyes.map(() => 0), revealed: false, fade: 0, chestAt: v3(spec.chest) };
+}
+const SECRET_EYE = 0xffb347;
+
 // ---------- the whole set ----------
 /**
  * Builds every mechanic of a layout into the scene. `cfg`: { blightRadius, blightHits }.
@@ -179,9 +221,9 @@ export function buildMechanics(layout, cfg) {
   const root = new THREE.Group();
   root.name = 'mechanics';
   G.scene.add(root);
-  const mech = { root, segs: [], attuned: false, attuneLeft: 0, onShot: null, cfg, time: 0 };
+  const mech = { root, segs: [], attuned: false, attuneLeft: 0, onShot: null, onPush: null, onTrapped: null, cfg, time: 0, clock: null, fadeCause: null, smother: false };
   layout.segments.forEach((seg, si) => {
-    const S = { id: seg.id, kind: seg.kind, index: si, spec: seg, conduits: [], eyes: [], blocks: [], blights: [], gate: null, board: null, puzzle: null, active: false, done: false, blightsOn: false };
+    const S = { id: seg.id, kind: seg.kind, index: si, spec: seg, conduits: [], eyes: [], blocks: [], blights: [], movers: [], secret: null, gate: null, board: null, puzzle: null, active: false, done: false, blightsOn: false };
     for (const c of seg.conduits || []) { const cd = buildConduit(v3(c)); S.conduits.push(cd); root.add(cd.group); }
     (seg.eyes || []).forEach((e, i) => {
       const eye = buildEye(e, si, i);
@@ -200,6 +242,8 @@ export function buildMechanics(layout, cfg) {
       bt.hit.userData.mechShot = (pt) => mech.onShot?.('blight', si, i, pt);
       S.blights.push(bt); root.add(bt.group);
     });
+    for (const m of seg.movers || []) S.movers.push(buildMover(m, root));
+    if (seg.secret) S.secret = buildSecret(seg.secret, si, mech, root);
     if (seg.gate) {
       S.gate = buildGate(seg.gate);
       root.add(S.gate.group);
@@ -223,7 +267,8 @@ export function disposeMechanics(mech) {
   if (!mech) return;
   mech.root.parent?.remove(mech.root);
   for (const S of mech.segs) {
-    for (const b of S.blocks) { const i = G.colliders.indexOf(b.col); if (i >= 0) G.colliders.splice(i, 1); }
+    for (const b of [...S.blocks, ...(S.secret?.blocks || [])]) { const i = G.colliders.indexOf(b.col); if (i >= 0) G.colliders.splice(i, 1); }
+    for (const m of S.movers) { const i = G.colliders.indexOf(m.col); if (i >= 0) G.colliders.splice(i, 1); }
     if (S.gate) {
       const i = G.colliders.indexOf(S.gate.col); if (i >= 0) G.colliders.splice(i, 1);
       const j = G.staticMeshes.indexOf(S.gate.slab); if (j >= 0) G.staticMeshes.splice(j, 1);
@@ -329,6 +374,38 @@ export function setActiveSegment(mech, index) {
   rebuildTargets(mech);
 }
 export function setSegmentDone(S, done) { S.done = done; }
+// ---------- the hidden eyes, the side path and the cache ----------
+/** A hidden eye shot: lit (1) stays lit, with a flare when `flare`; 0 puts it back dark (a segment reset). */
+export function setSecretEye(S, i, lit, flare = false) {
+  const sec = S.secret, e = sec?.eyes[i];
+  if (!e) return;
+  sec.lit[i] = lit; e.lit = lit;
+  if (e.ownIris) { e.ownIris.dispose(); e.ownIris = null; }
+  e.iris.material = mat(lit ? 0xfff0c0 : SECRET_EYE, { emissive: lit ? 0xffd27a : SECRET_EYE, emissiveIntensity: lit ? 2.8 : 1.9 });
+  if (lit && flare) { e.iris.material = e.ownIris = e.iris.material.clone(); e.flareT = FLARE_T; } else e.flareT = 0;
+  e.ring.material.opacity = lit ? 0.95 : 0.6; e.ring.scale.setScalar(1);
+}
+/** Shows or hides the side path (its blocks become solid-while-Attuned colliders). `instant` skips the fade-in. */
+export function setSecretRevealed(S, on, instant = false) {
+  const sec = S.secret;
+  if (!sec || sec.revealed === on) return;
+  sec.revealed = on;
+  for (const b of sec.blocks) {
+    const i = G.colliders.indexOf(b.col);
+    if (on && i < 0) G.colliders.push(b.col);
+    if (!on && i >= 0) G.colliders.splice(i, 1);
+    b.mesh.visible = b.edges.visible = on;
+  }
+  sec.fade = on ? (instant ? 1 : 0) : 0;
+  G.hitDirty = true;
+}
+/** Puts the hidden set back as it was (a segment reset). */
+export function resetSecret(S) {
+  if (!S.secret) return;
+  S.secret.eyes.forEach((_, i) => setSecretEye(S, i, 0));
+  setSecretRevealed(S, false);
+}
+
 
 /** The shootable meshes: eyes of the active segment while Attuned, and live blights that are switched on. */
 export function rebuildTargets(mech) {
@@ -336,6 +413,7 @@ export function rebuildTargets(mech) {
   for (const S of mech.segs) {
     if (!S.active) continue;
     if (mech.attuned) for (const e of S.eyes) out.push(e.hit);
+    if (mech.attuned && S.secret) for (const e of S.secret.eyes) out.push(e.hit);
     for (const b of S.blights) if (b.on && b.alive) out.push(b.hit);
   }
   targets = out;
@@ -347,13 +425,61 @@ export function eyesVisible(mech) { return mech.attuned; }
 
 // ---------- per frame ----------
 const _d = new THREE.Vector3();
+/** True when the player stands on (or just over) one of this machine's phase blocks. */
+export function overBlock(mech, P) {
+  for (const S of mech.segs) for (const b of [...S.blocks, ...(S.secret?.revealed ? S.secret.blocks : [])]) {
+    if (P.pos.x > b.box.min.x - 0.4 && P.pos.x < b.box.max.x + 0.4 && P.pos.z > b.box.min.z - 0.4 && P.pos.z < b.box.max.z + 0.4 && Math.abs(P.pos.y - b.box.max.y) < 0.4) return true;
+  }
+  return false;
+}
+
+const _pv = new THREE.Vector3();
+/** Moves one piston to where the clock says, lights its charge-up, plays its sounds and knocks the local player out of its way. */
+function stepMover(mech, m, T, P) {
+  const st = moverState(m.spec, T), b = moverBox(m.spec, st.u), ai = m.spec.axis === 'x' ? 0 : 2;
+  m.u = st.u;
+  m.group.position.set(m.spec.p[0], m.spec.p[1], m.spec.p[2]);
+  m.group.position[m.spec.axis] += m.spec.travel * st.u;
+  m.col.min.x = b.min[0]; m.col.min.y = b.min[1]; m.col.min.z = b.min[2]; m.col.max.x = b.max[0]; m.col.max.y = b.max[1]; m.col.max.z = b.max[2];
+  // charge-up: the glow climbs from dim red to white-hot and flickers faster as the slam nears; held out it burns
+  const k = st.phase === 'tele' ? st.tele : st.phase === 'fire' || st.phase === 'hold' ? 1 : st.phase === 'ret' ? 0.35 : 0;
+  const flick = st.phase === 'tele' ? 0.7 + 0.3 * Math.sin(T * (10 + 24 * st.tele)) : 1;
+  m.glow.color.setRGB(0.25 + 0.75 * k * flick, 0.06 + 0.5 * k * k * flick, 0.04 + 0.35 * k * k * k);
+  m.rail.material.opacity = 0.3 + 0.5 * k;
+  if (st.phase !== m.phase) {
+    _pv.set(m.spec.p[0], m.spec.p[1], m.spec.p[2]);
+    const near = P && _pv.distanceTo(P.pos) < 42;
+    if (near && st.phase === 'tele') sfx.pistonHum(_pv.clone());
+    if (near && st.phase === 'fire') sfx.pistonSlam(_pv.clone());
+    m.phase = st.phase;
+  }
+  if (P && !P.dead && st.u > 0.002 && pushOut(mech, m, b, ai, P)) mech.onPush?.(m);
+}
+/** The player's body inside a piston's box: carry it ahead of the piston's face with an outward impulse (or, if the piston came out under them, behind it). Never leaves the player inside any solid. */
+function pushOut(mech, m, b, ai, P) {
+  const r = P.radius ?? 0.4, h = P.height ?? 1.8;
+  if (P.pos.x + r <= b.min[0] || P.pos.x - r >= b.max[0] || P.pos.z + r <= b.min[2] || P.pos.z - r >= b.max[2] || P.pos.y + h <= b.min[1] || P.pos.y >= b.max[1]) return false;
+  const key = ai === 0 ? 'x' : 'z', sgn = Math.sign(m.spec.travel), mid = (b.min[ai] + b.max[ai]) / 2;
+  const lead = sgn > 0 ? b.max[ai] + r + 0.05 : b.min[ai] - r - 0.05, trail = sgn > 0 ? b.min[ai] - r - 0.05 : b.max[ai] + r + 0.05;
+  const ahead = (P.pos[key] - mid) * sgn >= 0, from = P.pos[key];
+  const tryAt = (v, dir) => {
+    P.pos[key] = v;
+    if (pointInColliders({ x: P.pos.x, y: P.pos.y + 0.9, z: P.pos.z }, 0, true)) return false;
+    P.vel[key] = dir * m.spec.push; P.vel.y = Math.max(P.vel.y, 3.2); P.onGround = false;
+    return true;
+  };
+  if (!(ahead ? tryAt(lead, sgn) : tryAt(trail, -sgn)) && !(ahead ? tryAt(trail, -sgn) : tryAt(lead, sgn))) { P.pos[key] = from; mech.onTrapped?.(P); }
+  P.shake = Math.max(P.shake || 0, 0.4);
+  return true;
+}
+
 /**
  * Animates everything and applies this machine's Attuned. `P`: the local player. Returns 'attuned', 'faded' or null on a change.
  * Co-op: every machine runs this for its own player; the lit state of conduits and the blights come from the host (setConduitLit, setBlightHp).
  */
 export function updateMech(mech, dt, P) {
   mech.time += dt;
-  const t = mech.time, cfg = mech.cfg;
+  const t = mech.time, cfg = mech.cfg, T = mech.clock ?? mech.time; // T: the shared mission clock (movers), the local one before the runtime sets it
   // Attuned: stand in a lit conduit's light; a live blight's aura blocks and removes it
   let inLight = false, drained = false;
   if (P && !P.dead) {
@@ -370,14 +496,19 @@ export function updateMech(mech, dt, P) {
     if (drained) P.status.remove('attuned');
     else if (inLight) P.status.apply('attuned', { t: cfg.attuneTime, set: true });
   }
+  mech.smother = inLight && drained; // standing in a conduit while a blight smothers it
   const now = !!P && !P.dead && P.status.has('attuned');
   mech.attuneLeft = now ? P.status.remaining('attuned') : 0;
   let ev = null;
   if (now !== mech.attuned) {
     mech.attuned = now;
     ev = now ? 'attuned' : 'faded';
+    if (!now) mech.fadeCause = !P || P.dead ? 'dead' : drained ? 'blight' : 'time';
     rebuildTargets(mech);
   }
+  // about to fade while you stand on a phase block: a ticking warning (the blocks flicker too)
+  mech.tickT = (mech.tickT ?? 0) - dt;
+  if (now && mech.attuneLeft < 4 && mech.tickT <= 0 && P.onGround && overBlock(mech, P)) { mech.tickT = mech.attuneLeft < 2 ? 0.3 : 0.6; sfx.attuneTick(mech.attuneLeft < 2); }
   // visuals
   const blink = now && mech.attuneLeft < 3 ? 0.5 + 0.5 * Math.sin(t * 14) : 1; // about to fade: blocks flicker
   for (const S of mech.segs) {
@@ -396,6 +527,24 @@ export function updateMech(mech, dt, P) {
       bl.mesh.material.opacity = now ? 0.4 * blink : 0.12;
       bl.edges.material.opacity = now ? 0.95 * blink : 0.4;
     }
+    if (S.secret) {
+      const sec = S.secret;
+      for (const e of sec.eyes) {
+        e.group.visible = now && S.active;
+        stepEyeFlare(e, dt);
+        if (e.group.visible) e.ring.rotation.z = t * 0.8; // the halo turns: a hidden eye reads as something alive
+      }
+      if (sec.revealed) {
+        sec.fade = Math.min(1, sec.fade + dt / 1.4);
+        for (const bl of sec.blocks) {
+          bl.col.pass = !now;
+          bl.mesh.material.opacity = (now ? 0.4 * blink : 0.12) * sec.fade;
+          bl.edges.material.opacity = (now ? 0.95 * blink : 0.4) * sec.fade;
+        }
+      }
+    }
+    for (const m of S.movers) stepMover(mech, m, T, P);
+    if (S.board?.flashT > 0) { S.board.flashT -= dt; if (S.board.flashT <= 0 && S.puzzle) drawBoard(S.board, S.puzzle); }
     for (const b of S.blights) {
       b.group.visible = b.on && b.alive;
       if (!b.group.visible) continue;

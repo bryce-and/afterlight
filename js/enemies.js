@@ -5,7 +5,7 @@ import { STAGGER } from './combat.js';
 import { mat } from './world.js';
 import { rand, clamp, pick } from './util.js';
 import { hasLOS, pushOutCircle, pointInColliders, groundAt } from './physics.js';
-import { NAV, heightAt, cellIndex, lineClear, findPath, floodReach, ledgeSpots, nearestWalkable } from './nav.js';
+import { NAV, heightAt, cellIndex, lineClear, findPath, floodReach, ledgeSpots, nearestWalkable, ledgeStep } from './nav.js';
 import { leashTarget, pastLeash, insideLeash, COVER, coverAllowed, CLOSE_MELEE, closeMeleeReach, SUICIDE, blastDamage } from './ai.js';
 import { sparks, ringFx, basicMat, explosionFx, flashLight } from './effects.js';
 import { sfx } from './audio.js';
@@ -207,6 +207,7 @@ export class Enemy {
     this.losT = Math.random() * 0.3; this.los = false;
     this.meleeT = 0.5; this.windup = 0; this.lunge = 0; this.lungeHit = false; this.lungeDir = new THREE.Vector3(); this.flash = 0; this.walk = Math.random() * 6; this.yaw = 0;
     this.knock = new THREE.Vector3();
+    this.nudgeX = 0; this.nudgeZ = 0; // U21b: the stuck sidestep, a self move (ledge guarded), unlike knock
     this.staggerT = 0; this.staggerMax = 0; this.staggerCd = 0; // flinch when hit hard (see combat.js STAGGER)
     this.seed = Math.random() * 100;
     this.specialT = rand(4, 6);
@@ -436,10 +437,18 @@ export class Enemy {
       : this.jet?.s === 'hover' ? 0.6 : 1;
     const speed = def.speed * modeMul * (this.plantT > 0 ? 0 : this.burstLeft > 0 && !this.isBoss && !this.rushing ? 0.4 : 1) * (this.status.has('slow') ? SLOW_MULT : 1) * (this.fuse > 0 ? 0.5 : 1);
     if (ml > 0) { mx /= ml; mz /= ml; }
-    this.pos.x += (mx * speed + this.knock.x) * dt;
-    this.pos.z += (mz * speed + this.knock.z) * dt;
-    if (this.lunge > 0) this.pos.addScaledVector(this.lungeDir, 11 * dt);
+    // U21b ledge guard: knockback (players, explosions) moves a unit unguarded and can still throw it off a ledge;
+    // everything the unit does itself (walking, strafing, a lunge, being crowd-pushed) is refused when it would
+    // leave the platform. Not applied to a unit mid-hop or in jet flight.
+    this.pos.x += this.knock.x * dt;
+    this.pos.z += this.knock.z * dt;
     this.knock.multiplyScalar(Math.exp(-6 * dt));
+    const lnav = this.hop || (this.jet && this.jet.s !== 'ground') ? null : G.nav;
+    let sx = (mx * speed + this.nudgeX) * dt, sz = (mz * speed + this.nudgeZ) * dt;
+    const nd = Math.exp(-6 * dt); this.nudgeX *= nd; this.nudgeZ *= nd;
+    if (this.lunge > 0) { sx += this.lungeDir.x * 11 * dt; sz += this.lungeDir.z * 11 * dt; }
+    this.selfMove(lnav, sx, sz);
+    let px = 0, pz = 0;
     for (const o of G.enemies) {
       if (o === this || !o.alive) continue;
       const ox = this.pos.x - o.pos.x, oz = this.pos.z - o.pos.z;
@@ -447,9 +456,10 @@ export class Enemy {
       const d2 = ox * ox + oz * oz;
       if (d2 < rr * rr && d2 > 1e-6) {
         const d = Math.sqrt(d2), push = (rr - d) * 0.5;
-        this.pos.x += (ox / d) * push; this.pos.z += (oz / d) * push;
+        px += (ox / d) * push; pz += (oz / d) * push;
       }
     }
+    if (px || pz) this.selfMove(lnav, px, pz);
     // climb onto a step or ledge cell that is a legal step up; drop back down to the floor beneath
     let hopping = false;
     if (this.hop) {
@@ -457,7 +467,7 @@ export class Enemy {
       h.t += dt / h.dur;
       const k = Math.min(1, h.t);
       this.pos.x = h.x0 + (h.x1 - h.x0) * k; this.pos.z = h.z0 + (h.z1 - h.z0) * k;
-      this.pos.y = h.y0 + (h.y1 - h.y0) * k + Math.sin(Math.PI * k) * 0.6;
+      this.pos.y = h.y0 + (h.y1 - h.y0) * k + Math.sin(Math.PI * k) * (h.arc ?? 0.6);
       if (k >= 1) { this.pos.y = h.y1; this.hop = null; } else hopping = true;
     }
     if (this.jet && this.jet.s !== 'ground') { this.pos.y = this.jet.y; hopping = true; } // jet flight owns height
@@ -486,11 +496,11 @@ export class Enemy {
       this.chkT = 0.5; this.lastX = this.pos.x; this.lastZ = this.pos.z;
       if (ml > 0 && !this.held && this.fuse < 0 && moved < speed * 0.5 * 0.25) {
         this.stuckT += 0.5;
-        if (this.stuckT >= 1) { this.stuckT = 0; this.stuck = true; this.stuckN++; G.navLog?.push({ t: this.typeId, x: +this.pos.x.toFixed(1), z: +this.pos.z.toFixed(1), y: +this.pos.y.toFixed(1), st: this.ai.state, goal: this.path ? 'path' : 'direct', held: this.held, post: !!this.post }); this.strafe *= -1; this.knock.x += -mz * 3; this.knock.z += mx * 3; }
+        if (this.stuckT >= 1) { this.stuckT = 0; this.stuck = true; this.stuckN++; G.navLog?.push({ t: this.typeId, x: +this.pos.x.toFixed(1), z: +this.pos.z.toFixed(1), y: +this.pos.y.toFixed(1), st: this.ai.state, goal: this.path ? 'path' : 'direct', held: this.held, post: !!this.post }); this.strafe *= -1; this.nudgeX += -mz * 3; this.nudgeZ += mx * 3; }
       } else this.stuckT = 0;
     }
 
-    const targetYaw = Math.atan2(dx, dz);
+    const targetYaw = this.hop?.leap ? Math.atan2(this.hop.x1 - this.hop.x0, this.hop.z1 - this.hop.z0) : Math.atan2(dx, dz); // a leap faces the way it travels
     let dy = targetYaw - this.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
@@ -755,6 +765,21 @@ export class Enemy {
     A.state = 'advance'; A.t = COVER.flushedFor; A.noCoverT = COVER.flushedFor;
   }
 
+  /** U21b: a self-driven displacement, refused (or slid along one axis) by the ledge guard when it would leave the platform. */
+  selfMove(nav, dx, dz) {
+    const x = this.pos.x, z = this.pos.z;
+    const m = nav ? ledgeStep(nav, x, z, x + dx, z + dz, this.pos.y) : 3;
+    if (m & 1) this.pos.x = x + dx;
+    if (m & 2) this.pos.z = z + dz;
+  }
+
+  /** U21b: start a leap along a nav leap link waypoint { x, y, z } (the exact landing). Longer and higher than a hop, scaled to the distance. */
+  startLeap(w) {
+    const d = Math.hypot(w.x - this.pos.x, w.z - this.pos.z);
+    this.hop = { t: 0, dur: clamp(0.4 + d * 0.06, 0.5, 0.9), x0: this.pos.x, z0: this.pos.z, y0: this.pos.y, x1: w.x, z1: w.z, y1: w.y, arc: clamp(0.5 + d * 0.15, 1, 2.5), leap: true };
+    this.knock.set(0, 0, 0);
+  }
+
   /**
    * Direction (unit vector, or zero on arrival) toward (tx, tz). Straight when the way is clear on the
    * nav grid; otherwise follows an A* path, repathed when the goal moves, on a timer, or when stuck, and
@@ -774,9 +799,17 @@ export class Enemy {
       this.path = r ? r.pts : null; this.pathIdx = 0; this.pathGoal = { x: tx, z: tz };
     }
     if (this.path) {
-      while (this.pathIdx < this.path.length && Math.hypot(this.path[this.pathIdx].x - this.pos.x, this.path[this.pathIdx].z - this.pos.z) < 0.7) this.pathIdx++;
+      while (this.pathIdx < this.path.length) {
+        const w = this.path[this.pathIdx];
+        if (w.leap) { // U21b: walk to the launch point, then leap to the landing
+          const ld = Math.hypot(w.ax - this.pos.x, w.az - this.pos.z);
+          if (ld < 0.9 && !this.hop && !(this.staggerT > 0) && !(this.plantT > 0)) { this.startLeap(w); this.pathIdx++; this.pathT = 1; continue; }
+          break;
+        }
+        if (Math.hypot(w.x - this.pos.x, w.z - this.pos.z) < 0.7) this.pathIdx++; else break;
+      }
       if (this.pathIdx < this.path.length) {
-        const w = this.path[this.pathIdx], wx = w.x - this.pos.x, wz = w.z - this.pos.z, wd = Math.hypot(wx, wz) || 1;
+        const w = this.path[this.pathIdx], tx2 = w.leap ? w.ax : w.x, tz2 = w.leap ? w.az : w.z, wx = tx2 - this.pos.x, wz = tz2 - this.pos.z, wd = Math.hypot(wx, wz) || 1;
         return { x: wx / wd, z: wz / wd };
       }
       this.path = null;

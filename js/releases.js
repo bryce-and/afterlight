@@ -5,6 +5,22 @@
 
 export const RELEASES = [
   {
+    version: '4.6', name: 'Deep Whisper', date: '2026-11-12', accent: '#5ad8d0', glyph: '◆',
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="dwBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a0806"/><stop offset="0.55" stop-color="#140404"/><stop offset="1" stop-color="#050202"/></linearGradient><radialGradient id="dwGlow" cx="0.5" cy="0.18" r="0.5"><stop offset="0" stop-color="#ff3a24" stop-opacity="0.55"/><stop offset="1" stop-color="#ff3a24" stop-opacity="0"/></radialGradient><linearGradient id="dwBlk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ff6ef" stop-opacity="0.75"/><stop offset="1" stop-color="#5ad8d0" stop-opacity="0.18"/></linearGradient></defs><rect width="320" height="180" fill="url(#dwBg)"/><rect width="320" height="180" fill="url(#dwGlow)"/><g stroke="#ff3a24" stroke-width="2" opacity="0.7"><line x1="58" y1="0" x2="58" y2="180"/><line x1="92" y1="0" x2="92" y2="180"/><line x1="228" y1="0" x2="228" y2="180"/><line x1="262" y1="0" x2="262" y2="180"/></g><g fill="none" stroke="#5ad8d0" stroke-width="2.5"><circle cx="40" cy="44" r="7"/><circle cx="40" cy="96" r="7"/><circle cx="280" cy="60" r="7"/><circle cx="280" cy="118" r="7"/></g><g fill="#6e4c2a" stroke="#b08a46" stroke-width="1.5"><polygon points="70,150 110,150 104,160 76,160"/><polygon points="206,58 238,58 233,66 211,66"/></g><g fill="url(#dwBlk)" stroke="#bff4ff" stroke-width="1"><rect x="118" y="134" width="26" height="9"/><rect x="146" y="118" width="24" height="8"/><rect x="170" y="102" width="22" height="8"/><rect x="190" y="86" width="20" height="7"/><rect x="176" y="70" width="18" height="6"/></g><g fill="#b08a46" opacity="0.9"><polygon points="134,96 148,90 158,98 150,108 136,106"/><polygon points="96,70 108,66 114,74 106,80 98,78"/></g><g stroke="#ffd27a" stroke-width="2" fill="none" opacity="0.85"><path d="M150 36 l10 -14 l10 14 z"/></g><text x="160" y="172" text-anchor="middle" font-family="sans-serif" font-size="9" letter-spacing="3" fill="#9ff6ef" opacity="0.8">THE WHISPER</text></svg>',
+    summary: 'The Whisper gets longer, harder climbs through the Red Shaft and the Green Chasm, a hidden Vex cache, and enemies who keep their footing.',
+    notes: [
+      'The Red Shaft and the Green Chasm are rebuilt and several times longer. The gaps are now too far for any class jump or glide: you need the phase blocks, and conduits along the way to stay Attuned',
+      'New footholds: bronze Vex wall ledges, floating Vex fragments and broken pillars',
+      'Vex pistons glow and hum before they fire, and they throw careless Guardians off the platforms',
+      'Taken hold the ledges all the way up and down, with ambushes along the route',
+      'A hidden Vex cache: find and shoot three hidden eyes in the Red Shaft (visible only while Attuned) to open a side path to a cache with a legendary, every run',
+      'Clearer feedback on every mechanic: conduits, eyes, blights, glyph boards and pistons all show when you got it right or wrong',
+      'New glyph symbols: bigger, drawn as shapes, and easy to tell apart across a room',
+      'Enemies everywhere no longer walk off ledges on their own (you can still knock them off), and Taken leap between platforms',
+      'No save changes',
+    ],
+  },
+  {
     version: '4.5.4', name: 'Hotfix', date: '2026-11-10', accent: '#ffb547', glyph: '✚',
     summary: 'Six Darkness exotic armor pieces, one Stasis and one Strand for each class.',
     notes: [

@@ -24,6 +24,7 @@ export function buildNav(colliders, bounds, o = {}) {
   const minX = bounds.minX, minZ = bounds.minZ;
   const W = Math.ceil((bounds.maxX - minX) / cell), D = Math.ceil((bounds.maxZ - minZ) / cell);
   const hgt = new Float32Array(W * D);
+  const abyss = new Uint8Array(W * D); // U21b: 1 where the cell is the abyss (no floor), so the ledge guard can tell a drop from a wall
   const base = new Float32Array(W * D); // the terrain under each cell (U16e); collider heights below are measured from it
   const blocked = new Uint8Array(W * D);
   const ground = o.ground ?? G.level?.groundAt ?? null, rolling = !!ground; // a flat map keeps the exact old numbers
@@ -48,11 +49,62 @@ export function buildNav(colliders, bounds, o = {}) {
     for (let i = 0; i < W; i++) {
       const idx = j * W + i, cx = minX + (i + 0.5) * cell, cz = minZ + (j + 0.5) * cell;
       const edge = cx < minX + 1 || cx > bounds.maxX - 1 || cz < minZ + 1 || cz > bounds.maxZ - 1; // enemies are clamped 1 m inside the bounds
-      const abyss = voidAt && hgt[idx] <= base[idx] + 0.05 && voidAt(cx, cz); // U17f: the abyss between islands is no floor (unless something stands in it)
-      if (blocked[idx] || edge || abyss) hgt[idx] = -1;
+      const gap = voidAt && hgt[idx] <= base[idx] + 0.05 && voidAt(cx, cz); // U17f: the abyss between islands is no floor (unless something stands in it)
+      if (gap) abyss[idx] = 1;
+      if (blocked[idx] || edge || gap) hgt[idx] = -1;
     }
   }
-  return { cell, minX, minZ, W, D, hgt, base };
+  const nav = { cell, minX, minZ, W, D, hgt, base, abyss, links: null };
+  addLeapLinks(nav, o.leapLinks ?? G.level?.leapLinks);
+  return nav;
+}
+
+/**
+ * U21b leap links: `[{ a: [x, y, z], b: [x, y, z], two: bool }]`. Each becomes a graph edge between the walkable
+ * cells at a and b (both ways when two is true). nav.links maps a cell index to [{ to, ax, az, bx, by, bz }]; a unit
+ * that follows a path across one launches a leap from (ax, az) and lands exactly on (bx, by, bz).
+ */
+export function addLeapLinks(nav, defs) {
+  nav.links = null;
+  if (!defs?.length) return nav;
+  const links = new Map();
+  const put = (a, b) => {
+    const ca = nearestWalkable(nav, a[0], a[2], 2), cb = nearestWalkable(nav, b[0], b[2], 2);
+    if (!ca || !cb || ca.idx === cb.idx) return;
+    let arr = links.get(ca.idx); if (!arr) links.set(ca.idx, arr = []);
+    arr.push({ to: cb.idx, ax: a[0], az: a[2], bx: b[0], by: b[1], bz: b[2], len: Math.hypot(b[0] - a[0], b[2] - a[2]) });
+  };
+  for (const d of defs) { put(d.a, d.b); if (d.two) put(d.b, d.a); }
+  nav.links = links.size ? links : null;
+  return nav;
+}
+
+/**
+ * U21b ledge guard. May a unit that wants to move on its own from (x0, z0) to (x1, z1) do so? Returns a bitmask:
+ * 3 = the whole move, 1 = only the x part, 2 = only the z part, 0 = none. A move is refused when it would put the
+ * unit over the abyss, or drop it more than NAV.hop (the same drop the pathfinder allows), so enemies never walk,
+ * strafe or get crowd-pushed off a platform. A unit off the grid or already over the abyss (falling) moves freely; pass `y0`
+ * (the unit's height) so a unit standing on a platform's edge band is guarded too.
+ * Knockback never goes through this, so players can still knock enemies off ledges.
+ */
+export function ledgeStep(nav, x0, z0, x1, z1, y0) {
+  const c0 = cellIndex(nav, x0, z0);
+  if (c0 < 0) return 3;
+  const h0 = nav.hgt[c0];
+  // A unit over the abyss is falling (knocked off): it moves freely. A unit on a non-standable cell that is not the abyss
+  // (the edge band of a platform, where a spawn or a knock can leave it) is still guarded, measured from its own height.
+  if (h0 < 0 && (nav.abyss?.[c0] || y0 === undefined)) return 3;
+  const ref = h0 >= 0 ? h0 : y0;
+  const bad = (x, z) => {
+    const c = cellIndex(nav, x, z);
+    if (c < 0) return false; // the map clamp owns the outer edge
+    const h = nav.hgt[c];
+    return h < 0 ? !!(nav.abyss ? nav.abyss[c] : 1) : ref - h > NAV.hop;
+  };
+  if (!bad(x1, z1)) return 3;
+  if (!bad(x1, z0)) return 1;
+  if (!bad(x0, z1)) return 2;
+  return 0;
 }
 
 export const cellIndex = (nav, x, z) => {
@@ -149,7 +201,7 @@ export function findPath(nav, sx, sz, gx, gz) {
   const { W, hgt } = nav;
   const gi = g.idx % W, gj = (g.idx - gi) / W;
   const hOf = (n) => { const i = n % W, j = (n - i) / W, dx = Math.abs(i - gi), dz = Math.abs(j - gj); return Math.max(dx, dz) + (Math.SQRT2 - 1) * Math.min(dx, dz); };
-  const cost = new Map([[s.idx, 0]]), from = new Map(), closed = new Set();
+  const cost = new Map([[s.idx, 0]]), from = new Map(), closed = new Set(), via = nav.links ? new Map() : null; // via: cell -> the leap link used to reach it
   const open = new Heap(); open.push(s.idx, hOf(s.idx));
   let best = s.idx, bestH = hOf(s.idx), expanded = 0, found = false;
   while (open.size) {
@@ -164,7 +216,13 @@ export function findPath(nav, sx, sz, gx, gz) {
       const b = canStep(nav, n, di, dj);
       if (b < 0 || closed.has(b)) continue;
       const c = cost.get(n) + w + Math.abs(hgt[b] - hgt[n]) * 0.5;
-      if (c < (cost.get(b) ?? Infinity)) { cost.set(b, c); from.set(b, n); open.push(b, c + hOf(b)); }
+      if (c < (cost.get(b) ?? Infinity)) { cost.set(b, c); from.set(b, n); via?.delete(b); open.push(b, c + hOf(b)); }
+    }
+    const ls = nav.links?.get(n);
+    if (ls) for (const L of ls) {
+      if (closed.has(L.to)) continue;
+      const c = cost.get(n) + L.len + 2 + Math.abs(hgt[L.to] - hgt[n]) * 0.5; // a leap costs its length plus a little, so a walk is preferred when there is one
+      if (c < (cost.get(L.to) ?? Infinity)) { cost.set(L.to, c); from.set(L.to, n); via.set(L.to, L); open.push(L.to, c + hOf(L.to)); }
     }
   }
   const cells = [best];
@@ -172,11 +230,17 @@ export function findPath(nav, sx, sz, gx, gz) {
   cells.reverse();
   const raw = cells.map((c) => ({ x: cellX(nav, c), z: cellZ(nav, c) }));
   if (found) raw[raw.length - 1] = { x: gx, z: gz };
-  // string-pull: keep a waypoint only where the line from the last kept one to the next would be blocked
+  // string-pull: keep a waypoint only where the line from the last kept one to the next would be blocked.
+  // A leap edge is never pulled across: the run before it ends at the launch point, then comes one waypoint
+  // flagged `leap` that holds the launch point (ax, az) and the exact landing (x, y, z).
   const pts = [];
+  const leapAt = (k) => !!via && k + 1 < cells.length && via.has(cells[k + 1]) && from.get(cells[k + 1]) === cells[k]; // is cells[k] -> cells[k + 1] a leap?
   let a = 0;
   while (a < raw.length - 1) {
-    let b = raw.length - 1;
+    if (leapAt(a)) { const L = via.get(cells[a + 1]); pts.push({ x: L.bx, z: L.bz, y: L.by, leap: true, ax: L.ax, az: L.az }); a++; continue; }
+    let end = raw.length - 1;
+    if (via) for (let k = a; k < raw.length - 1; k++) if (leapAt(k)) { end = k; break; }
+    let b = end;
     while (b > a + 1 && !lineClear(nav, raw[a].x, raw[a].z, raw[b].x, raw[b].z)) b--;
     pts.push(raw[b]); a = b;
   }
