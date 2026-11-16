@@ -224,3 +224,6 @@ The module map is in the README. These notes cover systems added during the over
 - Duel auto-assigns sides (first Blue, second Red). A human who leaves removes their body; in Duel the other Duelist wins.
 - Rewards: `js/crucible-loot.js` is its own pool (item flag `crucible`), kept out of `LEGENDARY_WEAPONS` and `SET_IDS`. `makeCrucibleDrop` gives a weapon or armor piece at even odds, handed out only by `endMatch` in a finished Crucible match.
 - Headless check: `sh tools/cruciblecheck.sh` (control and duel).
+- AI kits (U29): `js/pvp.js` `rollKit` picks each AI Guardian's kit per match, from the `BOT_SUPERS`, `BOT_GRENADES`, `BOT_CLASS` and `BOT_ABILITY` tables. `js/guardian-ai.js` runs them (`fightAt`, `useClass`, `startSuper`/`superStep`). Their effects go through `abilities.js` `npcFx`, which shows visuals and team buffs on every screen; the host deals the PvP damage.
+- Team effects (U29): `castFx` stamps `o.team` in PvP. Rift and well use `teamOk` and `alliedBots` (`Guardian.allyBuff`). Barricades carry `box.team` and `mesh.userData.barricade`; `moveBody(..., stepUp, team)` treats a pass collider of the other team as solid. `G.pvpWalls` joins `getHitTargets` in PvP, and player hitscan and AI shots skip their own team's wall.
+- `sh tools/cruciblecheck.sh` (U29) also reports kit use and checks the rift and barricade team rules.

@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.0 "Rival Guardians" (U29)**: Crucible AI Guardians with full kits: each one rolls a class, subclass, grenade, super, weapons and shader per match, and rifts, wells and barricades belong to a team.
 - **v4.9 "Crucible" (U25)**: Player versus player on Bannerfall: Control (6v6 over three zones) and one-on-one Duels, solo against AI Guardians or in a lobby of up to 12. Each match can reward a Crucible legendary weapon or Crucible armor piece.
 - **v4.8 "Mission Blitz" (U28)**: Five campaign missions back to back on Legendary difficulty with no revives, for an exotic of your choice; the Activities screen is now Ops nodes; armor stats rise with the campaign tier you have cleared.
 - **v4.7 "The Emperor's Shadow" (U23)**: A Leviathan dungeon of five encounters, earned through the Emperor's Favor and ending with Calus himself, with exclusive Imperial loot.

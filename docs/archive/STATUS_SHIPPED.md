@@ -63,6 +63,7 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 |---|---|---|---|
 | O3 | Control and Duel | U25 | Complete and published (v4.9) |
 | O4 | AI Guardians (not too strong) | U25 | Complete and published (v4.9) |
+| O5 | Crucible AI Guardians with full kits: each Guardian rolls a class, Light subclass, grenade, class ability, super, weapons, armor and shader per match, uses them, and team-only rifts, wells and barricades | U29 | Complete and published (v5.0) |
 
 ## Master-prompt requirements
 
