@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v4.7 "The Emperor's Shadow" (U23)**: A Leviathan dungeon of five encounters, earned through the Emperor's Favor and ending with Calus himself, with exclusive Imperial loot.
 - **v4.6 "Deep Whisper" (U21b)**: The Whisper's Red Shaft and Green Chasm are about three to four times longer, with phase-block chains, Vex pistons, ambushes on both traversals and a hidden chest in the Red Shaft. Enemies no longer walk off ledges on their own.
 - **v4.5 "Darkness" (U22)**: Stasis and Strand subclasses for all three classes, six in all (unlocking at level 28), each with a second, original super of the opposite type, plus Darkness grenades, enemy freezes and shatters, and Darkness enemies.
 - **v4.4 "Exotic Missions" (U21)**: The Whisper, the first exotic mission, five segments deep under Io. A 20-minute timer that never adds time, a boss called Aurix (a Hollowed Mind), puzzles and jump sections between encounters, and restricted respawns. Unlocks at level 30 for every fireteam member and is listed in Activities. Its exclusive exotic shotgun, Blight Edge, is guaranteed on the first clear; repeat clears give two legendaries.

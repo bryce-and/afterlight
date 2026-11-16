@@ -55,6 +55,7 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R45 | Legendary campaign after all base missions (current count 18): unlock animation, 25 light under | Legendary tier, unlock and +25 done (v4.2); unlock animation, reward menu and final-boss exotic done (v4.3) | U20a, U20b | Complete and published (v4.3) |
 | R46 | Ultimate after Legendary: better animation, 50 under, no revives (death restarts) | Ultimate tier, 50 under and no revives done (v4.2); better animation done (v4.3) | U20a, U20b | Complete and published (v4.3) |
 | R49 | Ultimate unlocks a switch to equip unlimited exotics | Exotic Overload, a multi-exotic switch in the Character screen after the first full Ultimate clear (v4.3) | U20b | Complete and published (v4.3) |
+| R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U23 | Complete and published (v4.7): The Emperor's Shadow, five encounters on the Leviathan, scaled for solo and fireteams of 2 or 3 |
 
 ## Master-prompt requirements
 

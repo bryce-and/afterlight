@@ -345,3 +345,10 @@
 | 2026-11-12 | H27 Terms & Privacy agreement is versioned on its own localStorage key (not the save) so it applies before a Guardian exists and survives a reset; bumping TERMS_VERSION asks everyone again. | Claude |
 | 2026-11-12 | H27 docs/reference/ (183 Destiny screenshots) untracked and gitignored so GitHub Pages stops serving them; local copies kept; purging old history (force-push) not approved. | Bryce |
 | 2026-11-12 | H27 also ships the Light-flow changes (engram rate, cache Light, lowest slot, weapon infusion) that were in progress on the same branch. | Bryce |
+| 2026-11-15 | U23 chunk C: The Gauntlet's stairs rise 0.82 m a step (9.02 m a row) so no class jump climbs a row even from 2.2 m cover. The first layout (0.65 m a step) failed `checkShadowRoute`. | Claude (U23) |
+| 2026-11-15 | U23 chunk C: Calus is a new original model `emperorCalus`. The older `calus` model stays for the campaign. | Claude (U23) |
+| 2026-11-15 | U23 chunk C: The Mindscape is entered through Calus's Gaze (Favored players only; unFavored it burns). The Thought Lanterns reuse the offering rule (`offer()`), shot instead of stood on. | Claude (U23) |
+| 2026-11-15 | U23 chunk C: Solo tuning is a dungeon guard. A single hit at most 40% of health plus shield solo (fireteam 55%); all damage inside 0.5 s at most 65% (fireteam 85%). Solo adds deal 0.72 damage; solo bosses carry 0.55 health. Per-boss hpMult: Vhorrak 1.3, Kathrax 1.6, Calus 1.35. | Claude (U23) |
+| 2026-11-15 | U23 chunk C: Hand cannons recoil up and right (adaptive 20 degrees, aggressive 23, precision straight up), the gun model kicks with it, and the iron sights are replaced by a floating glow dot. | Bryce (U23) |
+| 2026-11-15 | U23 chunk C: Perf uses per-map opt-in merge options (`mergeCell`, `mergeMin`, `mergeStatic`); collider meshes stay hidden in the scene for raycasts. | Claude (U23) |
+| 2026-11-15 | U23 chunk C: The in-game Roadmap is empty after v4.7 and shows "No new transmissions yet" until Bryce curates the next teaser. | Claude (U23) |

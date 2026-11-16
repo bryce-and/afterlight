@@ -8,7 +8,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 
 | ID | Requirement | Current (code) | Update | Status |
 |---|---|---|---|---|
-| R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U23 | Planned |
 | R25 | Bosses avoid cover; alternate push and hold | Bosses don't use cover; no push/hold logic | U13b | Complete and published (v2.4) |
 | R37 | Subclass screen like D2: aspects (class-unique), fragments and grenades (shared per element), super/melee/class/jump choices, unique icons | Subclass screen: slots for super, class, jump, melee, grenade, 2 aspects, up to 5 fragments (v1.9); option picker, detail pane, phone layout; generated icon per ability/aspect/fragment (`js/ability-icons.js`). Grenade, class, super (v1.8) and jump (v1.8) choices done; Modify screen done in v1.9 (melee is the only option for now); alternate melees not built | U3, U8, U9 (Modify screen); alternate melees unplanned | In progress |
 | R41 | Sparrow usable on all levels | Sparrow works in patrol zones (v3.3). Off in campaign missions by design ("Unable to summon.", DECISIONS 2026-10-24) | U17 | Complete and published (v3.3) for patrol zones |
