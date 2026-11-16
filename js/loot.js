@@ -3,7 +3,7 @@ import { pick, randInt } from './util.js';
 import { LIGHT_MAX } from './campaign.js';
 import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
 import { namedFor, perkPoolFor, rollPerks, weaponStats, frameSlot, archesForSlot } from './frames.js';
-import { SETS, setForDrop } from './style.js';
+import { SETS, setForDrop, setPieceName } from './style.js';
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
 const NOUN = ['Oath', 'Promise', 'Requiem', 'Verdict', 'Covenant', 'Lament', 'Sentinel', 'Herald', 'Reckoning', 'Psalm', 'Edict', 'Tide', 'Mercy', 'Vow', 'Witness', 'Ruin', 'Hymn', 'Answer', 'Warden', 'Dirge'];
@@ -70,7 +70,7 @@ export function makeArmor(slot, power, rIdx, dest = null, classId = null, exotic
   const stats = rollStats(ARMOR_TOTAL[rar.id] + randInt(-2, 2));
   let name, set = null;
   if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = exoticName || pick(EXOTIC_ARMOR[classId][slot]); } // exotics exist for one class
-  else if (rar.id === 'legendary') { set = setForDrop(dest); name = SETS[set].pieces[slot]; }
+  else if (rar.id === 'legendary') { set = setForDrop(dest); name = setPieceName(set, slot, classId); } // U23: dungeon sets name each class's pieces
   else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(ARMOR_NOUN[slot])}`;
   else name = `${pick(ADJ)} ${pick(ARMOR_NOUN[slot])}`;
   // Armor 2.0: no perks. Four sockets for mods (the first takes stat mods), filled by the player.

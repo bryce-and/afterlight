@@ -69,8 +69,22 @@ export const SETS = {
     look: look(C(0x2a2030, 0xffc247, 0x14101a, 0x8a1e2e), { visor: 'wide', crest: 'crown' }, { cuff: 'layered', light: true }, { plate: 'layered', shoulder: 'big' }, { knee: 'guard', shin: 'plated' }),
   },
 };
-export const SET_IDS = Object.keys(SETS);
-for (const id of SET_IDS) LOOKS[id] = SETS[id].look;
+// U23: the Imperial set drops only in The Emperor's Shadow (js/dungeon-loot.js). Each class wears its own names (classPieces).
+SETS.imperial = {
+  name: 'Imperial', dest: "The Emperor's Shadow", dungeon: 'shadow', pieces: pieces('Imperial', 'Crown', 'Gauntlets', 'Raiment', 'Greaves'),
+  classPieces: {
+    vanguard: pieces('Imperial Shadow', 'Helm', 'Gauntlets', 'Plate', 'Greaves'),
+    stalker: pieces('Imperial Envoy', 'Mask', 'Grips', 'Vest', 'Strides'),
+    arcanist: pieces('Imperial Vizier', 'Hood', 'Gloves', 'Robes', 'Boots'),
+  },
+  bonus: { name: 'Imperial Bearing', desc: 'Favor drains 30% slower, and you take 10% less damage while Favored.' },
+  look: look(C(0xe9e2d2, 0xd9a520, 0x1c1424, 0x6a2c9c), { visor: 'wide', crest: 'crown' }, { cuff: 'layered', light: true }, { plate: 'emblem', shoulder: 'tall' }, { knee: 'guard', shin: 'stripe' }),
+};
+/** Destination sets: the ones a legendary drop or an old save can be given. Dungeon sets are left out. */
+export const SET_IDS = Object.keys(SETS).filter((id) => !SETS[id].dungeon);
+for (const id of Object.keys(SETS)) LOOKS[id] = SETS[id].look;
+/** The piece name for a set, slot and class (dungeon sets name each class's pieces). */
+export const setPieceName = (set, slot, classId) => SETS[set].classPieces?.[classId]?.[slot] ?? SETS[set].pieces[slot];
 
 /** Set bonus numbers (the Player reads these). */
 export const SET_TUNE = { reload: 0.85, precHeal: 0.2, orbCharge: 1, regenDelay: 0.75, outlawDmg: 1.15, outlawT: 6, superPassive: 1.1, classCd: 0.85, meleeCd: 0.85 };
@@ -113,7 +127,9 @@ export const SHADERS = {
   bone: { name: 'Hive Bone', colors: C(0xd8d0b8, 0x6a8a3a, 0x2a2b22, 0x7a6a4a) },
   nightfall: { name: 'Nightfall Violet', colors: C(0x3d2a5c, 0xb9bccc, 0x1a1428, 0x55307a) },
 };
-export const SHADER_IDS = Object.keys(SHADERS);
+// U23: earned only in The Emperor's Shadow (the first full clear); never a random shader drop
+SHADERS.emperorsShadow = { name: "Emperor's Shadow", dungeon: 'shadow', colors: C(0x15101c, 0xd9a520, 0x2a1838, 0x7a3cc0) };
+export const SHADER_IDS = Object.keys(SHADERS).filter((id) => !SHADERS[id].dungeon);
 /** Mission caches: chance of a shader you don't own yet. A destination's final mission always gives one on its first clear. */
 export const SHADER_DROP = { chance: 0.25 };
 

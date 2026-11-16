@@ -21,9 +21,10 @@ import DC from './level-dc.js';
 import LEVIATHAN from './level-leviathan.js';
 import { TOWER } from './level-tower.js';
 import WHISPER from './level-whisper.js';
+import SHADOW from './level-shadow.js';
 
 // Hand-built mission maps, keyed by mission id (see the kit in buildLevel).
-const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...TITAN_PATROL, ...IO_PATROL, ...TANGLED_PATROL, ...DREAMING_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER, ...WHISPER };
+const LEVEL_SETS = { ...EARTH, ...EARTH_PATROL, ...MOON_PATROL, ...MARS_PATROL, ...TITAN_PATROL, ...IO_PATROL, ...TANGLED_PATROL, ...DREAMING_PATROL, ...MOON, ...MARS, ...TITAN, ...TANGLED, ...IO, ...DC, ...LEVIATHAN, ...TOWER, ...WHISPER, ...SHADOW };
 
 const matCache = new Map();
 export function mat(color, o = {}) {

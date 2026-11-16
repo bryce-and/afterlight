@@ -523,6 +523,7 @@ function phalanx(c) {
 const BUILD = {
   grunt: legionary, rusher: warBeast, captain: centurion, heavy: colossus,
   lg_incendior: incendior, lg_gladiator: gladiator, lg_psion: psion, lg_phalanx: phalanx,
+  lg_bather: gladiator, lg_taster: psion, // U23: built on the Gladiator and Psion (the Loyalist gold comes from the location)
 };
 
 /** Every Cabal unit except the generic boss fallback (enemies.js): the base classes (grunt Legionary, rusher War Beast, captain

@@ -37,6 +37,8 @@ import { mechTargets, mechSplash } from './mechanics.js';
 import { darkHit, darkUnravel, darkTargets, darkSplash, resetDark } from './darkness.js';
 import { releasesPerch } from './darkness-rules.js';
 import { gateDamage } from './exotic-rules.js';
+import { updateDungeon, cleanupDungeon, startDungeon, dungeonImmune } from './dungeon.js';
+import { dungeonTargets, dungeonSplash } from './dungeon-mech.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
 import { linesFor, objectiveFor, UNLOCKS } from './story.js';
@@ -117,7 +119,8 @@ export function lightWarning(L) {
 
 export function retryMission() {
   const M = G.mission;
-  if (M.exotic) startExotic(M.exotic.id).catch((e) => { console.error(e); ui.orbitNotice(`Could not start ${M.exotic.def.name}: ${e.message}`); });
+  if (M.dungeon) startDungeon(M.dungeon.id).catch((e) => { console.error(e); ui.orbitNotice(`Could not start ${M.dungeon.def.name}: ${e.message}`); });
+  else if (M.exotic) startExotic(M.exotic.id).catch((e) => { console.error(e); ui.orbitNotice(`Could not start ${M.exotic.def.name}: ${e.message}`); });
   else if (M.act) startActivity(M.act.id, newSeed());
   else startMission(M.li, M.mi, M.tier);
 }
@@ -136,6 +139,7 @@ export function abandonMission(silent = false) {
 export function cleanupMission() {
   ui.endTimer(null);
   if (G.mission?.exotic) cleanupExotic();
+  if (G.mission?.dungeon) cleanupDungeon(); // U23
   if (G.mission?.patrol) leavePatrol();
   if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
@@ -333,6 +337,12 @@ function updateMission(dt) {
   const M = G.mission, P = G.player;
   if (M.tower) { updateTower(dt); return; } // U16: the Tower has no zones
   if (M.patrol) { updatePatrol(dt); return; } // U17a: patrol zones have no zones to clear either
+  if (M.dungeon) { // U23: dungeons run their own encounters and chests; the final chest sets M.phase 'done' for the usual Mission End
+    updateDungeon(dt);
+    syncBossLocks();
+    if (M.phase === 'done') { M.doneT -= dt; if (M.doneT <= 0) finishMission(); }
+    return;
+  }
   if (M.exotic) { updateExotic(dt); if (M.phase !== 'loot' && M.phase !== 'done') return; } // U21: exotic missions run their own segments; the chest and Mission End use the usual flow below
   syncBossLocks();
   if (M.act) { updateActivity(dt); return; }
@@ -740,6 +750,7 @@ export function getHitTargets() {
     G.hitTargets = [...G.staticMeshes];
     for (const e of G.enemies) if (e.alive) for (const m of e.hitMeshes) G.hitTargets.push(m);
     if (G.mission?.exotic) for (const m of mechTargets()) G.hitTargets.push(m); // U21: Attuned eyes and live blights
+    if (G.mission?.dungeon) for (const m of dungeonTargets()) G.hitTargets.push(m); // U23: lowered censers
     for (const m of darkTargets()) G.hitTargets.push(m); // U22: your Stasis crystals and Strand tangles
     G.hitDirty = false;
   }
@@ -782,6 +793,10 @@ export function dealDamage(e, amount, o = {}) {
   darkHit(e, o, dmg); // U22: shatter a frozen target, then Stasis slow and freeze, Strand suspend
   if (o.suppress) e.flush?.();
   dmg = skillIncoming(e, dmg, o); // U14: wards, ally shields, front guards, totem auras
+  if (dungeonImmune(e)) { // U23: a dungeon boss outside its DPS window takes no damage
+    if (dmg > 0 && !o.remoteHit && !o.jolted) { ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), 0, { immune: true }); ui.hitmarker(false, false, false); }
+    dmg = 0;
+  }
   if (e.exoBoss) { // U21: an exotic-mission boss is immune outside its damage window and loses at most a third of its health per phase
     const allowed = gateDamage(e, dmg);
     if (allowed <= 0 && dmg > 0 && !o.remoteHit && !o.jolted) { ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), 0, { immune: true }); ui.hitmarker(false, false, false); }
@@ -922,6 +937,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
   sendFx({ t: 'fx', k: 'boom', p: [Math.round(pos.x * 100) / 100, Math.round(pos.y * 100) / 100, Math.round(pos.z * 100) / 100], r: radius, c: col, s: o.small ? 1 : 0 });
   sfx.explosion(radius, pos, element);
   if (G.mission?.exotic) mechSplash(pos, radius); // U21: explosions reach eyes and blights
+  if (G.mission?.dungeon) dungeonSplash(pos, radius); // U23: explosions reach the censers
   darkSplash(pos, radius); // U22: explosions shatter your crystals and set off your tangles
   const c = new THREE.Vector3();
   for (const e of G.enemies) {

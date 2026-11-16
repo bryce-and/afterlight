@@ -1082,4 +1082,84 @@ export const BOSS_MODELS = {
     };
     c.height = 3.1;
   },
+
+  // U23 "Vhorrak, the Anointed": a giant Loyalist bath-attendant champion (The Emperor's Shadow). Built at its real size, about 4.6 m tall.
+  anointedBather(c) {
+    const { B, bodyMat } = c;
+    const skin = mat(0x555a48, { roughness: 0.28, metalness: 0.18 });   // dark olive-grey, oiled
+    const skin2 = mat(0x474c3c, { roughness: 0.3, metalness: 0.15 });
+    const gold = mat(0xd9a93c, { metalness: 0.7, roughness: 0.35 });
+    const goldD = mat(0x9a7424, { metalness: 0.6, roughness: 0.4 });
+    const cloth = mat(0x4a1f6e);
+    const steel = mat(0x2c3038, { metalness: 0.8, roughness: 0.35 });
+    const visor = mat(0x08090c);
+    const eye = mat(0x5cff7a, { emissive: 0x5cff7a, emissiveIntensity: 2.8 });
+    legs(c, 1.7, 0.42, 0.52, skin, skin2);
+    for (const k of c.legs) {
+      B(0.58, 0.3, 0.58, 0, -0.62, 0.02, goldD, k);                         // ankle ring
+      for (const dx of [-0.17, 0, 0.17]) B(0.14, 0.1, 0.22, dx, -1.66, 0.36, skin2, k); // toes
+    }
+    const torso = c.pivot(0, 1.7, 0);
+    c.torso = torso;
+    // waist cloth with a gold hem (front and back panels over the hips)
+    B(1.45, 0.95, 1.0, 0, 0.05, 0, cloth, torso);
+    B(1.5, 0.1, 1.06, 0, -0.45, 0, gold, torso);
+    B(0.6, 0.9, 0.06, 0, -0.1, 0.55, cloth, torso, false, [0.12, 0, 0]);
+    B(0.64, 0.08, 0.08, 0, -0.56, 0.59, gold, torso, false, [0.12, 0, 0]);
+    B(1.5, 0.16, 1.06, 0, 0.55, 0, goldD, torso);                           // belt
+    // the hunched upper body leans forward
+    const up = c.pivot(0, 0.6, 0, torso);
+    up.rotation.x = 0.3;
+    B(1.7, 1.3, 1.05, 0, 0.7, 0, skin, up);                                 // chest and belly
+    B(1.3, 0.6, 0.9, 0, 0.35, 0.15, skin2, up);                             // gut
+    B(0.5, 0.5, 0.06, -0.38, 0.95, 0.54, skin2, up);                        // pectoral planes
+    B(0.5, 0.5, 0.06, 0.38, 0.95, 0.54, skin2, up);
+    B(1.2, 0.5, 0.8, 0, 1.5, -0.1, skin, up);                               // hump
+    // mantle of overlapping gold scale plates across the shoulders and upper back
+    for (let row = 0; row < 4; row++) {
+      const n = 7 - row, y = 1.75 - row * 0.3, z = -0.45 - row * 0.1;
+      for (let i = 0; i < n; i++) {
+        const x = (i - (n - 1) / 2) * (0.5 - row * 0.02);
+        B(0.52, 0.06, 0.55, x, y, z, row % 2 ? goldD : gold, up, false, [0.55 + row * 0.1, 0, (i - (n - 1) / 2) * 0.1]);
+      }
+    }
+    for (const s of [-1, 1]) {
+      B(0.7, 0.14, 0.9, s * 1.0, 1.62, 0.05, gold, up, false, [0, 0, s * -0.25]);   // pauldron caps
+      B(0.64, 0.12, 0.84, s * 1.08, 1.45, 0.05, goldD, up, false, [0, 0, s * -0.35]);
+    }
+    // neck and the tall gold helm: a fan crest, a narrow visor slit with two green eyes (the head is the weak point)
+    B(0.55, 0.4, 0.5, 0, 1.78, 0.28, skin2, up);
+    const head = c.pivot(0, 2.05, 0.5, up);
+    head.rotation.x = -0.2;
+    B(0.78, 0.95, 0.8, 0, 0.18, 0, gold, head, true);
+    B(0.86, 0.12, 0.88, 0, -0.34, 0, goldD, head, true);
+    B(0.62, 0.1, 0.84, 0, 0.78, 0, goldD, head, true);
+    B(0.56, 0.08, 0.05, 0, 0.12, 0.41, visor, head, true);
+    for (const s of [-1, 1]) {
+      B(0.1, 0.045, 0.05, s * 0.15, 0.12, 0.43, eye, head, true);
+      B(0.06, 0.5, 0.1, s * 0.41, 0.0, 0.34, goldD, head, true, [0, s * 0.4, 0]);   // cheek guards
+    }
+    B(0.08, 0.7, 0.06, 0, 0.35, 0.41, goldD, head, true);                           // nasal ridge
+    for (let i = 0; i < 9; i++) {
+      const a = (i - 4) / 4, hgt = 0.95 + 0.45 * (1 - Math.abs(a));
+      B(0.12, hgt, 0.05, a * 0.55, 0.85 + hgt * 0.4, -0.22 - Math.abs(a) * 0.12, i % 2 ? gold : goldD, head, true, [-0.15, 0, -a * 0.75]);
+    }
+    // arms on pivots: bare, with gold forearm bands; a broad flat cleaver in each hand
+    const arms = [arm(c, torso, -1.2, 1.7, 1.9, 0.5, skin, -0.9, 0.1), arm(c, torso, 1.2, 1.7, 1.9, 0.5, skin, -1.1, -0.1)];
+    for (const a of arms) {
+      B(0.62, 0.22, 0.62, 0, -0.35, 0, gold, a);                           // upper arm band
+      B(0.56, 0.5, 0.56, 0, -1.35, 0, gold, a);                            // forearm band
+      B(0.6, 0.1, 0.6, 0, -1.07, 0, goldD, a);
+      B(0.58, 0.5, 0.52, 0, -2.1, 0, skin2, a);                            // fist
+      B(0.14, 0.7, 0.14, 0, -2.2, 0.28, goldD, a);                         // grip
+      B(0.1, 1.5, 0.78, 0, -3.1, 0.34, steel, a);                          // blade
+      B(0.12, 1.5, 0.08, 0, -3.1, 0.75, gold, a);                          // gold edge
+      B(0.14, 0.14, 0.82, 0, -2.4, 0.34, gold, a);                         // guard
+      B(0.12, 0.2, 0.7, 0, -3.95, 0.34, steel, a, false, [0.5, 0, 0]);     // clipped tip
+    }
+    c.arms.push(...arms);
+    c.muzzle.position.set(0, 1.1, 1.3);
+    torso.add(c.muzzle);
+    c.height = 4.6;
+  },
 };

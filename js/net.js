@@ -167,7 +167,7 @@ export async function createFireteam(profile) {
     });
     conn.on('data', (msg) => {
       if (msg.t === 'hello') {
-        if (!net.members.some((m) => m.id === conn.peer)) net.members.push({ id: conn.peer, name: msg.name, cls: msg.cls, power: msg.power, level: msg.level });
+        if (!net.members.some((m) => m.id === conn.peer)) net.members.push({ id: conn.peer, name: msg.name, cls: msg.cls, power: msg.power, level: msg.level, dun: msg.dun || [] }); // dun: U23 unlocked dungeons
         net.ready = []; // the roster changed: everyone readies again
         lobbyChanged();
         dispatch({ t: 'joined', id: conn.peer }, conn.peer);

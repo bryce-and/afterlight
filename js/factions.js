@@ -112,6 +112,10 @@ export const UNITS = {
   // Shooting the orange core drops the panel for 5 to 8 s, then it flickers back on (Bryce, 2026-11-05).
   lg_psion:     { faction: 'legion', base: 'grunt', name: 'Psion', hp: 90, speed: 3.6, range: 55, prefer: 26, burst: 1, burstGap: 0.2, fireCd: [2.4, 3.4], dmg: 12, projSpeed: 36, shotSize: 0.12, shotColor: 0xff6a3a, scale: 0.8, skills: ['snipe'], snipe: { charge: 1.6, dmg: 32, cd: [3.6, 5.2] } },
   lg_phalanx:   { faction: 'legion', base: 'grunt', name: 'Phalanx', hp: 260, noShield: true, speed: 2.6, dmg: 10, burst: 3, burstGap: 0.18, fireCd: [2.2, 3.2], scale: 1.05, skills: ['frontGuard'], frontGuard: { mult: 0.2, box: { x: -0.4, y: 1.15, z: 0.62, w: 1.1, h: 1.2, d: 0.3 }, core: { x: -0.4, y: 1.15, z: 0.7, w: 0.22, h: 0.22, d: 0.2 }, breakFor: [5, 8], restore: 0.7, knock: { range: 4.5, cd: 7, dmg: 14, push: 11 } } },
+  // U23 The Emperor's Shadow: Loyalist units of the Imperial Baths. A Ceremonial Bather is a slow, heavy Gladiator that wades the
+  // pools (it corrupts a pool it stands in too long); a Royal Taster is a Psion that drops the chalice that gives Favor.
+  lg_bather:    { faction: 'legion', base: 'rusher', name: 'Ceremonial Bather', dungeon: 'shadow', hp: 820, speed: 4.6, meleeDmg: 46, scale: 1.4, skills: [] },
+  lg_taster:    { faction: 'legion', base: 'grunt', name: 'Royal Taster', dungeon: 'shadow', hp: 140, speed: 3.4, range: 50, prefer: 22, burst: 1, burstGap: 0.2, fireCd: [2.6, 3.6], dmg: 11, projSpeed: 34, shotSize: 0.12, shotColor: 0xffc247, scale: 0.85, noDrops: true, skills: [] },
 };
 
 // Scorn shield elements by unit id are the Ether Totem kinds (Chieftain totems: Ether Bind arc, Ether Torch solar, Ether Shield void).

@@ -26,7 +26,7 @@ import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
-import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower } from './coop.js';
+import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower, launchDungeon } from './coop.js';
 import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
 import { startTower } from './tower.js';
 /** H25: the Tower, solo or (leader only) with the whole fireteam. */
@@ -34,6 +34,8 @@ function goTower() { initAudio(); lockPointer(); if (net.active) launchTower(); 
 import { TOWER_LOC } from './level-tower.js';
 import { startPatrol } from './patrol.js';
 import { startExotic } from './exotic-missions.js';
+import { startDungeon } from './dungeon.js';
+import { dungeonList, dungeonDef, dungeonUnlocked, dungeonLockText, dungeonRecord } from './dungeon-rules.js';
 import { renderRollTracker } from './rolltracker.js';
 import { controlsList, keyName, syncLive, liveKeybinds } from './keybinds.js';
 import { openControls } from './keybinds-ui.js';
@@ -57,7 +59,7 @@ export function initUI() {
   net.onAllReady = (sel) => {
     if (G.state !== 'orbit') return;
     initAudio();
-    if (sel.li === -2) startExoticFromUi(exoticList()[sel.mi].id); else if (sel.li === -1) launchActivity(ACTIVITIES[sel.mi].id); else launchFireteam(sel.li, sel.mi);
+    if (sel.li === -3) startDungeonFromUi(dungeonList()[sel.mi].id); else if (sel.li === -2) startExoticFromUi(exoticList()[sel.mi].id); else if (sel.li === -1) launchActivity(ACTIVITIES[sel.mi].id); else launchFireteam(sel.li, sel.mi);
     lockPointer(); // works when the leader's own click was the last ready; otherwise the next click captures the mouse
   };
   $('#title').addEventListener('click', () => {
@@ -207,7 +209,7 @@ export function showCharacterSelect(fromOrbit = false) {
 // ---------------------------------------------------------------------------
 // Orbit (director / inventory / character)
 // ---------------------------------------------------------------------------
-let orbitTab = 'director', selLoc = null, selMission = null, selAct = 0, selExo = null; // selExo: an exotic mission id picked in the Activities tab (U21)
+let orbitTab = 'director', selLoc = null, selMission = null, selAct = 0, selExo = null, selDun = null; // selDun: a dungeon id (U23) // selExo: an exotic mission id picked in the Activities tab (U21)
 
 export function showOrbit(tab) {
   G.state = 'orbit';
@@ -442,7 +444,8 @@ function renderActivities(main) {
   const best = s.records?.endless || 0;
   const exo = selExo ? exoticDef(selExo) : null;
   const level = playerLevel(s);
-  const want = exo ? [-2, exoticList().findIndex((x) => x.id === exo.id)] : [-1, selAct];
+  const dun = selDun ? dungeonDef(selDun) : null;
+  const want = dun ? [-3, dungeonList().findIndex((x) => x.id === dun.id)] : exo ? [-2, exoticList().findIndex((x) => x.id === exo.id)] : [-1, selAct];
   if (net.isHost && (net.sel?.li !== want[0] || net.sel?.mi !== want[1])) setSelection(want[0], want[1]);
   const exoRows = exoticList().map((x) => {
     const rec = exoticRecord(s, x.id), un = exoticUnlocked(level, x);
@@ -471,18 +474,50 @@ function renderActivities(main) {
         </div>
       </section>`;
   };
+  // U23: dungeons. Unlocked per Guardian by clearing the dungeon's campaign mission (any level); the whole fireteam must have it.
+  const dunRows = dungeonList().map((x) => {
+    const rec = dungeonRecord(s, x.id), un = dungeonUnlocked(s, x);
+    return `<button class="loc ${selDun === x.id ? 'sel' : ''}${un ? '' : ' locked'}" data-dun="${x.id}">
+            <div class="loc-planet">${un ? 'Dungeon' : 'Locked'}</div><div class="loc-name">${esc(x.name)}</div>
+            <div class="loc-prog">${rec.clears ? `Best ${clock(rec.bestTime)}  ·  ${rec.clears} clear${rec.clears === 1 ? '' : 's'}` : un ? 'Not cleared' : esc(dungeonLockText(x))}</div></button>`;
+  }).join('');
+  const dunDetail = () => {
+    const rec = dungeonRecord(s, dun.id);
+    const under = net.active ? net.members.filter((mm) => !(mm.dun || []).includes(dun.id)) : [];
+    const un = dungeonUnlocked(s, dun) && !under.length;
+    return `<section class="loc-detail">
+        <div class="eyebrow">Dungeon  ·  ${esc(dun.kicker)}</div>
+        <h1 class="screen-title">${esc(dun.name)}</h1>
+        <p class="desc">${esc(dun.desc)}</p>
+        <div class="missions">
+          <div class="mission sel"><div class="m-top"><span class="m-name">${rec.clears ? `Best time ${clock(rec.bestTime)}` : 'Not cleared'}</span><span class="m-power">${rec.clears} clear${rec.clears === 1 ? '' : 's'}</span></div>
+            <div class="m-desc">Every boss leaves an Imperial Chest: one weapon or armor piece from a pool found nowhere else, and a small chance at an exotic. Enemies are ◆ ${dun.enemyLightOver} above your Light. No timer.</div>
+            <div class="m-foot"><span class="tag">For 1 to 3 Guardians</span><span class="tag">Respawns restricted</span><span class="tag exo">Exclusive loot</span></div></div>
+          <div class="mission"><div class="m-top"><span class="m-name">Imperial Favor</span></div>
+            <div class="m-desc">Royal Tasters carry the Emperor's chalice. Take it for Favor: only then do the sigils show themselves, and only then may you make an offering. Three wrong offerings and the Emperor takes your life.</div></div>
+          <div class="mission"><div class="m-top"><span class="m-name">Respawns restricted</span></div>
+            <div class="m-desc">Solo: a death restarts the encounter. Fireteam: nobody respawns on their own; hold ${esc(keyName('interact'))} next to a downed teammate to revive them. If everyone goes down, the encounter restarts.</div></div>
+        </div>
+        <div class="launch-row">
+          <div class="power-cmp">Your Light <b>◆ ${playerPower(s)}</b>${un ? '<span class="ok">Unlocked</span>' : `<span class="warn">${esc(dungeonLockText(dun))}${under.length ? `: ${esc(under.map((mm) => mm.name).join(', '))}` : ''}</span>`}</div>
+          ${!un ? '<button class="btn primary" disabled>Locked</button>' : net.active ? readyBarHTML() : '<button id="launch" class="btn primary">Launch</button>'}
+        </div>
+      </section>`;
+  };
   main.innerHTML = `
     <div class="director">
       <aside class="loc-list">
         <div class="eyebrow">Activities</div>
-        ${ACTIVITIES.map((x, i) => `<button class="loc ${!selExo && i === selAct ? 'sel' : ''}" data-act="${i}">
+        ${ACTIVITIES.map((x, i) => `<button class="loc ${!selExo && !selDun && i === selAct ? 'sel' : ''}" data-act="${i}">
             <div class="loc-planet">${x.waves === Infinity ? 'Endless waves' : `${x.waves} waves`}</div><div class="loc-name">${x.name}</div>
             <div class="loc-prog">${x.id === 'endless' ? (best ? `Best: wave ${best}` : 'No record yet') : 'Exotic at wave 30'}</div></button>`).join('')}
         <div class="eyebrow loc-head">Exotic Missions</div>
         ${exoRows}
+        <div class="eyebrow loc-head">Dungeons</div>
+        ${dunRows}
         ${fireteamHTML()}
       </aside>
-      ${exo ? exoDetail() : `<section class="loc-detail">
+      ${dun ? dunDetail() : exo ? exoDetail() : `<section class="loc-detail">
         <div class="eyebrow">Activity  ·  Every destination</div>
         <h1 class="screen-title">${a.name}</h1>
         <p class="desc">${a.desc}</p>
@@ -499,9 +534,10 @@ function renderActivities(main) {
         </div>
       </section>`}
     </div>`;
-  $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); if (b.dataset.exo) selExo = b.dataset.exo; else { selExo = null; selAct = +b.dataset.act; } renderOrbit(); }));
+  $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); if (b.dataset.dun) { selDun = b.dataset.dun; selExo = null; } else if (b.dataset.exo) { selExo = b.dataset.exo; selDun = null; } else { selExo = null; selDun = null; selAct = +b.dataset.act; } renderOrbit(); }));
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
+    if (dun) { startDungeonFromUi(dun.id); return; }
     if (exo) { startExoticFromUi(exo.id); return; }
     lockPointer();
     startActivity(a.id, newSeed());
@@ -513,7 +549,7 @@ function renderActivities(main) {
 function readyBarHTML() {
   const st = readyState(net.members, net.ready, net.sel);
   const me = net.ready.includes(net.myId);
-  const pick = !net.sel ? null : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
+  const pick = !net.sel ? null : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
   return `<div class="ready-bar">
     <div class="rb-head"><span>${pick ? `Ready Up  ·  ${esc(pick.name)}` : 'Waiting for the leader to pick'}</span><b>${st.count}/${st.total}</b></div>
     <div class="rb-segs">${net.members.map((mm) => `<span class="rb-seg${net.ready.includes(mm.id) ? ' on' : ''}" style="--nc:${CLASSES[mm.cls]?.color || '#fff'}"><b>${esc(mm.name)}</b><i>${net.ready.includes(mm.id) ? 'Ready' : 'Not ready'}</i></span>`).join('')}</div>
@@ -533,7 +569,7 @@ function fireteamHTML() {
       <p class="ft-hint">Co-op for up to ${MAX_FIRETEAM}. Share your code; every player gets their own loot.</p>
     </div>`;
   }
-  const sel = !net.sel ? null : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
+  const sel = !net.sel ? null : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
   return `<div class="ft on">
     <div class="eyebrow">Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}</div>
     <button class="ft-code" id="ft-copy" title="Copy the code">${net.code}<span>Copy</span></button>
@@ -1497,6 +1533,13 @@ export function exoTimer(sec, red = false, frozen = false) {
   el.classList.toggle('frozen', frozen);
 }
 
+/** U23: launches a dungeon from the Activities tab (the fireteam leader's launch also starts the members). */
+function startDungeonFromUi(id) {
+  lockPointer();
+  const p = net.active ? launchDungeon(id) : startDungeon(id);
+  p.catch((e) => { console.error(e); orbitNotice(`Could not start ${dungeonDef(id).name}: ${e.message}`); });
+}
+
 /** Launches an exotic mission from the Activities tab (the fireteam leader's launch also starts the members). */
 function startExoticFromUi(id) {
   lockPointer();
@@ -1864,7 +1907,7 @@ export function showComplete(M) {
   $('#c-orbit').addEventListener('click', () => abandonMission());
   $('#c-inv').addEventListener('click', () => { orbitTab = 'character'; flySlot = null; abandonMission(); });
   if (M.coop && !net.isHost) $('#c-replay').remove();
-  else $('#c-replay').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.exotic) launchExotic(M.exotic.id); else if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
+  else $('#c-replay').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.dungeon) launchDungeon(M.dungeon.id); else if (M.exotic) launchExotic(M.exotic.id); else if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
 }
 
 export function showFailed(M) {
@@ -1883,7 +1926,7 @@ export function showFailed(M) {
       </div>
     </div>`;
   if (M.coop && !net.isHost) $('#f-retry').remove();
-  else $('#f-retry').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.exotic) launchExotic(M.exotic.id); else if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
+  else $('#f-retry').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.dungeon) launchDungeon(M.dungeon.id); else if (M.exotic) launchExotic(M.exotic.id); else if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
   $('#f-orbit').addEventListener('click', () => abandonMission());
 }
 

@@ -14,6 +14,7 @@ import { net } from './net.js';
 import { MODS_LEVEL, MODS_TUNE, ORB, CHARGE, STAT_KEYS, STAT_CAP, CLASS_STAT, COOLDOWN_FLOOR, armorStats, modCounts, cooldownMult, superRateMult, speedMult, jumpBonus, shieldMax, regenDelay, regenRate, FONT_STAT, usesCharge } from './armor.js';
 import { fxTracer, requestLife, DOWN_TIME, sendHit, sendFx, allPlayers } from './coop.js';
 import { deathOutcome, blightChance, BLIGHT } from './exotic-rules.js';
+import { imperialMethods } from './dungeon-perks.js';
 import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
 import { installDarkness } from './darkness.js';
@@ -318,10 +319,10 @@ export class Player {
     const inp = G.input;
     if (this.dead) {
       const M = G.mission;
-      const exoTeam = !!M.exotic && M.coop && allPlayers().length > 1;
+      const exoTeam = !!(M.exotic || M.dungeon) && M.coop && allPlayers().length > 1; // U23: dungeons restrict respawns the same way
       if (exoTeam) { // U21: exotic missions restrict respawns: no pooled life, no down timer; only a teammate's revive (or a wipe) brings you back
         ui.updateDeath('Respawns restricted: a teammate must revive you');
-      } else if (M.coop && !M.exotic && !this.ragdoll) { // U17f: a fall is not a down: no revive, no life, back at the landing
+      } else if (M.coop && !M.exotic && !M.dungeon && !this.ragdoll) { // U17f: a fall is not a down: no revive, no life, back at the landing
         // downed: teammates can revive us; when the timer runs out a pooled life brings us back
         this.downT -= dt;
         if (this.downT <= 0 && !this.lifeAsked && M.lives > 0) { this.lifeAsked = true; requestLife(); }
@@ -330,10 +331,11 @@ export class Player {
           : last ? `Last life: a teammate must revive you in ${Math.ceil(this.downT)}` : this.downT > 0 ? `Reviving in ${Math.ceil(this.downT)}  ·  uses a life (${M.lives} left)` : 'Reviving…');
       } else {
         this.respawnT -= dt;
-        ui.updateDeath(this.respawnT > 0 ? (M.failing ? `Mission failed in ${Math.ceil(this.respawnT)}` : M.exotic ? `Segment restarts in ${Math.ceil(this.respawnT)}` : `Reviving in ${Math.ceil(this.respawnT)}`) : '');
+        ui.updateDeath(this.respawnT > 0 ? (M.failing ? `Mission failed in ${Math.ceil(this.respawnT)}` : M.dungeon ? `Encounter restarts in ${Math.ceil(this.respawnT)}` : M.exotic ? `Segment restarts in ${Math.ceil(this.respawnT)}` : `Reviving in ${Math.ceil(this.respawnT)}`) : '');
         if (this.respawnT <= 0) {
           if (M.failing) { missionFailed(); return; }
           M.exotic?.resetSegment(); // U21: a solo death restarts the segment (enemies, gate, eyes, blights, boss)
+          M.dungeon?.resetSegment(); // U23: a solo death restarts the dungeon encounter
           this.respawn();
         }
       }
@@ -348,6 +350,7 @@ export class Player {
       return;
     }
     this.status.tick(dt);
+    this.imperialTick(dt); // U23: Emperor's Feast
     const zoom = this.currentZoom();
     const sensMul = 1 / (1 + (zoom - 1) * this.adsT * 0.85);
     this.yaw -= inp.mouse.dx * this.sens * sensMul;
@@ -639,6 +642,7 @@ export class Player {
     w.reloading = true;
     let t = w.s.reload;
     if (this.status.has('outlaw')) t *= 0.55;
+    t *= this.imperialReload(); // U23: Banquet Rush
     if (w.has('hotswap')) t *= 0.85;
     if (w.has('alloymag') && w.ammo === 0) t *= LOOT_PERKS.alloy;
     t *= 1 - LOOT_PERKS.rapidHit * this.status.stacks('rapidhit', w.idx);
@@ -734,6 +738,7 @@ export class Player {
     if (w.item.slot === 'primary') m *= PRIMARY_BOOST;
     if (w.has('rampage')) m *= 1 + 0.12 * this.status.stacks('rampage');
     if (this.status.has('killclip', w.idx)) m *= 1.3;
+    m *= this.imperialDmg(w); // U23: Gilded Tithe, Taster's Instinct
     if (w.has('highcal')) m *= 1.1;
     m *= 1 + LOOT_PERKS.adrenaline * this.status.stacks('adrenaline', w.idx);
     if (this.status.has('oneforall', w.idx)) m *= LOOT_PERKS.oneForAll;
@@ -958,6 +963,7 @@ export class Player {
     w.hitCount++;
     this.darkWeaponHit(); // U22: Thread of Generation
     this.lootPerksOnHit(w, e, crit);
+    this.imperialHit(w, e, crit, dmg * m, point); // U23: Psionic Echo, Royal Mandate
     if (this.status.has('voltshot', w.idx)) {
       // Voltshot: the charged hit jolts nearby enemies
       this.status.remove('voltshot', w.idx);
@@ -1636,6 +1642,7 @@ export class Player {
     if (w.has('killclip')) w.killclipWindow = 3;
     if (w.has('outlaw') && o.crit) this.status.apply('outlaw');
     if (w.has('leech')) this.healPct(0.2);
+    this.imperialKill(w, e, !!o.crit); // U23: Gilded Tithe, Emperor's Feast, Banquet Rush
     const c = e.center(new THREE.Vector3());
     if (w.has('firefly') && o.crit) explode(c, w.mementoShot ? 4.5 : 3, w.mementoShot ? 180 : 90, 'solar', { source: 'perk' });
     if (w.has('memento')) {
@@ -1969,6 +1976,7 @@ export class Player {
       if (ap(mod)) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * ORB.energy * ap(mod));
     }
     if (ap('betteralready')) this.regenT = 0;
+    this.imperialRefresh(); // U23: Taster's Instinct
     for (const ww of this.weapons) if (ww.has('supercharged')) { // Wavesplitter: Supercharged Battery
       this.instantReload(ww);
       this.status.apply('supercharged', { scope: ww.idx, t: ARSENAL.supercharged, set: true });
@@ -2044,6 +2052,7 @@ export class Player {
     }
     if (this.superActive) amount *= this.superActive.guard ? 1 - SENTINEL_GUARD.cut : SUPER_ARMOR[this.superActive.type] ?? 1;
     if (this.status.has('direahamkara')) amount *= DIRE.cut; // Skull of Dire Ahamkara
+    amount *= this.imperialIncoming(); // U23: Royal Guard, Imperial set
     if (this.status.has('well')) amount *= SUPER_TUNE.well.cut; // Well of Radiance
     if (this.status.has('unbreakable')) amount *= ASPECT_TUNE.unbreakable.cut; // Unbreakable shield
     if (this.frag.has('resistance') && enemiesNear(this.pos, FRAGMENT_TUNE.resistance.r, FRAGMENT_TUNE.resistance.n).length >= FRAGMENT_TUNE.resistance.n) amount *= FRAGMENT_TUNE.resistance.cut; // Spark of Resistance
@@ -2090,9 +2099,10 @@ export class Player {
     this.status.remove('fragout');
     this.status.remove('nighthawk');
     this.status.remove('attuned');
+    this.status.remove('favor'); // U23: Favor is lost on death
     this.viewmodel.visible = false;
     M.deaths++;
-    if (M.exotic) { // U21: restricted respawns
+    if (M.exotic || M.dungeon) { // U21: restricted respawns (U23: dungeons too)
       const o = deathOutcome({ fireteam: M.coop ? Math.max(1, allPlayers().length) : 1, cause });
       this.respawnT = o.respawnIn ?? 0;
       ui.showDeath(o.title, o.sub);
@@ -2129,13 +2139,13 @@ export class Player {
     this.dead = false;
     this.ragdoll = null;
     this.health = this.maxHealth; this.shield = this.maxShield;
-    if (!inPlace) { this.pos.copy(M.checkpoint); if (!M.exotic) this.pos.add(new THREE.Vector3(0, 0, 6)); } // U21: exotic missions respawn exactly at the checkpoint
+    if (!inPlace) { this.pos.copy(M.checkpoint); if (!M.exotic && !M.dungeon) this.pos.add(new THREE.Vector3(0, 0, 6)); } // U21: exotic missions respawn exactly at the checkpoint
     this.status.remove('attuned');
     this.vel.set(0, 0, 0);
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.patrol ? 'Back at the landing' : M.exotic ? (inPlace ? 'A teammate picked you up' : 'Back at the checkpoint') : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.patrol ? 'Back at the landing' : M.exotic || M.dungeon ? (inPlace ? 'A teammate picked you up' : 'Back at the checkpoint') : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   /** Invisibility (Nightstalker). Graviton Forfeit makes it last longer. */
@@ -3567,3 +3577,6 @@ export class Player {
 }
 
 installDarkness(Player); // U22: Stasis and Strand behavior (darkness.js)
+
+// U23: the dungeon's exclusive perks, its exotic and the Imperial set bonus (js/dungeon-perks.js)
+Object.assign(Player.prototype, imperialMethods);

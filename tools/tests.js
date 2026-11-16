@@ -375,9 +375,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = freshOld({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 13);
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 14);
   eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 13, 'written back');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 14, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -1420,7 +1420,7 @@ test('U11: the 14 new exotics are real Destiny 2 exotics with a signature perk e
     'Worldline Zero': 'sword', Heartshadow: 'sword', 'The Lament': 'sword', 'Buried Bloodline': 'sidearm', Forerunner: 'forerunner', Witherhoard: 'glauncher', 'Dead Messenger': 'glauncher',
     'Edge of Concurrence': 'glaive', 'Edge of Action': 'glaive', 'Edge of Intent': 'glaive', Coldheart: 'trace', 'Prometheus Lens': 'trace', Wavesplitter: 'trace', Divinity: 'trace',
   };
-  eq(EXOTIC_WEAPONS.length, 24 + 14 + 1, '24 before U11, 14 added, and U21 adds Blight Edge');
+  eq(EXOTIC_WEAPONS.length, 24 + 14 + 1 + 1, "24 before U11, 14 added, U21 adds Blight Edge, U23 adds Sovereign's Gaze");
   for (const [name, arch] of Object.entries(real)) {
     const e = EXOTIC_WEAPONS.find((x) => x.name === name);
     ok(e, name); eq(e.arch, arch, `${name} family`);
@@ -1781,7 +1781,7 @@ test('Glaive bolt: a travelling projectile with shared falloff', () => {
 test('U14 factions: every unit extends a base class, has a name and a roster entry', () => {
   const bases = ['grunt', 'rusher', 'captain', 'heavy', 'suicide'];
   for (const [id, u] of Object.entries(FA.UNITS)) {
-    ok(bases.includes(u.base), `${id} base`); ok(u.objective || FA.FACTIONS[u.faction] || (FA.BASE_EXTRAS[u.faction] || []).some((r) => r.t === id), `${id} faction`); ok(u.name, `${id} name`);
+    ok(bases.includes(u.base), `${id} base`); ok(u.objective || u.dungeon || FA.FACTIONS[u.faction] || (FA.BASE_EXTRAS[u.faction] || []).some((r) => r.t === id), `${id} faction`); ok(u.name, `${id} name`);
     ok(ENEMY_TYPES[id] && ENEMY_TYPES[id].base === u.base && ENEMY_TYPES[id].hp > 0, `${id} registered with stats`);
     eq(FA.classOf(id), u.base);
   }
@@ -2858,7 +2858,7 @@ test('U20b save v11 upgrades to v12: tier clears kept for every Guardian, new fi
     chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true, e2: true }, tier: 'ultimate', tierCleared: { legendary: { e1: true, e2: true }, ultimate: { e1: true } }, postmaster: [], quests: Q.newQuests() } } };
   fresh({ afterlight_save_v2: JSON.stringify(v11) });
   const s = S.loadSave();
-  eq(s.version, 13); eq(s.tierCleared, { legendary: { e1: true }, ultimate: {} }); eq(s.tier, 'legendary'); eq(s.cleared, { e1: true });
+  eq(s.version, 14); eq(s.tierCleared, { legendary: { e1: true }, ultimate: {} }); eq(s.tier, 'legendary'); eq(s.cleared, { e1: true });
   eq([s.pendingMenus, s.overload, s.skipped], [[], false, false]);
   eq(s.chars.vanguard.tierCleared, { legendary: { e1: true, e2: true }, ultimate: { e1: true } }); eq(s.chars.vanguard.cleared, { e1: true, e2: true });
   eq([s.chars.vanguard.pendingMenus, s.chars.vanguard.overload, s.chars.vanguard.skipped], [[], false, false]);
@@ -3000,7 +3000,7 @@ test('U21 save v13: v12 migrates with everything kept, per Guardian exoticMissio
     chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true }, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, pendingMenus: [], overload: false, skipped: false, postmaster: [], quests: Q.newQuests() } } };
   fresh({ afterlight_save_v2: JSON.stringify(v12) });
   const s = S.loadSave();
-  eq(S.SAVE_VERSION, 13); eq(s.version, 13);
+  eq(S.SAVE_VERSION, 14); eq(s.version, 14);
   eq(s.exoticMissions, { whisper: { clears: 0, bestTime: null } }); eq(s.chars.vanguard.exoticMissions, { whisper: { clears: 0, bestTime: null } });
   eq([s.glimmer, s.cleared, s.exoticsFound, s.progression.xp], [9, { e1: true }, ['Thorn'], 5]);
   const n = S.createSave('stalker'); eq(n.exoticMissions, { whisper: { clears: 0, bestTime: null } });
@@ -3033,7 +3033,7 @@ test('U21 Blight Edge never comes from a random exotic pool (drops, tier exotics
     const b = RW.rollTierExotic(s, 100, 'io'); ok(b.name !== 'Blight Edge', 'rollTierExotic');
   }
   for (let i = 0; i < 40; i++) ok(!RW.rollMenu(s, 'ultimate').weapons.some((w) => w.name === 'Blight Edge'), 'reward menu');
-  ok(EXOTIC_WEAPONS.length === 24 + 14 + 1, 'the exotic list grew by one');
+  ok(EXOTIC_WEAPONS.filter((e) => !e.dungeon).length === 24 + 14 + 1, 'the exotic list grew by one (U23 dungeon exotics aside)');
 });
 test('U21 glyph puzzles: correct order solves, a wrong eye resets the set, repeats are ignored, any-order mode', () => {
   const rnd = mulberry32(5);
@@ -3591,6 +3591,105 @@ test('H27 terms: only an acceptance of the current version counts', () => {
   ok(TM.termsCurrent({ v: TM.TERMS_VERSION })); ok(!TM.termsCurrent({ v: TM.TERMS_VERSION }, TM.TERMS_VERSION + 1), 'new text asks again');
   ok(TM.TERMS_SECTIONS.some(([h]) => h === 'Privacy') && TM.TERMS_SECTIONS.some(([h]) => h === 'Built with AI'));
   ok(TM.TERMS_SECTIONS.flat(2).join(' ').includes('not affiliated with Bungie'));
+});
+
+// ---------- U23 The Emperor's Shadow: dungeon rules, loot exclusivity, save v14 ----------
+import * as DGR from '../js/dungeon-rules.js';
+import * as DL from '../js/dungeon-loot.js';
+import { IMPERIAL_TUNE } from '../js/dungeon-loot.js';
+import { EXOTIC_RANDOM_WEAPONS } from '../js/data.js';
+test('U23 dungeon registry is valid; units exist; Loyalist dungeon units are marked', () => {
+  for (const d of DGR.dungeonList()) eq(DGR.validateDungeon(d), [], `${d.id} valid`);
+  const d = DGR.dungeonDef('shadow');
+  eq(d.enemyLightOver, 20); eq(d.strikes, 3); eq(d.exoticChance, 0.05); eq(d.unlock.mission, 'lev1');
+  ok(FA.UNITS.lg_bather.dungeon === 'shadow' && FA.UNITS.lg_taster.dungeon === 'shadow');
+  let threw = false; try { DGR.dungeonDef('nope'); } catch { threw = true; } ok(threw, 'unknown id throws');
+});
+test('U23 sigils: four vector shapes, each clearly different from the others', () => {
+  eq(DGR.SIGILS, ['axes', 'chalice', 'sun', 'hound'], 'order: axes, chalice, sun, hound');
+  for (const a of DGR.SIGILS) { const m = DGR.sigilMask(a); const fill = m.filter(Boolean).length / m.length; ok(fill > 0.12 && fill < 0.7, `${a} fills ${fill.toFixed(2)} of its box`); }
+  for (const a of DGR.SIGILS) for (const b of DGR.SIGILS) if (a < b) ok(DGR.sigilOverlap(a, b) < 0.5, `${a} vs ${b} overlap ${DGR.sigilOverlap(a, b).toFixed(2)}`);
+  ok(DGR.inSigil('sun', 0, 0) && !DGR.inSigil('sun', 0.9, 0.9), 'sun: centre in, corner out');
+});
+test('U23 unlock: clearing the Leviathan campaign mission, at any level; records per Guardian', () => {
+  const d = DGR.dungeonDef('shadow');
+  ok(!DGR.dungeonUnlocked({ cleared: {} }, d)); ok(DGR.dungeonUnlocked({ cleared: { lev1: true } }, d));
+  const s = {}; eq(DGR.dungeonRecord(s, 'shadow'), { clears: 0, bestTime: null });
+  const r1 = DGR.recordDungeonClear(s, 'shadow', 1500.04); ok(r1.first && r1.newBest); eq(r1.record.bestTime, 1500);
+  const r2 = DGR.recordDungeonClear(s, 'shadow', 1600); ok(!r2.first && !r2.newBest); eq(s.dungeons.shadow.clears, 2);
+});
+test('U23 offerings: steps scale 3/4/5; a wrong offering is a strike; the third is lethal; a solved round clears strikes', () => {
+  const cfg = DGR.dungeonDef('shadow').segments.baths;
+  eq([1, 2, 3].map((n) => DGR.offeringSteps(cfg, n)), [3, 4, 5]); eq(DGR.offeringSteps(cfg, 9), 5);
+  const o = DGR.makeOrder(40, Math.random); for (let i = 1; i < o.length; i++) ok(o[i] !== o[i - 1], 'never the same sigil twice in a row');
+  const round = { order: ['axes', 'sun', 'hound'], progress: 0, solved: false }, st = {};
+  eq(DGR.offer(round, st, 'a', 'axes'), 'right'); eq(round.progress, 1);
+  eq(DGR.offer(round, st, 'a', 'chalice'), 'wrong'); eq(st.a, 1); eq(round.progress, 1, 'a wrong offering keeps the progress');
+  eq(DGR.offer(round, st, 'b', 'chalice'), 'wrong'); eq(st.b, 1, 'strikes are per player');
+  eq(DGR.offer(round, st, 'a', 'hound'), 'wrong'); eq(st.a, 2);
+  eq(DGR.offer(round, st, 'a', 'axes'), 'lethal'); eq(st.a, 0, 'the count starts over after the death');
+  eq(DGR.offer(round, st, 'b', 'sun'), 'right'); eq(DGR.offer(round, st, 'b', 'hound'), 'solved'); ok(round.solved);
+  eq(Object.keys(st).length, 0, 'solved clears every strike'); eq(DGR.offer(round, st, 'a', 'sun'), 'ignored');
+});
+test('U23 DPS boss: immune until a window; no damage gates; final boss warns, enrages, then final stand wipes', () => {
+  const f = new DGR.DpsBossFsm({ windowTime: 10 });
+  ok(f.immune); eq(f.openWindow(), ['window']); ok(!f.immune); eq(f.openWindow(), [], 'no second window while one is open');
+  eq(f.tick(9, 50, 100), []); eq(f.tick(1.5, 50, 100), ['window-end']); ok(f.immune);
+  eq(f.tick(0.1, 0, 100), ['dead']);
+  const E = new DGR.DpsBossFsm({ windowTime: 10, enrage: { after: 3, finalFrac: 0.1, finalWind: 12 } });
+  for (let k = 1; k <= 2; k++) { eq(E.openWindow(), ['window']); eq(E.tick(11, 90, 100), ['window-end']); }
+  eq(E.openWindow(), ['window', 'enrage-warning'], 'the third DPS phase carries the warning');
+  eq(E.tick(11, 80, 100), ['window-end', 'enraged']);
+  eq(E.openWindow(), ['window']); eq(E.tick(11, 70, 100), ['final'], 'enraged: final stand after the next DPS phase, whatever its health');
+  eq(E.tick(11, 70, 100), []); eq(E.tick(2, 70, 100), ['final-wipe']);
+  const F = new DGR.DpsBossFsm({ windowTime: 10, enrage: { after: 3, finalFrac: 0.1, finalWind: 12 } });
+  F.openWindow(); eq(F.tick(1, 9, 100), ['final'], 'health at the final chunk starts final stand'); eq(F.mode, 'final');
+  eq(F.tick(1, 0, 100), ['dead']);
+  F.reset(); eq(F.mode, 'immune'); eq(F.phases, 0);
+});
+test('U23 dungeon loot never enters a random pool; drops carry the exclusive perk and look', () => {
+  const names = DL.DUNGEON_WEAPONS.map((w) => w.name);
+  eq(names, ['Gilded Decree', 'Royal Pardon', 'Feastbreaker', "The Taster's Due", 'Throneward', 'Last Course']);
+  ok(!LEGENDARY_WEAPONS.some((l) => names.includes(l.name)), 'not in the legendary pool');
+  ok(!EXOTIC_RANDOM_WEAPONS.some((e) => e.name === DL.DUNGEON_EXOTIC) && EXOTIC_WEAPONS.some((e) => e.name === DL.DUNGEON_EXOTIC), 'exotic exists but never rolls randomly');
+  ok(!ST.SET_IDS.includes('imperial') && ST.SETS.imperial, 'set kept out of random sets');
+  ok(!ST.SHADER_IDS.includes(DL.DUNGEON_SHADER) && ST.SHADERS[DL.DUNGEON_SHADER], 'shader kept out of random shaders');
+  for (const p of DL.DUNGEON_PERKS) ok(PERKS[p]?.exclusive === 'shadow', `${p} defined and exclusive`);
+  for (const w of DL.DUNGEON_WEAPONS) {
+    const it = DL.makeDungeonWeapon(100, Math.random, w);
+    eq([it.name, it.rarity, it.dungeon, it.frame, it.element], [w.name, 'legendary', 'shadow', w.frame, w.element]);
+    eq(it.perks.filter((p) => DL.DUNGEON_PERKS.includes(p)).length, 1, `${w.name}: one exclusive perk`);
+  }
+  for (let i = 0; i < 300; i++) ok(!rollItem(100, 3).perks?.some((p) => DL.DUNGEON_PERKS.includes(p)), 'random drops never roll an exclusive perk');
+  eq(DL.makeDungeonArmor(100, 'vanguard', Math.random, 'helmet').name, 'Imperial Shadow Helm');
+  eq(DL.makeDungeonArmor(100, 'stalker', Math.random, 'legs').name, 'Imperial Envoy Strides');
+  eq(DL.makeDungeonArmor(100, 'arcanist', Math.random, 'chest').set, 'imperial');
+  eq(DL.makeDungeonExotic(100).name, DL.DUNGEON_EXOTIC);
+  ok(IMPERIAL_TUNE.titheStacks === 5 && IMPERIAL_TUNE.guardCut === 0.75);
+});
+test('U23 clear drops: one pool item each time, 5% exotic, the shader once on the first full clear', () => {
+  const d = DGR.dungeonDef('shadow');
+  let ex = 0; const N = 20000;
+  for (let i = 0; i < N; i++) { const r = DGR.clearDrops(d); ok(r[0].kind === 'weapon' || r[0].kind === 'armor'); if (r.some((x) => x.kind === 'exotic')) ex++; }
+  ok(Math.abs(ex / N - 0.05) < 0.01, `exotic rate ${(ex / N).toFixed(3)}`);
+  ok(DGR.clearDrops(d, { finalClear: true, firstClear: true, ownsShader: false }).some((x) => x.kind === 'shader'));
+  ok(!DGR.clearDrops(d, { finalClear: true, firstClear: true, ownsShader: true }).some((x) => x.kind === 'shader'));
+  ok(!DGR.clearDrops(d, { finalClear: false, firstClear: true }).some((x) => x.kind === 'shader'));
+});
+test('U23 save v14: v13 migrates with everything kept, per Guardian dungeons added', () => {
+  const v13 = { version: 13, classId: 'stalker', glimmer: 9, inventory: [], vault: [], equipped: {}, cleared: { lev1: true }, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, ultimateAll: false, pendingMenus: [], overload: false, skipped: false, exoticMissions: { whisper: { clears: 2, bestTime: 700 } }, postmaster: [], exoticsFound: ['Thorn'], progression: { xp: 5 },
+    chars: { vanguard: { inventory: [], equipped: {}, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, pendingMenus: [], overload: false, skipped: false, postmaster: [], exoticMissions: { whisper: { clears: 0, bestTime: null } } } } };
+  fresh({ afterlight_save_v2: JSON.stringify(v13) });
+  const s = S.loadSave();
+  ok(s, 'loads'); eq(s.version, 14);
+  eq(s.dungeons, { shadow: { clears: 0, bestTime: null } }); eq(s.chars.vanguard.dungeons, { shadow: { clears: 0, bestTime: null } });
+  eq(s.exoticMissions.whisper.clears, 2, 'the Whisper record is kept'); eq(s.cleared, { lev1: true });
+  const n = S.createSave('stalker'); eq(n.dungeons, { shadow: { clears: 0, bestTime: null } });
+  DGR.recordDungeonClear(n, 'shadow', 900); S.switchCharacter(n, 'vanguard'); eq(DGR.dungeonRecord(n, 'shadow').clears, 0); S.switchCharacter(n, 'stalker'); eq(DGR.dungeonRecord(n, 'shadow').clears, 1);
+});
+test('U23 the Whisper is untouched: still its own registry, timer and rules', () => {
+  eq(EX.exoticList().map((x) => x.id), ['whisper']); eq(EX.exoticDef('whisper').timeLimit, 1200); eq(EX.exoticDef('whisper').enemyLightOver, 10);
+  eq(EX.validateExotic(EX.exoticDef('whisper')), []);
 });
 
 for (const t of tests) {

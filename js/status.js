@@ -25,6 +25,13 @@ export const STATUS = {
   stormdancer: { name: "Stormdancer's Brace", group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity, maxStacks: 5 },
   lunafaction: { name: 'Lunafaction Rift', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   // U21 Exotic Missions: standing in a Vex conduit's light (the Whisper). Eyes show and phase blocks turn solid while it lasts; Taken blights drain it.
+  // U23 The Emperor's Shadow: Favor (the chalice), and the exclusive perks (dungeon-perks.js)
+  favor: { name: 'Favor', group: 'general', glyph: '♛', color: '#ffc247', t: 50 },
+  feast: { name: "Emperor's Feast", group: 'general', glyph: '✚', color: '#ffc247', t: 2, maxStacks: 3 },
+  banquet: { name: 'Banquet Rush', group: 'general', glyph: '»', color: '#ffc247', t: 5 },
+  tithe: { name: 'Gilded Tithe', group: 'weapon', glyph: '◆', color: '#ffc247', t: 10, maxStacks: 5 },
+  tithedmg: { name: 'Tithe Paid', group: 'weapon', glyph: '◆', color: '#ffd27a', t: 6 },
+  instinct: { name: "Taster's Instinct", group: 'weapon', glyph: '◆', color: '#ffd27a', t: 8 },
   attuned: { name: 'Attuned', group: 'general', glyph: '◈', color: '#5ff2dc', t: 20 },
   // U22 Darkness: debuffs enemy Stasis and Strand put on you, and the Darkness aspect and fragment buffs
   chilled: { name: 'Chilled', group: 'general', glyph: '❄', color: '#9fc0ff', t: 3, maxStacks: 3, debuff: true },

@@ -31,6 +31,7 @@ const frameName = (arch, frame) => (frame ? FRAMES[arch]?.[frame]?.name ?? frame
 
 function sourcesFor(rarity, tpl) {
   if (rarity === 'exotic') {
+    if (tpl.dungeon) return ["Dungeon: The Emperor's Shadow. A 5% chance from each encounter and boss; it never drops anywhere else", SRC.kiosk]; // U23
     if (tpl.mission) {
       const def = exoticDef(tpl.mission);
       return [`Exotic mission: ${def.name}. First clear only; it never drops anywhere else`, SRC.kiosk];

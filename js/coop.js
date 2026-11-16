@@ -22,6 +22,8 @@ import { startPatrol, patrolSnapshot, applyPatrolSnapshot, receivePatrolReward }
 import { startTower } from './tower.js';
 import { blightBombFx } from './mechanics.js';
 import { BLIGHT } from './exotic-rules.js';
+import { startDungeon, dungeonWipe } from './dungeon.js';
+import { dungeonList, dungeonUnlocked } from './dungeon-rules.js';
 import { startExotic, exoticWipe, onSnapshot, onRemoteShot, onChest, onReset, onWipe, failOutOfTime } from './exotic-missions.js';
 import * as ui from './ui.js';
 import { keyName } from './keybinds.js';
@@ -47,7 +49,7 @@ const sqXZ = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z);
 export function profile() {
   const s = G.save;
   if (!s.settings.name) { s.settings.name = `Guardian${Math.floor(1000 + Math.random() * 9000)}`; }
-  return { name: s.settings.name, cls: s.classId, power: playerPower(s), level: playerLevel(s) }; // level: U21 exotic missions gate every member
+  return { name: s.settings.name, cls: s.classId, power: playerPower(s), level: playerLevel(s), dun: dungeonList().filter((d) => dungeonUnlocked(s, d)).map((d) => d.id) }; // level: U21 exotic missions gate every member; dun: U23 dungeons this Guardian has unlocked
 }
 
 /** Everyone enemies can target: the local player plus teammates in this mission. */
@@ -91,6 +93,12 @@ export function launchFireteam(li, mi) {
 export function launchExotic(id) {
   if (net.isHost) broadcast({ t: 'start', exo: id, lp: playerPower(G.save) });
   return startExotic(id);
+}
+
+/** Host: launch a dungeon (U23) for the whole fireteam. Members start it from the 'start' message. */
+export function launchDungeon(id) {
+  if (net.isHost) broadcast({ t: 'start', dun: id, lp: playerPower(G.save) });
+  return startDungeon(id);
 }
 
 /** Host: launch the patrol zone of destination li for the whole fireteam. */
@@ -154,6 +162,11 @@ function revivePlayer(id, inPlace) {
 function updateRevives(dt) {
   const P = G.player, M = G.mission;
   // a wipe with no lives left ends the activity, unless it is already complete (boss cache, final cache)
+  if (M.dungeon) { // U23: as exotic missions: no lives; everyone down resets the encounter (dungeon.js)
+    if (net.isHost && G.state === 'playing') dungeonWipe(allPlayers().map((p) => !!p.dead));
+    reviveNearby(dt);
+    return;
+  }
   if (M.exotic) { // U21: no lives and no wipe failure: everyone down resets the segment (exotic-missions.js); revives below work as usual
     if (net.isHost && G.state === 'playing') exoticWipe(allPlayers().map((p) => !!p.dead));
     reviveNearby(dt);
@@ -465,7 +478,8 @@ net.on('start', (m) => {
   if (G.mission) abandonMission(true);
   G.leaderLight = m.lp; // U19: read by combatLight() while this machine is a member
   ui.hideOverlays();
-  if (m.exo) startExotic(m.exo).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the exotic mission: ${e.message}`); });
+  if (m.dun) startDungeon(m.dun).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the dungeon: ${e.message}`); });
+  else if (m.exo) startExotic(m.exo).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the exotic mission: ${e.message}`); });
   else if (m.tower) startTower(); // H25
   else if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi, m.tier || 'base');
   ui.feed(m.tower ? 'Fireteam leader took the fireteam to the Tower. Click to capture the mouse.' : 'Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');

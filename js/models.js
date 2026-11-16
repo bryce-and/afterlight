@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ELEMENTS, EXOTIC_WEAPONS } from './data.js';
 import { mat } from './world.js';
+import { IMPERIAL_LOOK } from './dungeon-loot.js';
 
 // Viewmodel guns are authored in "f" coordinates: f = metres forward of the
 // pistol grip (model z = -f), y = up from the bore line, x = right.
@@ -174,7 +175,7 @@ function finish(g, { muzzleF, muzzleY = 0, S, hip, ads, flash = 0xffd27a, gripF 
 const EXO_LOOK = Object.fromEntries(EXOTIC_WEAPONS.map((e) => [e.name, e.look]));
 
 export function buildGunModel(item) {
-  const look = item.rarity === 'exotic' ? EXO_LOOK[item.name] : null;
+  const look = item.rarity === 'exotic' ? EXO_LOOK[item.name] : item.dungeon ? IMPERIAL_LOOK : null; // U23: dungeon legendaries wear the Imperial look
   if (look?.model) return CUSTOM_GUNS[look.model](item, look); // H22: an exotic with its own model replaces the archetype's base
   const g = buildBaseGun(item, look);
   if (look) exoticParts(g, look);
@@ -692,6 +693,17 @@ function exoticParts(g, look) {
           B(0.008, 0.006, 0.26, x * 0.05, 0.075, 0.18, glow);
         }
         break;
+      case 'filigree': { // U23 Imperial: gold scrollwork bands down both sides and a gold muzzle ring
+        const gold = mat(look.accent, { emissive: 0x6a4a10, emissiveIntensity: 0.45 });
+        for (const x of [-1, 1]) { B(0.005, 0.008, 0.36, x * 0.043, 0.018, 0.1, gold); B(0.005, 0.008, 0.3, x * 0.043, -0.022, 0.12, gold); for (let i = 0; i < 4; i++) B(0.005, 0.03, 0.008, x * 0.043, -0.002, -0.04 + i * 0.08, gold, 0.5); }
+        add(new THREE.TorusGeometry(0.03, 0.006, 4, 14), gold, 0, 0, mf - 0.01);
+        break;
+      }
+      case 'gem': { // U23 Imperial: a purple cut gem set in the frame on both sides
+        const gem = mat(look.glow ?? 0xa060ff, { emissive: look.glow ?? 0xa060ff, emissiveIntensity: 1.5 });
+        for (const x of [-1, 1]) add(new THREE.OctahedronGeometry(0.02, 0), gem, x * 0.045, 0.0, mf * 0.35);
+        break;
+      }
       case 'prongs': for (const [x, y] of [[0, 0.04], [-0.035, -0.02], [0.035, -0.02]]) B(0.01, 0.01, 0.14, x, y, mf + 0.03, glow); break;
       case 'mouth': for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; fwdCone(0.01, 0.05, Math.cos(a) * 0.04, 0.01 + Math.sin(a) * 0.04, mf + 0.01, mat(0xe8e0d0)); } add(new THREE.CircleGeometry(0.035, 10), glow, 0, 0.01, mf + 0.005); break;
       case 'wolf': {

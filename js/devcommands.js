@@ -22,7 +22,10 @@ export function giveCatalog() {
   for (const [classId, slots] of Object.entries(EXOTIC_ARMOR)) {
     for (const [slot, names] of Object.entries(slots)) for (const name of names) out.push({ name, kind: 'armor', rarity: 'exotic', slot, classId });
   }
-  for (const [setId, set] of Object.entries(SETS)) for (const slot of ARMOR_SLOTS) out.push({ name: set.pieces[slot], kind: 'armor', rarity: 'legendary', slot, setId });
+  for (const [setId, set] of Object.entries(SETS)) for (const slot of ARMOR_SLOTS) {
+    if (set.classPieces) for (const [classId, p] of Object.entries(set.classPieces)) out.push({ name: p[slot], kind: 'armor', rarity: 'legendary', slot, setId, classId }); // U23: a dungeon set names each class's pieces
+    else out.push({ name: set.pieces[slot], kind: 'armor', rarity: 'legendary', slot, setId });
+  }
   return out;
 }
 
@@ -51,7 +54,7 @@ export function buildGiven(entry, power, classId) {
       item = makeWeapon(frameSlot(n.arch, n.frame), power, rarityIndex(entry.rarity), n.arch, null, n);
     }
   } else if (entry.rarity === 'exotic') item = makeArmor(entry.slot, power, 4, null, entry.classId, entry.name);
-  else item = makeArmor(entry.slot, power, 3, entry.setId, classId);
+  else item = makeArmor(entry.slot, power, 3, entry.setId, entry.classId || classId);
   item.spawned = true;
   return item;
 }

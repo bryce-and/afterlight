@@ -70,6 +70,13 @@ export const DEFAULT_FALLOFF = { close: 0, bonus: 1, min: 0.5, span: 1.5 };
 
 // ---------- Perks ----------
 export const PERKS = {
+  // U23: The Emperor's Shadow exclusives. Only the dungeon's weapons roll them (js/dungeon-loot.js); they sit in no perk column.
+  gildedtithe: { name: 'Gilded Tithe', exclusive: 'shadow', desc: 'Precision kills build Tithe. At 5 stacks: a full reload and +15% damage for 6s.' },
+  tastersinstinct: { name: "Taster's Instinct", exclusive: 'shadow', desc: 'Gaining Favor or picking up an Orb of Power reloads this weapon and adds 15% damage for 8s.' },
+  emperorsfeast: { name: "Emperor's Feast", exclusive: 'shadow', desc: 'Kills heal 20% of your health over 2s, up to 3 at once.' },
+  royalguard: { name: 'Royal Guard', exclusive: 'shadow', desc: 'While this weapon is drawn, take 25% less damage standing on a plate or dais.' },
+  psionicecho: { name: 'Psionic Echo', exclusive: 'shadow', desc: 'Every 5th hit sends out a psionic pulse that hits nearby enemies for 30% of the damage.' },
+  banquetrush: { name: 'Banquet Rush', exclusive: 'shadow', desc: 'Kills make your reloads 40% faster for 5s.' },
   rampage: { name: 'Rampage', desc: 'Kills grant stacking +12% damage (x3) for 5s.' },
   killclip: { name: 'Kill Clip', desc: 'Reloading within 3s of a kill grants +30% damage for 5s.' },
   outlaw: { name: 'Outlaw', desc: 'Precision kills greatly increase reload speed for 6s.' },
@@ -121,6 +128,7 @@ export const PERKS = {
   jolting: { name: 'Jolting Feedback', desc: 'Every 4th hit on the same target within 2s jolts it.' },
 };
 export const EXOTIC_PERKS = {
+  royalmandate: { name: 'Royal Mandate', desc: 'Precision hits mark the target. A third precision hit on a marked target within 3s sets off a golden Solar burst and returns 2 rounds to the magazine.' }, // U23 Sovereign's Gaze
   chain: { name: 'Lightning Rod', desc: 'Every hit arcs to a nearby enemy for 50% damage.' },
   tracking: { name: 'Seeker', desc: 'Rockets track the nearest enemy.' },
   cluster: { name: 'Cluster Bombs', desc: 'Explosions scatter 4 secondary blasts.' },
@@ -253,9 +261,11 @@ export const EXOTIC_WEAPONS = [
   { name: 'Divinity', arch: 'trace', element: 'arc', perks: ['judgment', 'penance'], mods: { dmg: 0.9 }, look: { body: 0xf2ecdc, accent: 0xffd27a, parts: ['crystal'] }, flavor: 'The verdict is the light.' },
   // U21 Exotic Missions: earned only in the Whisper (mission), never from a random roll
   { name: 'Blight Edge', mission: 'whisper', arch: 'shotgun', element: 'void', slot: 'special', perks: ['blightharvest'], look: { body: 0x14141a, accent: 0xf2f2f2, parts: [], model: 'blightEdge' }, flavor: 'What the Taken touch, they keep.' },
+  // U23 The Emperor's Shadow: a 5% drop from the dungeon's encounters, never from a random roll
+  { name: "Sovereign's Gaze", dungeon: 'shadow', arch: 'hand', element: 'solar', perks: ['royalmandate'], look: { body: 0xe9e2d2, accent: 0xd9a520, parts: ['filigree', 'gem', 'sun'] }, flavor: 'He sees you. He has always seen you.' },
 ];
 /** U21: the exotic weapons that can drop, roll in a reward menu or sell at the kiosk unowned (mission-only exotics excluded). */
-export const EXOTIC_RANDOM_WEAPONS = EXOTIC_WEAPONS.filter((e) => !e.mission);
+export const EXOTIC_RANDOM_WEAPONS = EXOTIC_WEAPONS.filter((e) => !e.mission && !e.dungeon); // U23: dungeon exotics too
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
 export const HEAVY_VERSION = { dmg: 1.7, reserve: 7, brick: 2 };
 // What each exotic armor piece does. Exotic armor belongs to one class, like Destiny 2.
