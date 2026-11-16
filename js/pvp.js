@@ -199,10 +199,71 @@ export const GUARDIAN_AI = {
 };
 
 // ---------- Crucible modes ----------
-/** The Crucible node's activities. `pvp: true` is the one switch that lets players hurt each other. Duel arrives in chunk B. */
+/** The Crucible node's activities. `pvp: true` is the one switch that lets players hurt each other. */
 export const CRUCIBLE_MODES = [
   { id: 'control', name: 'Control', pvp: true, map: 'bannerfall', teamSize: 6, desc: 'Two teams of six fight for three zones. Every kill scores more for each zone your team holds. First to 100 or the higher score at ten minutes wins.' },
+  { id: 'duel', name: 'Duel', pvp: true, map: 'bannerfall', teamSize: 1, desc: 'One on one, in rounds. A kill wins the round; the clock ends it for whoever has more health left. First to 5 rounds. Same special ammo rules and crates as Control; supers charge as usual.' },
 ];
+/** Duel: first to `toWin` rounds; a round lasts `roundTime` s (the higher pool wins it on the clock), with `between` s before the next starts. */
+export const DUEL = { toWin: 5, roundTime: 120, between: 4 };
+export const modeOf = (id) => CRUCIBLE_MODES.find((m) => m.id === id);
+/** Who wins a Duel round on the clock: the team with the higher health pool; a tie gives no round. `pools`: { blue, red }. */
+export const roundOnClock = (pools) => (pools.blue === pools.red ? null : pools.blue > pools.red ? 'blue' : 'red');
+
+// AI Guardian classes and elements, handed out by slot (js/guardian-ai.js re-exports them).
+export const AI_CLASS_IDS = ['vanguard', 'stalker', 'arcanist'];
+export const AI_ELEMENT_IDS = ['arc', 'solar', 'void'];
+
+/**
+ * Can this lobby launch `modeId`? Control: at least one human is not required (a spectated match is a dev tool), at most 6 humans a team.
+ * Duel: one or two humans (a second human goes to the other side automatically). `members`: [{ id, team }].
+ */
+export function launchCheck(members, modeId) {
+  const mode = modeOf(modeId);
+  if (!mode) return { ok: false, why: `Unknown mode ${modeId}` };
+  if (!members.length) return { ok: false, why: 'Nobody is in the lobby' };
+  if (modeId === 'duel') return members.length <= 2 ? { ok: true } : { ok: false, why: `A Duel is one on one: ${members.length} Guardians are in the lobby, so send some back to Control` };
+  const blue = members.filter((m) => m.team !== 'red').length, red = members.length - blue;
+  if (blue > mode.teamSize || red > mode.teamSize) return { ok: false, why: `A team holds ${mode.teamSize}: ${blue} on Blue, ${red} on Red` };
+  return { ok: true };
+}
+
+/**
+ * The match roster the host sends to everyone: humans first (their picked team; in a Duel the first is Blue, the second Red), AI Guardians fill
+ * the rest. A slot: { gid (the member id, or 'g<n>' for an AI), human, name, team, slot (index within the team), cls, el, arch, special }.
+ * `names` supplies the AI gamer tags (a fresh list every match).
+ */
+export function buildRoster(members, modeId, names = gamerTags(12)) {
+  const mode = modeOf(modeId);
+  if (!mode) throw new Error(`Unknown Crucible mode ${modeId}`);
+  const per = mode.teamSize, slots = [], used = { blue: 0, red: 0 };
+  members.forEach((m, i) => {
+    const team = modeId === 'duel' ? (i === 0 ? 'blue' : 'red') : m.team === 'red' ? 'red' : 'blue';
+    slots.push({ gid: m.id, human: true, name: m.name, team, slot: used[team]++, cls: m.cls });
+  });
+  let n = 0;
+  for (const team of ['blue', 'red']) {
+    for (let i = used[team]; i < per; i++, n++) {
+      const k = (team === 'blue' ? 0 : 7) + i;
+      slots.push({
+        gid: `g${n}`, human: false, name: names[n % names.length] || `Bot${n}`, team, slot: i, cls: AI_CLASS_IDS[k % 3], el: AI_ELEMENT_IDS[(k + 1) % 3],
+        arch: GUARDIAN_AI.loadouts[(k + (team === 'red' ? 2 : 0)) % GUARDIAN_AI.loadouts.length], special: GUARDIAN_AI.specials[k % GUARDIAN_AI.specials.length],
+      });
+    }
+  }
+  return { mode: modeId, slots };
+}
+
+/**
+ * Should a `pvh` message be applied? It names the hit's `by` (the sender), the victim's team and the shooter's team. Player damage exists only
+ * in a `pvp: true` activity, only between opposite teams, only from a sender who really is `by`, and never as more than a one-hit kill.
+ */
+export function acceptPvpHit(mission, from, by, shooterTeam, victimTeam, dmg) {
+  if (!pvpHurts(mission, shooterTeam, victimTeam)) return false;
+  if (from !== by) return false; // a member can only report its own shots
+  return Number.isFinite(dmg) && dmg > 0 && dmg <= PVP_MAX_POOL;
+}
+
 /** The XP a finished match pays (a win pays more); the legendary comes from the normal pool. */
 export const CRUCIBLE_REWARD = { xpWin: 600, xpLoss: 350, rarity: 3 };
 

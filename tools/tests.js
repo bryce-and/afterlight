@@ -4173,6 +4173,63 @@ test('U25 PvE damage path is untouched: the original dealDamage multipliers are 
   ok(/G\.mission\.pvp\) return pvpDamagePlayer\(amount, \{ from \}\)/.test(src), 'damagePlayer reads the pvp flag');
 });
 
+// ---------- U25 Crucible: networked PvP rules (chunk B) ----------
+import { MAX_CRUCIBLE, MAX_FIRETEAM, balanceTeam, capFor } from '../js/net.js';
+test('U25b lobby caps: the Crucible takes 12, everything else stays a 3-player fireteam', () => {
+  eq(MAX_CRUCIBLE, 12); eq(MAX_FIRETEAM, 3);
+  eq(capFor({ li: -5, mi: 0 }), 12); eq(capFor({ li: 0, mi: 1 }), 3); eq(capFor(null), 3); eq(capFor({ li: -4, mi: 0 }), 3);
+});
+test('U25b team pick: a joiner goes to the smaller team', () => {
+  eq(balanceTeam([]), 'blue');
+  eq(balanceTeam([{ team: 'blue' }]), 'red');
+  eq(balanceTeam([{ team: 'blue' }, { team: 'red' }]), 'blue');
+  eq(balanceTeam([{ team: 'blue' }, { team: 'blue' }, { team: 'red' }]), 'red');
+});
+test('U25b rosters: humans take slots first, AI Guardians fill each team to its size', () => {
+  const humans = [{ id: 'a', name: 'A', cls: 'vanguard', team: 'blue' }, { id: 'b', name: 'B', cls: 'stalker', team: 'red' }, { id: 'c', name: 'C', cls: 'arcanist', team: 'red' }];
+  const r = PV.buildRoster(humans, 'control');
+  eq(r.slots.length, 12);
+  for (const team of ['blue', 'red']) eq(r.slots.filter((s) => s.team === team).length, 6);
+  eq(r.slots.filter((s) => s.human).map((s) => s.gid), ['a', 'b', 'c']);
+  eq(r.slots.filter((s) => s.team === 'red' && s.human).map((s) => s.slot), [0, 1]);
+  eq(new Set(r.slots.map((s) => `${s.team}${s.slot}`)).size, 12, 'every slot is used once');
+  eq(new Set(r.slots.map((s) => s.gid)).size, 12);
+  ok(r.slots.filter((s) => !s.human).every((s) => s.arch && s.cls && s.el));
+  eq(PV.buildRoster([], 'control').slots.filter((s) => s.human).length, 0, 'a spectated match is all AI');
+});
+test('U25b Duel roster: one on one, a second human is the other side, a lone human gets an AI foe', () => {
+  const one = PV.buildRoster([{ id: 'a', name: 'A', cls: 'vanguard', team: 'red' }], 'duel');
+  eq(one.slots.length, 2); eq(one.slots[0].team, 'blue'); eq(one.slots[1].human, false); eq(one.slots[1].team, 'red');
+  const two = PV.buildRoster([{ id: 'a', name: 'A', cls: 'vanguard', team: 'blue' }, { id: 'b', name: 'B', cls: 'stalker', team: 'blue' }], 'duel');
+  eq(two.slots.map((s) => [s.gid, s.team]), [['a', 'blue'], ['b', 'red']]);
+  eq(PV.DUEL.toWin, 5);
+  eq(PV.roundOnClock({ blue: 120, red: 80 }), 'blue'); eq(PV.roundOnClock({ blue: 50, red: 80 }), 'red'); eq(PV.roundOnClock({ blue: 80, red: 80 }), null);
+});
+test('U25b launch rules: Duel is 1 or 2 humans, a Control team holds 6, nobody means no match', () => {
+  const m = (n, team = 'blue') => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, team }));
+  ok(PV.launchCheck(m(1), 'duel').ok); ok(PV.launchCheck(m(2), 'duel').ok); ok(!PV.launchCheck(m(3), 'duel').ok);
+  ok(PV.launchCheck(m(6), 'control').ok); ok(!PV.launchCheck(m(7), 'control').ok);
+  ok(PV.launchCheck([...m(6, 'blue'), ...m(6, 'red')], 'control').ok, '6v6 humans');
+  ok(!PV.launchCheck([], 'control').ok); ok(!PV.launchCheck(m(1), 'nope').ok);
+});
+test('U25b a pvp hit is accepted only in a pvp:true activity, between opposite teams, from its own sender, within the damage cap', () => {
+  const pvp = { pvp: true }, pve = { pvp: false }, none = {};
+  ok(PV.acceptPvpHit(pvp, 'a', 'a', 'blue', 'red', 30));
+  ok(!PV.acceptPvpHit(pve, 'a', 'a', 'blue', 'red', 30), 'a PvE mission never takes player damage');
+  ok(!PV.acceptPvpHit(none, 'a', 'a', 'blue', 'red', 30), 'no flag at all');
+  ok(!PV.acceptPvpHit(null, 'a', 'a', 'blue', 'red', 30));
+  ok(!PV.acceptPvpHit({ pvp: 1 }, 'a', 'a', 'blue', 'red', 30), 'only the boolean true counts');
+  ok(!PV.acceptPvpHit(pvp, 'a', 'a', 'blue', 'blue', 30), 'teammates are safe');
+  ok(!PV.acceptPvpHit(pvp, 'a', 'b', 'blue', 'red', 30), 'a member cannot report another shooter');
+  ok(!PV.acceptPvpHit(pvp, 'a', 'a', 'blue', 'red', PV.PVP_MAX_POOL + 1), 'above the one-hit cap');
+  ok(!PV.acceptPvpHit(pvp, 'a', 'a', 'blue', 'red', NaN)); ok(!PV.acceptPvpHit(pvp, 'a', 'a', 'blue', 'red', -5));
+});
+test('U25b the crucible net handlers all start from the pvp:true switch', async () => {
+  const src = await (await fetch('../js/crucible-net.js')).text();
+  ok(/const matchOf = \(\) => \(G\.mission\?\.pvp === true/.test(src), 'every handler reads the match through the pvp flag');
+  ok(!/pvpDamagePlayer\([^)]*\)/.test(src.replace(/net\.on\('pvh'[\s\S]*?\n\}\);/, '')), 'only the pvh handler applies player damage');
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }

@@ -13,13 +13,17 @@ import { playMusic } from './music.js';
 import { playerPower, playerLevel, writeSave } from './save.js';
 import { rollItem } from './loot.js';
 import { armorBand } from './campaign.js';
-import { onMissionStart } from './coop.js';
+import { onMissionStart, launchCrucible } from './coop.js';
+import { net, broadcast } from './net.js';
+import { classKit } from './data.js';
+import { decodeAppearance } from './style.js';
 import {
-  CONTROL, CRATES, CRUCIBLE_MODES, CRUCIBLE_REWARD, GUARDIAN_AI, PVP_WEAPONS, pvpHurts, killPoints, zoneStep, zonesHeld, controlResult,
+  CONTROL, CRATES, CRUCIBLE_MODES, CRUCIBLE_REWARD, DUEL, GUARDIAN_AI, PVP_WEAPONS, modeOf, buildRoster, roundOnClock, pvpHurts, killPoints, zoneStep, zonesHeld, controlResult,
   startLoad, gamerTags, heavyCrateAmount, specialCrateAmount, abilityDamage, weaponDamage, killDamage,
 } from './pvp.js';
 import { BANNERFALL } from './level-bannerfall.js';
-import { Guardian, AI_CLASSES, AI_ELEMENTS } from './guardian-ai.js';
+import { Guardian } from './guardian-ai.js';
+import { crSendDeath, crRequestCrate } from './crucible-net.js';
 import { showCrucibleHud, updateCrucibleHud, hideCrucibleHud, showCrucibleEnd } from './crucible-hud.js';
 import { cleanupMission, abandonMission, gainXp, grantItem } from './game.js';
 
@@ -29,12 +33,17 @@ const FOE = { blue: 'red', red: 'blue' };
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
+const meId = () => (net.active ? net.myId : 'me');
+const spawnAt = (team, slot) => BANNERFALL.spawns[team][slot % BANNERFALL.spawns[team].length];
+const faceYaw = (team) => (team === 'blue' ? -Math.PI / 2 : Math.PI / 2); // toward the middle of the map
+
 /**
- * Launches a Crucible match. `opts`: { spectate: no human fights (an AI vs AI match, for the headless check), time (seconds), scoreLimit }.
- * Control is 6v6: the human takes one blue slot, AI Guardians fill the rest.
+ * Launches a Crucible match. `opts`: { roster (a networked match: the host's roster), spectate (no human fights: an AI vs AI match, for the
+ * headless check), time (seconds), scoreLimit }. Control is 6v6, Duel 1v1: humans take slots first, AI Guardians fill the rest. On the host
+ * and in solo the AI Guardians run here; on a client they are bodies the host's snapshots drive (see js/crucible-net.js).
  */
 export function startCrucible(modeId = 'control', opts = {}) {
-  const mode = CRUCIBLE_MODES.find((m) => m.id === modeId);
+  const mode = modeOf(modeId);
   if (!mode) throw new Error(`Unknown Crucible mode ${modeId}`);
   cleanupMission();
   onMissionStart();
@@ -47,55 +56,84 @@ export function startCrucible(modeId = 'control', opts = {}) {
   G.scene.add(G.camera);
   initEffects(G.scene);
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
+  const myId = meId();
+  const members = opts.spectate ? [] : net.active ? net.members : [{ id: 'me', name: G.save.settings.name || 'You', cls: G.save.classId, team: 'blue' }];
+  const roster = opts.roster || buildRoster(members, modeId);
+  const mine = opts.spectate ? null : roster.slots.find((x) => x.human && x.gid === myId) || null;
+  const team = mine?.team || 'blue', duel = modeId === 'duel';
   const C = {
-    mode, score: { red: 0, blue: 0 }, timeLeft: opts.time ?? CONTROL.time, scoreLimit: opts.scoreLimit ?? CONTROL.scoreLimit,
-    zones: BANNERFALL.zones.map((z) => ({ ...z, owner: null, prog: 0, red: 0, blue: 0 })), crates: [], feed: [], over: false, winner: null, spectate: !!opts.spectate,
-    ringMeshes: [], zoneEvents: [], stats: { kills: 0, deaths: 0 },
+    mode, roster, me: { id: myId, team }, duel: duel ? { round: 1, phase: 'live', t: DUEL.roundTime } : null,
+    score: { red: 0, blue: 0 }, timeLeft: opts.time ?? (duel ? DUEL.roundTime : CONTROL.time), scoreLimit: opts.scoreLimit ?? (duel ? DUEL.toWin : CONTROL.scoreLimit),
+    zones: duel ? [] : BANNERFALL.zones.map((z) => ({ ...z, owner: null, prog: 0, red: 0, blue: 0 })), crates: [], feed: [], over: false, winner: null, spectate: !!opts.spectate,
+    ringMeshes: [], zoneEvents: [], stats: { kills: 0, deaths: 0 }, fighters: new Map(), ident: new Map(), guardians: [],
   };
+  const sp = spawnAt(team, mine?.slot ?? 0);
   G.mission = {
-    pvp: true, team: 'blue', crucible: C, spectate: !!opts.spectate, mode: modeId,
-    loc: { ...base, name: 'The Last City', planetName: 'Earth' }, def: { ...def, name: 'Bannerfall  ·  Control' }, li: 0, mi: 0, g: 0, power: def.power,
+    pvp: true, team, crucible: C, spectate: !!opts.spectate, mode: modeId,
+    loc: { ...base, name: 'The Last City', planetName: 'Earth' }, def: { ...def, name: `Bannerfall  ·  ${mode.name}` }, li: 0, mi: 0, g: 0, power: def.power,
     fireteam: 1, coop: false, remote: false, phase: 'combat', current: 0, revives: 0, lives: 0, kills: 0, crits: 0, deaths: 0, loot: [],
     hpMult: 1, dmgMult: 1, playerDmgMult: 1, incomingMult: 1, tier: 'base', lethal: false, blitz: null,
-    startTime: performance.now(), objective: 'Take and hold zones', waypoint: null, chest: null, failing: false, doneT: 0, zones: [],
-    checkpoint: new THREE.Vector3(...[BANNERFALL.spawns.blue[0][0], 0, BANNERFALL.spawns.blue[0][1]]),
+    startTime: performance.now(), objective: duel ? 'Win the round' : 'Take and hold zones', waypoint: null, chest: null, failing: false, doneT: 0, zones: [],
+    checkpoint: new THREE.Vector3(sp[0], 0, sp[1]),
   };
   G.time = 0;
   G.player = new Player(G.save);
   const P = G.player;
-  P.team = 'blue';
+  P.team = team;
   P.spawn(M().checkpoint);
-  P.yaw = -Math.PI / 2; // facing east, toward the middle of the map
+  P.yaw = faceYaw(team);
   applyLoadout(P);
   G.state = 'playing';
   playMusic(base.id);
   ui.enterMission();
   buildZoneVisuals();
   buildCrates();
-  fillTeams(opts);
+  buildFighters(roster, C, myId);
   if (opts.spectate) { P.pos.set(0, 0, 41); P.yaw = 0; P.pitch = -0.2; P.viewmodel.visible = false; } // an AI vs AI match: the human only watches
   showCrucibleHud(G.mission);
-  ui.centerMessage('Control', 'Bannerfall  ·  Hold the zones', 3.2);
+  ui.centerMessage(mode.name, duel ? `Bannerfall  ·  First to ${DUEL.toWin}` : 'Bannerfall  ·  Hold the zones', 3.2);
   sfx.areaClear();
 }
 const M = () => G.mission;
 
-/** Fills both teams with AI Guardians: the human takes one blue slot unless this is a spectated match. */
-function fillTeams(opts) {
-  const per = CONTROL.teamSize, C = M().crucible, tags = gamerTags(per * 2); // fresh random gamer tags every match
-  for (const team of ['blue', 'red']) {
-    const have = team === 'blue' && !opts.spectate ? 1 : 0;
-    for (let i = 0; i < per - have; i++) {
-      const slot = i + have, k = (team === 'blue' ? 0 : 7) + i;
-      const [sx, sz] = BANNERFALL.spawns[team][slot % BANNERFALL.spawns[team].length];
-      new Guardian({
-        team, slot, name: tags[(team === 'blue' ? i : i + per)], classId: AI_CLASSES[k % 3], element: AI_ELEMENTS[(k + 1) % 3],
-        arch: GUARDIAN_AI.loadouts[(k + (team === 'red' ? 2 : 0)) % GUARDIAN_AI.loadouts.length], special: GUARDIAN_AI.specials[k % GUARDIAN_AI.specials.length],
-        pos: new THREE.Vector3(sx, 0, sz),
-      });
-    }
+const register = (C, g) => { C.fighters.set(g.gid, g); C.guardians.push(g); };
+/** The AI Guardians (a real AI on the host and in solo, a puppet on a client). A human's body is built when their first row arrives. */
+function buildFighters(roster, C, myId) {
+  for (const s of roster.slots) {
+    if (s.human) continue;
+    const [sx, sz] = spawnAt(s.team, s.slot);
+    register(C, new Guardian({
+      team: s.team, slot: s.slot, name: s.name, classId: s.cls, element: s.el, arch: s.arch, special: s.special, pos: new THREE.Vector3(sx, 0, sz),
+      gid: s.gid, puppet: net.isClient,
+    }));
   }
-  C.guardians = G.enemies.filter((e) => e.isGuardian);
+  void myId;
+}
+/** A human's body for the others' screens: made from the identity their client sends (class, subclass, look, weapon). */
+export function ensurePuppet(id, ident) {
+  const C = M()?.crucible;
+  if (!C) return null;
+  if (C.fighters.has(id)) return C.fighters.get(id);
+  const s = C.roster.slots.find((x) => x.human && x.gid === id);
+  if (!s) return null; // not in this match
+  const cls = ident.c || s.cls, [arch] = (ident.w || '').split('|');
+  const [sx, sz] = spawnAt(s.team, s.slot);
+  const g = new Guardian({
+    team: s.team, slot: s.slot, name: s.name, classId: cls, element: classKit(cls, ident.sc).element, arch: arch || 'auto', pos: new THREE.Vector3(sx, 0, sz),
+    gid: id, humanId: id, puppet: true, look: decodeAppearance(ident.lk),
+  });
+  g.setGunKey(ident.w);
+  register(C, g);
+  return g;
+}
+/** A human left: drop their body. */
+export function removeFighter(id) {
+  const C = M()?.crucible, g = C?.fighters.get(id);
+  if (!g) return;
+  g.alive = false; g.group.visible = false; g.remove();
+  const i = G.enemies.indexOf(g); if (i >= 0) G.enemies.splice(i, 1);
+  C.guardians = C.guardians.filter((x) => x !== g); C.fighters.delete(id);
+  G.hitDirty = true;
 }
 
 /** The match loadout rule: every life starts with the start ammo (js/pvp.js); primaries keep a full magazine. */
@@ -141,12 +179,23 @@ function buildCrates() {
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5, 6, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, fog: false, depthWrite: false, blending: THREE.AdditiveBlending }));
     beam.position.set(x, 3, z);
     G.scene.add(m, beam);
-    C.crates.push({ type, x, z, ready: false, t: type === 'heavy' ? CRATES.heavyFirst : CRATES.specialFirst + C.crates.length * 3, mesh: m, beam });
+    const t0 = type === 'heavy' ? CRATES.heavyFirst : CRATES.specialFirst + C.crates.length * 3;
+    C.crates.push({ type, x, z, ready: false, t: t0, t0, mesh: m, beam, reqT: 0 });
     m.visible = beam.visible = false;
   };
   mk('heavy', BANNERFALL.heavyCrate.x, BANNERFALL.heavyCrate.z);
   for (const c of BANNERFALL.specialCrates) mk('special', c.x, c.z);
 }
+/** A crate shows (ready) or hides (taken). On a client this follows the host's snapshot. */
+export function crateReadyState(c, ready) {
+  if (c.ready === ready) return;
+  c.ready = ready; c.mesh.visible = c.beam.visible = ready;
+  if (ready && c.type === 'heavy') feed('Heavy ammo is up at the Plaza', '#b36cff');
+}
+/** Host and solo: a crate was taken; it comes back after its timer. */
+export function crateConsumed(c) { c.ready = false; c.mesh.visible = c.beam.visible = false; c.t = c.type === 'heavy' ? CRATES.heavyEvery : CRATES.specialEvery; }
+/** A Duel round starts over: every crate goes back to its first timer. */
+function resetCrates() { for (const c of M().crucible.crates) { c.ready = false; c.mesh.visible = c.beam.visible = false; c.t = c.t0; } }
 
 /** Tops up weapon `w` by `n` rounds: magazine first, then reserve up to its cap. Returns the rounds actually added. */
 function topUp(w, n) {
@@ -156,11 +205,16 @@ function topUp(w, n) {
   if (w.reserve !== Infinity) { b = Math.min(left, Math.max(0, w.maxReserve - w.reserve)); w.reserve += b; }
   return a + b;
 }
+const crateWeapon = (crate, P) => P.weapons.find((x) => x.item.slot === (crate.type === 'heavy' ? 'heavy' : 'special'));
+/** Would this crate give the local player anything (a weapon in its slot with room)? */
+function crateUseful(crate, P) {
+  const w = crateWeapon(crate, P);
+  return !!w && (w.mag - w.ammo > 0 || (w.reserve !== Infinity && w.maxReserve - w.reserve > 0));
+}
 function crateTake(crate, who) {
   if (!who) return false;
   if (who === G.player) {
-    const P = G.player;
-    const w = P.weapons.find((x) => x.item.slot === (crate.type === 'heavy' ? 'heavy' : 'special'));
+    const P = G.player, w = crateWeapon(crate, P);
     if (!w) return false;
     const n = crate.type === 'heavy' ? heavyCrateAmount(w.A.id, w.mag) : specialCrateAmount(w.brick || 1);
     if (!topUp(w, n)) return false;
@@ -174,19 +228,23 @@ function crateTake(crate, who) {
   w.reserve += specialCrateAmount(w.A.brick || 1);
   return true;
 }
+/** A client's crate request was granted by the host: top up here. */
+export function takeCrateLocal(crate) { if (crate) crateTake(crate, G.player); }
 function updateCrates(dt) {
-  const C = M().crucible, P = G.player;
+  const C = M().crucible, P = G.player, auth = !net.isClient;
   for (const c of C.crates) {
     if (!c.ready) {
-      c.t -= dt;
-      if (c.t <= 0) { c.ready = true; c.mesh.visible = c.beam.visible = true; if (c.type === 'heavy') ui.feed('Heavy ammo is up at the Plaza', '#b36cff'); }
+      if (auth) { c.t -= dt; if (c.t <= 0) crateReadyState(c, true); }
       continue;
     }
     c.mesh.rotation.y += dt * 1.5; c.mesh.position.y = 0.9 + Math.sin(G.time * 2 + c.x) * 0.15;
-    let who = null;
-    if (P && !P.dead && !C.spectate && Math.hypot(P.pos.x - c.x, P.pos.z - c.z) < CRATES.pickupR && crateTake(c, P)) who = P;
-    else for (const g of C.guardians) if (g.alive && Math.hypot(g.pos.x - c.x, g.pos.z - c.z) < CRATES.pickupR && crateTake(c, g)) { who = g; break; }
-    if (who) { c.ready = false; c.mesh.visible = c.beam.visible = false; c.t = c.type === 'heavy' ? CRATES.heavyEvery : CRATES.specialEvery; }
+    const near = P && !P.dead && !C.spectate && Math.hypot(P.pos.x - c.x, P.pos.z - c.z) < CRATES.pickupR;
+    if (auth) {
+      let took = false;
+      if (near && crateTake(c, P)) took = true;
+      else for (const g of C.guardians) if (!g.puppet && g.alive && Math.hypot(g.pos.x - c.x, g.pos.z - c.z) < CRATES.pickupR && crateTake(c, g)) { took = true; break; }
+      if (took) { crateConsumed(c); if (net.isHost) { /* clients see it vanish in the next snapshot */ } }
+    } else if (near && G.time > c.reqT && crateUseful(c, P)) { c.reqT = G.time + 0.6; crRequestCrate(C.crates.indexOf(c)); }
   }
 }
 
@@ -194,39 +252,94 @@ function updateCrates(dt) {
 // The match
 // ---------------------------------------------------------------------------
 export function updateCrucible(dt) {
-  const Mi = G.mission, C = Mi.crucible, P = G.player;
+  const Mi = G.mission, C = Mi.crucible, P = G.player, auth = !net.isClient;
   if (C.over) return;
-  C.timeLeft = Math.max(0, C.timeLeft - dt);
-  // zones: who stands in each ring
-  for (const z of C.zones) {
-    z.red = 0; z.blue = 0;
-    for (const g of C.guardians) if (g.alive && Math.hypot(g.pos.x - z.x, g.pos.z - z.z) < CONTROL.radius) z[g.team]++;
-    if (P && !P.dead && !C.spectate && Math.hypot(P.pos.x - z.x, P.pos.z - z.z) < CONTROL.radius) z.blue++;
-    const was = z.owner;
-    zoneStep(z, z.red, z.blue, dt);
-    if (z.owner !== was && z.owner) { feed(`${z.owner === 'blue' ? 'Your team' : 'The enemy'} captured ${z.name}`, z.owner === 'blue' ? '#6ec8ff' : '#ff6a5a'); sfx.areaClear?.(); }
-    else if (z.owner !== was && !z.owner) feed(`${z.name} is neutral`, '#dddddd');
+  if (C.duel) {
+    const D = C.duel;
+    D.t -= dt;
+    if (auth) {
+      C.timeLeft = D.phase === 'live' ? D.t : DUEL.roundTime;
+      if (D.phase === 'between' && D.t <= 0) startRound();
+      else if (D.phase === 'live' && D.t <= 0) duelRoundEnd(roundOnClock(teamPools()));
+    }
+  } else C.timeLeft = Math.max(0, C.timeLeft - dt); // a client's clock is re-synced by every snapshot
+  if (auth) {
+    // zones: who stands in each ring (puppets count: a human's body is where their client says)
+    for (const z of C.zones) {
+      z.red = 0; z.blue = 0;
+      for (const g of C.guardians) if (g.alive && Math.hypot(g.pos.x - z.x, g.pos.z - z.z) < CONTROL.radius) z[g.team]++;
+      if (P && !P.dead && !C.spectate && Math.hypot(P.pos.x - z.x, P.pos.z - z.z) < CONTROL.radius) z[Mi.team]++;
+      const was = z.owner;
+      zoneStep(z, z.red, z.blue, dt);
+      if (z.owner !== was && z.owner) { feed(`${z.owner === Mi.team ? 'Your team' : 'The enemy'} captured ${z.name}`, z.owner === 'blue' ? '#6ec8ff' : '#ff6a5a'); sfx.areaClear?.(); }
+      else if (z.owner !== was && !z.owner) feed(`${z.name} is neutral`, '#dddddd');
+    }
+    // AI respawns (a Duel brings everyone back together at the next round instead)
+    if (!C.duel) for (const g of C.guardians) {
+      if (g.alive || g.puppet) continue;
+      g.respawnT -= dt;
+      if (g.respawnT <= 0) { const [x, z] = pickSpawn(g.team, g); g.spawn(new THREE.Vector3(x, 0, z)); }
+    }
   }
   paintZones();
-  // respawns
-  for (const g of C.guardians) {
-    if (g.alive) continue;
-    g.respawnT -= dt;
-    if (g.respawnT <= 0) { const [x, z] = pickSpawn(g.team, g); g.spawn(new THREE.Vector3(x, 0, z)); }
-  }
   updateCrates(dt);
   // objective line
-  const held = zonesHeld(C.zones, 'blue');
-  Mi.objective = `Hold zones  ·  ${held} of ${CONTROL.zones} held  ·  kills +${killPoints(held)}`;
-  const r = controlResult(C.score, C.timeLeft, { ...CONTROL, scoreLimit: C.scoreLimit });
+  if (C.duel) Mi.objective = `Round ${C.duel.round}  ·  ${C.score.blue} to ${C.score.red}  ·  first to ${DUEL.toWin}`;
+  else { const held = zonesHeld(C.zones, Mi.team); Mi.objective = `Hold zones  ·  ${held} of ${CONTROL.zones} held  ·  kills +${killPoints(held)}`; }
   updateCrucibleHud(Mi);
+  if (!auth) return; // the host announces the end ('pve')
+  if (C.duel) { if (C.score.blue >= DUEL.toWin || C.score.red >= DUEL.toWin) endMatch(C.score.blue > C.score.red ? 'blue' : 'red'); return; }
+  const r = controlResult(C.score, C.timeLeft, { ...CONTROL, scoreLimit: C.scoreLimit });
   if (r.over) endMatch(r.winner);
+}
+
+// ---------------------------------------------------------------------------
+// Duel rounds (host and solo run them; a client follows the snapshot)
+// ---------------------------------------------------------------------------
+/** Each team's remaining health pool (for the clock rule). */
+function teamPools() {
+  const C = M().crucible, P = G.player, out = { blue: 0, red: 0 };
+  for (const g of C.guardians) if (g.alive) out[g.team] += g.hp + g.shield;
+  if (P && !P.dead && !C.spectate) out[M().team] += P.health + P.shield;
+  return out;
+}
+export function roundBanner(winner, n) {
+  const Mi = G.mission;
+  if (Mi.spectate) return;
+  ui.centerMessage(!winner ? `Round ${n}: draw` : winner === Mi.team ? `Round ${n}: won` : `Round ${n}: lost`, `${Mi.crucible.score.blue} to ${Mi.crucible.score.red}`, 2.4);
+}
+function duelRoundEnd(team) {
+  const C = M().crucible, D = C.duel;
+  if (!D || D.phase !== 'live' || C.over) return;
+  D.phase = 'between'; D.t = DUEL.between;
+  if (team) C.score[team]++;
+  if (net.isHost) broadcast({ t: 'pvrd', w: team, n: D.round, sc: [C.score.blue, C.score.red] });
+  roundBanner(team, D.round);
+}
+function startRound() {
+  const C = M().crucible, D = C.duel;
+  D.round++; D.phase = 'live'; D.t = DUEL.roundTime;
+  resetCrates();
+  for (const g of C.guardians) if (!g.puppet) { const [x, z] = spawnAt(g.team, 0); g.spawn(new THREE.Vector3(x, 0, z)); }
+  resetLocalRound();
+}
+/** Every machine at a new Duel round: back at the base spawn with full health and the start ammo. */
+export function resetLocalRound() {
+  const Mi = G.mission, C = Mi?.crucible, P = G.player;
+  if (!C || C.spectate || !P) return;
+  const sp = spawnAt(Mi.team, 0);
+  Mi.checkpoint.set(sp[0], 0, sp[1]);
+  if (P.dead) P.respawn();
+  else { P.health = P.maxHealth; P.shield = P.maxShield; P.pos.copy(Mi.checkpoint); P.vel.set(0, 0, 0); applyLoadout(P); }
+  P.yaw = faceYaw(Mi.team);
+  ui.hideDeath();
 }
 
 function feed(text, color) { if (!M().crucible.spectate) ui.feed(text, color); }
 
 /** The spawn point farthest from foes among the team's points (so a respawn does not land on someone). */
 function pickSpawn(team, who) {
+  if (G.mission.crucible.duel) return spawnAt(team, 0); // a Duel always starts at the base
   const pts = BANNERFALL.spawns[team], foes = foesOf({ team });
   let best = pts[0], bd = -1;
   for (const p of pts) {
@@ -251,7 +364,9 @@ export function foesOf(g) {
 
 /** Which zone an AI Guardian heads for: the ones its team does not hold first, spread over the team by slot, then the nearest. */
 export function aiGoal(g) {
-  const C = G.mission.crucible, pref = g.slot % CONTROL.zones;
+  const C = G.mission.crucible;
+  if (C.duel) { const f = foesOf(g)[0]; return f ? { x: f.pos.x, z: f.pos.z, r: 8 } : { x: 0, z: 0, r: 6 }; } // a Duelist walks at the foe
+  const pref = g.slot % CONTROL.zones;
   let best = null, bs = Infinity;
   C.zones.forEach((z, i) => {
     const owned = z.owner === g.team;
@@ -270,7 +385,7 @@ export function crateGoal(g) {
 }
 
 // ---------------------------------------------------------------------------
-// Kills and score
+// Kills and score (the host and solo score; a client only mirrors, see js/crucible-net.js)
 // ---------------------------------------------------------------------------
 function score(team, pts) { M().crucible.score[team] += pts; }
 function killLine(killer, victim, kteam, vteam, pts) {
@@ -278,34 +393,50 @@ function killLine(killer, victim, kteam, vteam, pts) {
   C.feed.push({ t: G.time, killer, victim, kteam, vteam, pts });
   if (C.feed.length > 6) C.feed.shift();
 }
+/** Who someone is on the wire and in the feed: { id, name, team, human }. */
+export const descOf = (g) => ({ id: g.gid, name: g.name, team: g.team, human: !!g.humanId });
+export const localDesc = () => ({ id: M().crucible.me.id, name: G.save.settings.name || 'You', team: M().team, human: true });
 
-/** An AI Guardian (or a remote player, in chunk B) died. `attacker`: the killing Guardian, or null for the local player. */
-export function onGuardianDeath(g, attacker) {
-  const Mi = G.mission, C = Mi.crucible;
-  if (!C || C.over) return;
-  const kteam = attacker ? attacker.team : Mi.team;
-  const pts = killPoints(zonesHeld(C.zones, kteam));
-  score(kteam, pts);
-  if (attacker) attacker.kills++;
-  else {
-    Mi.kills++; C.stats.kills++;
-    const P = G.player;
-    if (P && !P.superActive) P.superCharge = Math.min(100, P.superCharge + 4);
-    sfx.kill?.();
-  }
-  killLine(attacker ? attacker.name : 'You', g.name, kteam, g.team, pts);
+/** The local player scored a kill. `fromNet`: a human was killed on the host's say-so, so the hit marker and sound come from here. */
+export function localKill(fromNet = false) {
+  const Mi = G.mission, C = Mi.crucible, P = G.player;
+  Mi.kills++; C.stats.kills++;
+  if (P && !P.superActive) P.superCharge = Math.min(100, P.superCharge + 4);
+  if (fromNet) ui.hitmarker(false, true);
+  sfx.kill?.();
 }
 
-/** The local player died to `attacker`. */
+/** Host and solo: `k` killed `v` ({ id, name, team }). Scores it, tells everyone, and ends a Duel round. */
+export function recordKill(v, k) {
+  const Mi = G.mission, C = Mi?.crucible;
+  if (!C || C.over || net.isClient) return;
+  if (C.duel && C.duel.phase !== 'live') return; // the break between rounds: nothing scores
+  const pts = C.duel ? 1 : killPoints(zonesHeld(C.zones, k.team));
+  if (!C.duel) score(k.team, pts);
+  killLine(k.name, v.name, k.team, v.team, pts);
+  if (net.isHost) broadcast({ t: 'pvk', k: k.name, v: v.name, kt: k.team, vt: v.team, pts, kid: k.id, vid: v.id });
+  if (k.id && k.id === C.me.id && !C.spectate) localKill(!!v.human && v.id !== C.me.id);
+  if (C.duel) duelRoundEnd(k.team);
+}
+
+/** An AI Guardian died (host and solo only: a puppet never dies here). `attacker`: the killing Guardian, a human's body, or null for the local player. */
+export function onGuardianDeath(g, attacker) {
+  const C = G.mission?.crucible;
+  if (!C || C.over) return;
+  if (attacker && !attacker.puppet) attacker.kills++;
+  recordKill(descOf(g), attacker ? descOf(attacker) : localDesc());
+}
+
+/** The local player died to `attacker` (a Guardian or a human's body), or to the map. */
 export function onPlayerDeath(attacker) {
   const Mi = G.mission, C = Mi.crucible;
   if (!C || C.over) return;
-  const kteam = FOE[Mi.team];
-  const pts = killPoints(zonesHeld(C.zones, kteam));
-  score(kteam, pts);
-  if (attacker) attacker.kills++;
   C.stats.deaths++;
-  killLine(attacker ? attacker.name : 'The map', 'You', kteam, Mi.team, pts);
+  if (net.isClient) crSendDeath(attacker ? attacker.gid : null); // the host scores it
+  else {
+    if (attacker && !attacker.puppet) attacker.kills++;
+    recordKill(localDesc(), attacker ? descOf(attacker) : { id: null, name: 'The map', team: FOE[Mi.team] });
+  }
   ui.showDeath('Eliminated', attacker ? `by ${attacker.name}` : '');
 }
 
@@ -317,9 +448,11 @@ export function pvpRespawnPrep(P) {
   P.over = 0;
 }
 
-function endMatch(winner) {
+export function endMatch(winner) {
   const Mi = G.mission, C = Mi.crucible;
+  if (C.over) return;
   C.over = true; C.winner = winner; Mi.phase = 'done';
+  if (net.isHost) broadcast({ t: 'pve', w: winner, sc: [C.score.blue, C.score.red] });
   const won = winner === Mi.team;
   let item = null;
   if (!C.spectate) {
@@ -331,7 +464,8 @@ function endMatch(winner) {
   G.state = 'complete';
   unlockPointer();
   ui.hideDeath();
-  showCrucibleEnd(Mi, { won, winner, item, xp: won ? CRUCIBLE_REWARD.xpWin : CRUCIBLE_REWARD.xpLoss }, { again: () => startCrucible(Mi.mode, { spectate: C.spectate }), orbit: () => abandonMission() });
+  const again = net.isClient ? null : net.isHost ? () => launchCrucible(Mi.mode) : () => startCrucible(Mi.mode, { spectate: C.spectate });
+  showCrucibleEnd(Mi, { won, winner, item, xp: won ? CRUCIBLE_REWARD.xpWin : CRUCIBLE_REWARD.xpLoss }, { again, orbit: () => abandonMission() });
 }
 
 /** Called by game.js cleanupMission. */
@@ -345,7 +479,7 @@ export function cleanupCrucible() {
 /** Damage to the local player from a Guardian (or the environment). The numbers are already PvP numbers. */
 export function pvpDamagePlayer(amount, o = {}) {
   const P = G.player, Mi = G.mission;
-  if (!P || P.dead || Mi.spectate || Mi.phase === 'done') return;
+  if (!P || P.dead || Mi.spectate || Mi.phase === 'done' || Mi.crucible?.duel?.phase === 'between') return;
   const att = o.attacker || null;
   if (att && !pvpHurts(Mi, att.team, P.team)) return;
   P.lastAttacker = att;

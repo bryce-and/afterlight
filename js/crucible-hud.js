@@ -2,10 +2,10 @@
 // stylesheet is touched; everything is removed when the match is left (hideCrucibleHud).
 import * as THREE from 'three';
 import { G } from './state.js';
-import { killPoints, zonesHeld } from './pvp.js';
+import { killPoints, zonesHeld, DUEL } from './pvp.js';
 
 const TEAM = { blue: '#6ec8ff', red: '#ff6a5a' };
-let root = null, el = {}, labels = [], plates = [], styleEl = null;
+let root = null, el = {}, labels = [], plates = [], styleEl = null, plateCount = 0;
 const _p = new THREE.Vector3();
 
 const CSS = `
@@ -59,7 +59,13 @@ export function showCrucibleHud(M) {
   el.kv = div('cr-kv', top);
   el.feed = div('cr-feed', root);
   labels = M.crucible.zones.map((z) => { const d = div('cr-lbl', root); d.innerHTML = `${z.id}<small>${z.name}</small>`; return d; });
+  buildPlates(M);
+}
+/** An ally's name over their head. Rebuilt when a human's body joins the match (it is made when their first message arrives). */
+function buildPlates(M) {
+  for (const p of plates) p.d.remove();
   plates = M.crucible.guardians.filter((g) => g.team === M.team).map((g) => ({ g, d: div('cr-ally', root, g.name) }));
+  plateCount = M.crucible.guardians.length;
 }
 
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -68,6 +74,7 @@ const proj = (x, y, z) => { _p.set(x, y, z).project(G.camera); return _p.z < 1 ?
 export function updateCrucibleHud(M) {
   if (!root) return;
   const C = M.crucible;
+  if (C.guardians.length !== plateCount) buildPlates(M);
   el.blue.textContent = C.score.blue; el.red.textContent = C.score.red;
   el.time.textContent = fmt(C.timeLeft);
   el.bbar.style.width = `${Math.min(100, (C.score.blue / C.scoreLimit) * 100)}%`;
@@ -78,7 +85,7 @@ export function updateCrucibleHud(M) {
     e.f.style.background = col; e.f.style.height = `${(z.owner ? 1 : Math.abs(z.prog)) * 100}%`;
   });
   const held = zonesHeld(C.zones, M.team);
-  el.kv.textContent = `Kill ${killPoints(held)} pt${killPoints(held) === 1 ? '' : 's'}  ·  First to ${C.scoreLimit}`;
+  el.kv.textContent = C.duel ? `Round ${C.duel.round}${C.duel.phase === 'between' ? '  ·  next round in ' + Math.max(0, Math.ceil(C.duel.t)) : ''}  ·  First to ${DUEL.toWin} rounds` : `Kill ${killPoints(held)} pt${killPoints(held) === 1 ? '' : 's'}  ·  First to ${C.scoreLimit}`;
   // kill feed: the last few kills, fading after 8 s
   const live = C.feed.filter((f) => G.time - f.t < 8);
   const key = live.map((f) => f.t).join(',');
@@ -101,7 +108,7 @@ export function updateCrucibleHud(M) {
 
 export function hideCrucibleHud() {
   root?.remove(); styleEl?.remove(); document.getElementById('crucible-end')?.remove();
-  root = styleEl = null; el = {}; labels = []; plates = [];
+  root = styleEl = null; el = {}; labels = []; plates = []; plateCount = 0;
 }
 
 /** The end screen: winner, score, your numbers, the reward, and two buttons. */
@@ -111,12 +118,12 @@ export function showCrucibleEnd(M, r, h) {
   box.id = 'crucible-end';
   const title = r.winner === 'draw' ? 'DRAW' : C.spectate ? `${r.winner.toUpperCase()} WINS` : r.won ? 'VICTORY' : 'DEFEAT';
   box.innerHTML = `<div class="ce"><h1 style="color:${r.winner === 'draw' ? '#eeeeee' : r.won ? TEAM.blue : TEAM.red}">${title}</h1>
-    <div class="ce-sub">Control  ·  Bannerfall</div>
+    <div class="ce-sub">${C.mode.name}  ·  Bannerfall</div>
     <div class="ce-score"><span style="color:${TEAM.blue}">${C.score.blue}</span><span style="opacity:.5">:</span><span style="color:${TEAM.red}">${C.score.red}</span></div>
     ${C.spectate ? '' : `<div class="ce-rows"><span>Eliminations</span><span>${C.stats.kills}</span><span>Deaths</span><span>${C.stats.deaths}</span><span>XP</span><span>+${r.xp}</span><span>Reward</span><span>${r.item ? r.item.name : 'None'}</span></div>`}
-    <div class="ce-btns"><button class="primary" id="ce-again">Play Again</button><button id="ce-orbit">Return to Orbit</button></div></div>`;
+    <div class="ce-btns">${h.again ? '<button class="primary" id="ce-again">Play Again</button>' : ''}<button id="ce-orbit">Return to Orbit</button></div>${h.again ? '' : '<div class="ce-sub" style="margin:12px 0 0">The leader starts the next match.</div>'}</div>`;
   document.body.appendChild(box);
-  box.querySelector('#ce-again').addEventListener('click', () => { box.remove(); h.again(); });
+  box.querySelector('#ce-again')?.addEventListener('click', () => { box.remove(); h.again(); });
   box.querySelector('#ce-orbit').addEventListener('click', () => { box.remove(); h.orbit(); });
 }
 

@@ -323,9 +323,13 @@ export class Player {
       const M = G.mission;
       const exoTeam = !!(M.exotic || M.dungeon) && M.coop && allPlayers().length > 1; // U23: dungeons restrict respawns the same way
       if (M.pvp) { // U25: a Crucible respawn is a short timer at a team spawn
-        this.respawnT -= dt;
-        ui.updateDeath(this.respawnT > 0 ? `Respawning in ${Math.ceil(this.respawnT)}` : '');
-        if (this.respawnT <= 0 && M.phase !== 'done') this.respawn();
+        const duel = M.crucible?.duel; // a Duel brings both back together at the next round (js/crucible.js resetLocalRound)
+        if (duel) ui.updateDeath(duel.phase === 'between' ? `Next round in ${Math.max(0, Math.ceil(duel.t))}` : 'Waiting for the round to end');
+        else {
+          this.respawnT -= dt;
+          ui.updateDeath(this.respawnT > 0 ? `Respawning in ${Math.ceil(this.respawnT)}` : '');
+          if (this.respawnT <= 0 && M.phase !== 'done') this.respawn();
+        }
       } else if (exoTeam) { // U21: exotic missions restrict respawns: no pooled life, no down timer; only a teammate's revive (or a wipe) brings you back
         ui.updateDeath('Respawns restricted: a teammate must revive you');
       } else if (M.coop && !M.exotic && !M.dungeon && !this.ragdoll) { // U17f: a fall is not a down: no revive, no life, back at the landing

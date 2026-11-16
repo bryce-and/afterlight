@@ -7,6 +7,11 @@ import { G } from './state.js';
 const PEER_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
 const PREFIX = 'afterlight-ft1-';
 export const MAX_FIRETEAM = 3;
+export const MAX_CRUCIBLE = 12; // U25: a Crucible lobby (the PvE fireteam cap stays MAX_FIRETEAM)
+/** The team a joining member goes to: the smaller one (blue on a tie). */
+export const balanceTeam = (members) => (members.filter((m) => m.team === 'red').length < members.filter((m) => m.team !== 'red').length ? 'red' : 'blue');
+/** The lobby size for a selection: the Crucible pick (li -5) opens up to MAX_CRUCIBLE, everything else is a 3-player fireteam. */
+export const capFor = (sel) => (sel?.li === -5 ? MAX_CRUCIBLE : MAX_FIRETEAM);
 
 export const net = {
   role: 'solo', // solo | host | client
@@ -16,6 +21,7 @@ export const net = {
   myId: null,
   code: null,
   members: [], // [{ id, name, cls, power, level }]
+  cap: MAX_FIRETEAM, // how many may be in the lobby: the host's selection decides (capFor)
   sel: null, // host's selected mission { li, mi }
   ready: [], // member ids that readied up for the selected mission (host decides, members mirror)
   onAllReady: null, // host UI hook: every member is ready, launch the selection
@@ -158,22 +164,24 @@ export async function createFireteam(profile) {
   net.peer = peer;
   net.role = 'host';
   net.myId = peer.id;
-  net.members = [{ id: peer.id, ...profile, leader: true }];
+  net.members = [{ id: peer.id, ...profile, leader: true, team: 'blue' }];
+  net.cap = MAX_FIRETEAM;
   net.status = '';
   peer.on('connection', (conn) => {
     conn.on('open', () => {
-      if (net.members.length >= MAX_FIRETEAM) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 300); return; }
+      if (net.members.length >= net.cap) { conn.send({ t: 'full', cap: net.cap }); setTimeout(() => conn.close(), 300); return; }
       net.conns.set(conn.peer, conn);
     });
     conn.on('data', (msg) => {
       if (msg.t === 'hello') {
-        if (!net.members.some((m) => m.id === conn.peer)) net.members.push({ id: conn.peer, name: msg.name, cls: msg.cls, power: msg.power, level: msg.level, dun: msg.dun || [], bz: !!msg.bz }); // dun: U23 unlocked dungeons
+        if (!net.members.some((m) => m.id === conn.peer)) net.members.push({ id: conn.peer, name: msg.name, cls: msg.cls, power: msg.power, level: msg.level, dun: msg.dun || [], bz: !!msg.bz, team: balanceTeam(net.members) }); // team: U25 Crucible; dun: U23 unlocked dungeons
         net.ready = []; // the roster changed: everyone readies again
         lobbyChanged();
         dispatch({ t: 'joined', id: conn.peer }, conn.peer);
         return;
       }
       if (msg.t === 'ready') { hostSetReady(conn.peer, msg.on); return; }
+      if (msg.t === 'team') { hostSetTeam(conn.peer, msg.team); return; }
       dispatch(msg, conn.peer);
     });
     conn.on('close', () => dropMember(conn.peer));
@@ -193,9 +201,23 @@ function dropMember(id) {
   lobbyChanged();
 }
 
+/** Host: a member (or the host) picked a Crucible team. */
+function hostSetTeam(id, team) {
+  const m = net.members.find((x) => x.id === id);
+  if (!m || (team !== 'blue' && team !== 'red') || m.team === team) return;
+  m.team = team;
+  lobbyChanged();
+}
+/** Pick your Crucible team (Control; Duel assigns its own sides). */
+export function setTeam(team) {
+  if (net.isHost) hostSetTeam(net.myId, team);
+  else if (net.isClient) send({ t: 'team', team });
+}
+
 export function setSelection(li, mi) {
   if (net.sel?.li !== li || net.sel?.mi !== mi) net.ready = []; // a new pick: everyone readies again
   net.sel = { li, mi };
+  if (net.isHost) net.cap = capFor(net.sel);
   if (net.isHost) broadcast(lobbyMsg());
 }
 
@@ -222,7 +244,7 @@ export async function joinFireteam(code, profile) {
   net.status = '';
   conn.on('data', (msg) => {
     if (msg.t === 'lobby') { net.members = msg.members; net.sel = msg.sel; net.ready = msg.ready || []; net.onLobby?.(); return; }
-    if (msg.t === 'full') { leaveFireteam('That fireteam is full (3 players).'); return; }
+    if (msg.t === 'full') { leaveFireteam(`That lobby is full (${msg.cap || MAX_FIRETEAM} players).`); return; }
     dispatch(msg, conn.peer);
   });
   conn.on('close', () => { if (net.isClient) { dispatch({ t: 'hostgone' }); leaveFireteam('The fireteam leader disconnected.'); } });
@@ -233,7 +255,7 @@ export async function joinFireteam(code, profile) {
 export function leaveFireteam(reason = '') {
   const wasActive = net.active;
   try { net.peer?.destroy(); } catch (e) { console.warn(e); }
-  Object.assign(net, { role: 'solo', peer: null, hostConn: null, myId: null, code: null, members: [], sel: null, ready: [], status: reason });
+  Object.assign(net, { role: 'solo', peer: null, hostConn: null, myId: null, code: null, members: [], sel: null, ready: [], cap: MAX_FIRETEAM, status: reason });
   net.conns = new Map();
   if (wasActive) dispatch({ t: 'disbanded', reason });
   net.onLobby?.();

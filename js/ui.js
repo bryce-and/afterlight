@@ -20,15 +20,14 @@ import { dismantleValue } from './loot.js';
 import { weaponIcon, weaponSilhouette, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES, setArmorIconContext } from './icons.js';
 import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './style.js';
 import { frameDef, weaponHandling } from './frames.js';
-import { startCrucible } from './crucible.js';
-import { CRUCIBLE_MODES, CONTROL, SPAWN_AMMO } from './pvp.js';
+import { CRUCIBLE_MODES, CONTROL, DUEL, SPAWN_AMMO, launchCheck } from './pvp.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets, combatLight } from './game.js';
 import { dmgDrift, HUD_SCALE, ABILITY_CD } from './combat.js';
 import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
-import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
-import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower, launchDungeon, launchBlitz } from './coop.js';
+import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, setTeam, readyState, MAX_FIRETEAM, MAX_CRUCIBLE } from './net.js';
+import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower, launchDungeon, launchBlitz, launchCrucible } from './coop.js';
 import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
 import { startTower } from './tower.js';
 /** H25: the Tower, solo or (leader only) with the whole fireteam. */
@@ -62,7 +61,12 @@ export function initUI() {
   net.onAllReady = (sel) => {
     if (G.state !== 'orbit') return;
     initAudio();
-    if (sel.li === -4) { launchBlitz(); } else if (sel.li === -3) startDungeonFromUi(dungeonList()[sel.mi].id); else if (sel.li === -2) startExoticFromUi(exoticList()[sel.mi].id); else if (sel.li === -1) launchActivity(ACTIVITIES[sel.mi].id); else launchFireteam(sel.li, sel.mi);
+    if (sel.li !== -5 && net.members.length > MAX_FIRETEAM) { orbitNotice(`A fireteam is ${MAX_FIRETEAM} players. Pick a Crucible mode for this lobby, or send some players back.`); return; }
+    if (sel.li === -5) { // U25: the Crucible
+      const mode = CRUCIBLE_MODES[sel.mi], chk = launchCheck(net.members, mode.id);
+      if (!chk.ok) { orbitNotice(chk.why); return; }
+      launchCrucible(mode.id);
+    } else if (sel.li === -4) { launchBlitz(); } else if (sel.li === -3) startDungeonFromUi(dungeonList()[sel.mi].id); else if (sel.li === -2) startExoticFromUi(exoticList()[sel.mi].id); else if (sel.li === -1) launchActivity(ACTIVITIES[sel.mi].id); else launchFireteam(sel.li, sel.mi);
     lockPointer(); // works when the leader's own click was the last ready; otherwise the next click captures the mouse
   };
   $('#title').addEventListener('click', () => {
@@ -364,7 +368,7 @@ function renderDirector(main) {
     <div class="dir-map ${dirFocus === null ? 'overview' : 'focused'}">
       ${nodeHTML}
       ${panel}
-      <details class="dir-ft" ${net.active || net.status ? 'open' : ''}><summary>${net.active ? `Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}` : 'Fireteam'}</summary>${fireteamHTML()}</details>
+      <details class="dir-ft" ${net.active || net.status ? 'open' : ''}><summary>${net.active ? `Fireteam  ·  ${net.members.length}/${net.cap}` : 'Fireteam'}</summary>${fireteamHTML()}</details>
     </div>`;
   const nodes = $$('.dir-node', main);
   G.menu.director.onFrame((list) => {
@@ -470,15 +474,22 @@ function renderOpsNodes(main) {
   wireFireteam(main);
 }
 
-/** U25: the Crucible node. One mode for now (Control, 6v6 vs AI Guardians on Bannerfall); a fireteam launches in chunk B. */
+let selCr = 0; // the picked Crucible mode (an index into CRUCIBLE_MODES)
+
+/** U25: the Crucible node: Control (6v6) and Duel (1v1) on Bannerfall. Solo or with friends (up to 12): humans fill the teams first, AI Guardians fill the rest. */
 function renderCrucibleOps(main) {
-  const node = OPS_NODES.find((n) => n.id === 'crucible'), mode = CRUCIBLE_MODES[0];
+  const node = OPS_NODES.find((n) => n.id === 'crucible'), mode = CRUCIBLE_MODES[selCr];
+  if (net.isHost && (net.sel?.li !== -5 || net.sel?.mi !== selCr)) setSelection(-5, selCr);
+  const lobby = net.active, chk = lobby ? launchCheck(net.members, mode.id) : { ok: true };
+  const me = net.members.find((m) => m.id === net.myId);
+  const teamRow = lobby && mode.id === 'control' ? `<div class="m-foot"><span class="tag">Your team</span>${['blue', 'red'].map((t) => `<button class="btn ${(me?.team || 'blue') === t ? 'primary' : 'ghost'}" data-team="${t}">${t === 'blue' ? 'Blue' : 'Red'}  ·  ${net.members.filter((m) => (m.team || 'blue') === t).length}/${mode.teamSize}</button>`).join('')}</div>` : '';
+  const sideNote = lobby && mode.id === 'duel' ? '<div class="m-foot"><span class="tag">The first Guardian in the lobby is Blue, the second Red</span></div>' : '';
   main.innerHTML = `
     <div class="director">
       <aside class="loc-list">
         <button class="btn ghost dir-back" id="ops-back">‹ Ops</button>
         <div class="eyebrow">${esc(node.name)}</div>
-        <button class="loc sel" data-cr="${mode.id}"><div class="loc-planet">6v6  ·  Bannerfall</div><div class="loc-name">${esc(mode.name)}</div><div class="loc-prog">With AI Guardians</div></button>
+        ${CRUCIBLE_MODES.map((m, i) => `<button class="loc ${i === selCr ? 'sel' : ''}" data-cr="${i}"><div class="loc-planet">${m.teamSize} v ${m.teamSize}  ·  Bannerfall</div><div class="loc-name">${esc(m.name)}</div><div class="loc-prog">${m.teamSize === 1 ? 'Rounds, first to ' + DUEL.toWin : 'With AI Guardians'}</div></button>`).join('')}
         ${fireteamHTML()}
       </aside>
       <section class="loc-detail">
@@ -486,20 +497,23 @@ function renderCrucibleOps(main) {
         <h1 class="screen-title">${esc(mode.name)}</h1>
         <p class="desc">${esc(mode.desc)}</p>
         <div class="missions">
-          <div class="mission sel"><div class="m-top"><span class="m-name">Bannerfall</span><span class="m-power">6 v 6</span></div>
-            <div class="m-desc">Three zones: A Assembly Hall in the west, B Courtyard under the big wall, C Depot Bay in the east. Humans fill a team first; AI Guardians fill the rest and fight with the same numbers and ammo rules you do.</div>
-            <div class="m-foot"><span class="tag">Kills +1 per zone held</span><span class="tag">First to ${CONTROL.scoreLimit}</span><span class="tag exo">XP and a legendary per match</span></div></div>
+          <div class="mission sel"><div class="m-top"><span class="m-name">Bannerfall</span><span class="m-power">${mode.teamSize} v ${mode.teamSize}</span></div>
+            <div class="m-desc">${mode.id === 'duel' ? 'Two Guardians start at opposite ends of the map and meet in the middle. A kill wins the round; heavy and special ammo crates still appear.' : 'Three zones: A Assembly Hall in the west, B Courtyard under the big wall, C Depot Bay in the east. Humans fill a team first; AI Guardians fill the rest and fight with the same numbers and ammo rules you do.'}</div>
+            <div class="m-foot">${mode.id === 'duel' ? `<span class="tag">First to ${DUEL.toWin} rounds</span>` : `<span class="tag">Kills +1 per zone held</span><span class="tag">First to ${CONTROL.scoreLimit}</span>`}<span class="tag exo">XP and a legendary per match</span></div>${teamRow}${sideNote}</div>
           <div class="mission"><div class="m-top"><span class="m-name">Crucible rules</span></div>
             <div class="m-desc">Your Light does not count here: everyone has 100 health plus the shield your Resilience gives. Weapons use their own PvP numbers; special ammo is scarce (a sniper starts with ${SPAWN_AMMO.sniper}), heavy ammo starts empty and arrives in crates. Only here can Guardians hurt each other.</div></div>
         </div>
         <div class="launch-row">
-          <div class="power-cmp">${net.active ? '<span class="warn">Crucible with a fireteam arrives next. Leave the fireteam to play solo.</span>' : '<span class="ok">Light does not matter</span>'}</div>
-          ${net.active ? '<button class="btn primary" disabled>Solo only for now</button>' : '<button id="launch" class="btn primary">Launch</button>'}
+          <div class="power-cmp">${!chk.ok ? `<span class="warn">${esc(chk.why)}</span>` : lobby ? `<span class="ok">Lobby ${net.members.length}/${MAX_CRUCIBLE}  ·  Light does not matter</span>` : '<span class="ok">Light does not matter</span>'}</div>
+          ${lobby ? '' : '<button id="launch" class="btn primary">Launch</button>'}
         </div>
+        ${lobby ? readyBarHTML() : ''}
       </section>
     </div>`;
   $('#ops-back', main)?.addEventListener('click', () => { sfx.ui(); actNode = null; renderOrbit(); });
-  $('#launch', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startCrucible(mode.id); });
+  $$('[data-cr]', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); selCr = Number(b.dataset.cr); renderOrbit(); }));
+  $$('[data-team]', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); setTeam(b.dataset.team); }));
+  $('#launch', main)?.addEventListener('click', () => { initAudio(); lockPointer(); launchCrucible(mode.id); });
   wireFireteam(main);
 }
 
@@ -650,7 +664,7 @@ function renderActivities(main) {
 function readyBarHTML() {
   const st = readyState(net.members, net.ready, net.sel);
   const me = net.ready.includes(net.myId);
-  const pick = !net.sel ? null : net.sel.li === -4 ? { name: 'Mission Blitz' } : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
+  const pick = !net.sel ? null : net.sel.li === -5 ? CRUCIBLE_MODES[net.sel.mi] : net.sel.li === -4 ? { name: 'Mission Blitz' } : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
   return `<div class="ready-bar">
     <div class="rb-head"><span>${pick ? `Ready Up  ·  ${esc(pick.name)}` : 'Waiting for the leader to pick'}</span><b>${st.count}/${st.total}</b></div>
     <div class="rb-segs">${net.members.map((mm) => `<span class="rb-seg${net.ready.includes(mm.id) ? ' on' : ''}" style="--nc:${CLASSES[mm.cls]?.color || '#fff'}"><b>${esc(mm.name)}</b><i>${net.ready.includes(mm.id) ? 'Ready' : 'Not ready'}</i></span>`).join('')}</div>
@@ -667,14 +681,14 @@ function fireteamHTML() {
       <button class="btn" id="ft-create">Create Fireteam</button>
       <div class="ft-join"><input id="ft-code" class="ft-in" maxlength="6" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Fireteam code"><button class="btn" id="ft-join">Join</button></div>
       ${net.status ? `<div class="ft-status">${esc(net.status)}</div>` : ''}
-      <p class="ft-hint">Co-op for up to ${MAX_FIRETEAM}. Share your code; every player gets their own loot.</p>
+      <p class="ft-hint">Co-op for up to ${MAX_FIRETEAM}; the Crucible takes up to ${MAX_CRUCIBLE}. Share your code; every player gets their own loot.</p>
     </div>`;
   }
-  const sel = !net.sel ? null : net.sel.li === -4 ? { name: 'Mission Blitz' } : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
+  const sel = !net.sel ? null : net.sel.li === -5 ? CRUCIBLE_MODES[net.sel.mi] : net.sel.li === -4 ? { name: 'Mission Blitz' } : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
   return `<div class="ft on">
-    <div class="eyebrow">Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}</div>
+    <div class="eyebrow">Fireteam  ·  ${net.members.length}/${net.cap}</div>
     <button class="ft-code" id="ft-copy" title="Copy the code">${net.code}<span>Copy</span></button>
-    <div class="ft-members">${net.members.map((mm) => `<div class="ft-m"><span class="ft-dot" style="background:${CLASSES[mm.cls]?.color || '#fff'}"></span><b>${esc(mm.name)}</b><span>${CLASSES[mm.cls]?.name || ''}  ◆${mm.power}</span>${mm.leader ? '<i>Leader</i>' : ''}</div>`).join('')}</div>
+    <div class="ft-members">${net.members.map((mm) => `<div class="ft-m"><span class="ft-dot" style="background:${CLASSES[mm.cls]?.color || '#fff'}"></span><b>${esc(mm.name)}</b><span>${CLASSES[mm.cls]?.name || ''}  ◆${mm.power}</span>${mm.leader || net.sel?.li === -5 ? `<i${net.sel?.li === -5 ? ` style="color:${mm.team === 'red' ? '#ff6a5a' : '#6ec8ff'}"` : ''}>${[mm.leader ? 'Leader' : '', net.sel?.li === -5 ? (mm.team === 'red' ? 'Red' : 'Blue') : ''].filter(Boolean).join(' · ')}</i>` : ''}</div>`).join('')}</div>
     ${net.isClient ? `<div class="ft-status">${sel ? `Leader picked: ${esc(sel.name)}` : 'Waiting for the leader to pick a mission'}</div>` : '<div class="ft-status">You lead. Pick a mission; it launches when everyone is ready.</div>'}
     <button class="btn ghost" id="ft-leave">Leave Fireteam</button>
   </div>`;

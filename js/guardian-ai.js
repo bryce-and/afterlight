@@ -12,28 +12,37 @@ import { moveBody, hasLOS } from './physics.js';
 import { findPath, lineClear } from './nav.js';
 import { tracer, explosionFx, sparks } from './effects.js';
 import { sfx } from './audio.js';
-import { PVP_HEALTH, PVP_REF_RES, GUARDIAN_AI as AI, CONTROL, weaponDamage, startLoad, abilityDamage } from './pvp.js';
+import { PVP_HEALTH, PVP_REF_RES, GUARDIAN_AI as AI, CONTROL, weaponDamage, startLoad, abilityDamage, AI_CLASS_IDS, AI_ELEMENT_IDS } from './pvp.js';
 import { getHitTargets, addTicker } from './game.js';
 import { aiGoal, foesOf, pvpDamagePlayer, onGuardianDeath, crateGoal, damageFoesInRadius } from './crucible.js';
+import { crSendHit } from './crucible-net.js';
 
 const ray = new THREE.Raycaster(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _box = new THREE.Box3(), _hit = new THREE.Vector3();
 const TEAM_HEX = { blue: 0x6ec8ff, red: 0xff6a5a };
 const SPEED = 6.0, STRAFE = 3.4, GRAVITY = 24;
 
+const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
 /** One shot's worth of rules for a primary or special: shots per second, magazine and reload. */
 const gunOf = (id) => { const A = ARCHETYPES[id]; return { id, A, mag: A.mag, rate: 60 / A.rpm }; };
 
 export class Guardian {
-  /** o: { team, name, classId, element, arch, special, slot (index in its team), pos } */
+  /**
+   * o: { team, name, classId, element, arch, special, slot (index in its team), pos }
+   * Networked matches (chunk B): `puppet: true` is a body the host's snapshots drive (no AI runs); `gid` names it on the wire, `humanId` is set when a
+   * human plays it (its hits are relayed to that player), `look` is their decoded appearance.
+   */
   constructor(o) {
     this.isGuardian = true; this.remote = false; this.typeId = 'guardian'; this.cls = 'grunt'; this.tier = null; this.isBoss = false; this.def = { range: 40 };
     this.team = o.team; this.name = o.name; this.faction = 'guardian'; this.slot = o.slot ?? 0;
+    this.puppet = !!o.puppet; this.humanId = o.humanId || null; this.gid = o.gid ?? o.humanId ?? null; this.deathScored = false;
+    this.netPos = new THREE.Vector3(); this.netYaw = 0; this.netFire = false; this.netAir = false; this.netSprint = false; this.firing = false; this.gunKey = null;
     this.pos = new THREE.Vector3(); this.vel = new THREE.Vector3(); this.yaw = 0;
     this.radius = 0.45; this.height = 1.8; this.fly = 0; this.scale = 1; this.large = false;
     this.maxHp = PVP_HEALTH; this.maxShield = shieldMax(PVP_REF_RES);
     this.shieldEl = 'arc'; this.zone = null; this.spawnT = 1; this.flash = 0;
     this.status = new StatusSet(ENEMY_STATUS); this.knock = new THREE.Vector3();
-    this.primary = gunOf(o.arch); this.special = o.special ? gunOf(o.special) : null;
+    this.primary = gunOf(o.arch || 'auto'); this.special = o.special ? gunOf(o.special) : null;
     this.kills = 0; this.deaths = 0;
     // behaviour state
     this.goal = null; this.goalT = 0; this.path = null; this.pathIdx = 0; this.pathT = 0; this.stuckT = 0; this.lastX = 0; this.lastZ = 0;
@@ -42,11 +51,11 @@ export class Guardian {
     this.regenT = 0; this.dieT = 0; this.respawnT = 0; this.alive = false; this.speedNow = 0; this.crit = false;
     // the body
     const el = ELEMENTS[o.element || 'arc'];
-    this.body = buildCharacter(o.classId || 'vanguard', o.element || 'arc');
+    this.body = buildCharacter(o.classId || 'vanguard', o.element || 'arc', o.look);
     this.group = this.body.group;
     for (const i of [1, 2, 3]) if (this.group.children[i]) this.group.children[i].visible = false; // stage disc, ring and Ghost
     this.group.rotation.order = 'YXZ';
-    this.body.setGun({ arch: o.arch, rarity: 'legendary', element: 'kinetic' });
+    if (!this.puppet || o.arch) this.body.setGun({ arch: o.arch || 'auto', rarity: 'legendary', element: 'kinetic' });
     // a team marker over the head (blue or red) and two invisible hit boxes: the body and a precision head box
     const mk = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: TEAM_HEX[this.team], fog: false }));
     mk.position.y = 2.35; this.marker = mk; this.group.add(mk);
@@ -86,6 +95,12 @@ export class Guardian {
   /** Takes PvP damage (already final). Shield first. `oneHit` kills outright. Returns { dealt, killed }. */
   takePvp(dmg, oneHit, attacker) {
     if (!this.alive) return { dealt: 0, killed: false };
+    if (G.mission?.crucible?.duel?.phase === 'between') return { dealt: 0, killed: false }; // nobody is hurt between Duel rounds
+    if (this.puppet) { // not simulated here: report the hit to the host, which relays it to the human (or applies it to the AI Guardian)
+      this.flash = 0.12;
+      crSendHit(this.gid, dmg, oneHit, attacker ? attacker.gid : null);
+      return { dealt: Math.min(dmg, this.pool), killed: false };
+    }
     const total = oneHit ? Math.max(this.pool, dmg) : dmg;
     let left = total, dealt = 0;
     if (this.shield > 0) { const a = Math.min(this.shield, left); this.shield -= a; left -= a; dealt += a; if (this.shield <= 0) sparks(this.center(_b), 0x9fe8ff, 10, 5, 0.08, 0.4); }
@@ -120,7 +135,50 @@ export class Guardian {
     return best;
   }
 
+  /** A puppet's frame: ease toward the last snapshot's place and heading; the host owns everything else. */
+  updatePuppet(dt) {
+    const m = this.group;
+    if (!this.alive) {
+      this.dieT += dt;
+      m.rotation.x = -Math.min(1, this.dieT * 2.2) * 1.4 * this.fallDir;
+      if (this.dieT > 2.2) m.visible = false;
+      return true;
+    }
+    this.flash = Math.max(0, this.flash - dt);
+    const k = Math.min(1, dt * 14), ox = this.pos.x, oz = this.pos.z;
+    this.pos.lerp(this.netPos, k);
+    this.yaw += wrapA(this.netYaw - this.yaw) * k;
+    this.speedNow = Math.min(9, Math.hypot(this.pos.x - ox, this.pos.z - oz) / Math.max(dt, 1e-3));
+    this.firing = this.netFire;
+    this.animate(dt, this.netFire);
+    return true;
+  }
+
+  /** A puppet's alive flag from the host (or the human's own row): a death plays the fall, a new life stands it back up. */
+  setNetAlive(on) {
+    if (on === this.alive) return;
+    G.hitDirty = true;
+    if (!on) {
+      this.alive = false; this.hp = 0; this.shield = 0; this.dieT = 0; this.fallDir = Math.random() < 0.5 ? 1 : -1;
+      sparks(this.center(_b), TEAM_HEX[this.team], 14, 6, 0.1, 0.6);
+      sfx.enemyDie?.(this.pos, 'guardian');
+      return;
+    }
+    this.alive = true; this.dieT = 0; this.deathScored = false;
+    this.group.visible = true; this.group.rotation.set(0, this.yaw + Math.PI, 0);
+    this.pos.copy(this.netPos); this.hp = this.maxHp; this.shield = this.maxShield;
+  }
+
+  /** The gun in a puppet's hands (the same `arch|rarity|element|name` key the fireteam avatars use). */
+  setGunKey(key) {
+    if (key === this.gunKey) return;
+    this.gunKey = key;
+    const [arch, rarity, element, name] = (key || '').split('|');
+    this.body.setGun(key ? { arch, rarity, element, name } : null);
+  }
+
   update(dt) {
+    if (this.puppet) return this.updatePuppet(dt);
     const m = this.group;
     if (!this.alive) {
       this.dieT += dt;
@@ -129,7 +187,7 @@ export class Guardian {
       return true;
     }
     const M = G.mission;
-    if (!M || M.phase === 'done') { this.speedNow = 0; this.animate(dt, false); return true; }
+    if (!M || M.phase === 'done' || M.crucible?.duel?.phase === 'between') { this.speedNow = 0; this.animate(dt, false); return true; } // a finished match, or the break between Duel rounds: stand still
     this.flash = Math.max(0, this.flash - dt);
     // regeneration: shield after a quiet moment, then health
     this.regenT -= dt;
@@ -189,7 +247,8 @@ export class Guardian {
       let d = want - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       this.yaw += d * Math.min(1, dt * 9);
     }
-    this.animate(dt, !!this.tgt && this.reactT <= 0);
+    this.firing = !!this.tgt && this.reactT <= 0;
+    this.animate(dt, this.firing);
     return true;
   }
 
@@ -197,7 +256,7 @@ export class Guardian {
     this.group.position.copy(this.pos);
     this.group.rotation.y = this.yaw + Math.PI;
     this.marker.rotation.y += dt * 2;
-    this.body.update(dt, { speed: this.speedNow, sprint: !this.tgt && this.speedNow > 5, air: false, pitch: 0, firing });
+    this.body.update(dt, { speed: this.speedNow, sprint: !this.tgt && this.speedNow > 5, air: this.netAir, pitch: 0, firing });
     this.body.group.traverse((o) => { if (o.material?.emissive && o.userData.slot) o.material.emissiveIntensity = this.flash > 0 ? 1.2 : o.material.emissiveIntensity; });
   }
 
@@ -328,5 +387,5 @@ export class Guardian {
   }
 }
 
-export const AI_CLASSES = ['vanguard', 'stalker', 'arcanist'];
-export const AI_ELEMENTS = ['arc', 'solar', 'void'];
+export const AI_CLASSES = AI_CLASS_IDS;
+export const AI_ELEMENTS = AI_ELEMENT_IDS;

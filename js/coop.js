@@ -27,6 +27,9 @@ import { BLIGHT } from './exotic-rules.js';
 import { startDungeon, dungeonWipe } from './dungeon.js';
 import { dungeonList, dungeonUnlocked } from './dungeon-rules.js';
 import { startExotic, exoticWipe, onSnapshot, onRemoteShot, onChest, onReset, onWipe, failOutOfTime } from './exotic-missions.js';
+import { startCrucible } from './crucible.js';
+import { crNetTick, crMemberLeft } from './crucible-net.js';
+import { buildRoster } from './pvp.js';
 import * as ui from './ui.js';
 import { keyName } from './keybinds.js';
 
@@ -113,6 +116,16 @@ export function launchDungeon(id) {
 }
 
 /** Host: launch the patrol zone of destination li for the whole fireteam. */
+/**
+ * Host: start a Crucible match (U25). The host builds the roster (humans by team, AI Guardians fill the rest) and sends it; every member
+ * starts the same match from it. Solo plays the same path.
+ */
+export function launchCrucible(modeId) {
+  const roster = buildRoster(net.active ? net.members : [{ id: 'me', name: G.save.settings.name || 'You', cls: G.save.classId, team: 'blue' }], modeId);
+  if (net.isHost) broadcast({ t: 'start', cr: { mode: modeId, roster }, lp: playerPower(G.save) });
+  startCrucible(modeId, { roster });
+}
+
 export function launchPatrol(li) {
   if (net.isHost) broadcast({ t: 'start', li, mi: -1, lp: playerPower(G.save) });
   startPatrol(li);
@@ -289,6 +302,7 @@ function myState() {
 let lastE = false;
 export function netTick(dt) {
   if (!net.active || !G.mission) return;
+  if (G.mission.pvp) { crNetTick(dt); return; } // U25: a Crucible match has its own messages (js/crucible-net.js)
   updateRevives(dt);
   if (G.state !== 'playing') return;
   sendT -= dt; snapT -= dt; rosterT -= dt;
@@ -487,12 +501,13 @@ net.on('start', (m) => {
   if (G.mission) abandonMission(true);
   G.leaderLight = m.lp; // U19: read by combatLight() while this machine is a member
   ui.hideOverlays();
-  if (m.dun) startDungeon(m.dun).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the dungeon: ${e.message}`); });
+  if (m.cr) startCrucible(m.cr.mode, { roster: m.cr.roster });
+  else if (m.dun) startDungeon(m.dun).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the dungeon: ${e.message}`); });
   else if (m.exo) startExotic(m.exo).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the exotic mission: ${e.message}`); });
   else if (m.tower) startTower(); // H25
   else if (m.bz) { claimPendingCache(); startBlitzStep(runAt(m.bz.s, m.bz.n)); } // U28: an unopened cache goes to the Postmaster first
   else if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi, m.tier || 'base');
-  ui.feed(m.tower ? 'Fireteam leader took the fireteam to the Tower. Click to capture the mouse.' : 'Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
+  ui.feed(m.tower ? 'Fireteam leader took the fireteam to the Tower. Click to capture the mouse.' : m.cr ? 'The leader launched the match. Click to capture the mouse.' : 'Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
 });
 net.on('end', () => {
   if (!(inMission() || (G.mission?.blitz && G.state === 'complete' && !G.mission.blitzReward))) return;
@@ -504,14 +519,15 @@ net.on('hostgone', () => { if (G.mission && (G.state !== 'complete' || (G.missio
 net.on('disbanded', (m) => { if (m.reason) ui.orbitNotice(m.reason); });
 net.on('joined', () => { sfx.ui(); });
 net.on('left', (m) => {
+  if (G.mission?.pvp) { crMemberLeft(m.id); return; } // U25
   const r = remotes.get(m.id);
   if (r) { removeAvatar(r); remotes.delete(m.id); }
   if (inMission() && m.name) ui.feed(`${m.name} left the fireteam`, '#aab3bf');
 });
-net.on('leave', (m, from) => { const r = remotes.get(from); if (r) { removeAvatar(r); r.inMission = false; } });
+net.on('leave', (m, from) => { if (G.mission?.pvp) { crMemberLeft(from); return; } const r = remotes.get(from); if (r) { removeAvatar(r); r.inMission = false; } });
 
 // host <- member
-net.on('p', (m, from) => { if (inMission()) ensureRemote({ ...m, id: from }); });
+net.on('p', (m, from) => { if (inMission() && !G.mission.pvp) ensureRemote({ ...m, id: from }); });
 net.on('hit', (m, from) => {
   if (!inMission()) return;
   const e = getEnemyByNetId(m.id);
