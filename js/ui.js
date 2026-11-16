@@ -20,6 +20,8 @@ import { dismantleValue } from './loot.js';
 import { weaponIcon, weaponSilhouette, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES, setArmorIconContext } from './icons.js';
 import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './style.js';
 import { frameDef, weaponHandling } from './frames.js';
+import { startCrucible } from './crucible.js';
+import { CRUCIBLE_MODES, CONTROL, SPAWN_AMMO } from './pvp.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets, combatLight } from './game.js';
 import { dmgDrift, HUD_SCALE, ABILITY_CD } from './combat.js';
 import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
@@ -445,6 +447,7 @@ function renderQuests(main) {
 export const OPS_NODES = [
   { id: 'vanguard', name: 'Vanguard Ops', sub: 'Mission Blitz  ·  Horde  ·  Endless', color: '#7fd8ff' },
   { id: 'endgame', name: 'Endgame Ops', sub: 'Exotic Missions  ·  Dungeons', color: '#f0c040' },
+  { id: 'crucible', name: 'Crucible Ops', sub: 'Control  ·  Bannerfall', color: '#ff6a5a' }, // U25
 ];
 
 /** The node screen: one round node per ops group, the Fireteam panel beside them. */
@@ -461,9 +464,42 @@ function renderOpsNodes(main) {
     sfx.ui();
     actNode = b.dataset.ops;
     selExo = selDun = null; selBlitz = false;
-    if (actNode === 'vanguard') selBlitz = true; else selExo = exoticList()[0].id; // each node opens on its first entry
+    if (actNode === 'vanguard') selBlitz = true; else if (actNode !== 'crucible') selExo = exoticList()[0].id; // each node opens on its first entry
     renderOrbit();
   }));
+  wireFireteam(main);
+}
+
+/** U25: the Crucible node. One mode for now (Control, 6v6 vs AI Guardians on Bannerfall); a fireteam launches in chunk B. */
+function renderCrucibleOps(main) {
+  const node = OPS_NODES.find((n) => n.id === 'crucible'), mode = CRUCIBLE_MODES[0];
+  main.innerHTML = `
+    <div class="director">
+      <aside class="loc-list">
+        <button class="btn ghost dir-back" id="ops-back">‹ Ops</button>
+        <div class="eyebrow">${esc(node.name)}</div>
+        <button class="loc sel" data-cr="${mode.id}"><div class="loc-planet">6v6  ·  Bannerfall</div><div class="loc-name">${esc(mode.name)}</div><div class="loc-prog">With AI Guardians</div></button>
+        ${fireteamHTML()}
+      </aside>
+      <section class="loc-detail">
+        <div class="eyebrow">Crucible  ·  The Last City</div>
+        <h1 class="screen-title">${esc(mode.name)}</h1>
+        <p class="desc">${esc(mode.desc)}</p>
+        <div class="missions">
+          <div class="mission sel"><div class="m-top"><span class="m-name">Bannerfall</span><span class="m-power">6 v 6</span></div>
+            <div class="m-desc">Three zones: A Assembly Hall in the west, B Courtyard under the big wall, C Depot Bay in the east. Humans fill a team first; AI Guardians fill the rest and fight with the same numbers and ammo rules you do.</div>
+            <div class="m-foot"><span class="tag">Kills +1 per zone held</span><span class="tag">First to ${CONTROL.scoreLimit}</span><span class="tag exo">XP and a legendary per match</span></div></div>
+          <div class="mission"><div class="m-top"><span class="m-name">Crucible rules</span></div>
+            <div class="m-desc">Your Light does not count here: everyone has 100 health plus the shield your Resilience gives. Weapons use their own PvP numbers; special ammo is scarce (a sniper starts with ${SPAWN_AMMO.sniper}), heavy ammo starts empty and arrives in crates. Only here can Guardians hurt each other.</div></div>
+        </div>
+        <div class="launch-row">
+          <div class="power-cmp">${net.active ? '<span class="warn">Crucible with a fireteam arrives next. Leave the fireteam to play solo.</span>' : '<span class="ok">Light does not matter</span>'}</div>
+          ${net.active ? '<button class="btn primary" disabled>Solo only for now</button>' : '<button id="launch" class="btn primary">Launch</button>'}
+        </div>
+      </section>
+    </div>`;
+  $('#ops-back', main)?.addEventListener('click', () => { sfx.ui(); actNode = null; renderOrbit(); });
+  $('#launch', main)?.addEventListener('click', () => { initAudio(); lockPointer(); startCrucible(mode.id); });
   wireFireteam(main);
 }
 
@@ -473,6 +509,7 @@ function renderActivities(main) {
   G.menu.setLocation(LOCATIONS[selLoc]);
   G.menu.setOffset(4.4);
   if (!actNode) { renderOpsNodes(main); return; }
+  if (actNode === 'crucible') { renderCrucibleOps(main); return; } // U25
   // a pick from the other node (or none) never shows here
   if (actNode === 'vanguard') { if (selExo || selDun) { selExo = selDun = null; selBlitz = true; } } else { selBlitz = false; if (!selExo && !selDun) selExo = exoticList()[0].id; }
   const node = OPS_NODES.find((n) => n.id === actNode);
@@ -1408,7 +1445,7 @@ export function updateHUD(dt) {
   setStyle(hud.health, 'hp', 'width', `${(P.health / P.maxHealth) * 100}%`);
   setStyle(hud.over, 'ov', 'width', `${Math.round((P.over / 60) * 100)}%`);
   setClass(hud.health.parentElement, 'hpbar', 'low', P.health < 40);
-  setText(hud.revives, 'rev', M.patrol || M.exotic ? '' : M.coop ? `Lives ${Math.max(0, M.lives)}` : `Revives ${Math.max(0, M.revives)}`);
+  setText(hud.revives, 'rev', M.patrol || M.exotic || M.pvp ? '' : M.coop ? `Lives ${Math.max(0, M.lives)}` : `Revives ${Math.max(0, M.revives)}`);
   setText(hud.objText, 'obj', M.objective);
   updateCharge(P);
   updatePerch(P);
@@ -1716,7 +1753,7 @@ function updateEnemyPlate(dt) {
       const imm = !!G.mission?.lightImmune; // U19: 51+ under-Light, a "?" in place of the faction emblem and a scrambled name
       plateE = e; setText(hud.plateName, 'epn', imm ? scrambleName(e.name) : e.name);
       const fk = imm ? '?' : e.faction;
-      if (cache.get('epf') !== fk) { cache.set('epf', fk); hud.plateIco.innerHTML = imm ? '<span class="ep-unknown">?</span>' : factionIcon(e.faction); hud.plateIco.title = imm ? 'Unknown' : FACTION_NAMES[e.faction]; }
+      if (cache.get('epf') !== fk) { cache.set('epf', fk); hud.plateIco.innerHTML = imm ? '<span class="ep-unknown">?</span>' : e.isGuardian ? '' : factionIcon(e.faction); hud.plateIco.title = imm ? 'Unknown' : e.isGuardian ? 'Guardian' : FACTION_NAMES[e.faction]; }
       setClass(hud.plate, 'epm', 'major', e.tier === 'major'); // orange bar for majors, red for minors (U13b)
     }
     plateHold = PLATE_HOLD;

@@ -47,6 +47,7 @@ import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, an
 import { updatePatrol, leavePatrol } from './patrol.js';
 import { keyName } from './keybinds.js';
 import { freeScene } from './gpu-free.js';
+import { updateCrucible, cleanupCrucible, pvpDealDamage, pvpDamagePlayer, pvpExplodeHit } from './crucible.js';
 
 const _c = new THREE.Vector3();
 const _pt = new THREE.Vector3(), _pdir = new THREE.Vector3(), _pto = new THREE.Vector3(), _pbest = new THREE.Vector3(), _pk = new THREE.Vector3(), _ptgt = new THREE.Vector3(); // H22: per-frame scratch for projectiles and pickups
@@ -151,6 +152,7 @@ export function cleanupMission() {
   ui.endTimer(null);
   if (G.mission?.exotic) cleanupExotic();
   if (G.mission?.dungeon) cleanupDungeon(); // U23
+  if (G.mission?.pvp) cleanupCrucible(); // U25
   if (G.mission?.patrol) leavePatrol();
   if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
   if (G.scene) freeScene(G.scene); // H28: the previous level (and the weapon models on the camera) stayed on the GPU after every mission
@@ -369,6 +371,7 @@ function syncBossLocks() {
 
 function updateMission(dt) {
   const M = G.mission, P = G.player;
+  if (M.pvp) { updateCrucible(dt); return; } // U25: a Crucible match runs its own zones, score and respawns
   if (M.tower) { updateTower(dt); return; } // U16: the Tower has no zones
   if (M.patrol) { updatePatrol(dt); return; } // U17a: patrol zones have no zones to clear either
   if (M.dungeon) { // U23: dungeons run their own encounters and chests; the final chest sets M.phase 'done' for the usual Mission End
@@ -809,6 +812,7 @@ export function enemiesNear(pos, r, n = 99, exclude = null) {
 
 export function dealDamage(e, amount, o = {}) {
   if (!e.alive) return { killed: false, dealt: 0 };
+  if (e.isGuardian) return pvpDealDamage(e, amount, o); // U25: PvP numbers only; no Light, tier or PvE multiplier ever touches a Guardian
   const M = G.mission;
   if (M.lightImmune && !o.remoteHit) { // U19: 51+ under-Light, nothing this player does lands (a member's hits are judged on their own machine)
     if (amount > 0 && !o.jolted && !o.companion) { ui.damageNumber(e, o.pos || e.headPos(new THREE.Vector3()), 0, { immune: true }); ui.hitmarker(false, false, false); }
@@ -988,6 +992,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
     const d = Math.max(0, c.distanceTo(pos) - e.radius);
     if (d > radius) continue;
     const f = 1 - 0.5 * (d / radius);
+    if (e.isGuardian) { pvpExplodeHit(e, dmg, f, c, o); continue; } // U25
     const kb = c.clone().sub(pos).setY(0).normalize().multiplyScalar((6 * f) / (e.scale ?? e.def.scale));
     e.flush?.(); // splash drives units out of cover
     dealDamage(e, dmg * f, { element, source: o.source || 'explosion', weapon: o.weapon, pos: c.clone().setY(c.y + e.height * 0.3), knock: kb, ...o.debuffs });
@@ -1000,6 +1005,7 @@ export function explode(pos, radius, dmg, element, o = {}) {
 /** kind: 'melee' (enemy melee attacks) or 'splash' (explosion edges) for the Melee Damage Resistance and Concussive Dampener mods. */
 export function damagePlayer(amount, from, kind = null) {
   const P = G.player;
+  if (G.mission.pvp) return pvpDamagePlayer(amount, { from }); // U25: in a Crucible match nothing but a PvP number reaches the player
   const k = kind === 'melee' ? P.meleeResist : kind === 'splash' ? P.splashMult : 1;
   const dmg = amount * G.mission.incomingMult * k;
   P.takeDamage(G.mission.dungeon ? dungeonIncoming(dmg) : dmg, from); // U23 chunk C: the dungeon's hit and burst caps

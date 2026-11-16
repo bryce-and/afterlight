@@ -4057,6 +4057,122 @@ test('U28 blitz record is carried per Guardian when switching', () => {
   S.switchCharacter(s, 'vanguard'); eq(s.blitz, { clears: 2, best: 5 });
 });
 
+
+// ---------- U25 Crucible: PvP rules (chunk A) ----------
+import * as PV from '../js/pvp.js';
+test('U25 pvp: every primary kills the reference Guardian inside the time-to-kill band', () => {
+  for (const a of PV.PRIMARIES) {
+    const t = PV.bodyTtk(a);
+    ok(t >= PV.TTK_BAND[0] && t <= PV.TTK_BAND[1], `${a} body TTK ${t.toFixed(2)}s outside ${PV.TTK_BAND}`);
+  }
+});
+test('U25 pvp: primaries land close together (spread under 0.5 s)', () => {
+  const ts = PV.PRIMARIES.map((a) => PV.bodyTtk(a));
+  ok(Math.max(...ts) - Math.min(...ts) < 0.5, `spread ${(Math.max(...ts) - Math.min(...ts)).toFixed(2)}`);
+});
+test('U25 pvp: health is 100 plus the Resilience shield, with no Light in it', () => {
+  eq(PV.PVP_HEALTH, 100);
+  eq(PV.pvpPool(0), 100 + AR.shieldMax(0));
+  eq(PV.pvpPool(60), 100 + AR.shieldMax(60));
+  ok(PV.PVP_MAX_POOL >= PV.pvpPool(100), 'max pool covers Resilience 100');
+});
+test('U25 pvp: a sniper kills only on a precision hit', () => {
+  const body = PV.weaponDamage('sniper', { crit: false, dist: 30 }), head = PV.weaponDamage('sniper', { crit: true, dist: 30 });
+  eq(body.oneHit, false); ok(body.dmg < PV.pvpPool(0), 'a body shot does not kill the weakest Guardian');
+  eq(head.oneHit, true); ok(head.dmg >= PV.PVP_MAX_POOL, 'a precision hit beats the largest pool');
+});
+test('U25 pvp: a shotgun volley kills inside its range and cannot outside it', () => {
+  const inside = PV.weaponDamage('shotgun', { dist: 4 }), edge = PV.weaponDamage('shotgun', { dist: PV.PVP_WEAPONS.shotgun.range }), out = PV.weaponDamage('shotgun', { dist: 14 });
+  const pel = ARCHETYPES.shotgun.pellets;
+  ok(inside.dmg * pel >= PV.PVP_MAX_POOL && inside.dmg * PV.PVP_WEAPONS.shotgun.pellets >= PV.PVP_MAX_POOL, 'a clean volley kills inside');
+  ok(edge.dmg * PV.PVP_WEAPONS.shotgun.pellets >= PV.PVP_MAX_POOL, 'the range edge still kills');
+  ok(out.dmg * pel < PV.pvpPool(0), `a full volley at 14 m must not kill (${(out.dmg * pel).toFixed(0)})`);
+});
+test('U25 pvp: a fusion volley kills only inside its range and only when it fully lands', () => {
+  const pel = ARCHETYPES.fusion.pellets, need = PV.PVP_WEAPONS.fusion.pellets;
+  const inside = PV.weaponDamage('fusion', { dist: 8 }), out = PV.weaponDamage('fusion', { dist: 22 });
+  ok(inside.dmg * need >= PV.PVP_MAX_POOL, 'the full volley kills inside');
+  ok(inside.dmg * (need - 1) < PV.PVP_MAX_POOL, 'a partial volley does not');
+  ok(out.dmg * pel < PV.pvpPool(0), `a full volley at 22 m must not kill (${(out.dmg * pel).toFixed(0)})`);
+});
+test('U25 pvp: a throwing knife precision hit still one-shots, a body hit does not', () => {
+  ok(PV.abilityDamage('ability', 300, { kind: 'knife', crit: true }).oneHit, 'precision kills');
+  ok(!PV.abilityDamage('ability', 300, { kind: 'knife', crit: false }).oneHit && PV.abilityDamage('ability', 300, { kind: 'knife' }).dmg < PV.pvpPool(0), 'body does not');
+});
+test('U25 pvp: ability and super damage are capped and floored per source', () => {
+  for (const src of ['ability', 'melee', 'super', 'explosion']) {
+    const T = PV.PVP_ABILITY[src];
+    eq(PV.abilityDamage(src, 1e6).dmg, T.max); eq(PV.abilityDamage(src, 0).dmg, T.min);
+  }
+});
+test('U25 pvp: spawn ammo is the start amount and heavies start empty', () => {
+  const want = { sniper: 2, fusion: 2, shotgun: 2, glauncher: 2, trace: 40, glaive: 2, forerunner: 6 };
+  for (const [a, n] of Object.entries(want)) eq(PV.spawnAmmo(a, ARCHETYPES[a].slot), n, a);
+  eq(PV.spawnAmmo('sidearm', 'special'), 6, 'a special sidearm');
+  eq(PV.spawnAmmo('pulse', 'special'), PV.SPECIAL_DEFAULT_AMMO, 'a pulse rifle framed into the special slot');
+  for (const a of ['rocket', 'linear', 'mg', 'sword', 'xenophage']) eq(PV.spawnAmmo(a, 'heavy'), 0, a);
+  eq(PV.spawnAmmo('auto', 'primary'), Infinity);
+});
+test('U25 pvp: a life always starts with the start amount; ammo above it is lost on death, a spent special is topped up', () => {
+  eq(PV.startLoad('sniper', 'special', 4), { ammo: 2, reserve: 0 }); eq(PV.startLoad('shotgun', 'special', 5), { ammo: 2, reserve: 0 });
+  eq(PV.startLoad('trace', 'special', 140), { ammo: 40, reserve: 0 }); eq(PV.startLoad('rocket', 'heavy', 1), { ammo: 0, reserve: 0 });
+  eq(PV.startLoad('sword', 'heavy', 50), { ammo: 0, reserve: 0 }); eq(PV.startLoad('auto', 'primary', 34), { ammo: 34, reserve: Infinity });
+  eq(PV.startLoad('sidearm', 'special', 15), { ammo: 6, reserve: 0 });
+  eq(PV.startLoad('glauncher', 'heavy', 4), { ammo: 2, reserve: 0 });
+});
+test('U25 pvp: a heavy crate gives 25% of the magazine rounded up, at least 1; a sword about 10', () => {
+  eq(PV.heavyCrateAmount('rocket', 1), 1); eq(PV.heavyCrateAmount('linear', 6), 2); eq(PV.heavyCrateAmount('mg', 70), 18); eq(PV.heavyCrateAmount('glauncher', 4), 1); eq(PV.heavyCrateAmount('sword', 50), 10);
+  ok(PV.specialCrateAmount(1) >= 1 && PV.specialCrateAmount(6) === 3, 'special crate share');
+});
+test('U25 pvp: a Control kill is worth 1 plus 1 per zone held', () => {
+  eq([0, 1, 2, 3].map((z) => PV.killPoints(z)), [1, 2, 3, 4]); eq(PV.killPoints(9), 4); eq(PV.killPoints(-1), 1);
+});
+test('U25 pvp: zones need a lead to move, take time, and an owned zone returns to neutral first', () => {
+  const z = { owner: null, prog: 0 };
+  PV.zoneStep(z, 1, 1, 10); eq(z.prog, 0, 'a tie holds');
+  for (let i = 0; i < 100; i++) PV.zoneStep(z, 0, 1, 0.5); eq(z.owner, 'blue'); eq(z.prog, 1);
+  PV.zoneStep(z, 1, 0, 1); eq(z.owner, 'blue', 'still blue after a short push'); ok(z.prog < 1);
+  for (let i = 0; i < 12; i++) PV.zoneStep(z, 2, 0, 0.5); ok(z.owner === null || z.owner === 'red', 'blue lost it');
+  for (let i = 0; i < 100; i++) PV.zoneStep(z, 3, 0, 0.5); eq(z.owner, 'red');
+});
+test('U25 pvp: Control ends at the score limit or the timer, higher score wins, equal is a draw', () => {
+  eq(PV.controlResult({ red: 10, blue: 4 }, 100), { over: false, winner: null });
+  eq(PV.controlResult({ red: 100, blue: 40 }, 100), { over: true, winner: 'red' });
+  eq(PV.controlResult({ red: 30, blue: 41 }, 0), { over: true, winner: 'blue' });
+  eq(PV.controlResult({ red: 30, blue: 30 }, 0), { over: true, winner: 'draw' });
+});
+test('U25 pvp: players can hurt each other only in a pvp activity and only across teams', () => {
+  ok(!PV.pvpHurts({ pvp: false }, 'red', 'blue') && !PV.pvpHurts({}, 'red', 'blue') && !PV.pvpHurts(null, 'red', 'blue'), 'no pvp, no damage');
+  ok(PV.pvpHurts({ pvp: true }, 'red', 'blue'), 'opposite teams');
+  ok(!PV.pvpHurts({ pvp: true }, 'red', 'red'), 'never a teammate');
+  ok(!PV.pvpHurts({ pvp: true }, null, 'blue'), 'no team, no damage');
+});
+test('U25 pvp: AI Guardians get random gamer tags, unique per match, never the game\'s own characters', () => {
+  const npcs = ['Ikora', 'Zavala', 'Cayde', 'Shaxx', 'Saint', 'Osiris', 'Eris', 'Amanda', 'Drifter', 'Hawthorne', 'Banshee', 'Devrim', 'Sloane', 'Petra', 'Mara'];
+  const tags = PV.gamerTags(12, mulberry32(7));
+  eq(new Set(tags).size, 12); ok(tags.every((x) => /^[A-Za-z0-9_]{3,20}$/.test(x)), 'plain characters only');
+  ok(tags.every((x) => !npcs.some((n) => x.toLowerCase().includes(n.toLowerCase()))), 'no NPC names');
+  ok(PV.gamerTags(12, mulberry32(8)).join() !== tags.join(), 'a different seed gives different tags');
+  ok(PV.gamerTags(40, mulberry32(1)).length === 40, 'enough variety for 40');
+});
+test('U25 PvE numbers unchanged: golden weapon, tier, falloff and ability numbers', () => {
+  eq(ARCHETYPES.auto.dmg, 15); eq(ARCHETYPES.hand.dmg, 60); eq(ARCHETYPES.sniper.dmg, 360); eq(ARCHETYPES.shotgun.dmg, 22); eq(ARCHETYPES.fusion.dmg, 52); eq(ARCHETYPES.rocket.dmg, 1210);
+  eq(C.weaponTierMult(0), 1); eq(C.weaponTierMult(4), 1 + 4 * 0.075);
+  eq(Math.round(C.falloffMult(ARCHETYPES.auto.falloff || DATA.DEFAULT_FALLOFF, 60, 38) * 1000), Math.round(C.falloffMult(DATA.DEFAULT_FALLOFF, 60, 38) * 1000));
+  eq(C.GOLDEN_GUN, { shot: 850, splash: 270, knockMult: 0.85 });
+});
+test('U25 PvE damage path is untouched: the original dealDamage multipliers are still in game.js, and the PvP branch is the guarded early return', async () => {
+  const src = await (await fetch('../js/game.js')).text();
+  for (const line of [
+    "let dmg = o.raw ? amount : amount * M.playerDmgMult * (o.crit ? o.precMult || 1.5 : 1);",
+    "if (!o.raw && (o.source === 'ability' || o.source === 'melee')) dmg *= ABILITY_POWER * M.hpMult;",
+    "if (!o.raw && (o.source === 'weapon' || o.source === 'perk')) dmg *= weaponTierMult(M.g);",
+    "const dmg = amount * G.mission.incomingMult * k;",
+  ]) ok(src.includes(line), `missing original line: ${line}`);
+  ok(/if \(e\.isGuardian\) return pvpDealDamage\(/.test(src), 'the guardian branch is one guarded early return');
+  ok(/G\.mission\.pvp\) return pvpDamagePlayer\(amount, \{ from \}\)/.test(src), 'damagePlayer reads the pvp flag');
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }

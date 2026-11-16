@@ -6,6 +6,8 @@ import { moveBody, hasLOS, pointInColliders, rayGround, groundAt, floorBelow } f
 import { buildGunModel, buildSuperModel } from './models.js';
 import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage, voidMote, VOID_FX } from './effects.js';
+import { weaponDamage, frameRatio, CONTROL } from './pvp.js';
+import { pvpRespawnPrep, onPlayerDeath } from './crucible.js';
 import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh, abandonMission } from './game.js';
 import { initGhost, updateGhost, driveSparrow, riderPos, dismount } from './sparrow.js';
 import { getEquipped, activeKit, playerLevel, wornAppearance } from './save.js';
@@ -320,7 +322,11 @@ export class Player {
     if (this.dead) {
       const M = G.mission;
       const exoTeam = !!(M.exotic || M.dungeon) && M.coop && allPlayers().length > 1; // U23: dungeons restrict respawns the same way
-      if (exoTeam) { // U21: exotic missions restrict respawns: no pooled life, no down timer; only a teammate's revive (or a wipe) brings you back
+      if (M.pvp) { // U25: a Crucible respawn is a short timer at a team spawn
+        this.respawnT -= dt;
+        ui.updateDeath(this.respawnT > 0 ? `Respawning in ${Math.ceil(this.respawnT)}` : '');
+        if (this.respawnT <= 0 && M.phase !== 'done') this.respawn();
+      } else if (exoTeam) { // U21: exotic missions restrict respawns: no pooled life, no down timer; only a teammate's revive (or a wipe) brings you back
         ui.updateDeath('Respawns restricted: a teammate must revive you');
       } else if (M.coop && !M.exotic && !M.dungeon && !this.ragdoll) { // U17f: a fall is not a down: no revive, no life, back at the landing
         // downed: teammates can revive us; when the timer runs out a pooled life brings us back
@@ -951,6 +957,7 @@ export class Player {
   }
 
   applyHit(w, e, dmg, crit, point, o = {}) {
+    if (e.isGuardian) return this.pvpHit(w, e, crit, point, o); // U25: a Guardian takes the weapon's PvP numbers, nothing else (no perks, Light or tier)
     if (crit && w.has('fullstop') && !(e.shield > 0)) dmg *= ARSENAL.fullStop; // Forerunner: Full Stop
     const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit);
     const element = o.element ?? wEl(w);
@@ -1041,6 +1048,15 @@ export class Player {
         w.ammo = Math.max(w.ammo, w.mag);
       }
     }
+    return res;
+  }
+
+  /** U25: this weapon's PvP damage on a Guardian: the archetype's PvP row, scaled by the frame, with falloff from the muzzle. */
+  pvpHit(w, e, crit, point, o) {
+    const dist = this.eye.distanceTo(point);
+    const r = weaponDamage(w.A.id, { crit, dist, range: w.s.range, ratio: frameRatio(w.s.dmg, w.A.dmg) });
+    const res = dealDamage(e, r.dmg, { pvpFinal: true, pvpOneHit: r.oneHit, crit, pos: point, source: 'weapon', weapon: w });
+    w.hitCount++;
     return res;
   }
 
@@ -2102,6 +2118,7 @@ export class Player {
     this.status.remove('favor'); // U23: Favor is lost on death
     this.viewmodel.visible = false;
     M.deaths++;
+    if (M.pvp) { this.respawnT = CONTROL.respawn; sfx.death(); onPlayerDeath(this.lastAttacker); return; } // U25
     if (M.exotic || M.dungeon) { // U21: restricted respawns (U23: dungeons too)
       const o = deathOutcome({ fireteam: M.coop ? Math.max(1, allPlayers().length) : 1, cause });
       this.respawnT = o.respawnIn ?? 0;
@@ -2138,14 +2155,15 @@ export class Player {
     const M = G.mission;
     this.dead = false;
     this.ragdoll = null;
+    if (M.pvp) pvpRespawnPrep(this); // U25: a team spawn away from foes and the start ammo
     this.health = this.maxHealth; this.shield = this.maxShield;
-    if (!inPlace) { this.pos.copy(M.checkpoint); if (!M.exotic && !M.dungeon) this.pos.add(new THREE.Vector3(0, 0, 6)); } // U21: exotic missions respawn exactly at the checkpoint
+    if (!inPlace) { this.pos.copy(M.checkpoint); if (!M.exotic && !M.dungeon && !M.pvp) this.pos.add(new THREE.Vector3(0, 0, 6)); } // U21: exotic missions respawn exactly at the checkpoint
     this.status.remove('attuned');
     this.vel.set(0, 0, 0);
     this.viewmodel.visible = true;
     this.showModel();
     ui.hideDeath();
-    if (!quiet) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.patrol ? 'Back at the landing' : M.exotic || M.dungeon ? (inPlace ? 'A teammate picked you up' : 'Back at the checkpoint') : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
+    if (!quiet && !M.pvp) ui.centerMessage(M.tower ? 'Back on the Tower' : 'Revived', M.tower ? 'Mind the edge' : M.patrol ? 'Back at the landing' : M.exotic || M.dungeon ? (inPlace ? 'A teammate picked you up' : 'Back at the checkpoint') : M.coop ? (inPlace ? 'A teammate picked you up' : `A life was used  ·  ${M.lives} left`) : `${M.revives} revive${M.revives === 1 ? '' : 's'} remaining`, 2);
   }
 
   /** Invisibility (Nightstalker). Graviton Forfeit makes it last longer. */
