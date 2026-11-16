@@ -4234,9 +4234,8 @@ test('U25b the crucible net handlers all start from the pvp:true switch', async 
 import * as CL from '../js/crucible-loot.js';
 test('U25c Crucible pool: seven legendaries kept out of every pool, covering four elements, with the look flag', () => {
   const names = CL.CRUCIBLE_WEAPONS.map((w) => w.name);
-  eq(names, ['Trust', "Redrix's Broadsword", 'Recluse', "Mindbender's Ambition", 'Revoker', 'Loaded Question', 'The Mountaintop']);
-  const clash = ['Loaded Question', "Mindbender's Ambition"]; // already ordinary legendaries before U25; the Crucible copies are told apart by the `crucible` flag
-  ok(!LEGENDARY_WEAPONS.some((l) => l.crucible) && !NAMED_WEAPONS.some((l) => l.crucible || (names.includes(l.name) && !clash.includes(l.name))), 'no Crucible entry in any named pool');
+  eq(names, ['Trust', "Redrix's Broadsword", 'Recluse', 'Jade Rabbit', 'Revoker', 'Cartesian Coordinate', 'The Mountaintop']);
+  ok(!LEGENDARY_WEAPONS.some((l) => l.crucible) && !NAMED_WEAPONS.some((l) => l.crucible || names.includes(l.name)), 'no Crucible entry in any named pool');
   eq(new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.arch)).size, 7, 'seven archetypes');
   eq([...new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.element))].sort(), ['arc', 'kinetic', 'solar', 'void']);
   for (const w of CL.CRUCIBLE_WEAPONS) {
@@ -4252,7 +4251,7 @@ test('U25c Crucible pool: seven legendaries kept out of every pool, covering fou
 });
 test('U25c Crucible items never come from any other source (random rolls, reward menus, Blitz, kiosks, skip gear, level track)', () => {
   const names = new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.name));
-  const bad = (it) => it && (it.crucible || it.set === 'crucible' || (names.has(it.name) && !['Loaded Question', "Mindbender's Ambition"].includes(it.name)));
+  const bad = (it) => it && (it.crucible || it.set === 'crucible' || names.has(it.name));
   for (let i = 0; i < 6000; i++) {
     const dest = i % 7 === 0 ? null : LOCATIONS[i % LOCATIONS.length].id;
     ok(!bad(rollItem(100 + (i % 200), i % 5, null, dest, ['vanguard', 'stalker', 'arcanist'][i % 3], [], Infinity, 'base')), 'rollItem');
