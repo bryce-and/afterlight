@@ -645,6 +645,7 @@ const BUILD = {
   lg_incendior: incendior, lg_gladiator: gladiator, lg_psion: psion, lg_phalanx: phalanx,
   lg_bather: gladiator, lg_taster: psion, // U23: built on the Gladiator and Psion (the Loyalist gold comes from the location)
   lg_watcher: watcher, lg_royalbeast: royalBeast, // U23 chunk B: the Underbelly's sentry and the Gardens' beast
+  lg_echo: psion, // U23 chunk C: a Psychic Echo wears a Psion's frame (the runtime tints it violet)
 };
 
 /** Every Cabal unit except the generic boss fallback (enemies.js): the base classes (grunt Legionary, rusher War Beast, captain

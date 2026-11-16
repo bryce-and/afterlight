@@ -86,7 +86,7 @@ function openTitlePanel(kind) {
         <div><div class="tp-meta">Version ${esc(r.version)}  ·  ${esc(r.date)}</div><h2>${esc(r.name)}</h2><p>${esc(r.summary)}</p>
         <ul>${r.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>
       </article>`).join('')
-    : ROADMAP.map((r) => `
+    : !ROADMAP.length ? '<p class="tp-empty">No new transmissions yet. Keep watching the sky, Guardian.</p>' : ROADMAP.map((r) => `
       <article class="tp-entry" style="--ac:${r.accent}">
         <div class="tp-glyph">${r.glyph}</div>
         <div><div class="tp-meta"><span class="tp-status">${esc(r.status)}</span></div><h2>${esc(r.name)}</h2><p>${esc(r.teaser)}</p>

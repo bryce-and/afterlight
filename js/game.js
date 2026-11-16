@@ -37,7 +37,7 @@ import { mechTargets, mechSplash } from './mechanics.js';
 import { darkHit, darkUnravel, darkTargets, darkSplash, resetDark } from './darkness.js';
 import { releasesPerch } from './darkness-rules.js';
 import { gateDamage } from './exotic-rules.js';
-import { updateDungeon, cleanupDungeon, startDungeon, dungeonImmune } from './dungeon.js';
+import { updateDungeon, cleanupDungeon, startDungeon, dungeonImmune, dungeonIncoming } from './dungeon.js';
 import { dungeonTargets, dungeonSplash } from './dungeon-mech.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
@@ -959,7 +959,8 @@ export function explode(pos, radius, dmg, element, o = {}) {
 export function damagePlayer(amount, from, kind = null) {
   const P = G.player;
   const k = kind === 'melee' ? P.meleeResist : kind === 'splash' ? P.splashMult : 1;
-  P.takeDamage(amount * G.mission.incomingMult * k, from);
+  const dmg = amount * G.mission.incomingMult * k;
+  P.takeDamage(G.mission.dungeon ? dungeonIncoming(dmg) : dmg, from); // U23 chunk C: the dungeon's hit and burst caps
 }
 
 // ---------------------------------------------------------------------------

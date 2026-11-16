@@ -32,7 +32,7 @@ function mergeable(m, protect) {
   return true;
 }
 
-function mergeGeometries(list) {
+export function mergeGeometries(list) { // U23 chunk C: also used by dungeon-mech-b.js (one mesh per gold grate)
   const first = list[0].geo, indexed = !!first.index;
   const names = Object.keys(first.attributes);
   const out = new THREE.BufferGeometry();

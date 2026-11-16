@@ -3526,6 +3526,11 @@ export class Player {
     const vmp = recoilProfileFor(w?.A); // H22: hand cannons flip the muzzle higher, roll right and shove back harder
     vm.position.z += this.kick * 0.06 * (vmp?.push ?? 1);
     let rx = this.kick * 0.1 * (vmp?.flip ?? 1), ry = 0, rz = vmp ? -this.kick * vmp.roll : 0;
+    if (vmp) { // U23 chunk C (Bryce): the gun itself kicks up AND to the right along the profile's angle, as the camera does; precision frames (angle 0) go straight up
+      const side = Math.sin(((vmp.angle ?? 0) * Math.PI) / 180);
+      ry -= this.kick * 0.1 * (vmp.flip ?? 1) * side * 1.5;
+      vm.position.x += this.kick * 0.03 * side;
+    }
     if (!this.superActive) {
       if (w.reloading) {
         const prog = 1 - w.reloadT / w.reloadMax, r = Math.sin(Math.PI * prog);

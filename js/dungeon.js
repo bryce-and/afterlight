@@ -29,10 +29,11 @@ import {
 } from './dungeon-mech.js';
 import {
   dungeonDef, dungeonEnemyLight, offeringSteps, expandKit, newRound, offer, shuffled, SIGILS, DpsBossFsm, clearDrops, recordDungeonClear,
-  dungeonRecord, leashStep, cappedHit, deathOutcome, wipeOutcome, inRegion, inVoid, trackSafe,
+  dungeonRecord, leashStep, cappedHit, deathOutcome, wipeOutcome, inRegion, inVoid, trackSafe, guardFor, hitGuard, bossHpFor,
 } from './dungeon-rules.js';
 
 import { bindB, initSegB, disposeSegB, ownsB, resetSegB, onResetB, activateB, tickB, localB, objectiveB, snapB, onSnapB, onHostMsgB, onFxB, devB } from './dungeon-b.js';
+import { bindC, initSegC, disposeSegC, ownsC, resetSegC, onResetC, activateC, tickC, localC, objectiveC, snapC, onSnapC, onHostMsgC, onFxC, devC } from './dungeon-c.js';
 
 export * from './dungeon-rules.js';
 
@@ -94,7 +95,7 @@ function buildDungeon(d, loc, layout, mod) {
   G.mission = {
     fireteam, coop: net.active, remote: net.isClient, dungeon: D,
     loc: { planetName: 'The Leviathan', ...loc }, def, li: -1, mi: -1, g: d.g, phase: 'dungeon', current: 0, revives: 0, lives: 0, tier: 'base', power: enemyLight, enemyLight, bossModel: def.boss.model,
-    kills: 0, crits: 0, deaths: 0, loot: [], xp: 0, startTime: performance.now(), hpMult: 1 + d.g * 0.1, dmgMult: 1 + d.g * 0.07,
+    kills: 0, crits: 0, deaths: 0, loot: [], xp: 0, startTime: performance.now(), hpMult: 1 + d.g * 0.1, dmgMult: (1 + d.g * 0.07) * guardFor(d, fireteam).addDmg, // U23 chunk C: solo adds hit softer
     playerDmgMult: L.playerDmgMult, incomingMult: L.incomingMult, lightImmune: L.immune,
     checkpoint: spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0, zones: [],
   };
@@ -114,6 +115,7 @@ function buildDungeon(d, loc, layout, mod) {
 function newSegState(seg, mod) {
   const S = { s: 'pending', mech: null, round: null, roundNo: 0, strikes: {}, fsm: null, boss: null, chest: null, chestOpened: false, tasterT: 4, bathT: 10, bathers: new Map(), waveIdx: 0, burnT: 0 };
   if (initSegB(S, seg, mod?.UB_FOOT || [])) return S; // U23 chunk B: the Underbelly and the Gardens (dungeon-b.js)
+  if (initSegC(S, seg)) return S; // U23 chunk C: the Gauntlet and the Throne (dungeon-c.js)
   if (seg.id === 'baths') {
     S.mech = buildBaths(seg);
     S.mech.onCenserShot = (i) => onCenserShot(i);
@@ -127,7 +129,7 @@ function newSegState(seg, mod) {
 export function cleanupDungeon() {
   const D = G.mission?.dungeon;
   if (!D) return;
-  D.segs.forEach((S, i) => { if (ownsB(D.layout.segments[i])) disposeSegB(S); else disposeDungeonMech(S.mech); if (S.chest) G.scene?.remove(S.chest.group); });
+  D.segs.forEach((S, i) => { if (ownsB(D.layout.segments[i])) disposeSegB(S); else if (ownsC(D.layout.segments[i])) disposeSegC(S); else disposeDungeonMech(S.mech); if (S.chest) G.scene?.remove(S.chest.group); });
   for (const X of D.secrets || []) G.scene?.remove(X.c.group);
   if (D.chestPrompt) ui.prompt(null);
 }
@@ -156,6 +158,7 @@ function resetSegment(i) {
   Object.assign(S, { s: 'pending', round: null, roundNo: 0, strikes: {}, fsm: null, boss: null, tasterT: 4, bathT: 10, waveIdx: 0 });
   S.bathers.clear();
   if (ownsB(seg)) resetSegB(D, S, seg);
+  else if (ownsC(seg)) resetSegC(D, S, seg);
   else if (S.mech) {
     for (const c of S.mech.chalices.slice()) removeChalice(S.mech, c.id);
     S.mech.pools.forEach((_, k) => setPoolCorrupt(S.mech, k, false));
@@ -173,7 +176,7 @@ function resetSegment(i) {
 function onReset() {
   removeAllEnemies();
   const D = G.mission?.dungeon;
-  if (D) D.segs.forEach((S, i) => { if (ownsB(D.layout.segments[i])) onResetB(S, D.layout.segments[i]); });
+  if (D) D.segs.forEach((S, i) => { if (ownsB(D.layout.segments[i])) onResetB(S, D.layout.segments[i]); else if (ownsC(D.layout.segments[i])) onResetC(S, D.layout.segments[i]); });
   if (D) for (const S of D.segs) if (S.mech?.plates) { S.mech.plates.forEach((_, k) => setStrikeLabel(S.mech, k, 0, D.def.strikes)); for (const c of S.mech.chalices.slice()) removeChalice(S.mech, c.id); }
   G.player?.status.remove('favor');
 }
@@ -227,6 +230,7 @@ function activateBaths(D, i) {
   b.thresholds = []; // no damage gates: DPS windows only
   b.maxShield = 1; b.shield = 0; if (b.model.shield) b.model.shield.visible = false;
   b.dgBoss = true; b.dgImm = true;
+  b.maxHp = b.hp = bossHpFor(b.maxHp, cfg.boss, guardFor(D.def, G.mission.fireteam)); // U23 chunk C: solo tuning
   if (cfg.boss.scale) { b.scale = cfg.boss.scale; b.radius = cfg.boss.radius ?? b.radius; b.height = b.model.height * b.scale; }
   if (cfg.boss.melee) { // his own copy of the stats: the melee lunge in place of the boss's guns (enemies.js def.melee); never fires a shot
     const pool = G.player.maxHealth + G.player.maxShield, inc = G.mission.incomingMult || 1;
@@ -498,6 +502,7 @@ function segmentCleared(D, i, seg) {
   if (seg.chest) placeChest(D, i, seg.chest);
   if (net.isHost) broadcast({ t: 'dfx', k: 'clear', sg: i });
   const name = D.def.segments[seg.id].boss?.name;
+  if (seg.kind === 'traversal') removeLeftovers(); // U23 chunk C: what is left behind (deck C, a landing) does not follow you
   if (seg.kind === 'traversal') { ui.centerMessage(`${seg.name} Crossed`, 'Press on', 2.6); sfx.areaClear(); }
   else {
     ui.centerMessage(name ? `${name.split(',')[0]} Falls` : `${seg.name} Cleared`, last ? 'Claim your reward' : 'Claim your reward, then press on', 3);
@@ -596,6 +601,7 @@ function objectiveFor(D) {
   const wp = (p) => { M.waypoint = p ? new THREE.Vector3(...p) : null; };
   if (S.s === 'pending') { wp(seg.checkpoint); return `Enter ${seg.name}`; }
   if (ownsB(seg) && !(S.s === 'solved' && seg.chest)) return objectiveB(D, S, seg);
+  if (ownsC(seg) && !(S.s === 'solved' && seg.chest)) return objectiveC(D, S, seg);
   if (S.s === 'solved') { wp(seg.chest || null); return 'Open the Imperial Chest'; }
   wp(null);
   const f = S.fsm, fav = G.player.status.has('favor');
@@ -614,7 +620,7 @@ export function updateDungeon(dt) {
   // U23 chunk B: a segment may carry its own fog (the Underbelly is dark); the location's fog everywhere else
   if (G.scene.fog) {
     D.fog0 ||= { c: G.scene.fog.color.clone(), n: G.scene.fog.near, f: G.scene.fog.far, bg: G.scene.background?.isColor ? G.scene.background.clone() : null };
-    const fz = layout.segments.find((sg) => sg.fog && inRegion(P.pos, sg.region))?.fog;
+    const fz = D.fogOverride || layout.segments.find((sg) => sg.fog && inRegion(P.pos, sg.region))?.fog; // U23 chunk C: the Mindscape tints it
     const want = fz ? { c: new THREE.Color(fz.color), n: fz.near, f: fz.far } : D.fog0, F = G.scene.fog, k = Math.min(1, dt * 2.5);
     F.color.lerp(want.c, k); F.near += (want.n - F.near) * k; F.far += (want.f - F.far) * k;
     if (D.fog0.bg && G.scene.background?.isColor) G.scene.background.lerp(fz ? want.c : D.fog0.bg, k);
@@ -623,6 +629,7 @@ export function updateDungeon(dt) {
   let bPrompt = null;
   D.segs.forEach((X, i) => {
     if (ownsB(layout.segments[i])) { const t = localB(D, i, P, dt); if (i === D.seg) bPrompt = t; }
+    else if (ownsC(layout.segments[i])) { const t = localC(D, i, P, dt); if (i === D.seg) bPrompt = t; }
     else if (X.mech) updateDungeonMech(X.mech, dt, fav, X.round);
   });
   chestTick(D, P, dt);
@@ -661,10 +668,11 @@ export function updateDungeon(dt) {
 
   if (!auth) return; // members: the rest comes from the host
   if (S.s === 'pending') {
-    if (alivePlayers().some((p) => inRegion(p.pos, seg.region))) { if (seg.id === 'baths') activateBaths(D, D.seg); else if (ownsB(seg)) activateB(D, D.seg); }
+    if (alivePlayers().some((p) => inRegion(p.pos, seg.region))) { if (seg.id === 'baths') activateBaths(D, D.seg); else if (ownsB(seg)) activateB(D, D.seg); else if (ownsC(seg)) activateC(D, D.seg); }
   } else if (S.s === 'active') {
     if (seg.id === 'baths') bathsTick(D, S, seg, D.def.segments[seg.id], dt);
     else if (ownsB(seg)) tickB(D, S, seg, dt);
+    else if (ownsC(seg)) tickC(D, S, seg, dt);
   }
   M.objective = objectiveFor(D);
   D.snapT -= dt;
@@ -679,7 +687,7 @@ export const dungeonImmune = (e) => !!(e.dgBoss && e.dgImm);
 // ---------------------------------------------------------------------------
 function snapshot(D) {
   const S = D.segs[D.seg], seg = D.layout.segments[D.seg];
-  if (seg.id !== 'baths') return { t: 'ds', sg: D.seg, st: D.segs.map((x) => x.s[0]), ck: Math.round(D.clock * 100) / 100, gt: D.segs.map((x) => (x.mech?.gate?.open ? 1 : 0)), cp: G.mission.checkpoint.toArray().map((v) => Math.round(v * 100) / 100), ...snapB(D, S, seg) };
+  if (seg.id !== 'baths') return { t: 'ds', sg: D.seg, st: D.segs.map((x) => x.s[0]), ck: Math.round(D.clock * 100) / 100, gt: D.segs.map((x) => (x.mech?.gate?.open ? 1 : 0)), cp: G.mission.checkpoint.toArray().map((v) => Math.round(v * 100) / 100), ...snapB(D, S, seg), ...snapC(D, S, seg) };
   return {
     t: 'ds', sg: D.seg, st: D.segs.map((x) => x.s[0]), ck: Math.round(D.clock * 100) / 100,
     rd: S.round ? { o: S.round.order, p: S.round.progress, s: S.round.solved ? 1 : 0 } : 0, rn: S.roundNo,
@@ -699,10 +707,10 @@ function onSnapshot(m) {
   if (m.ck != null && Math.abs(m.ck - D.clock) > 0.08) D.clock = m.ck; // follow the host's clock (pistons, vents)
   const S = D.segs[m.sg], seg = D.layout.segments[m.sg];
   D.segs.forEach((x, i) => { if (x.mech) setGate(x.mech, !!m.gt[i]); });
-  if (ownsB(seg)) {
-    onSnapB(D, S, seg, m);
+  if (ownsB(seg) || ownsC(seg)) {
+    if (ownsB(seg)) onSnapB(D, S, seg, m); else onSnapC(D, S, seg, m);
     const b = G.enemies.find((e) => e.isBoss);
-    if (b && S.fsm) { b.dgBoss = true; b.dgImm = S.fsm.mode !== 'window'; }
+    if (b && S.fsm) { b.dgBoss = true; b.dgImm = S.fsm.mode !== 'window' && S.fsm.mode !== 'final'; }
     M.objective = objectiveFor(D);
     return;
   }
@@ -732,7 +740,7 @@ net.on('ds', (m) => { if (inMission()) onSnapshot(m); });
 net.on('dh', (m, from) => {
   if (!inMission() || !net.isHost) return;
   const D = G.mission.dungeon;
-  if (onHostMsgB(D, m, from)) return;
+  if (onHostMsgB(D, m, from) || onHostMsgC(D, m, from)) return;
   if (m.k === 'off') judgeOffering(D, m.i, from);
   else if (m.k === 'cen') hitCenser(m.i);
   else if (m.k === 'cup') takeChalice(D, m.id, from);
@@ -742,7 +750,7 @@ net.on('dfx', (m) => {
   const D = G.mission.dungeon, S = D.segs[D.seg];
   if (m.k === 'cup') { if (S?.mech && !S.mech.chalices.some((c) => c.id === m.id)) addChalice(S.mech, m.id, new THREE.Vector3(m.x, m.y, m.z)); return; }
   if (m.k === 'cupgone') { if (S?.mech) removeChalice(S.mech, m.id); return; }
-  if (onFxB(D, m)) return;
+  if (onFxB(D, m) || onFxC(D, m)) return;
   if (m.k === 'clear') { const seg = D.layout.segments[m.sg]; D.segs[m.sg].s = 'solved'; if (seg.chest) placeChest(D, m.sg, seg.chest); reviveForCompletion(); ui.centerMessage(`${seg.name} Cleared`, 'Claim your reward', 3); sfx.missionComplete(); return; }
   onOfferFx(m);
 });
@@ -767,6 +775,12 @@ if (typeof window !== 'undefined') {
   };
   window.shadowBloom = () => devB(G.mission.dungeon).bloomAll();
   window.shadowLevers = () => devB(G.mission.dungeon).levers();
+  // U23 chunk C: the Gauntlet's herald sigils, open a row's wall, enter the Mindscape, solve the round, read Calus's DPS machine
+  window.shadowHerald = () => devC(G.mission.dungeon).herald();
+  window.shadowOpenRow = (r) => devC(G.mission.dungeon).openRow(r);
+  window.shadowMind = () => devC(G.mission.dungeon).mind();
+  window.shadowSolve = () => devC(G.mission.dungeon).solve();
+  window.shadowFsm = () => devC(G.mission.dungeon).fsm();
   window.checkShadowRoute = async () => { const r = (await import('./shadow-route.js')).checkShadowRoute(); console.log(r.rows.join('\n')); console.log(r.problems.length ? `PROBLEMS:\n${r.problems.join('\n')}` : 'No route problems'); return r; };
   window.shadowCheckSigils = async () => { const R = await import('./dungeon-rules.js'); const rows = []; for (const a of R.SIGILS) for (const b of R.SIGILS) if (a < b) rows.push(`${a}/${b}: ${R.sigilOverlap(a, b).toFixed(2)}`); console.log(rows.join('\n')); return rows; };
 }
@@ -777,3 +791,20 @@ bindB({
   alivePlayers: () => alivePlayers(), expand: (kit) => expandKit(kit, 1),
   reviveAll: () => { reviveForCompletion(); G.player.health = G.player.maxHealth; G.player.shield = G.player.maxShield; },
 });
+bindC({
+  spawnAt, spawnKit, dropChalice, segmentCleared, bossHit, removeLeftovers, placeSecret, localId, aliveIn,
+  alivePlayers: () => alivePlayers(), expand: (kit) => expandKit(kit, 1),
+  reviveAll: () => { reviveForCompletion(); G.player.health = G.player.maxHealth; G.player.shield = G.player.maxShield; },
+});
+
+// ---------------------------------------------------------------------------
+// U23 chunk C: the damage guard (game.js damagePlayer). No single hit takes more than hitFrac of health plus shield, and the damage
+// inside a short window is held under burstFrac, so two shots in one frame cannot kill from full. Solo and fireteam numbers differ.
+// ---------------------------------------------------------------------------
+const _guard = {};
+export function dungeonIncoming(amount) {
+  const M = G.mission, D = M?.dungeon, P = G.player;
+  if (!D || !P) return amount;
+  return hitGuard(_guard, G.time, amount, P.maxHealth + P.maxShield, guardFor(D.def, M.fireteam));
+}
+

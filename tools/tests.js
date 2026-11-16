@@ -2730,7 +2730,7 @@ test('U20b reward menus: Legendary 3+3 (keep 1+1), Ultimate 5+5 (keep 2+2), clas
 test('U20b reward menus favor exotics the Guardian has not found, and roll at their Light', () => {
   fresh();
   const s = S.createSave('stalker');
-  const names = EXOTIC_WEAPONS.map((e) => e.name);
+  const names = EXOTIC_WEAPONS.filter((e) => !e.dungeon).map((e) => e.name); // U23: dungeon exotics never roll in a menu, so they cannot be the unfound five
   s.exoticsFound = names.slice(0, names.length - 5); // only 5 weapons unfound
   let hits = 0;
   for (let i = 0; i < 40; i++) hits += RW.rollMenu(s, 'ultimate').weapons.filter((w) => !s.exoticsFound.includes(w.name)).length;
@@ -3712,7 +3712,7 @@ import * as LS from '../js/level-shadow.js';
 test('U23B registry: both new segments are valid and match the layout; new units are Loyalist dungeon units', () => {
   const d = DGR.dungeonDef('shadow');
   eq(DGR.validateDungeon(d), []);
-  eq(LS.SHADOW_LAYOUT.segments.map((s) => s.id), ['baths', 'underbelly', 'gardens']);
+  eq(LS.SHADOW_LAYOUT.segments.map((s) => s.id).slice(0, 3), ['baths', 'underbelly', 'gardens'], 'chunk C appends after these');
   for (const s of LS.SHADOW_LAYOUT.segments) ok(d.segments[s.id], `${s.id} has a registry entry`);
   for (const id of ['lg_watcher', 'lg_royalbeast']) { ok(FA.UNITS[id]?.dungeon === 'shadow', `${id} marked`); eq(FA.UNITS[id].faction, 'legion'); }
   eq(d.faction, 'legion');
@@ -3791,6 +3791,84 @@ test('U23B checkShadowRoute: no class jump or glide at Mobility 50 skips a grate
   const A = LS.UB_FOOT.find((f) => f.id === 'ub_a3'), B = LS.UB_FOOT.find((f) => f.id === 'ub_b1');
   ok(A.z1 - B.z0 > 35.7, `G1 spans ${(A.z1 - B.z0).toFixed(1)} m`);
   ok(LS.UB_FOOT.find((f) => f.id === 'ub_c1').top - (2 + SR.COVER_LIFT) > 5.57, 'G2 climbs more than any class jump plus margin');
+});
+
+// ---------- U23 chunk C: The Gauntlet, The Throne, solo tuning ----------
+test('U23C registry: the Gauntlet and the Throne are valid, last in the layout; Psychic Echoes are Loyalist dungeon units; Calus has his own model', async () => {
+  const d = DGR.dungeonDef('shadow');
+  eq(DGR.validateDungeon(d), []);
+  eq(LS.SHADOW_LAYOUT.segments.map((s) => s.id), ['baths', 'underbelly', 'gardens', 'gauntlet', 'throne']);
+  ok(FA.UNITS.lg_echo?.dungeon === 'shadow' && FA.UNITS.lg_echo.faction === 'legion', 'lg_echo marked');
+  const BM = await import('../js/bosses.js');
+  ok(typeof BM.BOSS_MODELS.emperorCalus === 'function' && typeof BM.BOSS_MODELS.calus === 'function', 'a new Calus model; the old one stays');
+  eq(d.segments.throne.boss.model, 'emperorCalus');
+  for (const t of Object.keys(FA.UNITS).filter((k) => FA.UNITS[k].faction === 'legion')) { // every Loyalist unit has a model (lg_echo was missing)
+    const g = new THREE.Group(), B = (w, h, dd, x, y, z, m, parent = g) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); o.position.set(x, y, z); parent.add(o); return o; };
+    const add = (geo, m, x, y, z, parent = g) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); parent.add(o); return o; };
+    const pivot = (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
+    const mk = () => new THREE.MeshStandardMaterial();
+    let err = null; try { cabal({ g, add, B, pivot, bodyMat: mk(), dark: mk(), accent: mk(), C: { loyalist: true }, muzzle: new THREE.Object3D(), legs: [], arms: [], torso: null, height: 2 }, t); } catch (e) { err = e.message; }
+    eq(err, null, `${t} builds`);
+  }
+  ok(d.segments.throne.boss.scale < 1, 'built at real size, scaled down');
+});
+test('U23C checkGauntlet: no class jump or glide at Mobility 50 skips a stair; the stairs are base jumps; wards have safe windows', () => {
+  const r = SR.checkGauntlet();
+  eq(r.problems, [], r.problems.join(' | '));
+  eq(SR.checkGauntlet({ sprint: false }).problems, [], 'walking in the air too');
+  const bad = SR.checkGauntlet({ extra: [{ id: 'plant', x0: -2, x1: 2, z0: -334, z1: -338, top: 16, stage: null }] });
+  ok(bad.problems.some((p) => p.includes('stage 0')), 'a planted foothold mid-stair is caught');
+  for (let k = 1; k < LS.GT_LAND.length - 1; k++) ok(LS.GT_LAND[k + 1].top - LS.GT_LAND[k].top > 5.57 || LS.GT_LAND[k + 1].id === 'gt_alc', `${LS.GT_LAND[k].id} climbs past any class jump`);
+  eq(SR.checkShadowRoute().problems, [], 'the whole route (Underbelly and Gauntlet)');
+});
+test('U23C Gauntlet offerings: one sigil per row, a wrong plate is a strike, the third kills; a flawless run opens the alcove', () => {
+  const rd = DGR.newRound(1, mulberry32(4)), st = {};
+  const right = rd.order[0], wrong = DGR.SIGILS.find((x) => x !== right);
+  eq([DGR.offer(rd, st, 'a', wrong), DGR.offer(rd, st, 'a', wrong), DGR.offer(rd, st, 'a', wrong)], ['wrong', 'wrong', 'lethal']);
+  eq(DGR.offer(rd, st, 'a', right), 'solved');
+  ok(DGR.flawlessProcession(0, 4, 4) && !DGR.flawlessProcession(1, 4, 4) && !DGR.flawlessProcession(0, 3, 4), 'flawless needs every row and no wrong offering');
+  for (const w of LS.GT_WALLS) eq([...w.plates.map((p) => p.sigil)].sort(), [...DGR.SIGILS].sort(), `${w.id} carries all four sigils`);
+});
+test('U23C Calus: enrage warns as the 3rd DPS phase opens, enrages when it ends, final stand after the next; the Feast wipes', () => {
+  const cfg = DGR.dungeonDef('shadow').segments.throne, f = new DGR.DpsBossFsm(cfg), max = 1000;
+  for (let w = 1; w <= 3; w++) {
+    const ev = f.openWindow();
+    eq(ev.includes('enrage-warning'), w === 3, `warning only on window ${w === 3 ? 3 : w}`);
+    const end = f.tick(cfg.windowTime + 0.01, max, max);
+    ok(end.includes('window-end'), 'window ends'); eq(end.includes('enraged'), w === 3, 'enraged after the 3rd');
+  }
+  f.openWindow();
+  ok(f.tick(cfg.windowTime + 0.01, max, max).includes('final'), 'final stand after the next DPS phase, whatever the health');
+  ok(!f.immune && f.finalLeft === cfg.enrage.finalWind && cfg.enrage.finalWind >= 12, 'a long wind-up, and he takes damage in it');
+  ok(f.tick(cfg.enrage.finalWind + 0.1, max, max).includes('final-wipe'), 'the Feast wipes');
+  const g = new DGR.DpsBossFsm(cfg); g.openWindow();
+  ok(g.tick(0.1, max * cfg.enrage.finalFrac, max).includes('final'), 'or when his health falls to the final chunk');
+  eq(DGR.feastStage(cfg.enrage.finalWind, cfg.enrage.finalWind).stage, 'rise'); eq(DGR.feastStage(0, 16).stage, 'done');
+});
+test('U23C solo tuning: no hit over 40% of the pool, no burst over 65%; two Psion snipes in one frame no longer kill from full', () => {
+  const d = DGR.dungeonDef('shadow'), g = DGR.guardFor(d, 1), pool = 215;
+  eq(DGR.guardFor(d, 2), d.guard.team);
+  const inc = 1.62, dmgMult = (1 + d.g * 0.07) * g.addDmg, snipe = FA.UNITS.lg_psion.snipe.dmg * dmgMult * inc;
+  ok(snipe / pool < 0.5, `a snipe takes ${(100 * snipe / pool).toFixed(0)}% (was about 60%)`);
+  const st = {};
+  const a = DGR.hitGuard(st, 10, snipe, pool, g), b = DGR.hitGuard(st, 10, snipe, pool, g);
+  ok(a + b <= pool * g.burstFrac + 1e-9 && a + b < pool, `two at once take ${(a + b).toFixed(0)} of ${pool}`);
+  eq(DGR.hitGuard({}, 0, 999, pool, g), pool * g.hitFrac, 'one huge hit is capped');
+  const later = DGR.hitGuard(st, 10 + g.burstWin + 0.01, snipe, pool, g);
+  ok(Math.abs(later - Math.min(snipe, pool * g.hitFrac)) < 1e-9, 'the window clears');
+  ok(DGR.bossHpFor(1000, { hpMult: 1 }, g) < DGR.bossHpFor(1000, { hpMult: 1 }, d.guard.team), 'solo bosses carry less health');
+});
+
+test('U23C hand cannon: kicks up and right (aggressive more, precision straight up); the iron sights are gone, a floating dot sits on the sight line', async () => {
+  const ang = (f) => { const k = recoilKick(recoilProfileFor(weaponHandling({ arch: 'hand', rarity: 'legendary', frame: f })), 0.045, () => 0.5); return Math.atan2(-k.yaw, k.pitch) * 180 / Math.PI; };
+  ok(ang('adaptive') >= 18 && ang('aggressive') > ang('adaptive') && Math.abs(ang('precision')) < 1e-9, `angles ${ang('adaptive').toFixed(0)}, ${ang('aggressive').toFixed(0)}, ${ang('precision').toFixed(0)}`);
+  const { buildGunModel } = await import('../js/models.js');
+  const g = buildGunModel({ arch: 'hand', rarity: 'legendary', frame: 'adaptive', element: 'kinetic', name: 'Test' });
+  let dot = null; g.traverse((o) => { if (o.userData.sightDot) dot = o; });
+  ok(dot, 'a sight dot');
+  ok(Math.abs(dot.position.y - g.userData.sightY) < 1e-9 && Math.abs(dot.position.x) < 1e-9, 'on the sight line (screen centre at ADS)');
+  let posts = 0; g.traverse((o) => { if (o.isMesh && o.geometry.type === 'BoxGeometry' && o.geometry.parameters.width === 0.007 && o.geometry.parameters.depth === 0.007) posts++; });
+  eq(posts, 0, 'no front post');
 });
 
 for (const t of tests) {

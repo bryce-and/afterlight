@@ -96,7 +96,7 @@ export const DUNGEONS = {
     segments: {
       baths: {
         kind: 'boss',
-        boss: { id: 'vhorrak', name: 'Vhorrak, the Anointed', model: 'anointedBather', element: 'solar', hpMult: 1, melee: true, scale: 0.8, radius: 1.1, speed: 4.2, meleeDmg: 48, leash: 10, returnSpeed: 6, hitFrac: { cleave: 0.45, slam: 0.35, lunge: 0.3 } }, // hitFrac: each hit takes this share of the target's health plus shield, so no single hit kills from full (Bryce) // leash: outside a DPS window he guards this radius around his spawn (Bryce); in a window he chases // a melee boss: two cleavers, no ranged attacks; about 3.7 m tall (model 4.6 m x 0.8)
+        boss: { id: 'vhorrak', name: 'Vhorrak, the Anointed', model: 'anointedBather', element: 'solar', hpMult: 1.3, melee: true, scale: 0.8, radius: 1.1, speed: 4.2, meleeDmg: 48, leash: 10, returnSpeed: 6, hitFrac: { cleave: 0.45, slam: 0.35, lunge: 0.3 } }, // hitFrac: each hit takes this share of the target's health plus shield, so no single hit kills from full (Bryce) // leash: outside a DPS window he guards this radius around his spawn (Bryce); in a window he chases // a melee boss: two cleavers, no ranged attacks; about 3.7 m tall (model 4.6 m x 0.8)
         stepsBy: [3, 4, 5], // offering steps per round for 1, 2, 3 players
         shuffleFrom: 2, // from this round on the plates shuffle their sigils after every window
         windowTime: 14, // seconds of DPS
@@ -125,7 +125,7 @@ export const DUNGEONS = {
       // U23 chunk B. Stealth past the Royal Beasts, light flowers with the prism (Favor) for Bloom, then burn Kathrax in a DPS window.
       gardens: {
         kind: 'boss',
-        boss: { id: 'kathrax', name: 'Kathrax, the Royal Huntmaster', model: 'huntmaster', element: 'arc', hpMult: 1, scale: 0.75, radius: 1.0, speed: 3.4, leash: 6, windowLeash: 24, returnSpeed: 6, guard: 18, shotDmg: 26, stompDmg: 50, stompEvery: 9, stompRadius: 7, hitFrac: { shot: 0.25, stomp: 0.4 } }, // ranged: a harpoon cannon, and a stomp up close // model 4.2 m x 0.75 = about 3.2 m tall // guard: outside a window he only fires at players this close to his pavilion
+        boss: { id: 'kathrax', name: 'Kathrax, the Royal Huntmaster', model: 'huntmaster', element: 'arc', hpMult: 1.6, scale: 0.75, radius: 1.0, speed: 3.4, leash: 6, windowLeash: 24, returnSpeed: 6, guard: 18, shotDmg: 26, stompDmg: 50, stompEvery: 9, stompRadius: 7, hitFrac: { shot: 0.25, stomp: 0.4 } }, // ranged: a harpoon cannon, and a stomp up close // model 4.2 m x 0.75 = about 3.2 m tall // guard: outside a window he only fires at players this close to his pavilion
         flowersBy: [4, 5, 6], // flowers per round for 1, 2, 3 players
         bloomPer: 0.12, // weapon damage per Bloom stack
         channel: 1.4, lightR: 2.6, // seconds a Favored player stands at a bud to light it, and how close
@@ -135,9 +135,78 @@ export const DUNGEONS = {
         tasterEvery: 14,
         windowAdds: [['grunt', 2], ['lg_phalanx', 1]],
       },
+      // U23 chunk C. A traversal: at every landing a shield wall; a Favored player offers the herald's sigil at the matching plate (a wrong
+      // one is a strike and an add wave; the third kills), the wall drops, and the gold stair beyond holds only under Favor. Wards sweep it.
+      gauntlet: {
+        kind: 'traversal',
+        tasterEvery: 10, // a Royal Taster (a Favor carrier) on your landing when none is alive, at most this often
+        rows: [ // what holds each landing
+          [['grunt', 3], ['lg_phalanx', 1]],
+          [['grunt', 2], ['lg_psion', 1], ['lg_incendior', 1]],
+          [['grunt', 3], ['captain', 1]],
+          [['grunt', 2], ['lg_phalanx', 1], ['lg_psion', 1], ['captain', 1]],
+        ],
+        snipers: [['lg_psion', 1]], // one on each row's perch
+        wrongWave: [['grunt', 2], ['lg_psion', 1]],
+      },
+      // U23 chunk C. The final boss. Calus's Gaze draws a Favored player into the Mindscape (unFavored, it burns); there the Thought Lanterns
+      // show their sigils and the Mind board the order. Shoot them in order (offer(), a strike for a wrong one) and Calus comes down to the
+      // dais for a DPS window. Enrage after 3 DPS phases (a warning when the third opens); The Emperor's Feast is the final stand.
+      throne: {
+        kind: 'boss',
+        boss: { id: 'calus', name: 'Emperor Calus', model: 'emperorCalus', element: 'void', hpMult: 1.35, scale: 0.8, radius: 1.4, speed: 2.4, leash: 2, windowLeash: 5, returnSpeed: 5, shotDmg: 30, slamDmg: 60, slamEvery: 8, slamRadius: 8, hitFrac: { orb: 0.3, slam: 0.45 } }, // model 4.6 m x 0.8 = about 3.7 m
+        stepsBy: [3, 4, 5], // lanterns to shoot per round for 1, 2, 3 players
+        windowTime: 15,
+        enrage: { after: 3, finalFrac: 0.12, finalWind: 16 }, // DpsBossFsm: the warning opens with the 3rd window; enraged when it ends; final stand after the next
+        gaze: { range: 62, half: 0.22, fill: 2.2, decay: 1.0, burn: 22 }, // seconds-ish of the beam to be drawn in (aware 0..1 at `fill` a second); unFavored, it burns (dps)
+        mind: { time: 20, burn: 3 }, // the Mindscape lasts this long (seconds); a slow psychic burn while in it
+        lanternCd: 0.6, // one lantern judged at a time
+        tasterEvery: 14,
+        waves: [[['grunt', 3], ['lg_phalanx', 1]], [['grunt', 2], ['lg_echo', 2]], [['grunt', 2], ['captain', 1], ['lg_incendior', 1]]],
+        wrongWave: [['lg_echo', 3]],
+        windowAdds: [['grunt', 2]],
+        enragedAdds: [['captain', 1], ['lg_echo', 2]],
+        enragedMult: 1.3, // Calus's orbs and slam after he enrages (still capped)
+      },
+    },
+    // U23 chunk C: solo tuning (measured 2026-11-15, solo, starter loadout, enemies +20 Light, boss health x0.55 and hpMult 1: one window
+    // took 43% of Vhorrak and 64% of Kathrax with Bloom x4. Retested: Vhorrak at 1.3 takes 33% a window; Calus at 1.5 took 22% with the
+    // heavy ammo spent, so 1.35 (about 24%): the final stand comes in his enraged fourth window). Every hit an enemy lands is capped at `hitFrac` of the target's health plus shield, and all damage taken
+    // inside `burstWin` seconds is held under `burstFrac` of it (two shots in one frame can no longer kill from full). Solo, adds hit at
+    // `addDmg` of their fireteam damage and bosses have `bossHp` of their health; a fireteam keeps the full numbers.
+    guard: {
+      solo: { addDmg: 0.72, hitFrac: 0.4, burstWin: 0.5, burstFrac: 0.65, bossHp: 0.55 },
+      team: { addDmg: 1, hitFrac: 0.55, burstWin: 0.5, burstFrac: 0.85, bossHp: 1 },
     },
   },
 };
+
+// ---------------------------------------------------------------------------
+// U23 chunk C: the damage guard, boss health, and The Emperor's Feast (pure)
+// ---------------------------------------------------------------------------
+/** The guard numbers for a fireteam size (solo: 1 player). */
+export const guardFor = (d, fireteam) => (ft(fireteam) <= 1 ? d.guard.solo : d.guard.team);
+/**
+ * One incoming hit through the guard. `st` keeps the recent hits ({ log: [[t, amount], ...] }); `now` in seconds; `amount` the damage
+ * after every multiplier; `pool` the target's max health plus shield. Returns the damage to apply: never more than hitFrac of the pool,
+ * and never past burstFrac of the pool within burstWin seconds.
+ */
+export function hitGuard(st, now, amount, pool, g) {
+  st.log = (st.log || []).filter(([t]) => now - t < g.burstWin);
+  const recent = st.log.reduce((s, [, a]) => s + a, 0);
+  const out = Math.max(0, Math.min(amount, pool * g.hitFrac, pool * g.burstFrac - recent));
+  if (out > 0) st.log.push([now, out]);
+  return out;
+}
+/** A dungeon boss's health: its registry multiplier, then the solo or fireteam share. */
+export const bossHpFor = (hp, bossCfg, g) => hp * (bossCfg.hpMult ?? 1) * g.bossHp;
+/** The Emperor's Feast: from the seconds left of the wind-up, its progress 0..1 and the stage the animation shows. */
+export function feastStage(left, total) {
+  const k = Math.max(0, Math.min(1, 1 - left / total));
+  return { k, stage: k < 0.3 ? 'rise' : k < 0.75 ? 'raise' : k < 1 ? 'drink' : 'done' };
+}
+/** The Gauntlet's secret: a flawless procession (no wrong offering since entering) that reached the last landing. */
+export const flawlessProcession = (wrongs, rowsDone, rows) => wrongs === 0 && rowsDone >= rows;
 // ---------------------------------------------------------------------------
 // U23 chunk B: Watchers, Royal Beasts, Bloom, levers and the down timer (pure; the runtime and tools/tests.js use them)
 // ---------------------------------------------------------------------------
@@ -245,11 +314,13 @@ export function validateDungeon(d) {
   need(d.id && d.name && d.layout && d.unlock?.mission, 'id, name, layout and unlock.mission are required');
   need(d.enemyLightOver >= 0 && d.g >= 0 && d.favorTime > 0 && d.strikes >= 1, 'enemyLightOver, g, favorTime and strikes');
   need(d.exoticChance > 0 && d.exoticChance < 1, 'exoticChance');
+  need(d.guard?.solo && d.guard?.team && ['addDmg', 'hitFrac', 'burstWin', 'burstFrac', 'bossHp'].every((k) => d.guard.solo[k] > 0 && d.guard.team[k] > 0), 'guard');
   for (const [id, c] of Object.entries(d.segments || {})) {
-    const kits = [...(c.waves || []).flat(), ...(c.bathers || []), ...(c.wrongWave || []), ...(c.windowAdds || []), ...(c.reinforce || []), ...(c.snipers || []), ...Object.values(c.decks || {}).flat()];
+    const kits = [...(c.waves || []).flat(), ...(c.bathers || []), ...(c.wrongWave || []), ...(c.windowAdds || []), ...(c.reinforce || []), ...(c.snipers || []), ...Object.values(c.decks || {}).flat(), ...(c.rows || []).flat(), ...(c.enragedAdds || [])];
     for (const [t, n] of kits) { need(UNITS[t] || BASE_TYPES.includes(t), `${id}: unknown unit ${t}`); need(n >= 1, `${id}: bad count for ${t}`); }
     if (c.kind === 'boss') need(c.boss?.name && c.boss.model && c.windowTime > 0, `${id}: boss`);
     if (c.flowersBy) need(c.flowersBy.length === 3 && c.flowersBy.every((n, i) => n >= 1 && (i === 0 || n >= c.flowersBy[i - 1])), `${id}: flowersBy`);
+    if (c.enrage) need(c.enrage.after >= 1 && c.enrage.finalFrac > 0 && c.enrage.finalFrac < 0.5 && c.enrage.finalWind >= 8, `${id}: enrage`);
     if (c.stepsBy) need(c.stepsBy.length === 3 && c.stepsBy.every((n, i) => n >= 1 && (i === 0 || n >= c.stepsBy[i - 1])), `${id}: stepsBy`);
   }
   return bad;

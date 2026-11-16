@@ -5,6 +5,25 @@
 
 export const RELEASES = [
   {
+    version: '4.7', name: 'The Emperor\'s Shadow', date: '2026-11-15', accent: '#c9a046', glyph: '♛',
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="esBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c0a2c"/><stop offset="0.6" stop-color="#2a0f3e"/><stop offset="1" stop-color="#0b0412"/></linearGradient><radialGradient id="esHalo" cx="0.5" cy="0.6" r="0.45"><stop offset="0" stop-color="#ffc247" stop-opacity="0.55"/><stop offset="1" stop-color="#ffc247" stop-opacity="0"/></radialGradient><linearGradient id="esGaze" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c78bff" stop-opacity="0"/><stop offset="0.5" stop-color="#c78bff" stop-opacity="0.35"/><stop offset="1" stop-color="#c78bff" stop-opacity="0"/></linearGradient><linearGradient id="esCry" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9a8ff"/><stop offset="1" stop-color="#5a1f9e"/></linearGradient></defs><rect width="320" height="180" fill="url(#esBg)"/><rect width="320" height="180" fill="url(#esHalo)"/><polygon points="160,96 40,180 120,180" fill="url(#esGaze)"/><g fill="url(#esCry)" opacity="0.85"><polygon points="8,150 18,80 28,150"/><polygon points="20,150 32,55 44,150"/><polygon points="39,150 48,90 57,150"/><polygon points="263,150 272,88 281,150"/><polygon points="276,150 288,52 300,150"/><polygon points="292,150 302,78 312,150"/><polygon points="53,150 60,110 67,150"/><polygon points="253,150 260,106 267,150"/></g><g fill="#d9a520" stroke="#ffe08a" stroke-width="0.6"><polygon points="189.8,108.2 237.9,107.7 236.5,96.8"/><circle cx="242.3" cy="101.6" r="3.2"/><polygon points="188.0,101.2 234.6,89.2 230.7,79.0"/><circle cx="237.5" cy="82.3" r="3.2"/><polygon points="184.6,94.9 227.0,72.1 220.8,63.1"/><circle cx="228.2" cy="64.6" r="3.2"/><polygon points="179.8,89.5 215.5,57.2 207.4,50.0"/><circle cx="214.9" cy="49.7" r="3.2"/><polygon points="173.9,85.4 200.9,45.6 191.2,40.5"/><circle cx="198.5" cy="38.4" r="3.2"/><polygon points="167.2,82.9 183.9,37.7 173.3,35.1"/><circle cx="179.8" cy="31.4" r="3.2"/><polygon points="160.0,82.0 165.5,34.2 154.5,34.2"/><circle cx="160.0" cy="29.0" r="3.2"/><polygon points="152.8,82.9 146.7,35.1 136.1,37.7"/><circle cx="140.2" cy="31.4" r="3.2"/><polygon points="146.1,85.4 128.8,40.5 119.1,45.6"/><circle cx="121.5" cy="38.4" r="3.2"/><polygon points="140.2,89.5 112.6,50.0 104.5,57.2"/><circle cx="105.1" cy="49.7" r="3.2"/><polygon points="135.4,94.9 99.2,63.1 93.0,72.1"/><circle cx="91.8" cy="64.6" r="3.2"/><polygon points="132.0,101.2 89.3,79.0 85.4,89.2"/><circle cx="82.5" cy="82.3" r="3.2"/><polygon points="130.2,108.2 83.5,96.8 82.1,107.7"/><circle cx="77.7" cy="101.6" r="3.2"/></g><path d="M82 112 A78 78 0 0 1 238 112" fill="none" stroke="#ffc247" stroke-width="2"/><rect x="96" y="140" width="128" height="12" fill="#c9a046"/><rect x="84" y="152" width="152" height="10" fill="#8a6a22"/><g fill="#140818"><ellipse cx="160" cy="120" rx="32" ry="28"/><ellipse cx="160" cy="88" rx="13" ry="11"/><rect x="134" y="132" width="16" height="12"/><rect x="170" y="132" width="16" height="12"/><polygon points="186,104 206,86 212,92 194,112"/><polygon points="134,104 118,124 126,128 140,112"/></g><g fill="#ffc247"><path d="M203 64 h18 l-3 12 h-12 z"/><rect x="210.5" y="76" width="3" height="10"/><rect x="205" y="85" width="14" height="3"/></g><circle cx="160" cy="84" r="2.4" fill="#b06cff"/><text x="160" y="174" text-anchor="middle" font-family="sans-serif" font-size="9" letter-spacing="3" fill="#ffd27a" opacity="0.85">THE EMPEROR\'S SHADOW</text></svg>',
+    summary: 'A new dungeon aboard the Leviathan: earn the Emperor\'s Favor through his baths, his underbelly, his gardens and his gauntlet, then face Calus himself.',
+    notes: [
+      'New dungeon, The Emperor\'s Shadow: five encounters on the Leviathan, unlocked by clearing "The Emperor\'s Throne". Enemies are 20 Light above you, there is no timer, and a death or a wipe restarts the encounter',
+      'Imperial Favor: kill a Royal Taster and take its chalice. While Favored you can read the Emperor\'s sigils (Axes, Chalice, Sun, Hound), stand in his bath water and walk his gold grates',
+      'The Imperial Baths: make the offerings the board asks for, break the three censers and bring down Vhorrak, the Anointed. Three wrong offerings are lethal',
+      'The Underbelly: cross the machine pit on Favor-only grates past pistons, furnace vents and Imperial Watchers. Watchers that see you call reinforcements; a lever puzzle hides a chest',
+      'The Pleasure Gardens: stay out of sight of the Royal Beasts, light the flowers with the prism for Bloom, and burn Kathrax, the Royal Huntmaster',
+      'The Gauntlet: climb the Emperor\'s processional over the void. Read the herald under Favor and offer its sigil to drop each shield wall, then climb a stair that only holds for the Favored while wards sweep across it. A flawless climb opens a hidden alcove',
+      'The Throne: Calus\'s Gaze draws Favored Guardians into his Mindscape, where his thoughts burn as lanterns. Shoot them in the order on his board to bring him down to the dais. After three audiences he grows impatient, and if he finishes The Emperor\'s Feast, the fireteam falls',
+      'Exclusive loot: six Imperial legendary weapons with their own perks, the Imperial armor set for every class, an exotic, and the Emperor\'s Shadow shader on your first full clear',
+      'Solo is the hardest activity in the game but fair: no single hit takes more than 40% of your health and shield, and no burst more than 65%. Fireteams of 2 or 3 get more steps, flowers and health to chew through',
+      'Hand cannons: recoil now kicks up and to the right (Precision frames straight up), the gun itself kicks with it and settles faster, and the iron sights are replaced by a glowing dot that floats over the barrel',
+      'Performance: the dungeon draws about a quarter fewer objects',
+      'Save changes: your dungeon clears and best time are kept per Guardian. Nothing resets',
+    ],
+  },
+  {
     version: '4.6.1', name: 'This is for you, Nathan!', date: '2026-11-12', accent: '#ffb547', glyph: '✚',
     summary: 'Rebind every control from the pause menu, a Magic Mouse and trackpad scheme, a Terms and Privacy agreement, and better Light from mission caches.',
     notes: [
@@ -888,10 +907,4 @@ export const titleRelease = () => RELEASES.find((r) => r.version.split('.').leng
 
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
-export const ROADMAP = [
-  {
-    name: 'The Emperor\'s Shadow', status: 'Future Transmission', accent: '#c9a046', glyph: '♛',
-    teaser: 'A golden vessel drifts at the edge of the system. Someone aboard has been watching you for a very long time.',
-    themes: ['???'],
-  },
-];
+export const ROADMAP = [];

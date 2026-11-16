@@ -589,7 +589,7 @@ export function buildLevel(loc, def) {
   const voidAt = set.voidBelow != null ? (x, z) => !!edgeVoid?.(x, z) || GY(x, z) < set.voidBelow : edgeVoid;
 
   // U17a: a packed map folds its scenery into few draw calls. H17: dev tools that judge single pieces (tools/floatcheck.js) set globalThis.__noMerge
-  if (set.merge && !globalThis.__noMerge) mergeDecor(scene, buildFrom, new Set(staticMeshes));
+  if (set.merge && !globalThis.__noMerge) mergeDecor(scene, buildFrom, new Set(staticMeshes), { cell: set.mergeCell ?? 64, min: set.mergeMin ?? 3, statics: set.mergeStatic ? new Set(staticMeshes) : null });
 
   // ---- light pool: the 6 nearest lamps get a real light, so a map can hold dozens (U15) ----
   const pool = [];
@@ -690,18 +690,18 @@ function separateCoplanar(scene) {
  * hundred draw calls instead. Only plain lit meshes added by the map's build are merged; anything that collides, moves or is looked through
  * (staticMeshes, doors, lamps, sky) stays as it is.
  */
-function mergeDecor(scene, from, keep) {
+function mergeDecor(scene, from, keep, opt = {}) {
   scene.updateMatrixWorld(true);
-  const groups = new Map();
+  const groups = new Map(), CELL = opt.cell ?? 64, MIN = opt.min ?? 3, statics = opt.statics; // U23 chunk C: a map may ask for bigger cells, pairs, and its colliders' looks
   for (const o of scene.children.slice(from)) {
-    const m = o.material;
-    if (!o.isMesh || o.isInstancedMesh || o.children.length || keep.has(o) || o.userData.noMerge || Array.isArray(m) || !m.isMeshStandardMaterial || m.transparent || m.vertexColors) continue;
-    const cell = `${Math.floor(o.matrixWorld.elements[12] / 64)},${Math.floor(o.matrixWorld.elements[14] / 64)}`; // chunks keep frustum culling working
+    const m = o.material, isStatic = !!statics?.has(o);
+    if (!o.isMesh || o.isInstancedMesh || o.children.length || (keep.has(o) && !isStatic) || o.userData.noMerge || Array.isArray(m) || !m.isMeshStandardMaterial || m.transparent || m.vertexColors) continue;
+    const cell = `${Math.floor(o.matrixWorld.elements[12] / CELL)},${Math.floor(o.matrixWorld.elements[14] / CELL)}`; // chunks keep frustum culling working
     const key = `${m.uuid}|${o.castShadow ? 1 : 0}${o.receiveShadow ? 1 : 0}|${cell}`;
     (groups.get(key) || groups.set(key, []).get(key)).push(o);
   }
   for (const list of groups.values()) {
-    if (list.length < 3) continue;
+    if (list.length < MIN) continue;
     const parts = list.map((o) => {
       const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
       return g;
@@ -718,7 +718,8 @@ function mergeDecor(scene, from, keep) {
     const mesh = new THREE.Mesh(geo, list[0].material);
     mesh.castShadow = list[0].castShadow; mesh.receiveShadow = list[0].receiveShadow;
     scene.add(mesh);
-    for (const o of list) scene.remove(o);
+    // a collider's mesh stays in the scene for raycasts (shots, sight, the camera), hidden: the merged copy draws it
+    for (const o of list) { if (statics?.has(o)) o.visible = false; else scene.remove(o); }
   }
 }
 

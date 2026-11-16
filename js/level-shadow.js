@@ -45,6 +45,58 @@ export const GARDEN_HEDGES = [
 const UB_EDGE = 0.12; // a foothold edge is a cliff (a landing on the skirt slides off into the void)
 
 // ---------------------------------------------------------------------------------------------------------------------------------
+// U23 chunk C data: The Gauntlet (a processional climbing over the void) and The Throne. Floor heights are absolute.
+// The Gauntlet: five landings (GT_LAND, terrain plateaus). Landings 0..3 end at a shield wall (GT_WALLS) with four sigil plates; past
+// the wall a gold-grate stair (GT_STEPS, solid only under Favor like the Underbelly's grates) climbs 9.02 m to the next landing, which no
+// class jump can climb (5.07 m at most), even from the top of 2.2 m cover. Two sweeping wards (telegraphed movers) cross each stair. Perches carry Psion snipers.
+// ---------------------------------------------------------------------------------------------------------------------------------
+export const GT_RISE = 0.82, GT_STEPS_PER = 10, GT_TILE = { w: 3, d: 1.6, gap: 1.0 };
+export const TY = +(11 + 4 * (GT_STEPS_PER + 1) * GT_RISE).toFixed(2); // the Throne floor (= the last landing): 47.08
+/** Landings: { id, x0, x1, z0, z1 (z0 > z1), top, stage, stairX (the stair leaving its north edge; null on the last) }. */
+export const GT_LAND = [
+  { id: 'gt_c0', x0: -4, x1: 4, z0: -298.5, z1: -306, top: 11, stage: 0, stairX: null }, // the corridor from the Gardens gate
+  { id: 'gt_l0', x0: -12, x1: 12, z0: -306, z1: -322, top: 11, stage: 0, stairX: -6 },
+  { id: 'gt_l1', x0: -12, x1: 12, z0: -349, z1: -363, top: +(11 + 1 * (GT_STEPS_PER + 1) * GT_RISE).toFixed(2), stage: 1, stairX: 6 },
+  { id: 'gt_l2', x0: -12, x1: 12, z0: -390, z1: -404, top: +(11 + 2 * (GT_STEPS_PER + 1) * GT_RISE).toFixed(2), stage: 2, stairX: -6 },
+  { id: 'gt_l3', x0: -12, x1: 12, z0: -431, z1: -445, top: +(11 + 3 * (GT_STEPS_PER + 1) * GT_RISE).toFixed(2), stage: 3, stairX: 6 },
+  { id: 'gt_l4', x0: -8, x1: 8, z0: -472, z1: -486, top: TY, stage: 4, stairX: null },
+  { id: 'gt_alc', x0: 8, x1: 12.5, z0: -477.5, z1: -484.5, top: TY, stage: 4, stairX: null }, // the hidden alcove (door at x 8.4)
+];
+/** The landings with a stair, in order (row r climbs from GT_ROWS[r] to the next landing). */
+export const GT_ROWS = GT_LAND.filter((L) => L.stairX !== null);
+/** Grate stair tiles: { id, x0, x1, z0, z1, top, run, k }. Tile k of row r: 1 m past the landing edge, 2.6 m pitch, 0.82 m rise. */
+export const GT_STEPS = GT_ROWS.flatMap((L, r) => Array.from({ length: GT_STEPS_PER }, (_, k) => {
+  const zs = L.z1 - GT_TILE.gap - k * (GT_TILE.d + GT_TILE.gap);
+  return { id: `gs${r}_${k}`, x0: L.stairX - GT_TILE.w / 2, x1: L.stairX + GT_TILE.w / 2, z0: zs, z1: zs - GT_TILE.d, top: +(L.top + GT_RISE * (k + 1)).toFixed(2), run: `S${r}`, k };
+}));
+/** Shield walls across each row landing's north edge (x0..x1 at z, h tall), and its four sigil plates (fixed sigils per row). */
+export const GT_WALLS = GT_ROWS.map((L, r) => ({
+  id: `gw${r}`, row: r, x0: L.x0, x1: L.x1, z: L.z1 + 0.4, y: L.top, h: 9,
+  plates: [-9, -3, 3, 9].map((x, i) => ({ p: [x, L.top, L.z1 + 3.4], sigil: [['axes', 'chalice', 'sun', 'hound'], ['sun', 'hound', 'axes', 'chalice'], ['hound', 'axes', 'chalice', 'sun'], ['chalice', 'sun', 'hound', 'axes']][r][i] })),
+  herald: [0, L.top + 6.2, L.z1 + 0.95], // the herald board on the wall's south face: the row's sigil, shown only under Favor
+}));
+/** Sweeping wards: two per stair, at tiles 3 and 7. Same shape as the Underbelly's pistons (exotic-rules.js moverState / moverBox). */
+export const GT_WARDS = GT_ROWS.flatMap((L, r) => [3, 7].map((k, j) => {
+  const t = GT_STEPS[r * GT_STEPS_PER + k], cz = (t.z0 + t.z1) / 2, side = j === 0 ? -1 : 1;
+  return { id: `gm${r}_${j}`, p: [L.stairX + side * 2.6, t.top + 4.0, cz], s: [0.8, 9, 1.8], axis: 'x', travel: -side * 5.2, period: 7.4, phase: (r * 2.3 + j * 3.7) % 7.4, push: 9, lane: 3 };
+}));
+/** Sniper perches (unreachable shelves): 13 m over the row's landing, beside its stair. */
+export const GT_PERCH = GT_ROWS.map((L, r) => {
+  const mid = L.z1 - 14, x = L.stairX > 0 ? -22 : 22;
+  return { id: `gp${r}`, x0: x - 2, x1: x + 2, z0: mid + 2, z1: mid - 2, top: +(L.top + 13).toFixed(2), stage: 'perch' };
+});
+/** The Throne hall: floor TY, x -34..34, z -486..-556. The central dais (octagon like the Baths', 1.2 m up) and the throne platform (3 m). */
+export const THRONE = {
+  hall: { x0: -34, x1: 34, z0: -486, z1: -556 },
+  dais: { p: [0, TY + 1.2, -516], r: 7 },
+  daisZ: -516,
+  plat: { x0: -9, x1: 9, z0: -540, z1: -553, top: TY + 3 }, // the throne platform; a ramp up its south face (z -533 .. -540)
+  seat: [0, TY + 3, -548], // where Calus sits
+  lanterns: [[-26, TY + 6, -494], [26, TY + 6, -494], [-26, TY + 6, -546], [26, TY + 6, -546]],
+  board: [0, TY + 13, -554.5], // the Mind board on the north wall (faces +z)
+};
+
+// ---------------------------------------------------------------------------------------------------------------------------------
 // Layout contract (world units, y up; floor y = 0 unless noted)
 // ---------------------------------------------------------------------------------------------------------------------------------
 export const SHADOW_LAYOUT = {
@@ -120,6 +172,46 @@ export const SHADOW_LAYOUT = {
       spawns: [[-30, GY, -256], [30, GY, -256], [-20, GY, -221], [20, GY, -221], [-20, GY, -291], [20, GY, -291]],
       gate: { p: [0, GY, -298], w: 7, h: 8, axis: 'x' },
     },
+    {
+      // U23 chunk C. A processional climbing over the void: at each landing a shield wall with four sigil plates. The herald on the wall shows
+      // the row's sigil only under Favor; offering the matching plate drops the wall, and the gold stair beyond holds only under Favor.
+      // Sweeping wards cross every stair. A flawless procession (no wrong offering) opens a hidden alcove on the last landing.
+      id: 'gauntlet', name: 'The Gauntlet', kind: 'traversal',
+      checkpoint: [0, 11, -302],
+      region: { minX: -44, maxX: 44, minZ: -486, maxZ: -298.6, minY: -40, maxY: 80 },
+      pit: { minX: -44, maxX: 44, minZ: -486, maxZ: -299 },
+      fog: { color: 0x1c0f2c, near: 14, far: 150 },
+      landings: GT_LAND,
+      rows: GT_ROWS.map((L, r) => ({
+        row: r, land: L.id, checkpoint: [0, L.top, (L.z0 + L.z1) / 2 + 3], wall: GT_WALLS[r],
+        spawns: [[-9, L.top, L.z1 + 6], [9, L.top, L.z1 + 6], [-4, L.top, L.z0 - 3], [4, L.top, L.z0 - 3]],
+        taster: [L.stairX > 0 ? -9 : 9, L.top, (L.z0 + L.z1) / 2], perch: [(GT_PERCH[r].x0 + GT_PERCH[r].x1) / 2, GT_PERCH[r].top, (GT_PERCH[r].z0 + GT_PERCH[r].z1) / 2],
+      })),
+      grates: GT_STEPS,
+      movers: GT_WARDS,
+      vents: [],
+      secretChest: [10.6, TY, -481], // the flawless procession's alcove, east of the last landing (its door opens for a flawless run)
+      secretDoor: { p: [8.4, TY, -481], w: 5, h: 4.5, axis: 'z' },
+      exit: { p: [0, TY, -480], r: 6 },
+    },
+    {
+      // U23 chunk C. The final boss. Calus's Gaze sweeps from the throne; a Favored player it holds is drawn into the Mindscape, where the
+      // Thought Lanterns and the Mind board appear. Shoot the lanterns in the board's order; then Calus comes down to the dais for DPS.
+      id: 'throne', name: 'The Throne', kind: 'boss',
+      checkpoint: [0, TY, -479],
+      region: { minX: -34, maxX: 34, minZ: -556, maxZ: -487, minY: TY - 6, maxY: TY + 40 },
+      fog: { color: 0x241032, near: 26, far: 150 },
+      dais: THRONE.dais,
+      seat: THRONE.seat,
+      plat: THRONE.plat,
+      lanterns: THRONE.lanterns,
+      board: THRONE.board,
+      gaze: { p: [0, TY + 5.5, -548], yaw: 0, sweep: 0.95, period: 18, phase: 0 }, // slow enough to step into and walk with
+      boss: THRONE.seat,
+      chest: [0, TY + 1.2, -511],
+      tasters: [[-30, TY, -500], [30, TY, -500], [-30, TY, -536], [30, TY, -536]],
+      spawns: [[-24, TY, -506], [24, TY, -506], [-24, TY, -530], [24, TY, -530], [-12, TY, -494], [12, TY, -494]],
+    },
   ],
 };
 
@@ -146,6 +238,19 @@ function terrainFeatures() {
   for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
     out.push({ type: 'ramp', x0: dx * (DR + RAMP_RUN - 0.05), z0: pz + dz * (DR + RAMP_RUN - 0.05), x1: dx * (DR - 0.05), z1: pz + dz * (DR - 0.05), width: RAMP_W, h0: GY, h1: GY + PAV_H, edge: 0.5 });
   }
+  // U23 chunk C. The Gauntlet's landings and perches (over the void), the Throne hall, its dais (an octagon 1.2 m up, four ramps) and the
+  // throne platform (3 m up, one ramp on its south face)
+  for (const f of [...GT_LAND, ...GT_PERCH]) out.push({ type: 'plateau', x: (f.x0 + f.x1) / 2, z: (f.z0 + f.z1) / 2, w: f.x1 - f.x0, d: f.z0 - f.z1, h: f.top, edge: UB_EDGE });
+  const H = THRONE.hall, tz = THRONE.daisZ;
+  out.push({ type: 'plateau', x: 0, z: (H.z0 + H.z1) / 2, w: H.x1 - H.x0, d: H.z0 - H.z1, h: TY, edge: UB_EDGE });
+  out.push({ type: 'plateau', x: 0, z: tz, w: 2 * DR, d: 2 * DR, h: TY + DAIS_H, edge: 0.25 });
+  out.push({ type: 'plateau', x: 0, z: tz, w: 2 * DR, d: 2 * DR, h: TY + DAIS_H, ry: Math.PI / 4, edge: 0.25 });
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    out.push({ type: 'ramp', x0: dx * (DR + RAMP_RUN - 0.05), z0: tz + dz * (DR + RAMP_RUN - 0.05), x1: dx * (DR - 0.05), z1: tz + dz * (DR - 0.05), width: RAMP_W, h0: TY, h1: TY + DAIS_H, edge: 0.5 });
+  }
+  const T = THRONE.plat;
+  out.push({ type: 'plateau', x: (T.x0 + T.x1) / 2, z: (T.z0 + T.z1) / 2, w: T.x1 - T.x0, d: T.z0 - T.z1, h: T.top, edge: 0.25 });
+  out.push({ type: 'ramp', x0: 0, z0: -533, x1: 0, z1: T.z0 - 0.05, width: 4, h0: TY, h1: T.top, edge: 0.5 });
   return out;
 }
 
@@ -160,7 +265,7 @@ export const SHADOW_LOC = {
   planetColors: { sea: false, c: [0x2a1c34, 0x6a5a4e, 0xffc247, 0xffe3a8] }, atmo: 0xffc247,
   skyBody: { color: 0x000000, size: 0.1, pos: [0, -900, 0] }, // not drawn in an enclosed hall
   enemyNames: { grunt: 'Loyalist Legionary', rusher: 'War Beast', captain: 'Loyalist Centurion', heavy: 'Loyalist Colossus' },
-  zoneNames: ['The Imperial Baths', 'The Underbelly', 'The Pleasure Gardens'], missions: [],
+  zoneNames: ['The Imperial Baths', 'The Underbelly', 'The Pleasure Gardens', 'The Gauntlet', 'The Throne'], missions: [],
 };
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -749,14 +854,359 @@ function buildGardens(K) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
+// U23 chunk C drawing: the Gauntlet (z -298.5..-486, over the void) and the Throne hall (z -486..-558). Everything is VISUAL except the
+// corridor and last-landing walls, the alcove walls, the landing and hall cover, the hall walls and the hall columns. The stair tiles,
+// shield walls, wards and doors are built by the runtime: nothing here stands in their volumes.
+// ---------------------------------------------------------------------------------------------------------------------------------
+const CRIM = 0x8e1f2f;
+/** The Gauntlet's floor height at depth z (a straight climb from 11 to TY): used to hang banners and wall lamps at a sensible height. */
+const gtTop = (z) => Math.max(11, Math.min(TY, 11 + ((-306 - z) / 180) * (TY - 11)));
+const rndC = (i) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+
+/** A hanging lamp from a beam at height `ceil` (hangLamp assumes a ceiling at y 32). */
+function hangLampC(K, x, y, z, color, ceil, intensity = 8, dist = 30) {
+  cylv(K, x, (y + ceil) / 2, z, 0.06, 0.06, ceil - y, ST, {}, 5);
+  cylv(K, x, y, z, 0.5, 0.36, 0.8, ST2, {}, 8);
+  cylv(K, x, y + 0.5, z, 0.2, 0.5, 0.2, GOLDD, {}, 8);
+  vb(K, x, y - 0.1, z, 1, 1, 1, color, { geo: new THREE.IcosahedronGeometry(0.3, 0), glow: 2.2 });
+  lamp(K, x, y - 0.6, z, color, intensity, dist);
+}
+/** A gold stand with a flame bowl (visual only, no light). */
+function flameStand(K, x, y, z) {
+  cylv(K, x, y + 0.65, z, 0.3, 0.45, 1.3, GOLDD, {}, 8);
+  cylv(K, x, y + 1.5, z, 0.8, 0.4, 0.5, GOLD, { glow: 0.3 }, 8);
+  vb(K, x, y + 2.1, z, 1, 1, 1, 0xff9a2a, { geo: new THREE.ConeGeometry(0.5, 1.1, 5), glow: 2.2 });
+  vb(K, x, y + 1.95, z, 1, 1, 1, 0xffd870, { geo: new THREE.ConeGeometry(0.28, 0.8, 5), glow: 2.6 });
+}
+/** A low marble plinth block with a gold cap and a small urn: solid, 1.5 m tall (the urn is visual and stays under 2.3 m). */
+function plinthBlock(K, x, z, top) {
+  sol(K, x - 1.4, x + 1.4, top, top + 1.5, z - 0.9, z + 0.9, MARB2);
+  vb(K, x, top + 0.15, z, 3.1, 0.3, 2.1, MARB3);
+  vb(K, x, top + 1.55, z, 3.0, 0.1, 2.0, GOLD, { glow: 0.3 });
+  cylv(K, x, top + 1.85, z, 0.25, 0.42, 0.6, GOLDD, {}, 8);
+  vb(K, x, top + 1.95, z, 1, 1, 1, GOLDL, { geo: new THREE.IcosahedronGeometry(0.2, 0), glow: 1.2 });
+}
+/** A cluster of purple psychic crystal: one boulder and four faceted shards leaning away from x = 0 (visual only). */
+function crystalCluster(K, cx, cz, y0, seed, hMax) {
+  vb(K, cx, y0 + 0.5, cz, 1, 1, 1, VIOD, { geo: new THREE.IcosahedronGeometry(1.5 + rndC(seed) * 0.8, 0), glow: 0.6 });
+  const out = cx >= 0 ? -1 : 1;
+  for (let i = 0; i < 4; i++) {
+    const h = hMax * (0.45 + 0.55 * rndC(seed * 3 + i + 1)), w = 0.7 + rndC(seed * 7 + i) * 0.5;
+    const lean = out * (0.02 + 0.18 * rndC(seed + i * 5)), px = cx + (rndC(seed * 11 + i) - 0.5) * 3, pz = cz + (rndC(seed * 13 + i) - 0.5) * 1.6;
+    vb(K, px, y0 + (h / 2) * Math.cos(lean), pz, 1, 1, 1, i % 2 ? VIO : VIOD, { geo: new THREE.ConeGeometry(w, h, 5), rz: lean, glow: 0.8 });
+  }
+}
+
+function buildGauntlet(K) {
+  const zN = -486, zS = -298.5;
+  const C0 = GT_LAND.find((f) => f.id === 'gt_c0');
+
+  // ============================== the shaft: side walls, pilasters, banners, abyss ==============================
+  for (const s of [-1, 1]) {
+    vxs(K, ...(s > 0 ? [43, 45] : [-45, -43]), -30, 72, zN, zS, ST);
+    for (let y = -24; y < 72; y += 12) vxs(K, ...(s > 0 ? [42.9, 43] : [-43, -42.9]), y, y + 0.5, zN, zS, ST3);
+    for (let k = 0; k < 16; k++) {
+      const z = -304.5 - 12 * k;
+      vxs(K, ...(s > 0 ? [42.2, 43] : [-43, -42.2]), -30, 72, z - 0.8, z + 0.8, ST2);
+      for (const y of [18, 48]) vxs(K, ...(s > 0 ? [42.05, 43] : [-43, -42.05]), y, y + 0.7, z - 1.05, z + 1.05, GOLD, { glow: 0.3 });
+    }
+  }
+  // banners follow the climb; none beside a perch girder (perches sit on the side opposite the stair)
+  for (let k = 0; k < 15; k++) {
+    const z = -310.5 - 12 * k, s = k % 2 ? -1 : 1, y = gtTop(z) + 9;
+    const nearPerch = GT_PERCH.some((P) => Math.sign((P.x0 + P.x1) / 2) === s && Math.abs((P.z0 + P.z1) / 2 - z) < 4.5);
+    if (!nearPerch) banner(K, s * 42.8, y, z, 'x', 8);
+  }
+  // the south end (under the Gardens gate) and the north end (under and beside the Throne hall)
+  vxs(K, -45, 45, -30, 0, -300, -298, ST);
+  vxs(K, -3.5, 3.5, 0, GY - 1, -300, -298, ST);
+  vxs(K, -45, 45, -30, TY - 3.4, -490, -486, ST);
+  for (const s of [-1, 1]) vxs(K, ...(s > 0 ? [36, 45] : [-45, -36]), TY - 3.4, 72, -490, -486, ST);
+  vxs(K, -36, 36, TY + 24, 72, -490, -486, ST);
+  // the abyss: a dark floor far below with a faint violet lattice
+  vxs(K, -44, 44, -31, -30, zN, -298, ABYSS, { glow: 0.25 });
+  for (const x of [-30, -15, 0, 15, 30]) vxs(K, x - 0.2, x + 0.2, -30, -29.95, zN, -298, VIOD, { glow: 1.2 });
+
+  // ============================== landings: decks, girders, runners ==============================
+  for (const L of GT_LAND) {
+    ubDeck(K, L);
+    if (L.id !== 'gt_alc') {
+      ubGirders(K, L);
+      vxs(K, -1.7, 1.7, L.top, L.top + 0.04, L.z1 + (L.id === 'gt_l4' ? 0.3 : 1), L.z0 - 0.3, PURP);
+      for (const s of [-1, 1]) vxs(K, s * 1.7 - 0.06, s * 1.7 + 0.06, L.top, L.top + 0.05, L.z1 + (L.id === 'gt_l4' ? 0.3 : 1), L.z0 - 0.3, GOLD, { glow: 0.3 });
+    }
+  }
+
+  // ============================== corridor gt_c0 ==============================
+  for (const s of [-1, 1]) {
+    sol(K, ...(s > 0 ? [4, 4.8] : [-4.8, -4]), 11, 19, C0.z1, C0.z0, ST2);
+    vxs(K, ...(s > 0 ? [3.9, 4] : [-4, -3.9]), 17.6, 18, C0.z1, C0.z0, GOLD, { glow: 0.3 });
+    vxs(K, ...(s > 0 ? [3.94, 4] : [-4, -3.94]), 12, 13, C0.z1, C0.z0, PURP2);
+  }
+  vxs(K, -4.8, 4.8, 19, 19.5, C0.z1, C0.z0, ST3);
+  vxs(K, -4, 4, 18.9, 19, C0.z1, C0.z0, VIOD, { glow: 1.2 });
+  lamp(K, 0, 16, -302, GOLDL, 8, 22);
+
+  // ============================== landing cover (gt_l0..gt_l3): 3 solid pieces each, 1.5 m or lower ==============================
+  GT_LAND.filter((f) => f.id.startsWith('gt_l') && f.id !== 'gt_l4').forEach((L, i) => {
+    const Lc = lifted(K, L.top), zs = L.z0 - 3.2, zm = (L.z0 + L.z1) / 2;
+    planter(Lc, -8, zs);
+    planter(Lc, 8, zs);
+    if (i % 2 === 0) plinthBlock(K, 0, zm, L.top); else bench(Lc, 0, zm);
+  });
+
+  // ============================== hanging lamps on cross beams over each landing ==============================
+  for (const L of GT_LAND.filter((f) => f.id.startsWith('gt_l') && f.id !== 'gt_alc')) {
+    const zm = (L.z0 + L.z1) / 2, by = L.top + 12;
+    vxs(K, -43, 43, by - 0.45, by + 0.45, zm - 0.6, zm + 0.6, ST2);
+    vxs(K, -43, 43, by - 0.5, by - 0.45, zm - 0.6, zm + 0.6, GOLD, { glow: 0.3 });
+    for (const x of [-12, 12]) vxs(K, x - 0.3, x + 0.3, by - 0.8, by - 0.45, zm - 0.7, zm + 0.7, GOLDD);
+    hangLampC(K, 0, L.top + 7, zm, L.id === 'gt_l4' ? GOLDL : VIO, by - 0.45, L.id === 'gt_l4' ? 9 : 8, 30);
+  }
+
+  // ============================== wall lamps beside each stair ==============================
+  GT_ROWS.forEach((L, r) => {
+    const s = r % 2 ? 1 : -1, z = L.z1 - 8, y = L.top + 10;
+    vb(K, s * 42.4, y, z, 0.6, 0.4, 0.5, GOLDD);
+    vb(K, s * 41.9, y, z, 1, 1, 1, AMBER, { geo: new THREE.IcosahedronGeometry(0.35, 0), glow: 2.2 });
+    lamp(K, s * 40.5, y, z, AMBER, 9, 34);
+  });
+
+  // ============================== perches: steel shelf, gold rim, a girder to the wall, chains up ==============================
+  for (const P of GT_PERCH) {
+    const px = (P.x0 + P.x1) / 2, pz = (P.z0 + P.z1) / 2, s = px > 0 ? 1 : -1, top = P.top;
+    vxs(K, P.x0, P.x1, top - 0.5, top, P.z1, P.z0, ST2);
+    vxs(K, P.x0, P.x1, top, top + 0.04, P.z1, P.z1 + 0.2, GOLD, { glow: 0.3 });
+    vxs(K, P.x0, P.x1, top, top + 0.04, P.z0 - 0.2, P.z0, GOLD, { glow: 0.3 });
+    vxs(K, P.x0, P.x0 + 0.2, top, top + 0.04, P.z1, P.z0, GOLD, { glow: 0.3 });
+    vxs(K, P.x1 - 0.2, P.x1, top, top + 0.04, P.z1, P.z0, GOLD, { glow: 0.3 });
+    const gx0 = s > 0 ? P.x0 : -43, gx1 = s > 0 ? 43 : P.x1;
+    vxs(K, gx0, gx1, top - 1.5, top - 0.5, pz - 0.4, pz + 0.4, ST);
+    vxs(K, gx0, gx1, top - 1.55, top - 1.5, pz - 0.4, pz + 0.4, VIOD, { glow: 1.2 });
+    const ax = s * 43, ay = top - 8, bx = px, by = top - 1.5, len = Math.hypot(bx - ax, by - ay);
+    vb(K, (ax + bx) / 2, (ay + by) / 2, pz, len, 0.4, 0.5, ST, { rz: Math.atan2(by - ay, bx - ax) });
+    vb(K, ax - s * 0.2, ay, pz, 0.6, 0.8, 1.0, GOLDD);
+    // chains up to a beam that is bolted to the wall
+    vxs(K, ...(s > 0 ? [P.x0 - 0.5, 43] : [-43, P.x1 + 0.5]), top + 7.5, top + 8.3, pz - 0.5, pz + 0.5, ST2);
+    for (const x of [P.x0 + 0.3, P.x1 - 0.3]) cylv(K, x, top + 3.75, pz, 0.05, 0.05, 7.5, ST3, {}, 4);
+    for (const x of [P.x0 + 0.3, P.x1 - 0.3]) vb(K, x, top + 7.2, pz, 0.3, 0.3, 0.3, GOLD, { glow: 0.3 });
+  }
+
+  // ============================== the last landing gt_l4: walls, the alcove and the way into the Throne ==============================
+  const T = TY;
+  wallRun(K, 'z', -8.4, -486, -472, T, T + 8, 0.8, ST2);
+  wallRun(K, 'z', 8.4, -486, -472, T, T + 8, 0.8, ST2, [{ a: -483.5, b: -478.5, top: T + 8 }]);
+  for (const s of [-1, 1]) {
+    vxs(K, ...(s > 0 ? [7.9, 9] : [-9, -7.9]), T + 8, T + 8.4, -486, -472, GOLD, { glow: 0.3 });
+    vxs(K, ...(s > 0 ? [7.95, 8] : [-8, -7.95]), T + 6.2, T + 6.5, -486, -472, GOLD, { glow: 0.3 });
+    vxs(K, ...(s > 0 ? [7.95, 8] : [-8, -7.95]), T + 0.3, T + 0.9, -486, -472, PURP2);
+    flameStand(K, s * 6.4, T, -474.2);
+  }
+  vxs(K, 8, 8.8, T + 4.6, T + 8, -483.5, -478.5, ST2); // above the hidden door
+  vxs(K, 8, 8.8, T + 8, T + 8.4, -483.5, -478.5, GOLD, { glow: 0.3 });
+  banner(K, -7.85, T + 4.5, -475.5, 'x', 5.5);
+  banner(K, -7.85, T + 4.5, -482.5, 'x', 5.5);
+  banner(K, 7.85, T + 4.5, -474.5, 'x', 5.5);
+  // the north end of the landing: the Throne's front, seen from the Gauntlet (frame round the opening, banners beside it)
+  for (const s of [-1, 1]) {
+    vb(K, s * 4.6, T + 4.8, -485.6, 1.2, 9.6, 0.8, GOLD, { glow: 0.3 });
+    vb(K, s * 4.6, T + 0.45, -485.6, 1.8, 0.9, 1.2, MARB3);
+    for (let i = 0; i < 4; i++) vb(K, s * 4.6, T + 1.8 + i * 1.8, -485.15, 0.5, 0.5, 0.2, GOLDL, { glow: 0.9, ry: Math.PI / 4 });
+  }
+  vb(K, 0, T + 9.7, -485.6, 11.6, 1.2, 1.0, GOLD, { glow: 0.3 });
+  vb(K, 0, T + 10.8, -485.6, 8, 0.9, 0.9, MARB3);
+  vb(K, 0, T + 12.0, -485.1, 1.5, 1.5, 0.3, GOLDL, { glow: 1.4, ry: Math.PI / 4 });
+  for (const x of [-14, 14, -26, 26]) banner(K, x, T + 13, -485.85, 'z', 12);
+
+  // the hidden alcove (door at x 8.4): gold and purple, nothing taller than 0.3 m near the chest at (10.6, -481)
+  sol(K, 8, 13.2, T, T + 5, -485.2, -484.5, ST2);
+  sol(K, 8, 13.2, T, T + 5, -477.5, -476.8, ST2);
+  sol(K, 12.5, 13.2, T, T + 5, -485.2, -476.8, ST2);
+  vxs(K, 8, 13.2, T + 5, T + 5.4, -485.2, -476.8, ST);
+  vxs(K, 8.8, 12.5, T + 4.94, T + 5, -484.5, -477.5, VIOD, { glow: 1.4 });
+  vxs(K, 8, 13.2, T + 5.4, T + 5.6, -485.4, -476.6, GOLD, { glow: 0.3 });
+  vxs(K, 9.2, 12.3, T, T + 0.03, -483.1, -478.9, PURP);
+  vxs(K, 9.1, 12.4, T, T + 0.04, -483.2, -483.0, GOLD, { glow: 0.3 });
+  vxs(K, 9.1, 12.4, T, T + 0.04, -479, -478.8, GOLD, { glow: 0.3 });
+  vxs(K, 9.1, 9.3, T, T + 0.04, -483.2, -478.8, GOLD, { glow: 0.3 });
+  vxs(K, 12.2, 12.4, T, T + 0.04, -483.2, -478.8, GOLD, { glow: 0.3 });
+  vxs(K, 12.4, 12.5, T + 0.8, T + 4.0, -483.6, -478.4, PURP2);
+  vxs(K, 12.38, 12.5, T + 0.7, T + 0.9, -483.8, -478.2, GOLD, { glow: 0.3 });
+  vxs(K, 12.38, 12.5, T + 3.9, T + 4.1, -483.8, -478.2, GOLD, { glow: 0.3 });
+  vb(K, 12.3, T + 2.4, -481, 0.12, 1.4, 1.4, GOLDL, { glow: 1.3, rx: Math.PI / 4 });
+  for (const [za, zb] of [[-484.5, -484.4], [-477.6, -477.5]]) {
+    vxs(K, 9, 12.5, T + 4.6, T + 4.9, za, zb, GOLD, { glow: 0.3 });
+    vxs(K, 9.4, 10, T, T + 4.6, za, zb, PURP2);
+  }
+  for (const z of [-484, -478]) {
+    cylv(K, 12.0, T + 0.5, z, 0.35, 0.5, 1.0, GOLDD, {}, 8);
+    cylv(K, 12.0, T + 1.1, z, 0.55, 0.35, 0.3, GOLD, { glow: 0.3 }, 8);
+    vb(K, 12.0, T + 1.45, z, 1, 1, 1, VIO, { geo: new THREE.IcosahedronGeometry(0.28, 0), glow: 1.6 });
+  }
+}
+
+/** The octagonal dais at (0, y, z): the Baths' dais code (marble drum, gold rings, sun inlay, four step-ramps) offset by (y, z). */
+function daisAt(K, y, tz) {
+  const ro = DR / Math.cos(Math.PI / 8);
+  vb(K, 0, y + DAIS_H / 2 + 0.02, tz, 1, 1, 1, MARB, { geo: new THREE.CylinderGeometry(ro, ro, DAIS_H + 0.04, 8).rotateY(Math.PI / 8), shadow: true });
+  vb(K, 0, y + DAIS_H + 0.04, tz, 1, 1, 1, GOLD, { geo: new THREE.CylinderGeometry(6.1, 6.1, 0.05, 8).rotateY(Math.PI / 8), glow: 0.3 });
+  vb(K, 0, y + DAIS_H + 0.07, tz, 1, 1, 1, MARB2, { geo: new THREE.CylinderGeometry(5.5, 5.5, 0.05, 8).rotateY(Math.PI / 8) });
+  for (let k = 0; k < 8; k++) vb(K, 0, y + DAIS_H + 0.1, tz, 5, 0.04, 0.5, GOLDL, { ry: (k * Math.PI) / 4, glow: 0.7 });
+  vb(K, 0, y + DAIS_H + 0.1, tz, 1, 1, 1, GOLDL, { geo: new THREE.CylinderGeometry(1.2, 1.2, 0.06, 12), glow: 0.9 });
+  vb(K, 0, y + DAIS_H - 0.1, tz, 1, 1, 1, GOLD, { geo: new THREE.CylinderGeometry(ro + 0.12, ro + 0.12, 0.2, 8).rotateY(Math.PI / 8), glow: 0.3 });
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const x0 = dx * (DR + RAMP_RUN - 0.05), z0 = dz * (DR + RAMP_RUN - 0.05), x1 = dx * (DR - 0.05), z1 = dz * (DR - 0.05);
+    const len = Math.hypot(x1 - x0, z1 - z0), rise = DAIS_H, pitch = Math.atan2(rise, len), L = Math.hypot(len, rise);
+    const yaw = Math.atan2(-(z1 - z0), x1 - x0), th = 0.5;
+    vb(K, (x0 + x1) / 2, y + rise / 2 - (Math.cos(pitch) * th) / 2 + 0.02, tz + (z0 + z1) / 2, L, th, RAMP_W, MARB, { ry: yaw, rz: pitch, shadow: true });
+    for (const s of [-1, 1]) vb(K, (x0 + x1) / 2 + Math.sin(yaw) * s * (RAMP_W / 2), y + rise / 2 + 0.07, tz + (z0 + z1) / 2 + Math.cos(yaw) * s * (RAMP_W / 2), L, 0.1, 0.2, GOLD, { ry: yaw, rz: pitch, glow: 0.3 });
+  }
+}
+
+function buildThrone(K) {
+  const Lt = lifted(K, TY), tz = THRONE.daisZ, P = THRONE.plat, CY = TY + 24;
+
+  // ============================== floor: a marble slab (top exactly TY) with a faint checker and gold inlays ==============================
+  vxs(K, -36, 36, TY - 3, TY, -558, -486, MARB);
+  vxs(K, -36, 36, TY - 3.4, TY - 3, -558, -486, GOLD, { glow: 0.3 });
+  vxs(K, -34, 34, TY - 3.04, TY - 3, -556, -488, VIOD, { glow: 1.0 });
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) if ((i + j) % 2) vxs(K, -34 + i * 8.5, -25.5 + i * 8.5, TY, TY + 0.012, -488 - j * 8.5, -496.5 - j * 8.5, MARB2);
+  for (const [x0, x1, z0, z1] of [[-33.2, 33.2, -489.2, -488.8], [-33.2, 33.2, -555.2, -554.8], [-33.2, -32.8, -555.2, -488.8], [32.8, 33.2, -555.2, -488.8]]) vxs(K, x0, x1, TY, TY + 0.03, z0, z1, GOLD, { glow: 0.3 });
+  for (const r of [[10.4, 10.9], [15, 15.4]]) vb(K, 0, TY + 0.015, tz, 1, 1, 1, GOLD, { geo: new THREE.RingGeometry(r[0], r[1], 36).rotateX(-Math.PI / 2), glow: 0.3 });
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) vb(K, sx * 20, TY + 0.02, tz + sz * 20, 11, 0.02, 0.35, GOLD, { ry: sx * sz > 0 ? -Math.PI / 4 : Math.PI / 4, glow: 0.25 });
+  // runners: purple with a crimson stripe and gold edges, from the doorway to the dais, from the dais to the throne ramp, and up the platform
+  for (const [za, zb, y] of [[-506, -488, TY], [-533, -526, TY], [-546, -540, TY + 3]]) {
+    vxs(K, -1.7, 1.7, y, y + 0.04, za, zb, PURP);
+    for (const s of [-1, 1]) {
+      vxs(K, s * 1.7 - 0.12, s * 1.7 + 0.12, y, y + 0.05, za, zb, GOLD, { glow: 0.3 });
+      vxs(K, s * 1.3 - 0.1, s * 1.3 + 0.1, y, y + 0.045, za, zb, CRIM);
+    }
+  }
+
+  // ============================== walls (solid), gold cornice, columns, banners, drapes ==============================
+  wallRun(K, 'z', -35, -556, -486, TY, CY, 2, MARB);
+  wallRun(K, 'z', 35, -556, -486, TY, CY, 2, MARB);
+  wallRun(K, 'x', -557, -36, 36, TY, CY, 2, MARB);
+  wallRun(K, 'x', -487, -36, 36, TY, CY, 2, MARB, [{ a: -4, b: 4, top: TY + 9 }]);
+  for (const [x0, x1, z0, z1] of [[-34, -33, -556, -488], [33, 34, -556, -488], [-34, 34, -556, -555], [-34, -4, -489, -488], [4, 34, -489, -488]]) vxs(K, x0, x1, TY + 20.4, TY + 21.6, z0, z1, GOLD, { glow: 0.3 });
+  for (const s of [-1, 1]) vxs(K, ...(s > 0 ? [33.85, 34] : [-34, -33.85]), TY + 19.6, TY + 20, -556, -488, CRIM, { glow: 0.2 });
+  // the doorway into the hall: a gold frame on both faces of the south wall
+  for (const zf of [-488.4]) {
+    for (const s of [-1, 1]) {
+      vb(K, s * 4.6, TY + 4.8, zf, 1.2, 9.6, 1.0, GOLD, { glow: 0.3 });
+      vb(K, s * 4.6, TY + 0.45, zf, 1.8, 0.9, 1.4, MARB3);
+      for (let i = 0; i < 4; i++) vb(K, s * 4.6, TY + 1.8 + i * 1.8, zf - 0.55, 0.5, 0.5, 0.2, GOLDL, { glow: 0.9, ry: Math.PI / 4 });
+    }
+    vb(K, 0, TY + 9.7, zf, 11.6, 1.2, 1.0, GOLD, { glow: 0.3 });
+    vb(K, 0, TY + 10.8, zf, 8, 0.9, 0.9, MARB3);
+    vb(K, 0, TY + 12.0, zf - 0.5, 1.5, 1.5, 0.3, GOLDL, { glow: 1.4, ry: Math.PI / 4 });
+  }
+  for (const z of [-494, -506, -518, -530, -542]) for (const s of [-1, 1]) column(Lt, s * 32.9, z, 24);
+  for (const z of [-500, -512, -524, -536, -548]) {
+    for (const s of [-1, 1]) {
+      banner(Lt, s * 33.7, 11, z, 'x', 10);
+      vb(K, s * 33.8, TY + 18.7, z, 0.2, 2.6, 8.4, CRIM);
+      vb(K, s * 33.75, TY + 17.5, z, 0.3, 0.2, 8.6, GOLD, { glow: 0.3 });
+    }
+  }
+
+  // ============================== coffered ceiling, gold chandelier ring, light shaft ==============================
+  vxs(K, -36, 36, CY, CY + 2, -558, -486, MARB2).castShadow = false;
+  for (const x of [-27, -18, -9, 0, 9, 18, 27]) {
+    vxs(K, x - 0.3, x + 0.3, CY - 1.2, CY, -556, -488, MARB3);
+    vxs(K, x - 0.12, x + 0.12, CY - 1.24, CY - 1.2, -556, -488, GOLD, { glow: 0.3 });
+  }
+  for (const z of [-497, -506, -515, -524, -533, -542, -551]) {
+    vxs(K, -34, 34, CY - 1.2, CY, z - 0.3, z + 0.3, MARB3);
+    vxs(K, -34, 34, CY - 1.24, CY - 1.2, z - 0.12, z + 0.12, GOLD, { glow: 0.3 });
+  }
+  vb(K, 0, CY - 0.3, tz, 1, 1, 1, MARB3, { geo: new THREE.CylinderGeometry(12, 12, 0.6, 24) });
+  vb(K, 0, CY - 0.04, tz, 1, 1, 1, 0xffe2a0, { geo: new THREE.CircleGeometry(7.4, 28).rotateX(Math.PI / 2), glow: 2.0 });
+  for (let k = 0; k < 16; k++) { const a = (k * Math.PI) / 8; vb(K, Math.cos(a) * 9.5, CY - 0.62, tz + Math.sin(a) * 9.5, 4, 0.16, 0.5, GOLDL, { ry: -a, glow: 0.8 }); }
+  ringv(K, 0, TY + 18, tz, 8, 0.45, GOLD, { glow: 0.5 });
+  ringv(K, 0, TY + 18.4, tz, 5, 0.3, GOLDL, { glow: 0.8 });
+  for (let k = 0; k < 12; k++) { const a = (k * Math.PI) / 6; vb(K, Math.cos(a) * 8, TY + 18.6, tz + Math.sin(a) * 8, 1, 1, 1, 0xffe2a0, { geo: new THREE.IcosahedronGeometry(0.35, 0), glow: 2.2 }); }
+  for (const [cx, cz] of [[8, 0], [-8, 0], [0, 8], [0, -8]]) cylv(K, cx, (TY + 18 + CY) / 2, tz + cz, 0.08, 0.08, CY - TY - 18, ST, {}, 5);
+  fx(K, new THREE.CylinderGeometry(7.2, 11, 24, 20, 1, true), 0xffe0a0, 0.09, 0, TY + 12, tz, { add: true });
+
+  // ============================== the dais ==============================
+  daisAt(K, TY, tz);
+
+  // ============================== the throne platform, its ramp and the throne ==============================
+  vxs(K, P.x0, P.x1, TY, P.top, P.z1, P.z0, MARB);
+  vxs(K, P.x0 - 0.2, P.x1 + 0.2, TY, TY + 0.7, P.z1, P.z0 + 0.2, MARB3);
+  vxs(K, P.x0 - 0.1, P.x1 + 0.1, TY + 2.2, TY + 2.6, P.z1, P.z0 + 0.1, GOLD, { glow: 0.3 });
+  vxs(K, P.x0, P.x1, P.top, P.top + 0.04, P.z0 - 0.35, P.z0, GOLD, { glow: 0.3 });
+  vxs(K, P.x0, P.x1, P.top, P.top + 0.04, P.z1, P.z1 + 0.35, GOLD, { glow: 0.3 });
+  vxs(K, P.x0, P.x0 + 0.35, P.top, P.top + 0.04, P.z1, P.z0, GOLD, { glow: 0.3 });
+  vxs(K, P.x1 - 0.35, P.x1, P.top, P.top + 0.04, P.z1, P.z0, GOLD, { glow: 0.3 });
+  rampSlab(K, 0, -533, 0, P.z0 - 0.05, TY, P.top, 4, 3.2, MARB);
+  // the seat (behind z -549.7: Calus's space in front of it stays empty), purple cushions, a huge gold crescent back, gold sphere finials
+  const sz0 = -552.4, sz1 = -549.7;
+  vxs(K, -3.8, 3.8, P.top, P.top + 0.7, sz0, sz1, GOLD, { glow: 0.2 });
+  vxs(K, -3.2, 3.2, P.top + 0.7, P.top + 1.5, sz0, sz1 - 0.3, MARB);
+  vxs(K, -2.9, 2.9, P.top + 1.5, P.top + 1.95, sz0 + 0.1, sz1 - 0.5, PURP, { glow: 0.1 });
+  vxs(K, -2.6, 2.6, P.top + 1.95, P.top + 5.6, sz0, sz0 + 0.7, PURP2);
+  vxs(K, -2.6, 2.6, P.top + 5.6, P.top + 5.8, sz0 - 0.05, sz0 + 0.75, GOLD, { glow: 0.3 });
+  for (const s of [-1, 1]) {
+    vxs(K, ...(s > 0 ? [3.2, 4.0] : [-4.0, -3.2]), P.top + 0.7, P.top + 2.2, sz0, sz1, GOLD, { glow: 0.2 });
+    vb(K, s * 3.6, P.top + 2.5, sz1 - 0.2, 1, 1, 1, GOLDL, { geo: new THREE.IcosahedronGeometry(0.38, 1), glow: 1.0 });
+    vxs(K, ...(s > 0 ? [3.2, 3.4] : [-3.4, -3.2]), P.top + 0.7, P.top + 1.6, sz1 - 0.05, sz1 + 0.02, CRIM);
+  }
+  const cx0 = 0, cy0 = TY + 4, cz0 = -552.7;
+  for (let i = 0; i < 13; i++) {
+    const th = ((-66 + 11 * i) * Math.PI) / 180, R = 6.8 + 1.2 * (1 - Math.abs(th) / (66 * Math.PI / 180)), rin = 3.2, rm = (R + rin) / 2;
+    vb(K, cx0 + rm * Math.sin(th), cy0 + rm * Math.cos(th), cz0, 0.55, R - rin, 0.5, GOLD, { rz: -th, glow: 0.35 });
+    vb(K, cx0 + (R + 0.3) * Math.sin(th), cy0 + (R + 0.3) * Math.cos(th), cz0, 1, 1, 1, GOLDL, { geo: new THREE.IcosahedronGeometry(0.4, 1), glow: 1.1 });
+  }
+  const arc = 2.5;
+  vb(K, cx0, cy0, cz0, 1, 1, 1, GOLD, { geo: new THREE.TorusGeometry(8.3, 0.3, 5, 28, arc), rz: Math.PI / 2 - arc / 2, glow: 0.4 });
+  vb(K, cx0, cy0, cz0, 1, 1, 1, GOLDD, { geo: new THREE.TorusGeometry(3.0, 0.25, 5, 28, arc), rz: Math.PI / 2 - arc / 2, glow: 0.3 });
+  vb(K, cx0, cy0 + 0.2, cz0 + 0.1, 1, 1, 1, 0xff4a5a, { geo: new THREE.IcosahedronGeometry(0.5, 0), glow: 1.6 }); // a crimson jewel at the crescent's heart
+
+  // ============================== psychic crystal against the north wall (the board's wall area x -7..7, y +8..+18 stays clear) ==============================
+  let seed = 1;
+  for (const s of [-1, 1]) {
+    for (const [x, z, h] of [[11, -552.5, 14], [16, -553.5, 18], [22, -553, 12], [28, -552.5, 16], [32.2, -550, 14]]) crystalCluster(K, s * x, z, TY, seed++, h);
+    crystalCluster(K, s * 4.5, -554.6, TY, seed++, 6);
+  }
+
+  // ============================== lantern brackets: a gold pedestal ending 2 m under each lantern ==============================
+  for (const [lx, , lz] of THRONE.lanterns) {
+    vb(K, lx, TY + 0.25, lz, 1.8, 0.5, 1.8, MARB3);
+    cylv(K, lx, TY + 1.8, lz, 0.3, 0.42, 2.6, GOLD, { glow: 0.2 }, 8);
+    cylv(K, lx, TY + 1.3, lz, 0.55, 0.55, 0.2, GOLDD, {}, 8);
+    cylv(K, lx, TY + 3.65, lz, 0.75, 0.32, 0.5, GOLD, { glow: 0.3 }, 10);
+  }
+
+  // ============================== cover: 8 solid pieces, all under 2.2 m, clear of the dais, the ramps and the taster spots ==============================
+  for (const s of [-1, 1]) {
+    planter(Lt, s * 17, -508);
+    planter(Lt, s * 17, -524);
+    bench(Lt, s * 24, -516, true);
+    plinthBlock(K, s * 12, -534, TY);
+  }
+
+  // ============================== lights (8) ==============================
+  lamp(K, 0, TY + 16, tz, GOLDL, 16, 56);
+  for (const s of [-1, 1]) {
+    lamp(K, s * 14, TY + 9, -550, VIO, 8, 30);
+    lamp(K, s * 30, TY + 10, -520, 0xffd890, 8, 34);
+    lamp(K, s * 20, TY + 10, -496, GOLDL, 8, 30);
+  }
+  lamp(K, 0, TY + 8, -491, GOLDL, 7, 24);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
 // The set
 // ---------------------------------------------------------------------------------------------------------------------------------
 const SHADOW = {
   spawn: [0, 58],
-  bounds: [-54, 54, -302, 67],
+  bounds: [-54, 54, -562, 67],
   zones: [],
   terrain: terrainFeatures(),
   noEdge: true, rim: 0, merge: true, hideBulbs: true, lightPool: 8, lockIn: false,
+  mergeCell: 96, mergeMin: 2, mergeStatic: true, // U23 chunk C perf: a long, sparse dungeon merges in bigger chunks, pairs too, and its walls' looks
   build(K) {
     // the terrain mesh is not wanted: the floor, dais and ramps are drawn to match their terrain exactly
     for (const o of K.scene.children.slice()) if (o.isMesh && o.material?.vertexColors && o.geometry?.attributes?.color) { K.scene.remove(o); o.geometry.dispose(); }
@@ -885,6 +1335,9 @@ const SHADOW = {
     // U23 chunk B: the Underbelly (z -38..-207) and the Pleasure Gardens (z -207..-300)
     buildUnderbelly(K);
     buildGardens(K);
+    // U23 chunk C: the Gauntlet (z -298.5..-486) and the Throne hall (z -486..-558)
+    buildGauntlet(K);
+    buildThrone(K);
   },
 };
 

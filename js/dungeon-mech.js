@@ -13,7 +13,9 @@ const _w = new THREE.Vector3();
 
 let targets = []; // shootable meshes right now (lowered censers)
 /** Read by getHitTargets (game.js). */
-export const dungeonTargets = () => targets;
+let extraTargets = []; // U23 chunk C: the Throne's Thought Lanterns (direct hits only; explosions never offer one)
+export const dungeonTargets = () => (extraTargets.length ? targets.concat(extraTargets) : targets);
+export function setExtraTargets(list) { extraTargets = list; G.hitDirty = true; }
 /** An explosion strikes the nearest live censer within its radius (one only). */
 export function dungeonSplash(pos, radius) {
   let best = null, bd = Infinity;

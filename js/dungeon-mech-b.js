@@ -13,6 +13,7 @@ import { pointInColliders } from './physics.js';
 import { moverState, moverBox } from './exotic-rules.js';
 import { drawSigil } from './dungeon-mech.js';
 import { GRATE_T } from './level-shadow.js';
+import { mergeGeometries } from './enemy-merge.js';
 
 const GOLD = 0xd9a520, GOLDL = 0xffc247, PURP = 0x8a3cff, OK = '#ffd24d', BAD = '#ff3a2a';
 const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
@@ -29,7 +30,7 @@ function addCol(col) { G.colliders.push(col); G.hitDirty = true; return col; }
 function dropCol(col) { const k = G.colliders.indexOf(col); if (k >= 0) G.colliders.splice(k, 1); }
 
 /** A gold door filling a wall opening (axis 'x': spans x; 'z': spans z). Raised when open, like the Baths' gate. */
-function buildDoor(spec, root, color = GOLD) {
+export function buildDoor(spec, root, color = GOLD) {
   const { p, w, h } = spec, alongX = spec.axis !== 'z';
   const door = new THREE.Mesh(alongX ? new THREE.BoxGeometry(w, h, 0.6) : new THREE.BoxGeometry(0.6, h, w), std(color, { emissive: 0x2a1a04, emissiveIntensity: 0.3 }));
   door.position.set(p[0], p[1] + h / 2, p[2]);
@@ -48,7 +49,7 @@ export function setDoor(d, open) {
   else { if (!G.colliders.includes(d.col)) G.colliders.push(d.col); if (j < 0) G.staticMeshes.push(d.door); d.door.position.y = d.y0; }
   G.hitDirty = true;
 }
-function stepDoor(d, dt) {
+export function stepDoor(d, dt) {
   if (!d) return;
   const goal = d.y0 + (d.open ? d.h : 0), y = d.door.position.y;
   if (Math.abs(y - goal) > 0.01) d.door.position.y += Math.sign(goal - y) * Math.min(Math.abs(goal - y), dt * 3);
@@ -67,11 +68,16 @@ export function buildUnderbellyMech(seg) {
   for (const g of seg.grates) {
     const w = g.x1 - g.x0, d = Math.abs(g.z0 - g.z1), cx = (g.x0 + g.x1) / 2, cz = (g.z0 + g.z1) / 2;
     const grp = new THREE.Group(); grp.position.set(cx, g.top - GRATE_T / 2, cz);
-    const slab = new THREE.Group();
+    // U23 chunk C perf: the bars, rails and cross wires are one merged mesh per grate (was one mesh per bar)
+    const parts = [];
+    const bar = (bw, bh, bd, x, y, z) => parts.push({ geo: new THREE.BoxGeometry(bw, bh, bd).translate(x, y, z) });
     const bars = Math.max(3, Math.round(w / 0.5));
-    for (let i = 0; i <= bars; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, GRATE_T, d), gMat); b.position.x = -w / 2 + (i / bars) * w; slab.add(b); }
-    for (const s of [-1, 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, GRATE_T, 0.12), gMat); b.position.z = (s * d) / 2; slab.add(b); }
-    for (let k = 1; k < Math.round(d / 1); k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, 0.06), gMat); b.position.set(0, GRATE_T / 2 - 0.03, -d / 2 + k); slab.add(b); }
+    for (let i = 0; i <= bars; i++) bar(0.08, GRATE_T, d, -w / 2 + (i / bars) * w, 0, 0);
+    for (const s of [-1, 1]) bar(w, GRATE_T, 0.12, 0, 0, (s * d) / 2);
+    for (let k = 1; k < Math.round(d / 1); k++) bar(w, 0.06, 0.06, 0, GRATE_T / 2 - 0.03, -d / 2 + k);
+    const slabGeo = mergeGeometries(parts); parts.forEach((p) => p.geo.dispose());
+    const slab = new THREE.Group();
+    slab.add(new THREE.Mesh(slabGeo, gMat));
     const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, GRATE_T, d)), ghost); // where the grate will be
     grp.add(slab, outline);
     root.add(grp);
@@ -182,7 +188,7 @@ export function leverAt(U, pos) {
 
 const _pv = new THREE.Vector3();
 /** The player's body inside a piston's box: carried ahead of its face with an outward kick (or behind it), never left inside a solid. */
-function pushOut(m, b, P, onTrapped) {
+export function pushOut(m, b, P, onTrapped) {
   const r = P.radius ?? 0.4, h = P.height ?? 1.8, ai = m.spec.axis === 'x' ? 0 : 2;
   if (P.pos.x + r <= b.min[0] || P.pos.x - r >= b.max[0] || P.pos.z + r <= b.min[2] || P.pos.z - r >= b.max[2] || P.pos.y + h <= b.min[1] || P.pos.y >= b.max[1]) return false;
   const key = ai === 0 ? 'x' : 'z', sgn = Math.sign(m.spec.travel), mid = (b.min[ai] + b.max[ai]) / 2;

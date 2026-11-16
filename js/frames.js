@@ -15,9 +15,9 @@ export const FRAMES = {
     highimpact: { name: 'High-Impact Frame', desc: 'Slow-firing, hard-hitting, with a long reach.', stats: { rpm: 0.6, dmg: 1.62, range: 1.2, mag: 0.85 }, handling: { mult: { recoil: 1.4 } } },
   },
   hand: {
-    aggressive: { name: 'Aggressive Frame', desc: 'High damage, heavy recoil.', stats: { rpm: 0.857, dmg: 1.2, range: 1.05, mag: 0.8 }, handling: { mult: { recoil: 1.25 }, set: { recoilTweak: { flip: 3.8, roll: 0.05, push: 2.6, angle: 17 } } } },
+    aggressive: { name: 'Aggressive Frame', desc: 'High damage, heavy recoil.', stats: { rpm: 0.857, dmg: 1.2, range: 1.05, mag: 0.8 }, handling: { mult: { recoil: 1.25 }, set: { recoilTweak: { flip: 3.2, roll: 0.08, push: 2.1, angle: 23 } } } },
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced damage and rate of fire.', stats: {} },
-    precision: { name: 'Precision Frame', desc: 'Recoil pattern is predictable and kicks straight up. Fires faster.', stats: { rpm: 1.286, dmg: 0.78, range: 0.95, mag: 1.15 }, handling: { mult: { recoil: 0.75 }, set: { recoilTweak: { angle: 0, jitter: 1.5, roll: 0.02, flip: 2.4 } } } },
+    precision: { name: 'Precision Frame', desc: 'Recoil pattern is predictable and kicks straight up. Fires faster.', stats: { rpm: 1.286, dmg: 0.78, range: 0.95, mag: 1.15 }, handling: { mult: { recoil: 0.75 }, set: { recoilTweak: { angle: 0, jitter: 1.5, roll: 0, flip: 2.2 } } } },
     lightweight: { name: 'Lightweight Frame', desc: 'Superior mobility while this weapon is held.', stats: { rpm: 1.07, dmg: 0.93, range: 0.95 }, handling: { set: { move: 1.06 } } },
   },
   pulse: {

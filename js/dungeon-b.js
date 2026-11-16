@@ -20,7 +20,7 @@ import {
 import { removeChalice } from './dungeon-mech.js';
 import {
   watchYaw, inCone, awareStep, sectionOutcome, hurtAlarm, beastAt, beastLoop, flowerCount, pickFlowers, newLevers, pullLever, downStep,
-  DpsBossFsm, cappedHit, leashStep, inRegion, SIGIL_NAMES,
+  DpsBossFsm, cappedHit, leashStep, inRegion, SIGIL_NAMES, bossHpFor, guardFor,
 } from './dungeon-rules.js';
 
 let H = null; // helpers from dungeon.js
@@ -224,6 +224,7 @@ function startGardens(D, i) {
   b.thresholds = []; b.maxShield = 1; b.shield = 0; if (b.model.shield) b.model.shield.visible = false;
   b.dgBoss = true; b.dgImm = true;
   b.scale = B.scale; b.radius = B.radius; b.height = b.model.height * b.scale;
+  b.maxHp = b.hp = bossHpFor(b.maxHp, B, guardFor(D.def, G.mission.fireteam)); // U23 chunk C: solo tuning
   b.pos.y = seg.boss[1];
   const pool = P0.maxHealth + P0.maxShield, inc = G.mission.incomingMult || 1;
   b.def = { ...b.def, closeMelee: false, melee: false, splash: 0, burst: 3, burstGap: 0.35, fireCd: [2.2, 3.0], speed: B.speed, range: 60, prefer: 14, dmg: cappedHit(B.shotDmg * b.dmgMult * inc, pool, B.hitFrac.shot) / (b.dmgMult * inc) };

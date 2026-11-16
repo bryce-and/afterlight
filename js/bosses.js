@@ -1262,4 +1262,126 @@ export const BOSS_MODELS = {
     torso.add(c.muzzle);
     c.height = 4.3;
   },
+
+  // U23 chunk C: Emperor Calus (original design). A vast, rotund Loyalist ruler: a huge belly and chest under a scale-row gold breastplate, a gold belt
+  // and round buckle, a purple sash and a long purple robe down the back, short thick legs with gold knee caps and crimson shin bands, a small head
+  // sunk into the shoulders (jowls, flat face, a purple brow gem: the weak point) framed by a tall gold crescent collar with spike finials, a left arm
+  // hanging and a right arm raised with a gold goblet (c.gobletArm / c.goblet; psychic orbs fly from the bowl at c.muzzle). Built 4.6 m tall (the def scales it 0.8).
+  emperorCalus(c) {
+    const { B, bodyMat } = c;
+    const gold = mat(0xd9a93c, { metalness: 0.7, roughness: 0.35 });
+    const goldD = mat(0x9a7424, { metalness: 0.6, roughness: 0.4 });
+    const skin = mat(0xcdb7ae, { roughness: 0.6 }), skinD = mat(0xb39a94, { roughness: 0.65 });
+    const purple = mat(0x4a1f6e), purpleD = mat(0x35154f);
+    const crimson = mat(0x8a1a2a);
+    const dark = mat(0x120a14);
+    const gem = mat(0xb06cff, { emissive: 0x8a3cff, emissiveIntensity: 2.4 });
+    bodyMat.color.setHex(0xcdb7ae);
+    // short thick legs: purple breeches, gold knee caps, crimson shin bands, wide gold boots
+    legs(c, 1.0, 0.5, 0.62, purpleD, goldD);
+    for (const k of c.legs) {
+      B(0.7, 0.36, 0.4, 0, -0.5, 0.36, gold, k);
+      B(0.72, 0.3, 0.72, 0, -0.78, 0, crimson, k);
+      B(0.95, 0.2, 1.3, 0, -0.88, 0.2, goldD, k);
+      B(0.8, 0.14, 0.4, 0, -0.78, 0.7, gold, k);
+    }
+    const torso = c.pivot(0, 1.0, 0);
+    c.torso = torso;
+    // surface of the two big masses (centre y, x radius, y radius, z radius, z offset), used to seat the plates and the sash
+    const chestZ = (x, y) => 0.95 * Math.sqrt(Math.max(0, 1 - (x / 1.35) ** 2 - ((y - 1.45) / 0.85) ** 2));
+    const bellyZ = (x, y) => 0.15 + 1.15 * Math.sqrt(Math.max(0, 1 - (x / 1.32) ** 2 - ((y - 0.5) / 1.15) ** 2));
+    B(1.7, 0.5, 1.4, 0, 0.0, 0, purpleD, torso);                                       // hips
+    ico(c, 1.15, 1, bodyMat, 0, 0.5, 0.15, torso).scale.set(1.15, 1, 1);                // the enormous belly (the hit flash lights it)
+    ico(c, 1.0, 1, skin, 0, 1.45, 0, torso).scale.set(1.35, 0.85, 0.95);               // chest
+    // gold belt ring round the belly with a big round buckle
+    cyl(c, 1.2, 1.2, 0.2, 10, gold, 0, 0.5, 0.15, torso).scale.set(1.15, 1, 1);
+    cyl(c, 0.38, 0.38, 0.14, 10, gold, 0, 0.5, 1.38, torso, false, [PI / 2, 0, 0]);
+    ico(c, 0.16, 0, gem, 0, 0.5, 1.48, torso);
+    // overlapping scale rows across the upper chest, each plate tilted to the chest surface
+    for (let row = 0; row < 4; row++) {
+      const y = 2.0 - row * 0.25, n = row % 2 ? 5 : 6;
+      for (let i = 0; i < n; i++) {
+        const x = (i - (n - 1) / 2) * 0.46, z = chestZ(x, y) + 0.04;
+        B(0.5, 0.22, 0.1, x, y, z, row % 2 ? goldD : gold, torso, false, [-Math.asin(Math.max(-1, Math.min(1, (y - 1.45) / 0.85))) + 0.18, (x / 1.35) * 0.5, 0]);
+      }
+    }
+    // purple sash from the right shoulder down across the belly, ending in a hanging panel with a gold fringe
+    for (let i = 0; i < 6; i++) {
+      const t = i / 5, x = 0.95 - 1.85 * t, y = 2.05 - 1.75 * t;
+      B(0.5, 0.5, 0.08, x, y, Math.max(chestZ(x, y), bellyZ(x, y)) + 0.1, purple, torso, false, [0, 0, -0.85]);
+    }
+    B(0.7, 1.1, 0.08, -0.9, -0.15, 1.22, purple, torso, false, [0.3, 0, 0]);
+    B(0.74, 0.1, 0.1, -0.9, -0.7, 1.3, gold, torso, false, [0.3, 0, 0]);
+    // broad sloping shoulders with gold pauldrons
+    for (const s of [-1, 1]) {
+      ico(c, 0.55, 1, skin, s * 1.5, 2.0, 0, torso);
+      B(1.1, 0.26, 1.2, s * 1.6, 2.28, 0, gold, torso, false, [0, 0, s * -0.3]);
+      B(1.0, 0.2, 1.1, s * 1.8, 2.0, 0, goldD, torso, false, [0, 0, s * -0.45]);
+      cone(c, 0.12, 0.35, 5, gold, s * 1.9, 2.5, 0, torso, false, [0, 0, s * -0.3]);
+    }
+    // neck
+    B(0.9, 0.5, 0.8, 0, 2.3, 0.2, skinD, torso);
+    // the small head sunk into the shoulders: every part is the weak point
+    const head = c.pivot(0, 2.55, 0.4, torso);
+    c.head = head;
+    ico(c, 0.55, 1, skin, 0, 0.1, 0, head, true).scale.set(1.25, 0.95, 1.05);           // skull
+    for (const s of [-1, 1]) ico(c, 0.36, 1, skinD, s * 0.5, -0.22, 0.2, head, true).scale.set(1, 0.9, 1); // heavy jowls
+    ico(c, 0.38, 1, skinD, 0, -0.32, 0.25, head, true).scale.set(1.2, 0.8, 1);          // chins
+    B(0.95, 0.5, 0.18, 0, 0.0, 0.52, skin, head, true);                                 // wide flat face
+    B(1.1, 0.12, 0.22, 0, 0.26, 0.55, skinD, head, true);                               // heavy brow ridge
+    B(0.2, 0.28, 0.16, 0, -0.05, 0.64, skinD, head, true);                              // nose
+    B(0.5, 0.05, 0.06, 0, -0.3, 0.6, dark, head, true);                                 // mouth
+    for (const s of [-1, 1]) {
+      B(0.16, 0.07, 0.06, s * 0.28, 0.14, 0.62, dark, head, true);                      // small eyes
+      B(0.1, 0.2, 0.08, s * 0.64, -0.02, 0.08, skinD, head, true);                      // ears
+    }
+    B(1.2, 0.09, 0.9, 0, 0.42, 0.18, goldD, head, true, [-0.2, 0, 0]);                  // circlet
+    B(0.2, 0.2, 0.08, 0, 0.42, 0.64, gold, head, true, [-0.2, 0, PI / 4]);             // gem setting
+    ico(c, 0.11, 0, gem, 0, 0.43, 0.7, head, true);                                     // the purple brow gem
+    // the gold crescent collar: a semicircle of blades with spike finials, framing the head and rising to 4.6 m
+    const collar = c.pivot(0, 2.5, -0.65, torso);
+    collar.rotation.x = -0.12;
+    for (let i = 0; i < 11; i++) {
+      const a = (i - 5) / 5 * 1.3, len = 0.4 + 0.12 * Math.cos(a), r0 = 0.65, rc = r0 + len / 2, rt = r0 + len;
+      B(0.34, len, 0.08, Math.sin(a) * rc, Math.cos(a) * rc, 0, i % 2 ? goldD : gold, collar, false, [0, 0, -a]);
+      cone(c, 0.09, 0.28, 4, gold, Math.sin(a) * (rt + 0.1), Math.cos(a) * (rt + 0.1), 0, collar, false, [0, 0, -a]);
+    }
+    B(1.5, 0.14, 0.14, 0, 0.62, 0, goldD, collar);                                      // inner band
+    for (const s of [-1, 1]) B(0.14, 0.7, 0.14, s * 0.72, 0.15, 0, goldD, collar, false, [0, 0, s * -0.25]);
+    // the long purple robe down the back with a gold hem
+    B(2.2, 2.7, 0.12, 0, 0.85, -1.1, purple, torso, false, [0.08, 0, 0]);
+    B(2.3, 0.14, 0.2, 0, -0.5, -1.18, gold, torso, false, [0.08, 0, 0]);
+    B(0.1, 2.7, 0.16, 0, 0.85, -1.08, goldD, torso, false, [0.08, 0, 0]);
+    // left arm hanging: gold upper band, crimson forearm band, a big hand
+    const lArm = arm(c, torso, -1.6, 2.0, 1.7, 0.6, skin, -0.15, -0.12);
+    B(0.72, 0.24, 0.72, 0, -0.3, 0, gold, lArm);
+    B(0.7, 0.5, 0.7, 0, -1.15, 0, crimson, lArm);
+    B(0.76, 0.5, 0.6, 0, -1.9, 0, skinD, lArm);
+    for (const k of [-1, 0, 1]) B(0.2, 0.3, 0.2, k * 0.24, -2.2, 0.05, skinD, lArm);
+    c.arms.push(lArm);
+    // right arm raised on its own pivot (not in c.arms): upper arm forward, forearm up, the goblet in the fist
+    const rArm = c.pivot(1.6, 2.0, 0.1, torso);
+    rArm.rotation.x = -1.3;
+    c.gobletArm = rArm;
+    B(0.6, 1.1, 0.6, 0, -0.55, 0, skin, rArm);
+    B(0.72, 0.24, 0.72, 0, -0.2, 0, gold, rArm);
+    const elbow = c.pivot(0, -1.1, 0, rArm);
+    elbow.rotation.x = -1.6;
+    ico(c, 0.36, 0, skin, 0, 0, 0, elbow);
+    B(0.56, 0.7, 0.56, 0, -0.35, 0, skin, elbow);
+    B(0.68, 0.4, 0.68, 0, -0.4, 0, crimson, elbow);
+    // the goblet stays upright in the fist: a stem, a flared bowl, a gold rim and a purple gem
+    const goblet = c.pivot(0, -0.75, 0, elbow);
+    goblet.rotation.x = 2.9;
+    c.goblet = goblet;
+    B(0.55, 0.4, 0.5, 0, 0, 0, skinD, goblet);                                          // fist
+    cyl(c, 0.1, 0.14, 0.7, 6, gold, 0, 0.45, 0, goblet);                                // stem
+    cyl(c, 0.3, 0.3, 0.1, 8, goldD, 0, 0.12, 0, goblet);                                // foot
+    cyl(c, 0.55, 0.16, 0.55, 8, gold, 0, 1.0, 0, goblet);                               // bowl
+    cyl(c, 0.58, 0.58, 0.08, 8, goldD, 0, 1.3, 0, goblet);                              // rim
+    ico(c, 0.1, 0, gem, 0, 1.0, 0.5, goblet);
+    c.muzzle.position.set(0, 1.25, 0);
+    goblet.add(c.muzzle);
+    c.height = 4.6;
+  },
 };

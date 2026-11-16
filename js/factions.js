@@ -120,6 +120,8 @@ export const UNITS = {
   lg_watcher:   { faction: 'legion', base: 'grunt', name: 'Imperial Watcher', dungeon: 'shadow', hp: 70, noShield: true, stationary: true, fly: 3, speed: 0, range: 1, prefer: 1, burst: 1, burstGap: 1, fireCd: [1e9, 1e9], dmg: 0, scale: 1, noDrops: true, skills: [] },
   lg_royalbeast: { faction: 'legion', base: 'rusher', name: 'Royal Beast', dungeon: 'shadow', hp: 9000, noShield: true, static: true, speed: 3, meleeDmg: 0, scale: 1, noDrops: true, skills: [] },
   lg_taster:    { faction: 'legion', base: 'grunt', name: 'Royal Taster', dungeon: 'shadow', hp: 140, speed: 3.4, range: 50, prefer: 22, burst: 1, burstGap: 0.2, fireCd: [2.6, 3.6], dmg: 11, projSpeed: 34, shotSize: 0.12, shotColor: 0xffc247, scale: 0.85, noDrops: true, skills: [] },
+  // U23 chunk C: a Psychic Echo is one of the Emperor's thoughts given form in the Throne room (a Psion's frame, slow purple bolts, no snipe)
+  lg_echo:      { faction: 'legion', base: 'grunt', name: 'Psychic Echo', dungeon: 'shadow', hp: 120, speed: 3.8, range: 40, prefer: 16, burst: 2, burstGap: 0.3, fireCd: [2.2, 3.2], dmg: 8, projSpeed: 26, shotSize: 0.16, shotColor: 0xb06cff, scale: 0.85, skills: [] },
 };
 
 // Scorn shield elements by unit id are the Ether Totem kinds (Chieftain totems: Ether Bind arc, Ether Torch solar, Ether Shield void).

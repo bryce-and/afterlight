@@ -66,6 +66,18 @@ function ironSights(k, m, S, rearF, rearBase, frontF, frontBase, dot = 0x7dff9a)
   k.add(new THREE.SphereGeometry(0.0034, 8, 6), retMat(dot), 0, S - 0.0024, frontF + 0.004);
 }
 
+/** U23 chunk C: a sight that is not a part of the gun: a bright dot with a soft halo, hanging on the sight line (y = S) over the barrel.
+ *  At full ADS the sight line sits on the screen centre, so the dot is the point of aim. Nothing holds it up. */
+function floatDot(k, S, f, color = 0xffd27a) {
+  const halo = k.add(new THREE.CircleGeometry(0.012, 20), retMat(color, 0.2), 0, S, f + 0.0005);
+  halo.renderOrder = 4;
+  const ring = k.add(new THREE.RingGeometry(0.0064, 0.0078, 24), retMat(color, 0.6), 0, S, f);
+  ring.renderOrder = 4;
+  const dot = k.add(new THREE.CircleGeometry(0.0036, 14), retMat(0xfff4d8), 0, S, f - 0.0005); // nearest the eye
+  dot.renderOrder = 5; dot.userData.sightDot = true;
+  for (const m of [halo, ring, dot]) m.castShadow = false; // circles face +z: back toward the eye (the gun points -z)
+}
+
 function redDot(k, m, S, f, y0, r = 0.02, len = 0.045, color = RED) {
   k.T(r, len, 0, S, f, darkDS, 18, r, true);
   for (const e of [-1, 1]) k.add(new THREE.TorusGeometry(r, 0.0035, 4, 18), m, 0, S, f + (e * len) / 2);
@@ -271,7 +283,7 @@ function buildBaseGun(item, look) {
       P([[-0.035, -0.03], [0.02, -0.03], [-0.005, -0.135], [-0.075, -0.13], [-0.068, -0.04]], 0.038, wood);
       triggerGuard(k, dark, steel, 0.0, -0.03);
       B(0.044, 0.006, 0.13, 0, 0.016, 0.05, glow);
-      ironSights(k, dark, S, -0.045, 0.03, 0.3, 0.038);
+      floatDot(k, S, 0.2); // U23 chunk C (Bryce): no iron sights, a glowing dot floating over the barrel on the sight line
       return finish(g, { muzzleF: 0.32, muzzleY: 0.004, S, hip: [0.19, -0.2, -0.48], ads: 0.36, flash: fc });
     }
     case 'pulse': {
