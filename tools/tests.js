@@ -48,6 +48,7 @@ import { makeExotic } from '../js/loot.js';
 import * as Q from '../js/quests.js';
 import * as CA from '../js/campaign.js';
 import * as RW from '../js/rewards.js';
+import * as BZ from '../js/blitz.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
 
@@ -703,7 +704,8 @@ test('rolled armor: six stats with the rarity total, four empty sockets, energy 
       const a = makeArmor('chest', 50, i);
       eq(Object.keys(a.stats), AR.STAT_KEYS);
       const sum = AR.STAT_KEYS.reduce((t, k) => t + a.stats[k], 0);
-      ok(Math.abs(sum - AR.ARMOR_TOTAL[r]) <= 2, `${r} total ${sum}`);
+      const band = AR.ARMOR_BANDS.base[r]; // U28: legendary and exotic roll from the Base band by default
+      if (band) ok(sum >= band[0] && sum <= band[1], `${r} total ${sum}`); else ok(Math.abs(sum - AR.ARMOR_TOTAL[r]) <= 2, `${r} total ${sum}`);
       eq(a.mods, [null, null, null, null]); ok(!('perk' in a), 'no perk');
     }
   }
@@ -3937,6 +3939,122 @@ test('H28 removing a unit frees the geometry only it used; a finished level free
   eq(freeScene(lvl), { geometries: 1, textures: 2, shadows: 1 }, 'level counts');
   ok(sun.shadow.map === null || sun.shadow.map === undefined || sun.shadow.map.disposedN === 1, 'the sun shadow map is freed');
   eq([g1.disposedN, tex.disposedN, bg.disposedN, m.disposedN], [1, 1, 1, 0], 'geometry, map and background freed once; materials kept');
+});
+
+
+// ---------- U28 Mission Blitz ----------
+const clearTier = (s, tier) => { for (const m of LOCATIONS.flatMap((l) => l.missions)) CA.tierClears(s, tier)[m.id] = true; };
+
+test('U28 blitz unlock: account-wide (active or stored Guardian cleared Legendary, or ultimateAll)', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  eq(BZ.blitzUnlocked(s), false);
+  clearTier(s, 'base'); eq(BZ.blitzUnlocked(s), false, 'base clear is not enough');
+  s.chars = { stalker: { cleared: {}, tierCleared: { legendary: Object.fromEntries(BZ.BLITZ_POOL.map((m) => [m.id, true])), ultimate: {} } } };
+  eq(BZ.blitzUnlocked(s), true, 'a stored Guardian counts');
+  const t = S.createSave('stalker'); clearTier(t, 'legendary'); eq(BZ.blitzUnlocked(t), true, 'the active Guardian counts');
+  const u = S.createSave('arcanist'); u.ultimateAll = true; eq(BZ.blitzUnlocked(u), true, 'ultimateAll counts');
+});
+
+test('U28 blitz picks 5 different missions from a seed; the same seed gives the same list', () => {
+  eq(BZ.BLITZ_POOL.length, S.ALL_MISSIONS.length); // every campaign mission (22 today; the brief said 18)
+  for (let seed = 1; seed < 60; seed++) {
+    const a = BZ.pickMissions(seed);
+    eq(a.length, 5); eq(new Set(a.map((m) => m.id)).size, 5, 'distinct');
+    eq(BZ.pickMissions(seed), a, 'deterministic');
+    eq(BZ.runAt(seed, 3).missions, a, 'a member rebuilds the leader run');
+  }
+  ok(new Set([1, 2, 3, 4, 5, 6].map((s) => BZ.pickMissions(s).map((m) => m.id).join())).size > 1, 'seeds differ');
+});
+
+test('U28 blitz run state: clear advances, death fails, five clears finish, record keeps best and clears', () => {
+  let r = BZ.newRun(7);
+  eq([r.step, r.failed, r.done, BZ.runLabel(r)], [0, false, false, 'Blitz 1 of 5']);
+  for (let i = 1; i < 5; i++) { r = BZ.clearStep(r); eq([r.step, r.done, BZ.runCleared(r)], [i, false, i]); }
+  r = BZ.clearStep(r); eq([r.done, BZ.runCleared(r)], [true, 5]);
+  let threw = false; try { BZ.clearStep(r); } catch { threw = true; } ok(threw, 'a finished run cannot advance');
+  const f = BZ.failRun(BZ.clearStep(BZ.clearStep(BZ.newRun(7))));
+  eq([f.failed, f.step, BZ.runCleared(f)], [true, 2, 2]);
+  fresh();
+  const s = S.createSave('vanguard');
+  eq(BZ.blitzRecord(s), { clears: 0, best: 0 });
+  BZ.recordRun(s, f); eq(s.blitz, { clears: 0, best: 2 });
+  BZ.recordRun(s, BZ.newRun(1)); eq(s.blitz.best, 2, 'best never drops');
+  BZ.recordRun(s, r); eq(s.blitz, { clears: 1, best: 5 });
+  const old = S.createSave('vanguard'); delete old.blitz; eq(BZ.blitzRecord(old), { clears: 0, best: 0 }, 'older saves default on read');
+});
+
+test('U28 blitz tier: Legendary numbers, lethal, and no Light floor (combat Light + 25 even under the mission)', () => {
+  const B = BZ.BLITZ_TIER, L = CA.CAMPAIGN_TIERS.legendary;
+  eq([B.over, B.density, B.cap, B.lethal, B.floor, B.id], [25, 1.25, 300, true, false, 'legendary']);
+  eq(CA.CAMPAIGN_TIERS.legendary.lethal, false); eq(CA.CAMPAIGN_TIERS.legendary.floor, true); // normal Legendary unchanged
+  eq(CA.tierEnemyLight(250, B, 200), 225, 'under the mission: 200 + 25, not 275');
+  eq(CA.tierEnemyLight(250, L, 200), 275, 'normal Legendary keeps the floor');
+  eq(CA.tierEnemyLight(250, B, 320), 345);
+});
+
+test('U28 blitz reward menu: unfound exotics only, all found gives 3 class exotic armor, bonus legendaries by fireteam', () => {
+  fresh();
+  for (const cls of ['vanguard', 'stalker', 'arcanist']) {
+    const s = S.createSave(cls);
+    const p = BZ.blitzPools([], cls, Infinity);
+    eq(p.weapons.length, DATA.EXOTIC_RANDOM_WEAPONS.length); eq(p.armor.length, exoticArmorFor(cls).length); eq(p.allFound, false);
+    s.exoticsFound = [...p.weapons.slice(1), ...p.armor.slice(2)];
+    const m = RW.rollBlitzMenu(s);
+    eq(m.tier, 'blitz'); eq(m.weapons.map((w) => w.name), [p.weapons[0]]); eq(m.armor.map((a) => a.name), p.armor.slice(0, 2));
+    ok(m.armor.every((a) => a.classId === cls && a.rarity === 'exotic'), 'class armor');
+    eq(RW.validateClaim(m, [m.armor[0].id], []), null); ok(RW.validateClaim(m, [m.armor[0].id], [m.weapons[0].id]), 'only one pick');
+    ok(RW.validateClaim(m, [], []), 'must pick one');
+    s.exoticsFound = [...p.weapons, ...p.armor];
+    const all = RW.rollBlitzMenu(s);
+    eq([all.armor.length, all.weapons.length, all.allFound], [3, 0, true]);
+    eq(new Set(all.armor.map((a) => a.name)).size, 3); ok(all.armor.every((a) => a.classId === cls), 'class armor');
+  }
+  eq([1, 2, 3].map(BZ.blitzLegendaries), [0, 1, 2]);
+  // claiming adds exactly the pick and removes the menu
+  const s = S.createSave('stalker'); const menu = RW.queueBlitzMenu(s);
+  eq(S.getEquipped(s, 'helmet') != null, true);
+  const pick = (menu.weapons[0] || menu.armor[0]);
+  const res = RW.claimMenu(s, menu.id, pick.kind === 'armor' ? [pick.id] : [], pick.kind === 'weapon' ? [pick.id] : []);
+  eq(res.items.length, 1); eq(s.pendingMenus.length, 0);
+});
+
+test('U28 armor bands: per Guardian, by tier cleared; commons unchanged; totals and STAT_CAP hold', () => {
+  fresh();
+  const s = S.createSave('vanguard');
+  eq(CA.armorBand(s), 'base');
+  clearTier(s, 'base'); eq(CA.armorBand(s), 'base');
+  s.ultimateAll = true; eq(CA.armorBand(s), 'base', 'account-wide ultimateAll does not raise this Guardian');
+  s.chars = { stalker: { cleared: {}, tierCleared: { legendary: Object.fromEntries(BZ.BLITZ_POOL.map((m) => [m.id, true])), ultimate: {} } } };
+  eq(CA.armorBand(s), 'base', 'another Guardian clear does not count');
+  clearTier(s, 'legendary'); eq(CA.armorBand(s), 'legendary');
+  clearTier(s, 'ultimate'); eq(CA.armorBand(s), 'ultimate');
+  const want = { base: { legendary: [45, 55], exotic: [48, 58] }, legendary: { legendary: [56, 62], exotic: [59, 65] }, ultimate: { legendary: [63, 70], exotic: [66, 73] } };
+  eq(AR.ARMOR_BANDS, want);
+  for (const band of Object.keys(want)) {
+    for (const r of ['legendary', 'exotic']) {
+      eq(AR.armorTotal(r, band, () => 0), want[band][r][0]); eq(AR.armorTotal(r, band, () => 0.9999), want[band][r][1]);
+    }
+    for (const [i, r] of ['common', 'uncommon', 'rare'].entries()) {
+      eq(AR.armorTotal(r, band, () => 0), AR.ARMOR_TOTAL[r] - 2); eq(AR.armorTotal(r, band, () => 0.9999), AR.ARMOR_TOTAL[r] + 2);
+      const a = makeArmor('chest', 50, i, null, null, null, band); eq(Object.values(a.stats).reduce((x, y) => x + y, 0) >= AR.ARMOR_TOTAL[r] - 2, true);
+    }
+    for (let n = 0; n < 60; n++) for (const [i, r] of [[3, 'legendary'], [4, 'exotic']]) {
+      const a = makeArmor('legs', 50, i, null, 'stalker', null, band), sum = Object.values(a.stats).reduce((x, y) => x + y, 0);
+      ok(sum >= want[band][r][0] && sum <= want[band][r][1], `${band} ${r} ${sum}`);
+      ok(Object.values(a.stats).every((v) => v >= 0 && v <= AR.STAT_CAP), 'under STAT_CAP');
+      const b = rollItem(100, i, 'legs', null, 'stalker', [], Infinity, band), bs = Object.values(b.stats).reduce((x, y) => x + y, 0);
+      ok(bs >= want[band][r][0] && bs <= want[band][r][1], 'rollItem passes the band');
+    }
+  }
+  let threw = false; try { AR.armorTotal('legendary', 'nope'); } catch { threw = true; } ok(threw, 'unknown band is an error');
+});
+
+test('U28 blitz record is carried per Guardian when switching', () => {
+  fresh();
+  const s = S.createSave('vanguard'); s.blitz = { clears: 2, best: 5 };
+  S.switchCharacter(s, 'stalker'); eq(BZ.blitzRecord(s), { clears: 0, best: 0 });
+  S.switchCharacter(s, 'vanguard'); eq(s.blitz, { clears: 2, best: 5 });
 });
 
 for (const t of tests) {

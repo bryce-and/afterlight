@@ -2,7 +2,8 @@
 // Pure rules (no DOM, no Three.js) so tools/tests.html can check them. See docs/DECISIONS.md.
 import { EXOTIC_RANDOM_WEAPONS, exoticArmorFor, WEAPON_SLOTS, ARMOR_SLOTS, LOCATIONS } from './data.js';
 import { pickExotic, makeExotic, makeArmor, makeWeapon, rollItem, newId } from './loot.js';
-import { tierOf, tierClears, anyBaseClear, campaignDone } from './campaign.js';
+import { tierOf, tierClears, anyBaseClear, campaignDone, armorBand, capRoll, CAMPAIGN_TIERS } from './campaign.js';
+import { blitzPools } from './blitz.js';
 import { XP, LIGHT_CAP } from './progression.js';
 import { addItem, addXp, playerPower, playerLevel, writeSave, ALL_MISSIONS, enforceSlotCap } from './save.js';
 
@@ -10,6 +11,8 @@ import { addItem, addXp, playerPower, playerLevel, writeSave, ALL_MISSIONS, enfo
 export const REWARD_MENUS = {
   legendary: { name: 'Legendary', armor: 3, weapons: 3, keepArmor: 1, keepWeapons: 1 },
   ultimate: { name: 'Ultimate', armor: 5, weapons: 5, keepArmor: 2, keepWeapons: 2 },
+  // U28: the Mission Blitz run reward: the size of each list depends on what is left to find; the player keeps exactly one item from either list (keepAny).
+  blitz: { name: 'Mission Blitz', keepAny: 1 },
 };
 
 /** Picks `n` distinct names from `names`, each draw favoring ones not found yet (loot.js duplicate protection). */
@@ -31,9 +34,30 @@ export function rollMenu(s, tier, rnd = Math.random) {
   const found = s.exoticsFound || [];
   const armorPool = exoticArmorFor(s.classId, playerLevel(s)); // H26: Darkness exotics wait for their subclass
   const armor = pickDistinct(armorPool.map((x) => x.name), def.armor, found, rnd)
-    .map((name) => { const a = makeArmor(armorPool.find((x) => x.name === name).slot, power, 4, null, s.classId, name); a.isNew = true; return a; });
+    .map((name) => { const a = makeArmor(armorPool.find((x) => x.name === name).slot, power, 4, null, s.classId, name, armorBand(s)); a.isNew = true; return a; });
   const weapons = pickDistinct(EXOTIC_RANDOM_WEAPONS.map((e) => e.name), def.weapons, found, rnd).map((name) => makeExotic(name, power));
   return { id: newId(), tier, armor, weapons };
+}
+
+/**
+ * U28: the Mission Blitz reward menu: every exotic this Guardian has not found (weapons and this class's armor), or 3 exotic armor
+ * pieces when all are found. Items roll at the Legendary cap Light rules (a Light held under 300, never below your own).
+ */
+export function rollBlitzMenu(s, rnd = Math.random) {
+  const power = capRoll(playerPower(s), 2 + Math.floor(rnd() * 4), CAMPAIGN_TIERS.legendary.cap);
+  const pools = blitzPools(s.exoticsFound, s.classId, playerLevel(s), rnd);
+  const armorPool = exoticArmorFor(s.classId, playerLevel(s));
+  const armor = pools.armor.map((name) => { const a = makeArmor(armorPool.find((x) => x.name === name).slot, power, 4, null, s.classId, name, armorBand(s)); a.isNew = true; return a; });
+  const weapons = pools.weapons.map((name) => makeExotic(name, power));
+  return { id: newId(), tier: 'blitz', armor, weapons, allFound: pools.allFound };
+}
+/** Rolls the Blitz menu and stores it in this Guardian's save until it is claimed. */
+export function queueBlitzMenu(s, rnd = Math.random) {
+  const menu = rollBlitzMenu(s, rnd);
+  s.pendingMenus = s.pendingMenus || [];
+  s.pendingMenus.push(menu);
+  writeSave(s);
+  return menu;
 }
 
 /** Rolls a menu and stores it in this Guardian's save until it is claimed. */
@@ -52,6 +76,7 @@ export function validateClaim(menu, armorIds, weaponIds) {
   const dupe = (ids) => new Set(ids).size !== ids.length;
   if (dupe(armorIds) || dupe(weaponIds)) return 'Pick each item only once.';
   if (!armorIds.every((id) => menu.armor.some((x) => x.id === id)) || !weaponIds.every((id) => menu.weapons.some((x) => x.id === id))) return 'That item is not in this menu.';
+  if (def.keepAny) return armorIds.length + weaponIds.length === def.keepAny ? null : `Choose exactly ${def.keepAny} item${def.keepAny === 1 ? '' : 's'}.`;
   if (armorIds.length !== def.keepArmor) return `Choose exactly ${def.keepArmor} exotic armor piece${def.keepArmor === 1 ? '' : 's'}.`;
   if (weaponIds.length !== def.keepWeapons) return `Choose exactly ${def.keepWeapons} exotic weapon${def.keepWeapons === 1 ? '' : 's'}.`;
   return null;
@@ -80,7 +105,7 @@ export function claimMenu(s, menuId, armorIds, weaponIds) {
  */
 export const tierExoticDue = (tierId, isFinalMission, first) => (tierId === 'legendary' && isFinalMission) || (tierId === 'ultimate' && first);
 /** That exotic: a random one at the mission's Light, favoring ones this Guardian has not found. */
-export const rollTierExotic = (s, power, dest) => rollItem(power, 4, null, dest, s.classId, s.exoticsFound || [], playerLevel(s));
+export const rollTierExotic = (s, power, dest) => rollItem(power, 4, null, dest, s.classId, s.exoticsFound || [], playerLevel(s), armorBand(s));
 
 /**
  * What a clear's recordClear result sets off, in play order: the Legendary unlock (3+3 menu), the Ultimate unlock (5+5 menu), and the
@@ -126,7 +151,7 @@ export function skipCampaign(s, rnd = Math.random) {
   const dest = LOCATIONS[LOCATIONS.length - 1].id; // one destination's set, so the four armor pieces share a set bonus
   const gear = [
     ...WEAPON_SLOTS.map((slot) => makeWeapon(slot, SKIP_LIGHT, 3)),
-    ...ARMOR_SLOTS.map((slot) => makeArmor(slot, SKIP_LIGHT, 3, dest, s.classId)),
+    ...ARMOR_SLOTS.map((slot) => makeArmor(slot, SKIP_LIGHT, 3, dest, s.classId, null, armorBand(s))),
   ];
   for (const it of gear) { // equipped straight away; whatever it replaces must still fit the slot (the extras go to the Postmaster)
     it.isNew = false;

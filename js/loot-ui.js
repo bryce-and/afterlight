@@ -9,6 +9,7 @@ import {
 import { RARITY_GATE, canUseRarity } from './progression.js';
 import { playerLevel } from './save.js';
 import { makeExotic, makeArmor } from './loot.js';
+import { armorBand } from './campaign.js';
 import { frameDef, weaponHandling } from './frames.js';
 import { buildGunModel } from './models.js';
 import { weaponIcon, armorIcon, elementIcon } from './icons.js';
@@ -153,7 +154,7 @@ export function openCollection() {
   const s = G.save, found = new Set(s.exoticsFound || []);
   const render = () => {
     const weapons = EXOTIC_WEAPONS.map((tpl) => ({ tpl, item: makeExotic(tpl.name, 1) }));
-    const armor = exoticArmorFor(s.classId).map((x) => ({ x, item: makeArmor(x.slot, 1, 4, null, s.classId, x.name) }));
+    const armor = exoticArmorFor(s.classId).map((x) => ({ x, item: makeArmor(x.slot, 1, 4, null, s.classId, x.name, armorBand(s)) }));
     const list = collTab === 'weapons' ? weapons : armor;
     const nFound = list.filter(({ item }) => found.has(item.name)).length;
     const card = ({ item }) => {

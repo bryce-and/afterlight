@@ -19,6 +19,7 @@ import { cleanupMission, combatLight, spawnUnit, spawnChest, banner, reviveForCo
 import { allPlayers, damageRemote, onMissionStart } from './coop.js';
 import { lightMults, lightGap } from './light.js';
 import { playerPower, writeSave } from './save.js';
+import { armorBand } from './campaign.js';
 import { XP } from './progression.js';
 import { SHADERS } from './style.js';
 import { IMPERIAL_SET } from './dungeon-perks.js';
@@ -555,7 +556,7 @@ function openSecretChest(D, X) {
   D.chestPrompt = false; ui.prompt(null);
   sfx.chest();
   sparks(c.pos.clone().setY(c.pos.y + 1), 0xf4c542, 30, 8, 0.1, 0.8);
-  const it = makeDungeonDrop(Math.random() < 0.5 ? 'weapon' : 'armor', playerPower(s), s.classId);
+  const it = makeDungeonDrop(Math.random() < 0.5 ? 'weapon' : 'armor', playerPower(s), s.classId, Math.random, armorBand(s));
   setTimeout(() => { if (G.mission === M) grantItem(it); }, 300);
   writeSave(s);
 }
@@ -569,7 +570,7 @@ function openEncounterChest(D, i) {
   const rec = dungeonRecord(s, D.id);
   const owns = (s.shaders?.owned || []).includes(DUNGEON_SHADER);
   const drops = clearDrops(D.def, { finalClear: last, firstClear: rec.clears === 0, ownsShader: owns });
-  const items = drops.filter((x) => x.kind !== 'shader').map((x) => makeDungeonDrop(x.kind, pp, s.classId));
+  const items = drops.filter((x) => x.kind !== 'shader').map((x) => makeDungeonDrop(x.kind, pp, s.classId, Math.random, armorBand(s)));
   items.forEach((it, k) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + k * 450));
   if (drops.some((x) => x.kind === 'shader')) { s.shaders.owned.push(DUNGEON_SHADER); setTimeout(() => ui.feed(`Shader acquired: ${SHADERS[DUNGEON_SHADER].name}`, '#e9d7ff'), 300); }
   if (items.some((it) => it.rarity === 'exotic')) setTimeout(() => ui.feed('An exotic answers the Emperor\'s call', '#f4c542'), 600);

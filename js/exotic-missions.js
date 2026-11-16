@@ -18,6 +18,7 @@ import { cleanupMission, combatLight, spawnUnit, spawnChest, banner, reviveForCo
 import { allPlayers, damageRemote, onMissionStart } from './coop.js';
 import { lightMults, lightGap } from './light.js';
 import { makeExotic, rollItem } from './loot.js';
+import { armorBand } from './campaign.js';
 import { playerPower, writeSave } from './save.js';
 import { XP } from './progression.js';
 import { rarityIndex } from './data.js';
@@ -333,7 +334,7 @@ function secretChestTick(X, P, dt) {
   sparks(c.pos.clone().setY(c.pos.y + 1), 0xf4c542, 30, 8, 0.1, 0.8);
   if (M.secretLooted) { ui.feed('The cache is empty: you already took what it held', '#8aa'); return; }
   M.secretLooted = true;
-  const s = G.save, it = rollItem(playerPower(s), rarityIndex('legendary'), null, M.loc.id ?? 'io', s.classId, s.exoticsFound);
+  const s = G.save, it = rollItem(playerPower(s), rarityIndex('legendary'), null, M.loc.id ?? 'io', s.classId, s.exoticsFound, Infinity, armorBand(s));
   grantItem(it);
   ui.feed('Vex cache: a legendary', '#f4c542');
 }
@@ -488,7 +489,7 @@ export function openExoticChest(auto) {
     if (!it) throw new Error(`Exotic mission reward "${plan.exotic}" does not exist`);
     rewards.push(it);
   }
-  for (let i = 0; i < plan.legendary; i++) rewards.push(rollItem(pp, rarityIndex('legendary'), null, M.loc.id ?? 'io', s.classId, s.exoticsFound));
+  for (let i = 0; i < plan.legendary; i++) rewards.push(rollItem(pp, rarityIndex('legendary'), null, M.loc.id ?? 'io', s.classId, s.exoticsFound, Infinity, armorBand(s)));
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it, auto); }, 300 + i * 450));
   const rec = recordExoticClear(s, d.id, timeUsed(X.timer));
   const glimmer = 600;

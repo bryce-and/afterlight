@@ -1,7 +1,7 @@
 import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, EXOTIC_RANDOM_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
-import { pick, randInt } from './util.js';
+import { pick } from './util.js';
 import { LIGHT_MAX } from './campaign.js';
-import { ARMOR_TOTAL, rollStats, blankMods } from './armor.js';
+import { armorTotal, rollStats, blankMods } from './armor.js';
 import { namedFor, perkPoolFor, rollPerks, weaponStats, frameSlot, archesForSlot } from './frames.js';
 import { SETS, setForDrop, setPieceName } from './style.js';
 
@@ -64,10 +64,10 @@ export function makeExotic(name, power) {
   return makeWeapon(tpl.slot || ARCHETYPES[tpl.arch].slot, power, 4, null, name);
 }
 
-/** `dest`: the destination the drop comes from (a location id); legendaries are that destination's set. `classId`: who can wear it. `exoticName`: a specific exotic. */
-export function makeArmor(slot, power, rIdx, dest = null, classId = null, exoticName = null) {
+/** `dest`: the destination the drop comes from (a location id); legendaries are that destination's set. `classId`: who can wear it. `exoticName`: a specific exotic. `band`: the stat band (campaign.js armorBand(save)) for legendary and exotic totals (U28). */
+export function makeArmor(slot, power, rIdx, dest = null, classId = null, exoticName = null, band = 'base') {
   const rar = RARITIES[rIdx];
-  const stats = rollStats(ARMOR_TOTAL[rar.id] + randInt(-2, 2));
+  const stats = rollStats(armorTotal(rar.id, band));
   let name, set = null;
   if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = exoticName || pick(EXOTIC_ARMOR[classId][slot]); } // exotics exist for one class
   else if (rar.id === 'legendary') { set = setForDrop(dest); name = setPieceName(set, slot, classId); } // U23: dungeon sets name each class's pieces
@@ -103,7 +103,7 @@ export function pickExotic(names, found = [], rnd = Math.random) {
  * the player already has (save.exoticsFound); an exotic drop then favors ones not found yet. Weapon
  * exotics are one pool for every Guardian; armor exotics are the class's pool. A given slot limits the pool.
  */
-export function rollItem(power, rIdx, slot = null, dest = null, classId = null, found = [], level = Infinity) { // H26: `level` holds back Darkness exotics
+export function rollItem(power, rIdx, slot = null, dest = null, classId = null, found = [], level = Infinity, band = 'base') { // H26: `level` holds back Darkness exotics
   const fixed = !!slot;
   slot = slot || pick(SLOTS);
   const weapon = WEAPON_SLOTS.includes(slot);
@@ -115,9 +115,9 @@ export function rollItem(power, rIdx, slot = null, dest = null, classId = null, 
     classId = classId || pick(Object.keys(EXOTIC_ARMOR));
     const pool = exoticArmorFor(classId, level).filter((x) => !fixed || x.slot === slot);
     const name = pickExotic(pool.map((x) => x.name), found);
-    return makeArmor(pool.find((x) => x.name === name).slot, power, rIdx, dest, classId, name);
+    return makeArmor(pool.find((x) => x.name === name).slot, power, rIdx, dest, classId, name, band);
   }
-  return weapon ? makeWeapon(slot, power, rIdx) : makeArmor(slot, power, rIdx, dest, classId);
+  return weapon ? makeWeapon(slot, power, rIdx) : makeArmor(slot, power, rIdx, dest, classId, null, band);
 }
 
 export function starterGear(classId = null) {

@@ -6,6 +6,7 @@ import { SETS } from './style.js';
 import { makeWeapon, makeExotic, makeArmor } from './loot.js';
 import { LEVEL_CAP, xpForLevel } from './progression.js';
 import { playerPower, playerLevel, writeSave, UNLOCK } from './save.js';
+import { armorBand } from './campaign.js';
 
 /** Session-only rules. Never saved, so a reload clears them. */
 export const DEV = { invulnerable: false, mayhem: false, infiniteammo: false, navdebug: false, destinationunlock: false };
@@ -45,7 +46,7 @@ export function findGive(text, catalog = giveCatalog()) {
 }
 
 /** Builds the item for a catalog entry, marked `spawned` so it stays out of duplicate protection and the Exotic Collection. */
-export function buildGiven(entry, power, classId) {
+export function buildGiven(entry, power, classId, band = 'base') {
   let item;
   if (entry.kind === 'weapon') {
     if (entry.exotic) item = makeExotic(entry.name, power);
@@ -53,8 +54,8 @@ export function buildGiven(entry, power, classId) {
       const n = entry.named;
       item = makeWeapon(frameSlot(n.arch, n.frame), power, rarityIndex(entry.rarity), n.arch, null, n);
     }
-  } else if (entry.rarity === 'exotic') item = makeArmor(entry.slot, power, 4, null, entry.classId, entry.name);
-  else item = makeArmor(entry.slot, power, 3, entry.setId, entry.classId || classId);
+  } else if (entry.rarity === 'exotic') item = makeArmor(entry.slot, power, 4, null, entry.classId, entry.name, band);
+  else item = makeArmor(entry.slot, power, 3, entry.setId, entry.classId || classId, null, band);
   item.spawned = true;
   return item;
 }
@@ -72,7 +73,7 @@ export const COMMANDS = {
     run(args, ctx) {
       const r = findGive(args);
       if (r.error) return { ok: false, msg: r.error };
-      const item = buildGiven(r.entry, Math.max(1, playerPower(ctx.save)), ctx.save.classId);
+      const item = buildGiven(r.entry, Math.max(1, playerPower(ctx.save)), ctx.save.classId, armorBand(ctx.save));
       ctx.grant(item);
       return { ok: true, msg: `Gave ${item.name} (${item.rarity}${item.kind === 'armor' && r.entry.classId ? `, ${r.entry.classId} only` : ''}).` };
     },

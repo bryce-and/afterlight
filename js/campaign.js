@@ -38,7 +38,7 @@ export function tierPower(power, tierId) {
  * mission's Light (the floor), plus 25 or 50 (an Ultimate 305 mission is 355 at 250 or 305, 370 at 320; a Legendary 250 mission is 275 at 200 or 250).
  */
 export function tierEnemyLight(power, tierId, combatLight) {
-  const t = tierOf(tierId);
+  const t = typeof tierId === 'object' ? tierId : tierOf(tierId); // U28: Mission Blitz passes its own config (no floor)
   if (!t.over) return power;
   return (t.floor ? Math.max(combatLight, power) : combatLight) + t.over;
 }
@@ -82,6 +82,16 @@ export function recordClear(s, missionId, tierId) {
     ultimate: !before.ultimate && tierUnlocked(s, 'ultimate'),
     all: !before.all && !!s.ultimateAll,
   };
+}
+
+/**
+ * U28: the armor stat band this Guardian's drops roll in (armor.js ARMOR_BANDS). Per Guardian, from their own full clears:
+ * 'base' until they clear the Legendary campaign, 'legendary' until they clear Ultimate, then 'ultimate'. s.ultimateAll (account-wide) does not count.
+ */
+export function armorBand(s) {
+  if (campaignDone(s, 'ultimate')) return 'ultimate';
+  if (campaignDone(s, 'legendary')) return 'legendary';
+  return 'base';
 }
 
 /** U20b: true when the base campaign was really cleared (a Skip Campaign does not count as a clear for opening Skip on other Guardians). */

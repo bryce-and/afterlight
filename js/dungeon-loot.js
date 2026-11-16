@@ -43,8 +43,8 @@ export function makeDungeonWeapon(power, rnd = Math.random, entry = null) {
   return it;
 }
 /** A legendary Imperial armor piece for `classId` (a random slot when none is given). */
-export function makeDungeonArmor(power, classId, rnd = Math.random, slot = null) {
-  return makeArmor(slot || pick(['helmet', 'arms', 'chest', 'legs'], rnd), power, 3, DUNGEON_SET, classId);
+export function makeDungeonArmor(power, classId, rnd = Math.random, slot = null, band = 'base') {
+  return makeArmor(slot || pick(['helmet', 'arms', 'chest', 'legs'], rnd), power, 3, DUNGEON_SET, classId, null, band);
 }
 export function makeDungeonExotic(power) {
   const it = makeExotic(DUNGEON_EXOTIC, power);
@@ -52,9 +52,9 @@ export function makeDungeonExotic(power) {
   return it;
 }
 /** The drop for one `clearDrops` entry ('weapon' | 'armor' | 'exotic'); the shader is not an item (dungeon.js grants it). */
-export function makeDungeonDrop(kind, power, classId, rnd = Math.random) {
+export function makeDungeonDrop(kind, power, classId, rnd = Math.random, band = 'base') {
   if (kind === 'weapon') return makeDungeonWeapon(power, rnd);
-  if (kind === 'armor') return makeDungeonArmor(power, classId, rnd);
+  if (kind === 'armor') return makeDungeonArmor(power, classId, rnd, null, band);
   if (kind === 'exotic') return makeDungeonExotic(power);
   throw new Error(`No dungeon drop of kind "${kind}"`);
 }

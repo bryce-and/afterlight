@@ -12,7 +12,7 @@ import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock, setOverload } from './save.js';
 import { CAMPAIGN_TIERS, tierOf, tierPower, tierEnemyLight, tierClears, selectedTier, unlockedTiers, overloadUnlocked, overloadOn, OVERLOAD_NAME, ULTIMATE_HINT } from './campaign.js';
 import { skipAvailableFor } from './rewards.js';
-import { runUnlocks, openPendingMenus, openSkipConfirm } from './rewards-ui.js';
+import { runUnlocks, openPendingMenus, openSkipConfirm, openRewardMenu } from './rewards-ui.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { openInspect, openCollection, lootScreenOpen } from './loot-ui.js';
 import { RELEASES, ROADMAP, titleRelease } from './releases.js';
@@ -26,7 +26,7 @@ import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, readyState, MAX_FIRETEAM } from './net.js';
-import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower, launchDungeon } from './coop.js';
+import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower, launchDungeon, launchBlitz } from './coop.js';
 import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
 import { startTower } from './tower.js';
 /** H25: the Tower, solo or (leader only) with the whole fireteam. */
@@ -41,6 +41,7 @@ import { controlsList, keyName, syncLive, liveKeybinds } from './keybinds.js';
 import { openControls } from './keybinds-ui.js';
 import { openTerms, termsAccepted } from './terms.js';
 import { exoticList, exoticDef, exoticUnlocked, exoticLockText, exoticRecord, clock } from './exotic-rules.js';
+import { blitzUnlocked, blitzRecord, BLITZ_LOCKED_HINT, BLITZ_LENGTH, runLabel, runMission, blitzLegendaries } from './blitz.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -59,7 +60,7 @@ export function initUI() {
   net.onAllReady = (sel) => {
     if (G.state !== 'orbit') return;
     initAudio();
-    if (sel.li === -3) startDungeonFromUi(dungeonList()[sel.mi].id); else if (sel.li === -2) startExoticFromUi(exoticList()[sel.mi].id); else if (sel.li === -1) launchActivity(ACTIVITIES[sel.mi].id); else launchFireteam(sel.li, sel.mi);
+    if (sel.li === -4) { launchBlitz(); } else if (sel.li === -3) startDungeonFromUi(dungeonList()[sel.mi].id); else if (sel.li === -2) startExoticFromUi(exoticList()[sel.mi].id); else if (sel.li === -1) launchActivity(ACTIVITIES[sel.mi].id); else launchFireteam(sel.li, sel.mi);
     lockPointer(); // works when the leader's own click was the last ready; otherwise the next click captures the mouse
   };
   $('#title').addEventListener('click', () => {
@@ -209,6 +210,7 @@ export function showCharacterSelect(fromOrbit = false) {
 // ---------------------------------------------------------------------------
 // Orbit (director / inventory / character)
 // ---------------------------------------------------------------------------
+let actNode = null, selBlitz = false; // U28: the Activities screen's ops node in view (null = the node screen) and whether Mission Blitz is the picked entry
 let orbitTab = 'director', selLoc = null, selMission = null, selAct = 0, selExo = null, selDun = null; // selDun: a dungeon id (U23) // selExo: an exotic mission id picked in the Activities tab (U21)
 
 export function showOrbit(tab) {
@@ -395,6 +397,7 @@ function renderDirector(main) {
 }
 
 addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && G.state === 'orbit' && orbitTab === 'activities' && actNode && !lootScreenOpen?.()) { actNode = null; selExo = selDun = null; selBlitz = false; renderOrbit(); return; }
   if (e.code === 'Escape' && G.state === 'orbit' && orbitTab === 'director' && dirFocus !== null && !lootScreenOpen?.()) { dirFocus = null; renderOrbit(); }
 });
 
@@ -435,17 +438,50 @@ function renderQuests(main) {
   $('#q-tower', main)?.addEventListener('click', goTower);
 }
 
+/**
+ * U28: the Activities screen is a set of ops nodes; each opens its own screen. A later node (Crucible Ops) is one more entry here:
+ * give it an `id`, a `name` and a one-line `sub`, then list its rows in renderActivities.
+ */
+export const OPS_NODES = [
+  { id: 'vanguard', name: 'Vanguard Ops', sub: 'Mission Blitz  ·  Horde  ·  Endless', color: '#7fd8ff' },
+  { id: 'endgame', name: 'Endgame Ops', sub: 'Exotic Missions  ·  Dungeons', color: '#f0c040' },
+];
+
+/** The node screen: one round node per ops group, the Fireteam panel beside them. */
+function renderOpsNodes(main) {
+  main.innerHTML = `
+    <div class="director ops">
+      <aside class="loc-list"><div class="eyebrow">Activities</div>${fireteamHTML()}</aside>
+      <section class="ops-map">
+        <div class="eyebrow">Choose an ops node</div>
+        <div class="ops-nodes">${OPS_NODES.map((n) => `<button class="ops-node" data-ops="${n.id}" style="--oc:${n.color}"><span class="on-core"></span><span class="on-label"><b>${esc(n.name)}</b><small>${esc(n.sub)}</small></span></button>`).join('')}</div>
+      </section>
+    </div>`;
+  $$('.ops-node', main).forEach((b) => b.addEventListener('click', () => {
+    sfx.ui();
+    actNode = b.dataset.ops;
+    selExo = selDun = null; selBlitz = false;
+    if (actNode === 'vanguard') selBlitz = true; else selExo = exoticList()[0].id; // each node opens on its first entry
+    renderOrbit();
+  }));
+  wireFireteam(main);
+}
+
 function renderActivities(main) {
   const s = G.save;
   G.menu.setMode('planet');
   G.menu.setLocation(LOCATIONS[selLoc]);
   G.menu.setOffset(4.4);
+  if (!actNode) { renderOpsNodes(main); return; }
+  // a pick from the other node (or none) never shows here
+  if (actNode === 'vanguard') { if (selExo || selDun) { selExo = selDun = null; selBlitz = true; } } else { selBlitz = false; if (!selExo && !selDun) selExo = exoticList()[0].id; }
+  const node = OPS_NODES.find((n) => n.id === actNode);
   const a = ACTIVITIES[selAct];
   const best = s.records?.endless || 0;
   const exo = selExo ? exoticDef(selExo) : null;
   const level = playerLevel(s);
   const dun = selDun ? dungeonDef(selDun) : null;
-  const want = dun ? [-3, dungeonList().findIndex((x) => x.id === dun.id)] : exo ? [-2, exoticList().findIndex((x) => x.id === exo.id)] : [-1, selAct];
+  const want = selBlitz ? [-4, 0] : dun ? [-3, dungeonList().findIndex((x) => x.id === dun.id)] : exo ? [-2, exoticList().findIndex((x) => x.id === exo.id)] : [-1, selAct];
   if (net.isHost && (net.sel?.li !== want[0] || net.sel?.mi !== want[1])) setSelection(want[0], want[1]);
   const exoRows = exoticList().map((x) => {
     const rec = exoticRecord(s, x.id), un = exoticUnlocked(level, x);
@@ -504,20 +540,46 @@ function renderActivities(main) {
         </div>
       </section>`;
   };
+  // U28: Mission Blitz, the opening entry of Vanguard Ops
+  const bzOpen = blitzUnlocked(s), bzRec = blitzRecord(s);
+  const bzRow = `<button class="loc ${selBlitz ? 'sel' : ''}${bzOpen ? '' : ' locked'}" data-blitz="1">
+            <div class="loc-planet">${bzOpen ? `${BLITZ_LENGTH} missions` : 'Locked'}</div><div class="loc-name">Mission Blitz</div>
+            <div class="loc-prog">${bzOpen ? (bzRec.clears ? `Best ${bzRec.best} of ${BLITZ_LENGTH}  ·  ${bzRec.clears} clear${bzRec.clears === 1 ? '' : 's'}` : bzRec.best ? `Best ${bzRec.best} of ${BLITZ_LENGTH}` : 'No run yet') : esc(BLITZ_LOCKED_HINT)}</div></button>`;
+  const bzDetail = () => {
+    const under = net.active ? net.members.filter((mm) => !mm.bz) : []; // the whole fireteam needs it open on their account
+    const un = bzOpen && !under.length;
+    return `<section class="loc-detail">
+        <div class="eyebrow">Vanguard Ops  ·  Mission Blitz</div>
+        <h1 class="screen-title">Mission Blitz</h1>
+        <p class="desc">Five different campaign missions, back to back, on one life. Clear all five for an exotic of your choice.</p>
+        <div class="missions">
+          <div class="mission sel"><div class="m-top"><span class="m-name">${bzOpen ? (bzRec.best ? `Best run: ${bzRec.best} of ${BLITZ_LENGTH}` : 'No run yet') : 'Locked'}</span><span class="m-power">${bzRec.clears} clear${bzRec.clears === 1 ? '' : 's'}</span></div>
+            <div class="m-desc">Each run draws five missions from the whole campaign, never the same one twice. Every mission starts fresh: full health, ammo and super. Each pays its normal Legendary rewards, and the fifth clear pays the run reward.</div>
+            <div class="m-foot"><span class="tag">${BLITZ_LENGTH} missions</span><span class="tag">Legendary difficulty</span><span class="tag exo">Exotic of your choice</span></div></div>
+          <div class="mission"><div class="m-top"><span class="m-name">No revives</span></div>
+            <div class="m-desc">Enemies stand 25 Light above you, always, even if you are under the mission. Legendary density. Any death, yours or a teammate's, ends the run. Leaving ends it too, and runs cannot be resumed.</div></div>
+          <div class="mission"><div class="m-top"><span class="m-name">Run reward</span></div>
+            <div class="m-desc">Pick one exotic you have not found yet, weapon or armor. If you have found them all, pick one of three exotic armor pieces. Two Guardians add a legendary drop each, three add two. Everyone gets their own loot.</div></div>
+        </div>
+        <div class="launch-row">
+          <div class="power-cmp">Your Light <b>◆ ${playerPower(s)}</b>${un ? '<span class="ok">Unlocked</span>' : `<span class="warn">${esc(BLITZ_LOCKED_HINT)}${under.length ? `: ${esc(under.map((mm) => mm.name).join(', '))}` : ''}</span>`}</div>
+          ${!un ? '<button class="btn primary" disabled>Locked</button>' : net.active ? readyBarHTML() : '<button id="launch" class="btn primary">Launch</button>'}
+        </div>
+      </section>`;
+  };
+  const actRows = ACTIVITIES.map((x, i) => `<button class="loc ${!selBlitz && !selExo && !selDun && i === selAct ? 'sel' : ''}" data-act="${i}">
+            <div class="loc-planet">${x.waves === Infinity ? 'Endless waves' : `${x.waves} waves`}</div><div class="loc-name">${x.name}</div>
+            <div class="loc-prog">${x.id === 'endless' ? (best ? `Best: wave ${best}` : 'No record yet') : 'Exotic at wave 30'}</div></button>`).join('');
+  const rows = actNode === 'vanguard' ? `${bzRow}${actRows}` : `<div class="eyebrow loc-head">Exotic Missions</div>${exoRows}<div class="eyebrow loc-head">Dungeons</div>${dunRows}`;
   main.innerHTML = `
     <div class="director">
       <aside class="loc-list">
-        <div class="eyebrow">Activities</div>
-        ${ACTIVITIES.map((x, i) => `<button class="loc ${!selExo && !selDun && i === selAct ? 'sel' : ''}" data-act="${i}">
-            <div class="loc-planet">${x.waves === Infinity ? 'Endless waves' : `${x.waves} waves`}</div><div class="loc-name">${x.name}</div>
-            <div class="loc-prog">${x.id === 'endless' ? (best ? `Best: wave ${best}` : 'No record yet') : 'Exotic at wave 30'}</div></button>`).join('')}
-        <div class="eyebrow loc-head">Exotic Missions</div>
-        ${exoRows}
-        <div class="eyebrow loc-head">Dungeons</div>
-        ${dunRows}
+        <button class="btn ghost dir-back" id="ops-back">‹ Ops</button>
+        <div class="eyebrow">${esc(node.name)}</div>
+        ${rows}
         ${fireteamHTML()}
       </aside>
-      ${dun ? dunDetail() : exo ? exoDetail() : `<section class="loc-detail">
+      ${selBlitz ? bzDetail() : dun ? dunDetail() : exo ? exoDetail() : `<section class="loc-detail">
         <div class="eyebrow">Activity  ·  Every destination</div>
         <h1 class="screen-title">${a.name}</h1>
         <p class="desc">${a.desc}</p>
@@ -534,9 +596,11 @@ function renderActivities(main) {
         </div>
       </section>`}
     </div>`;
-  $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); if (b.dataset.dun) { selDun = b.dataset.dun; selExo = null; } else if (b.dataset.exo) { selExo = b.dataset.exo; selDun = null; } else { selExo = null; selDun = null; selAct = +b.dataset.act; } renderOrbit(); }));
+  $$('.loc', main).forEach((b) => b.addEventListener('click', () => { sfx.ui(); if (b.dataset.blitz) { selBlitz = true; selExo = null; selDun = null; } else if (b.dataset.dun) { selDun = b.dataset.dun; selExo = null; selBlitz = false; } else if (b.dataset.exo) { selExo = b.dataset.exo; selDun = null; selBlitz = false; } else { selExo = null; selDun = null; selBlitz = false; selAct = +b.dataset.act; } renderOrbit(); }));
+  $('#ops-back', main)?.addEventListener('click', () => { sfx.ui(); actNode = null; selExo = selDun = null; selBlitz = false; renderOrbit(); });
   $('#launch', main)?.addEventListener('click', () => {
     initAudio();
+    if (selBlitz) { lockPointer(); launchBlitz(); return; }
     if (dun) { startDungeonFromUi(dun.id); return; }
     if (exo) { startExoticFromUi(exo.id); return; }
     lockPointer();
@@ -549,7 +613,7 @@ function renderActivities(main) {
 function readyBarHTML() {
   const st = readyState(net.members, net.ready, net.sel);
   const me = net.ready.includes(net.myId);
-  const pick = !net.sel ? null : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
+  const pick = !net.sel ? null : net.sel.li === -4 ? { name: 'Mission Blitz' } : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
   return `<div class="ready-bar">
     <div class="rb-head"><span>${pick ? `Ready Up  ·  ${esc(pick.name)}` : 'Waiting for the leader to pick'}</span><b>${st.count}/${st.total}</b></div>
     <div class="rb-segs">${net.members.map((mm) => `<span class="rb-seg${net.ready.includes(mm.id) ? ' on' : ''}" style="--nc:${CLASSES[mm.cls]?.color || '#fff'}"><b>${esc(mm.name)}</b><i>${net.ready.includes(mm.id) ? 'Ready' : 'Not ready'}</i></span>`).join('')}</div>
@@ -569,7 +633,7 @@ function fireteamHTML() {
       <p class="ft-hint">Co-op for up to ${MAX_FIRETEAM}. Share your code; every player gets their own loot.</p>
     </div>`;
   }
-  const sel = !net.sel ? null : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
+  const sel = !net.sel ? null : net.sel.li === -4 ? { name: 'Mission Blitz' } : net.sel.li === -3 ? dungeonList()[net.sel.mi] : net.sel.li === -2 ? exoticList()[net.sel.mi] : net.sel.li === -1 ? ACTIVITIES[net.sel.mi] : LOCATIONS[net.sel.li]?.missions[net.sel.mi];
   return `<div class="ft on">
     <div class="eyebrow">Fireteam  ·  ${net.members.length}/${MAX_FIRETEAM}</div>
     <button class="ft-code" id="ft-copy" title="Copy the code">${net.code}<span>Copy</span></button>
@@ -1910,8 +1974,78 @@ export function showComplete(M) {
   else $('#c-replay').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.dungeon) launchDungeon(M.dungeon.id); else if (M.exotic) launchExotic(M.exotic.id); else if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
 }
 
+/** U28: the five-step track of a Blitz run (done, current, upcoming) with each mission's name. */
+function blitzTrack(run, failed = false) {
+  return `<div class="bz-track">${run.missions.map((m, i) => {
+    const st = run.done || i < run.step ? 'done' : i === run.step ? (failed ? 'dead' : 'now') : 'next';
+    return `<div class="bz-step ${st}"><i>${i + 1}</i><span>${esc(LOCATIONS[m.li].missions[m.mi].name)}</span><small>${esc(LOCATIONS[m.li].name)}</small></div>`;
+  }).join('')}</div>`;
+}
+
+/**
+ * U28: between Blitz missions. The mission's cache has paid; the leader (or a solo player) takes the run to the next one, on a short
+ * countdown or a click. Members wait for the leader. Leaving ends the run.
+ */
+export function showBlitzCard(M, next) {
+  showOnly('complete');
+  const el = $('#complete');
+  const lead = !M.coop || net.isHost;
+  const up = runMission(next), upDef = LOCATIONS[up.li].missions[up.mi];
+  const done = next.step; // missions cleared
+  el.innerHTML = `
+    <div class="modal wide bz-card">
+      <div class="eyebrow">Mission Blitz  ·  ${done} of ${BLITZ_LENGTH} cleared</div>
+      <h1 class="screen-title gold">${esc(runLabel(next))}</h1>
+      <div class="m-name-big">Next: ${esc(upDef.name)}<span class="tag new">${esc(LOCATIONS[up.li].name)}</span></div>
+      ${blitzTrack(next)}
+      <p class="desc">${lead ? 'Full health, ammo and super for the next mission. No revives.' : 'Waiting for the fireteam leader to start the next mission.'}${M.loot.length ? ` Items found in ${esc(M.def.name)}: ${M.loot.length}.` : ''}</p>
+      <div class="row-btns">
+        ${lead ? `<button class="btn primary" id="bz-next">Next mission<span id="bz-count"></span></button>` : ''}
+        <button class="btn" id="bz-leave">Leave Blitz</button>
+      </div>
+    </div>`;
+  $('#bz-leave').addEventListener('click', () => abandonMission());
+  if (!lead) return;
+  let left = 8, fired = false;
+  const go = () => { if (fired || G.mission !== M || G.state !== 'complete') return; fired = true; lockPointer(); launchBlitz(next); };
+  $('#bz-next').addEventListener('click', go);
+  const tick = () => {
+    if (fired || G.mission !== M || G.state !== 'complete') return;
+    const c = $('#bz-count');
+    if (c) c.textContent = `  ·  ${left}`;
+    if (left-- <= 0) { go(); return; }
+    setTimeout(tick, 1000);
+  };
+  tick();
+}
+
+/** U28: the fifth mission is cleared. The run reward: the exotic pick menu (also reopens in Orbit if you decide later) and the fireteam's legendaries. */
+export function showBlitzDone(M, run) {
+  showOnly('complete');
+  const el = $('#complete');
+  const R = M.blitzReward, rec = blitzRecord(G.save);
+  el.innerHTML = `
+    <div class="modal wide bz-card">
+      <div class="eyebrow">Mission Blitz</div>
+      <h1 class="screen-title gold">Mission Blitz Complete</h1>
+      <div class="m-name-big">${BLITZ_LENGTH} of ${BLITZ_LENGTH} cleared<span class="tag new">Clear ${rec.clears}</span></div>
+      ${blitzTrack(run)}
+      <p class="desc">Choose your exotic. ${R.legendaries.length ? `Your fireteam added ${R.legendaries.length} legendary drop${R.legendaries.length === 1 ? '' : 's'}.` : ''}</p>
+      ${R.legendaries.length ? `<div class="grid rewards">${R.legendaries.map((it) => itemCard(it)).join('')}</div>` : ''}
+      <div class="row-btns">
+        <button class="btn primary" id="bz-pick">Choose your exotic</button>
+        <button class="btn" id="bz-orbit">Return to Orbit</button>
+      </div>
+    </div>`;
+  const pick = () => { if (G.save.pendingMenus?.includes(R.menu)) openRewardMenu(G.save, R.menu); else $('#bz-pick').disabled = true; };
+  $('#bz-pick').addEventListener('click', pick);
+  $('#bz-orbit').addEventListener('click', () => abandonMission());
+  setTimeout(() => { if (G.mission === M && G.state === 'complete') pick(); }, 700);
+}
+
 export function showFailed(M) {
   showOnly('failed');
+  if (M.blitz) { showBlitzFailed(M); return; }
   const cleared = M.act ? (M.phase === 'combat' ? M.wave - 1 : M.wave) : 0;
   const el = $('#failed');
   el.innerHTML = `
@@ -1928,6 +2062,26 @@ export function showFailed(M) {
   if (M.coop && !net.isHost) $('#f-retry').remove();
   else $('#f-retry').addEventListener('click', () => { lockPointer(); if (net.isHost) { if (M.dungeon) launchDungeon(M.dungeon.id); else if (M.exotic) launchExotic(M.exotic.id); else if (M.act) launchActivity(M.act.id); else launchFireteam(M.li, M.mi); } else retryMission(); });
   $('#f-orbit').addEventListener('click', () => abandonMission());
+}
+
+/** U28: a death (or a wipe) ended the Blitz run. Everyone in the fireteam lands here; the leader can start a new run. */
+function showBlitzFailed(M) {
+  const el = $('#failed'), run = M.blitz, rec = blitzRecord(G.save);
+  const lead = !M.coop || net.isHost;
+  el.innerHTML = `
+    <div class="modal wide bz-card">
+      <div class="eyebrow">Mission Blitz</div>
+      <h1 class="screen-title red">Mission Blitz failed at ${run.step + 1} of ${BLITZ_LENGTH}</h1>
+      <p class="desc">There are no revives in a Blitz: one death ends the run. ${run.step ? `You cleared ${run.step} mission${run.step === 1 ? '' : 's'}.` : 'You did not clear a mission.'} Loot you picked up along the way is yours to keep.</p>
+      ${blitzTrack(run, true)}
+      <div class="summary"><div><b>${run.step}</b><span>Missions cleared</span></div><div><b>${rec.best} of ${BLITZ_LENGTH}</b><span>Best run</span></div><div><b>${M.kills}</b><span>Kills</span></div><div><b>${M.loot.length}</b><span>Items found</span></div></div>
+      <div class="row-btns">
+        ${lead ? '<button class="btn primary" id="bz-again">New Blitz</button>' : ''}
+        <button class="btn" id="bz-orbit">Return to Orbit</button>
+      </div>
+    </div>`;
+  $('#bz-again')?.addEventListener('click', () => { lockPointer(); launchBlitz(); });
+  $('#bz-orbit').addEventListener('click', () => abandonMission());
 }
 
 // ---------------------------------------------------------------------------

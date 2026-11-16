@@ -68,27 +68,31 @@ export function openRewardMenu(s, menu) {
     el.className = `rw-ov ${menu.tier}`;
     menuEl = el;
     const picked = { armor: new Set(), weapons: new Set() };
+    const any = def.keepAny || 0; // U28: the Mission Blitz menu keeps one item from either list
+    const sub = any ? (menu.allFound ? `You have found every exotic. Keep ${any} of these exotic armor pieces.` : `Keep ${any} exotic you have not found yet.`) : `Keep ${def.keepArmor} exotic armor piece${def.keepArmor === 1 ? '' : 's'} and ${def.keepWeapons} exotic weapon${def.keepWeapons === 1 ? '' : 's'}. The rest are gone for good.`;
     el.innerHTML = `
       <div class="rw-wrap">
         <div class="rw-eyebrow">${def.name} reward</div>
-        <h1 class="rw-title">Choose your exotics</h1>
-        <p class="rw-sub">Keep ${def.keepArmor} exotic armor piece${def.keepArmor === 1 ? '' : 's'} and ${def.keepWeapons} exotic weapon${def.keepWeapons === 1 ? '' : 's'}. The rest are gone for good.</p>
-        <div class="rw-sec"><div class="rw-head"><b>Exotic armor</b><span id="rw-ca"></span></div><div class="rw-grid" data-k="armor">${menu.armor.map(menuCard).join('')}</div></div>
-        <div class="rw-sec"><div class="rw-head"><b>Exotic weapons</b><span id="rw-cw"></span></div><div class="rw-grid" data-k="weapons">${menu.weapons.map(menuCard).join('')}</div></div>
+        <h1 class="rw-title">${any ? 'Choose your exotic' : 'Choose your exotics'}</h1>
+        <p class="rw-sub">${sub}</p>
+        ${menu.armor.length ? `<div class="rw-sec"><div class="rw-head"><b>Exotic armor</b><span id="rw-ca"></span></div><div class="rw-grid" data-k="armor">${menu.armor.map(menuCard).join('')}</div></div>` : ''}
+        ${menu.weapons.length ? `<div class="rw-sec"><div class="rw-head"><b>Exotic weapons</b><span id="rw-cw"></span></div><div class="rw-grid" data-k="weapons">${menu.weapons.map(menuCard).join('')}</div></div>` : ''}
         <div class="rw-btns"><button class="btn primary" id="rw-claim" disabled>Claim</button><button class="btn ghost" id="rw-later">Decide later</button></div>
       </div>`;
     document.body.appendChild(el);
     const claimBtn = el.querySelector('#rw-claim');
     const refresh = () => {
-      el.querySelector('#rw-ca').textContent = `${picked.armor.size} / ${def.keepArmor}`;
-      el.querySelector('#rw-cw').textContent = `${picked.weapons.size} / ${def.keepWeapons}`;
+      const ca = el.querySelector('#rw-ca'), cw = el.querySelector('#rw-cw');
+      if (ca) ca.textContent = any ? `${picked.armor.size + picked.weapons.size} / ${any}` : `${picked.armor.size} / ${def.keepArmor}`;
+      if (cw) cw.textContent = any ? `${picked.armor.size + picked.weapons.size} / ${any}` : `${picked.weapons.size} / ${def.keepWeapons}`;
       el.querySelectorAll('.rw-pick').forEach((c) => c.classList.toggle('on', picked[c.parentElement.dataset.k].has(c.dataset.id)));
       claimBtn.disabled = !!validateClaim(menu, [...picked.armor], [...picked.weapons]);
     };
     const toggle = (card) => {
-      const k = card.parentElement.dataset.k, set = picked[k], keep = k === 'armor' ? def.keepArmor : def.keepWeapons;
+      const k = card.parentElement.dataset.k, set = picked[k], keep = any || (k === 'armor' ? def.keepArmor : def.keepWeapons);
+      const have = any ? picked.armor.size + picked.weapons.size : set.size;
       if (set.has(card.dataset.id)) set.delete(card.dataset.id);
-      else if (set.size < keep) set.add(card.dataset.id);
+      else if (have < keep) set.add(card.dataset.id);
       else { sfx.denied(); orbitNotice(`You can only keep ${keep}. Deselect one first.`); return; }
       sfx.ui(); refresh();
     };

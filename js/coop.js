@@ -11,11 +11,12 @@ import { wrapAngle } from './util.js';
 import { tracer, explosionFx, sparks, firePool } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
-import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
+import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startBlitzStep, claimPendingCache, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
 import { XP } from './progression.js';
 import { barrierStops } from './combat.js';
 import { playerPower, playerLevel } from './save.js';
 import { selectedTier, tierOf } from './campaign.js';
+import { newRun, runAt, blitzUnlocked } from './blitz.js';
 import { sfx } from './audio.js';
 import { stinger } from './music.js';
 import { buildSparrowModel } from './sparrow.js';
@@ -50,7 +51,7 @@ const sqXZ = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z);
 export function profile() {
   const s = G.save;
   if (!s.settings.name) { s.settings.name = `Guardian${Math.floor(1000 + Math.random() * 9000)}`; }
-  return { name: s.settings.name, cls: s.classId, power: playerPower(s), level: playerLevel(s), dun: dungeonList().filter((d) => dungeonUnlocked(s, d)).map((d) => d.id) }; // level: U21 exotic missions gate every member; dun: U23 dungeons this Guardian has unlocked
+  return { name: s.settings.name, cls: s.classId, power: playerPower(s), level: playerLevel(s), dun: dungeonList().filter((d) => dungeonUnlocked(s, d)).map((d) => d.id), bz: blitzUnlocked(s) }; // bz: U28 Mission Blitz is open on this account; level: U21 exotic missions gate every member; dun: U23 dungeons this Guardian has unlocked
 }
 
 /** Everyone enemies can target: the local player plus teammates in this mission. */
@@ -88,6 +89,15 @@ export function launchFireteam(li, mi) {
   const tier = selectedTier(G.save); // U20a: the fireteam plays the leader's campaign pick
   if (net.isHost) broadcast({ t: 'start', li, mi, lp: playerPower(G.save), tier }); // U19: members play at no less than the leader's Light
   startMission(li, mi, tier);
+}
+
+/**
+ * Host: start a Mission Blitz run (U28, no run: a new seeded one) or move the fireteam to the run's next mission. The host picks the seed and
+ * the mission list; members rebuild the same run from the seed and step in the 'start' message. Solo plays the same path.
+ */
+export function launchBlitz(run = newRun(newSeed())) {
+  if (net.isHost) broadcast({ t: 'start', bz: { s: run.seed, n: run.step }, lp: playerPower(G.save) });
+  startBlitzStep(run);
 }
 
 /** Host: launch an exotic mission (U21) for the whole fireteam. Members start it from the 'start' message. */
@@ -175,7 +185,7 @@ function updateRevives(dt) {
   }
   const complete = ['loot', 'done', 'final'].includes(M.phase) || !!M.patrol; // a patrol never ends in a wipe: lives are pooled without end and you wake at the landing
   // U20a: Ultimate is lethal: any death in the fireteam ends the run
-  if (net.isHost && G.state === 'playing' && !complete && (tierOf(M.tier).lethal ? allPlayers().some((p) => p.dead) : M.lives <= 0 && allPlayers().every((p) => p.dead))) {
+  if (net.isHost && G.state === 'playing' && !complete && ((M.lethal ?? tierOf(M.tier).lethal) ? allPlayers().some((p) => p.dead) : M.lives <= 0 && allPlayers().every((p) => p.dead))) {
     broadcast({ t: 'wipe' });
     missionFailed();
     return;
@@ -480,11 +490,17 @@ net.on('start', (m) => {
   if (m.dun) startDungeon(m.dun).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the dungeon: ${e.message}`); });
   else if (m.exo) startExotic(m.exo).catch((e) => { console.error(e); ui.orbitNotice(`Could not start the exotic mission: ${e.message}`); });
   else if (m.tower) startTower(); // H25
+  else if (m.bz) { claimPendingCache(); startBlitzStep(runAt(m.bz.s, m.bz.n)); } // U28: an unopened cache goes to the Postmaster first
   else if (m.act) startActivity(m.act, m.seed); else if (m.mi === -1) startPatrol(m.li); else startMission(m.li, m.mi, m.tier || 'base');
   ui.feed(m.tower ? 'Fireteam leader took the fireteam to the Tower. Click to capture the mouse.' : 'Fireteam leader launched the mission. Click to capture the mouse.', '#7fd8ff');
 });
-net.on('end', () => { if (inMission()) { abandonMission(true); ui.orbitNotice('The fireteam leader ended the mission.'); } });
-net.on('hostgone', () => { if (G.mission && G.state !== 'complete') { abandonMission(true); } });
+net.on('end', () => {
+  if (!(inMission() || (G.mission?.blitz && G.state === 'complete' && !G.mission.blitzReward))) return;
+  const msg = G.mission.blitz ? 'The fireteam leader ended the Blitz run.' : 'The fireteam leader ended the mission.';
+  abandonMission(true);
+  ui.orbitNotice(msg);
+});
+net.on('hostgone', () => { if (G.mission && (G.state !== 'complete' || (G.mission.blitz && !G.mission.blitzReward))) { abandonMission(true); } }); // U28: a member waiting on the Blitz card must not be left there
 net.on('disbanded', (m) => { if (m.reason) ui.orbitNotice(m.reason); });
 net.on('joined', () => { sfx.ui(); });
 net.on('left', (m) => {

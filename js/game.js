@@ -13,8 +13,9 @@ import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
 import { addItem, sendToPostmaster, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic, lowestSlot } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, capRarity, maxRarityIndex } from './progression.js';
-import { unlockEvents, tierExoticDue, rollTierExotic } from './rewards.js';
-import { tierOf, tierPower, tierEnemyLight, tierClears, recordClear, capRoll, selectedTier } from './campaign.js';
+import { unlockEvents, tierExoticDue, rollTierExotic, queueBlitzMenu } from './rewards.js';
+import { BLITZ_TIER, runLabel, runMission, clearStep, failRun, recordRun, blitzLegendaries } from './blitz.js';
+import { tierOf, tierPower, tierEnemyLight, tierClears, recordClear, capRoll, selectedTier, armorBand, CAMPAIGN_TIERS } from './campaign.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection, getSection, musicSectionFor, stinger } from './music.js';
 import * as ui from './ui.js';
@@ -65,10 +66,13 @@ function snapSun(L, pos) {
 // ---------------------------------------------------------------------------
 // Mission lifecycle
 // ---------------------------------------------------------------------------
-/** `tier`: Base, Legendary or Ultimate (U20a). Solo: the Director pick. A fireteam plays the leader's pick (sent with 'start'). */
-export function startMission(li, mi, tier = selectedTier(G.save)) {
+/**
+ * `tier`: Base, Legendary or Ultimate (U20a). Solo: the Director pick. A fireteam plays the leader's pick (sent with 'start').
+ * `blitz` (U28): the Mission Blitz run this mission belongs to (blitz.js newRun/runAt): Legendary rules with no Light floor and no revives.
+ */
+export function startMission(li, mi, tier = selectedTier(G.save), blitz = null) {
   const loc = LOCATIONS[li], def = loc.missions[mi], g = li * 3 + mi;
-  const T = tierOf(tier), power = tierPower(def.power, T.id);
+  const T = blitz ? BLITZ_TIER : tierOf(tier), power = tierPower(def.power, T.id);
   cleanupMission();
   const level = buildLevel(loc, def);
   G.level = level;
@@ -81,13 +85,13 @@ export function startMission(li, mi, tier = selectedTier(G.save)) {
   initEffects(G.scene);
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const pp = combatLight();
-  const enemyLight = tierEnemyLight(power, T.id, pp);
+  const enemyLight = tierEnemyLight(power, T, pp);
   const L = lightMults(lightGap(pp, enemyLight));
   onMissionStart();
   const fireteam = net.count();
   G.mission = {
     fireteam, coop: net.active, remote: net.isClient,
-    loc, def, li, mi, g, phase: 'travel', current: 0, revives: T.lethal ? 1 : 3, lives: T.lethal ? 0 : livesFor(fireteam), tier: T.id, power, enemyLight, bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
+    loc, def, li, mi, g, phase: 'travel', current: 0, revives: T.lethal ? 1 : 3, lives: T.lethal ? 0 : livesFor(fireteam), tier: T.id, lethal: !!T.lethal, blitz, power, enemyLight, bossModel: def.boss.model, kills: 0, crits: 0, deaths: 0, loot: [],
     xp: 0, startTime: performance.now(), hpMult: 1 + g * 0.1, dmgMult: 1 + g * 0.07,
     playerDmgMult: L.playerDmgMult, incomingMult: L.incomingMult, lightImmune: L.immune,
     checkpoint: level.spawn.clone(), objective: '', waypoint: null, chest: null, failing: false, doneT: 0,
@@ -100,7 +104,7 @@ export function startMission(li, mi, tier = selectedTier(G.save)) {
   playMusic(loc.id);
   stinger('start');
   ui.enterMission();
-  ui.centerMessage(T.over ? `${def.name}  ·  ${T.name}` : def.name, T.over ? `${loc.name}  ·  Recommended ◆ ${power}  ·  Enemies ◆ ${enemyLight} (+${T.over})${T.lethal ? '  ·  No revives' : ''}` : `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
+  ui.centerMessage(blitz ? `${runLabel(blitz)}  ·  ${def.name}` : T.over ? `${def.name}  ·  ${T.name}` : def.name, T.over ? `${loc.name}  ·  Recommended ◆ ${power}  ·  Enemies ◆ ${enemyLight} (+${T.over})${T.lethal ? '  ·  No revives' : ''}` : `${loc.name}  ·  Recommended ◆ ${def.power}`, 3.5);
   if (!T.over) lightWarning(L);
   sfx.areaClear();
   ui.clearSubtitles();
@@ -126,13 +130,19 @@ export function retryMission() {
   else startMission(M.li, M.mi, M.tier);
 }
 
+/** U28: starts mission `run.step` of a Blitz run. Solo, the host and every fireteam member (from the 'start' message) all come through here. */
+export function startBlitzStep(run) {
+  const m = runMission(run);
+  startMission(m.li, m.mi, 'legendary', run);
+}
+
 /** Pooled fireteam lives: 3 for two players, 5 for three (solo uses its own revives). */
 export function livesFor(n) { return n >= 3 ? 5 : n === 2 ? 3 : 0; }
 export const newSeed = () => Math.floor(Math.random() * 1e9);
 
 /** silent: true when the network asked us to leave (don't echo messages back). */
 export function abandonMission(silent = false) {
-  if (!silent && G.mission && G.state !== 'complete' && G.state !== 'failed') onAbandon();
+  if (!silent && G.mission && ((G.state !== 'complete' && G.state !== 'failed') || (G.mission.blitz && G.state === 'complete' && !G.mission.blitzReward))) onAbandon(); // U28: leaving the Blitz card ends the run for the whole fireteam
   cleanupMission();
   ui.showOrbit();
 }
@@ -153,6 +163,7 @@ export function cleanupMission() {
 }
 
 export function missionFailed() {
+  if (G.mission?.blitz) { recordRun(G.save, failRun(G.mission.blitz)); writeSave(G.save); } // U28: a death ends the run; the missions cleared so far already counted
   G.state = 'failed';
   unlockPointer();
   ui.showFailed(G.mission);
@@ -161,7 +172,28 @@ export function missionFailed() {
 function finishMission() {
   G.state = 'complete';
   unlockPointer();
-  ui.showComplete(G.mission);
+  const M = G.mission;
+  if (M.blitz) { finishBlitzStep(M); return; }
+  ui.showComplete(M);
+}
+
+/**
+ * U28: a Blitz mission was cleared (its cache paid the usual Legendary rewards in openChest). Record the progress, then either show the
+ * "Blitz N of 5" card (the host moves everyone on) or, after the fifth, pay the run reward: an exotic pick plus the fireteam's legendaries.
+ */
+function finishBlitzStep(M) {
+  const next = clearStep(M.blitz);
+  recordRun(G.save, next);
+  if (!next.done) { writeSave(G.save); ui.showBlitzCard(M, next); return; }
+  M.blitzReward = { menu: queueBlitzMenu(G.save), legendaries: [] };
+  const pp = playerPower(G.save), lvl = playerLevel(G.save), cap = CAMPAIGN_TIERS.legendary.cap;
+  for (let i = 0; i < blitzLegendaries(M.fireteam); i++) {
+    const it = rollItem(capRoll(pp, randInt(2, 5), cap), 3, null, M.loc.id, G.save.classId, G.save.exoticsFound, lvl, armorBand(G.save));
+    M.blitzReward.legendaries.push(it);
+    grantItem(it);
+  }
+  writeSave(G.save);
+  ui.showBlitzDone(M, next);
 }
 
 // ---------------------------------------------------------------------------
@@ -654,7 +686,14 @@ export function spawnChest(pos) {
   return { group: g, lid, beam, pos: g.position.clone(), opened: false };
 }
 
-function openChest(auto = false) {
+/** U28: a fireteam member moved to the next Blitz mission before opening the cache: it opens now and its rewards go to the Postmaster. */
+export function claimPendingCache() {
+  const M = G.mission;
+  if (M && !M.exotic && M.phase === 'loot' && M.chest && !M.chest.opened) openChest(true, true);
+}
+
+/** `now`: grant at once instead of one by one (the mission is about to be replaced). */
+function openChest(auto = false, now = false) {
   const M = G.mission;
   if (M.exotic) { openExoticChest(auto); return; }
   M.chest.opened = true;
@@ -673,11 +712,12 @@ function openChest(auto = false) {
     let rIdx = capRarity(Math.max(i === 0 ? 2 : 1, rollRarity(lvl, first ? 5 : 2)), lvl);
     if (first && M.mi === M.loc.missions.length - 1 && i === 0) rIdx = maxRarityIndex(lvl); // a destination's final mission: the best rarity this level can use (Loot 2.0)
     const slot = i === 0 && RARITIES[rIdx].id !== 'exotic' ? lowestSlot(G.save) : null; // H27: the first item fills your lowest slot (an exotic keeps its own pool)
-    rewards.push(rollItem(Math.min(cap, base + randInt(...CACHE_LIGHT)), rIdx, slot, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save)));
+    rewards.push(rollItem(Math.min(cap, base + randInt(...CACHE_LIGHT)), rIdx, slot, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save), armorBand(G.save)));
   }
   // U20b: Legendary drops an exotic on every clear of the campaign's final mission (its boss), Ultimate on every mission's first clear
   if (tierExoticDue(M.tier || 'base', M.def.id === ALL_MISSIONS[ALL_MISSIONS.length - 1].id, first)) rewards.push(rollTierExotic(G.save, Math.min(cap, base + randInt(...CACHE_LIGHT)), M.loc.id));
-  rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it, auto); }, 300 + i * 450));
+  if (now) rewards.forEach((it) => grantItem(it, auto));
+  else rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it, auto); }, 300 + i * 450));
   // shaders: a chance on every mission cache, guaranteed on a destination's final mission the first time
   const shader = rollShader(G.save.shaders.owned, first && M.mi === M.loc.missions.length - 1);
   if (shader) {
@@ -928,7 +968,7 @@ export function dropEngram(pos) {
   const pp = playerPower(G.save);
   const rIdx = rollRarity(playerLevel(G.save));
   const power = engramLight(pp, M.power ?? M.def.power, tierOf(M.tier).cap, randInt(...ENGRAM_LIGHT));
-  spawnPickup('engram', pos, rollItem(power, rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save)));
+  spawnPickup('engram', pos, rollItem(power, rIdx, null, M.loc.id, G.save.classId, G.save.exoticsFound, playerLevel(G.save), armorBand(G.save)));
 }
 
 export function explode(pos, radius, dmg, element, o = {}) {
@@ -1414,7 +1454,7 @@ function openActChest() {
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
     if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
     rIdx = capRarity(rIdx, lvl); // never above what this level can use
-    rewards.push(rollItem(capRoll(pp, randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound, playerLevel(G.save))); // U20a: past 200 an activity holds your Light
+    rewards.push(rollItem(capRoll(pp, randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound, playerLevel(G.save), armorBand(G.save))); // U20a: past 200 an activity holds your Light
   }
   rewards.forEach((it, i) => setTimeout(() => { if (G.mission === M) grantItem(it); }, 300 + i * 450));
   const glimmer = 60 + c.wave * 12;

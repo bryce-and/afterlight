@@ -24,6 +24,24 @@ export const CLASS_BASE = { vanguard: mkBase('res'), stalker: mkBase('mob'), arc
 
 /** Stat total on a rolled armor piece, by rarity (plus or minus 2). */
 export const ARMOR_TOTAL = { common: 34, uncommon: 40, rare: 46, legendary: 54, exotic: 60 };
+/**
+ * U28: legendary and exotic armor totals by the band a Guardian has earned (campaign.js armorBand): Base until they clear the Legendary
+ * campaign, Legendary until they clear Ultimate, then Ultimate. [min, max] inclusive. Common, uncommon and rare keep ARMOR_TOTAL (plus or minus 2).
+ */
+export const ARMOR_BANDS = {
+  base: { legendary: [45, 55], exotic: [48, 58] },
+  legendary: { legendary: [56, 62], exotic: [59, 65] },
+  ultimate: { legendary: [63, 70], exotic: [66, 73] },
+};
+/** The stat total for a new armor piece of `rarity` in `band` (`rnd` is a 0..1 roll, injectable for tests). */
+export function armorTotal(rarity, band = 'base', rnd = Math.random) {
+  const B = ARMOR_BANDS[band];
+  if (!B) throw new Error(`armorTotal: no armor band called ${band}`);
+  const r = B[rarity];
+  if (r) return r[0] + Math.min(r[1] - r[0], Math.floor(rnd() * (r[1] - r[0] + 1)));
+  if (!(rarity in ARMOR_TOTAL)) throw new Error(`armorTotal: no rarity ${rarity}`);
+  return ARMOR_TOTAL[rarity] - 2 + Math.min(4, Math.floor(rnd() * 5));
+}
 /** Energy a piece can spend on mods. */
 export const MOD_ENERGY = { common: 4, uncommon: 6, rare: 8, legendary: 10, exotic: 10 };
 
