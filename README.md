@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v4.9 "Crucible" (U25)**: Player versus player on Bannerfall: Control (6v6 over three zones) and one-on-one Duels, solo against AI Guardians or in a lobby of up to 12. Each match can reward a Crucible legendary weapon or Crucible armor piece.
 - **v4.8 "Mission Blitz" (U28)**: Five campaign missions back to back on Legendary difficulty with no revives, for an exotic of your choice; the Activities screen is now Ops nodes; armor stats rise with the campaign tier you have cleared.
 - **v4.7 "The Emperor's Shadow" (U23)**: A Leviathan dungeon of five encounters, earned through the Emperor's Favor and ending with Calus himself, with exclusive Imperial loot.
 - **v4.6 "Deep Whisper" (U21b)**: The Whisper's Red Shaft and Green Chasm are about three to four times longer, with phase-block chains, Vex pistons, ambushes on both traversals and a hidden chest in the Red Shaft. Enemies no longer walk off ledges on their own.
@@ -109,6 +110,9 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/ability-icons.js` | Generated icons for abilities, aspects and fragments |
 | `js/combat.js` | Combat tuning and rules: super gain, spread, stagger, chain targets, weapon tier scaling |
 | `js/releases.js` | Title-screen Update Log and Roadmap content |
+| `js/pvp.js` | Crucible PvP rules (health, one-hit and ammo rules, map ammo crates), behind the `pvp` flag |
+| `js/crucible-net.js` | Networked Crucible: lobby, host-synced score, zones, crates, clock, shooter-resolved hits |
+| `js/crucible-loot.js` | Crucible loot pool: seven legendary weapons and Crucible armor |
 | `js/ui.js` | Menus, inventory, HUD |
 | `js/net.js` / `js/coop.js` | Fireteam networking and co-op game sync |
 

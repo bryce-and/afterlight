@@ -57,6 +57,13 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R49 | Ultimate unlocks a switch to equip unlimited exotics | Exotic Overload, a multi-exotic switch in the Character screen after the first full Ultimate clear (v4.3) | U20b | Complete and published (v4.3) |
 | R07 | Leviathan dungeon: one evolving mechanic, multiple bosses, scales to 1 to 3 players (HP and mechanics) | Missing | U23 | Complete and published (v4.7): The Emperor's Shadow, five encounters on the Leviathan, scaled for solo and fireteams of 2 or 3 |
 
+## Optional (nice to have)
+
+| ID | Requirement | Update | Status |
+|---|---|---|---|
+| O3 | Control and Duel | U25 | Complete and published (v4.9) |
+| O4 | AI Guardians (not too strong) | U25 | Complete and published (v4.9) |
+
 ## Master-prompt requirements
 
 | ID | Requirement | Update | Status |

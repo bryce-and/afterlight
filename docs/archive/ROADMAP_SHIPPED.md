@@ -4,6 +4,7 @@ Rows moved out of `docs/OVERHAUL_ROADMAP.md` once shipped. Read only when a ship
 
 | # | Version | Public name | Contents | Depends on | Status |
 |---|---|---|---|---|---|
+| U23 | v4.7 | **The Emperor's Shadow** | Leviathan dungeon in a different part of the ship than the U15 finale mission, where the real Calus is fought (the campaign boss was a robot copy) | U13, U15, U20b | Released |
 | U16e | v3.1 (v3.2) | **High Ground** | Approved 2026-10-21, see `archive/proposals/U16e_PROPOSAL.md`. Terrain height (`groundAt`, physics, nav, spawns, projectiles, ground mesh), a skybox per destination and mission, level rebuilds with climbs, descents and interiors where they fit (audit in `level-audit/`, vibe references in `reference/`). v3.1: engine, skyboxes, Moon, Dreaming City, Earth, Mars. v3.2: Io, Titan, Tangled Shore, Leviathan | U13a, U16d | Released (v3.1 and v3.2) |
 | U1 | v1.1 | **First Light** | Save v2 + full reset with backup; levels 1 to 40; reward track; rarity by level; starter subclasses + level 10 unlock; Light cap 200; title Update Log + Roadmap; test page | none | Released |
 | U2 | v1.2 | **Clear Sight** | Status-effect registry; buff HUD with timers; yellow super bar; enemy health bars and names; side-floating damage numbers; ADS spread; stagger; balance pass (weapon tier scaling, super gain, Song of Flame, Stormtrance 4, Storm Grenade, Nighthawk) | U1 | Released |

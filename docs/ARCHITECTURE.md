@@ -216,3 +216,11 @@ The module map is in the README. These notes cover systems added during the over
 - The reward menu is the U20b menu with `REWARD_MENUS.blitz` (`keepAny: 1`), stored in `pendingMenus`; `rollBlitzMenu` / `queueBlitzMenu` in `js/rewards.js`.
 - Armor bands: `armorBand(s)` (`js/campaign.js`, per Guardian from `tierCleared`) and `ARMOR_BANDS` / `armorTotal` (`js/armor.js`). `makeArmor` and `rollItem` take a trailing `band`; every drop site passes `armorBand(G.save)` (or the save in use). Callers that omit it get the Base band.
 - Activities screen: `OPS_NODES` in `js/ui.js`, selection state `actNode`; a fireteam selection of `li: -4` is Mission Blitz.
+
+## Crucible PvP (v4.9, U25, `js/pvp.js`, `js/crucible-net.js`, `js/crucible-loot.js`)
+- One switch: the activity's `pvp: true` flag (`mission.pvp`). Only Crucible sets it, so campaign, strikes, Blitz, dungeons and co-op cannot hurt a teammate. PvE numbers are untouched.
+- `js/pvp.js` holds the PvP rules: health 100 plus `shieldMax(resilience)`, no Light and no `weaponTierMult`, one-hit rules (sniper headshot, shotgun inside a set range, fusion with the full volley inside a set range), and map ammo crates.
+- `js/crucible-net.js`: networked PvP on the existing star topology. `pp` (own state, 20 Hz), host `cs` snapshot (15 Hz), `pvh` shooter-resolved hit that the host relays to the victim, `pvd` death report, `pvk` kill, `pve` end, `pvl` leave, `pvc` crate request. The host owns AI Guardians, zones, score, spawns and the clock. Lobby of up to 12.
+- Duel auto-assigns sides (first Blue, second Red). A human who leaves removes their body; in Duel the other Duelist wins.
+- Rewards: `js/crucible-loot.js` is its own pool (item flag `crucible`), kept out of `LEGENDARY_WEAPONS` and `SET_IDS`. `makeCrucibleDrop` gives a weapon or armor piece at even odds, handed out only by `endMatch` in a finished Crucible match.
+- Headless check: `sh tools/cruciblecheck.sh` (control and duel).
