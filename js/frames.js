@@ -141,7 +141,6 @@ export const LEGENDARY_WEAPONS = [
   { name: 'Night Watch', arch: 'scout', frame: 'lightweight', element: 'kinetic' },
   { name: 'Vision of Confluence', arch: 'scout', frame: 'precision', element: 'solar' },
   { name: 'Hung Jury SR4', arch: 'scout', frame: 'precision', element: 'kinetic' },
-  { name: "Randy's Throwing Knife", arch: 'scout', frame: 'rapid', element: 'kinetic' },
   { name: 'Vouchsafe', arch: 'scout', frame: 'lightweight', element: 'void' },
   { name: 'Perses-D', arch: 'scout', frame: 'highimpact', element: 'stasis' },
   { name: 'Glissando-47', arch: 'scout', frame: 'precision', element: 'strand' },

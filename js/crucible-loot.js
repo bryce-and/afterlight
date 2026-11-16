@@ -12,8 +12,8 @@ export const CRUCIBLE_WEAPONS = [
   { name: 'Trust', arch: 'hand', frame: 'adaptive', element: 'arc', crucible: true },
   { name: "Redrix's Broadsword", arch: 'pulse', frame: 'rapid', element: 'kinetic', crucible: true },
   { name: 'Recluse', arch: 'smg', frame: 'precision', element: 'solar', crucible: true },
-  { name: 'Cerberus+1', arch: 'auto', frame: 'adaptive', element: 'void', crucible: true },
-  { name: 'Revoker', arch: 'sniper', frame: 'adaptive', element: 'kinetic', crucible: true },
+  { name: "Randy's Throwing Knife", arch: 'scout', frame: 'rapid', element: 'kinetic', crucible: true },
+  { name: 'Revoker', arch: 'sniper', frame: 'adaptive', element: 'void', crucible: true },
   { name: 'Cartesian Coordinate', arch: 'fusion', frame: 'rapid', element: 'arc', crucible: true },
   { name: 'The Mountaintop', arch: 'glauncher', frame: 'adaptive', element: 'solar', crucible: true },
 ];
