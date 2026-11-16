@@ -4234,7 +4234,7 @@ test('U25b the crucible net handlers all start from the pvp:true switch', async 
 import * as CL from '../js/crucible-loot.js';
 test('U25c Crucible pool: seven legendaries kept out of every pool, covering four elements, with the look flag', () => {
   const names = CL.CRUCIBLE_WEAPONS.map((w) => w.name);
-  eq(names, ['Trust', "Redrix's Broadsword", 'Recluse', "Randy's Throwing Knife", 'Revoker', 'Cartesian Coordinate', 'The Mountaintop']);
+  eq(names, ['Trust', "Redrix's Broadsword", 'Recluse', "Randy's Throwing Knife", 'Revoker', 'Riptide', 'The Mountaintop']);
   ok(!LEGENDARY_WEAPONS.some((l) => l.crucible) && !NAMED_WEAPONS.some((l) => l.crucible || names.includes(l.name)), 'no Crucible entry in any named pool');
   eq(new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.arch)).size, 7, 'seven archetypes');
   eq([...new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.element))].sort(), ['arc', 'kinetic', 'solar', 'void']);

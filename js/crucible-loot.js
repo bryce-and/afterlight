@@ -14,7 +14,7 @@ export const CRUCIBLE_WEAPONS = [
   { name: 'Recluse', arch: 'smg', frame: 'precision', element: 'solar', crucible: true },
   { name: "Randy's Throwing Knife", arch: 'scout', frame: 'rapid', element: 'kinetic', crucible: true },
   { name: 'Revoker', arch: 'sniper', frame: 'adaptive', element: 'void', crucible: true },
-  { name: 'Cartesian Coordinate', arch: 'fusion', frame: 'rapid', element: 'arc', crucible: true },
+  { name: 'Riptide', arch: 'fusion', frame: 'rapid', element: 'arc', crucible: true },
   { name: 'The Mountaintop', arch: 'glauncher', frame: 'adaptive', element: 'solar', crucible: true },
 ];
 export const CRUCIBLE_SET = 'crucible';
