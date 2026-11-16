@@ -7,6 +7,7 @@ import { UNITS, FACTIONS } from './factions.js';
 import { Enemy, fireEnemyShot, spawnEnemyGrenade } from './enemies.js';
 import { TIERS } from './tiers.js';
 import { withinNotice } from './ai.js';
+import { wrapAngle } from './util.js';
 import { tracer, explosionFx, sparks, firePool } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
@@ -382,9 +383,7 @@ function updateAvatars(dt) {
     const ox = r.pos.x, oz = r.pos.z;
     r.pos.lerp(r.target, k);
     r.vel.set((r.pos.x - ox) / Math.max(dt, 1e-3), 0, (r.pos.z - oz) / Math.max(dt, 1e-3));
-    let dy = r.targetYaw - (r.yaw ?? 0);
-    while (dy > Math.PI) dy -= Math.PI * 2;
-    while (dy < -Math.PI) dy += Math.PI * 2;
+    const dy = wrapAngle(r.targetYaw - (r.yaw ?? 0));
     r.yaw = (r.yaw ?? 0) + dy * k;
     r.eye.set(r.pos.x, r.pos.y + 1.62, r.pos.z);
     const g = r.avatar.group;

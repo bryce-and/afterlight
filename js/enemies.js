@@ -3,7 +3,7 @@ import { G } from './state.js';
 import { ENEMY_TYPES, ELEMENTS } from './data.js';
 import { STAGGER } from './combat.js';
 import { mat } from './world.js';
-import { rand, clamp, pick } from './util.js';
+import { rand, clamp, pick, wrapAngle } from './util.js';
 import { hasLOS, pushOutCircle, pointInColliders, groundAt } from './physics.js';
 import { NAV, heightAt, cellIndex, lineClear, findPath, floodReach, ledgeSpots, nearestWalkable, ledgeStep } from './nav.js';
 import { leashTarget, pastLeash, insideLeash, COVER, coverAllowed, CLOSE_MELEE, closeMeleeReach, SUICIDE, blastDamage } from './ai.js';
@@ -15,6 +15,7 @@ import { pickTarget, allPlayers, damageRemote, announceShot, announceGrenade, re
 import { TIERS, FACTION_PROFILES, SHIELD, shieldFor, GRENADE, grenadeThrower, lobVelocity, JET, ENRAGE, isEnraged, SUICIDE_BLAST, suicideCore, BOSS_PHASE, bossPhaseTime, shieldBurstDamage } from './tiers.js';
 import { BOSS_MODELS } from './bosses.js';
 import { mergeEnemyModel } from './enemy-merge.js';
+import { freeObjectGeometries } from './gpu-free.js';
 import { FACTIONS, NEW_PROFILES, UNITS, unitName, unitShield, enemyColors } from './factions.js';
 import { taken } from './models-taken.js';
 import { scorn } from './models-scorn.js';
@@ -284,7 +285,7 @@ export class Enemy {
     sparks(this.center(_v), this.colors.eye, this.isBoss ? 40 : 10, this.isBoss ? 10 : 5, 0.1, 0.6);
   }
 
-  remove() { G.scene.remove(this.model.group); this.model.bodyMat.dispose(); for (const g of this.model.mergedGeos) g.dispose(); }
+  remove() { G.scene.remove(this.model.group); this.model.bodyMat.dispose(); freeObjectGeometries(this.model.group, G.scene); } // H28: every geometry the unit alone used, not only the merged ones
 
   update(dt) {
     const m = this.model;
@@ -501,9 +502,7 @@ export class Enemy {
     }
 
     const targetYaw = this.hop?.leap ? Math.atan2(this.hop.x1 - this.hop.x0, this.hop.z1 - this.hop.z0) : Math.atan2(dx, dz); // a leap faces the way it travels
-    let dy = targetYaw - this.yaw;
-    while (dy > Math.PI) dy -= Math.PI * 2;
-    while (dy < -Math.PI) dy += Math.PI * 2;
+    const dy = wrapAngle(targetYaw - this.yaw);
     this.yaw += dy * Math.min(1, dt * 8);
 
     this.walk += dt * speed * (ml > 0 ? 2.2 : 0);
@@ -773,8 +772,9 @@ export class Enemy {
     if (m & 2) this.pos.z = z + dz;
   }
 
-  /** U21b: start a leap along a nav leap link waypoint { x, y, z } (the exact landing). Longer and higher than a hop, scaled to the distance. */
-  startLeap(w) {
+  /** U21b: start a leap along a nav leap link waypoint { x, y, z } (the exact landing). Longer and higher than a hop, scaled to the distance.
+   *  H28: named startLinkLeap; as a second startLeap it silently replaced the Cabal rocket leap above, and a jetpack Centurion fed the player to it (NaN position, frozen game). */
+  startLinkLeap(w) {
     const d = Math.hypot(w.x - this.pos.x, w.z - this.pos.z);
     this.hop = { t: 0, dur: clamp(0.4 + d * 0.06, 0.5, 0.9), x0: this.pos.x, z0: this.pos.z, y0: this.pos.y, x1: w.x, z1: w.z, y1: w.y, arc: clamp(0.5 + d * 0.15, 1, 2.5), leap: true };
     this.knock.set(0, 0, 0);
@@ -803,7 +803,7 @@ export class Enemy {
         const w = this.path[this.pathIdx];
         if (w.leap) { // U21b: walk to the launch point, then leap to the landing
           const ld = Math.hypot(w.ax - this.pos.x, w.az - this.pos.z);
-          if (ld < 0.9 && !this.hop && !(this.staggerT > 0) && !(this.plantT > 0)) { this.startLeap(w); this.pathIdx++; this.pathT = 1; continue; }
+          if (ld < 0.9 && !this.hop && !(this.staggerT > 0) && !(this.plantT > 0)) { this.startLinkLeap(w); this.pathIdx++; this.pathT = 1; continue; }
           break;
         }
         if (Math.hypot(w.x - this.pos.x, w.z - this.pos.z) < 0.7) this.pathIdx++; else break;
@@ -967,9 +967,7 @@ export class Enemy {
     if (fl & 16) this.remoteAim(); else hideAim(this); // U17d: the leader's sniper is charging
     if (this.def.frontGuard?.core) guardStep(this, dt); // U18: the leader's Phalanx shield is down (flag 32)
     if (m.lamp) lampPose(this, fl & 64 ? 'spin' : 'run', dt); // U18: the leader's Ravager whirls its lantern (spin) or swings it as it runs
-    let dy = this.netYaw - this.yaw;
-    while (dy > Math.PI) dy -= Math.PI * 2;
-    while (dy < -Math.PI) dy += Math.PI * 2;
+    const dy = wrapAngle(this.netYaw - this.yaw);
     this.yaw += dy * k;
     const sp = Math.hypot(this.pos.x - ox, this.pos.z - oz) / Math.max(dt, 1e-3);
     this.walk += dt * sp * 2.2;

@@ -3871,6 +3871,74 @@ test('U23C hand cannon: kicks up and right (aggressive more, precision straight 
   eq(posts, 0, 'no front post');
 });
 
+// ---- H28: the Mars freeze (a jetpack Centurion's NaN leap hung the frame) and the GPU leaks ----
+test('H28 no class defines the same method twice (a second startLeap silently replaced the Cabal rocket leap)', async () => {
+  const map = JSON.parse((await (await fetch('../index.html')).text()).match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports;
+  const files = Object.keys(map).filter((k) => k.startsWith('./js/')).map((k) => k.slice(2));
+  ok(files.length > 50, `found the game modules (${files.length})`);
+  const dups = [];
+  for (const f of files) {
+    const src = await (await fetch(`../${f}`)).text();
+    let cls = null, seen = null;
+    for (const line of src.split('\n')) {
+      const c = line.match(/^(?:export )?class (\w+)/);
+      if (c) { cls = c[1]; seen = new Set(); continue; }
+      if (cls && /^\}/.test(line)) { cls = null; continue; }
+      const m = cls && line.match(/^  (?:async |static )?(?:(get|set) )?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+      if (!m) continue;
+      const key = (m[1] || '') + m[2];
+      if (seen.has(key)) dups.push(`${f} ${cls}.${m[2]}`); else seen.add(key);
+    }
+  }
+  eq(dups, [], 'duplicate class methods');
+  const enemySrc = await (await fetch('../js/enemies.js')).text();
+  ok(/^  startLeap\(P, dist\) \{/m.test(enemySrc) && /^  startLinkLeap\(w\) \{/m.test(enemySrc), 'the rocket leap and the nav link leap are separate methods');
+  ok(/this\.startLeap\(P, dist\)/.test(enemySrc) && /this\.startLinkLeap\(w\)/.test(enemySrc), 'each caller uses its own leap');
+});
+test('H28 a NaN or infinite ray, sight line or angle returns at once instead of looping', async () => {
+  const { hasLOS } = await import('../js/physics.js');
+  const { wrapAngle } = await import('../js/util.js');
+  const errs = [], ce = console.error; console.error = (...a) => errs.push(String(a[0]));
+  try {
+    withLevel(hillTerrain(), () => {
+      eq(rayGround({ x: NaN, y: 1, z: 0 }, { x: 0, y: 0, z: -1 }, 40), Infinity, 'NaN origin: no ground');
+      eq(rayGround({ x: 0, y: 1, z: 0 }, { x: NaN, y: 0, z: NaN }, NaN), Infinity, 'NaN direction and distance (the frozen Centurion): no ground');
+      ok(rayGround({ x: 0, y: 10, z: 0 }, { x: 0, y: -1, z: 0 }), 'a finite ray with the default far still hits the ground');
+      const v = (x, y, z) => new THREE.Vector3(x, y, z);
+      eq(hasLOS(v(NaN, NaN, NaN), v(0, 1.6, -112)), false, 'a NaN eye sees nothing');
+      eq(hasLOS(v(0, 1.6, 0), v(Infinity, 1.6, 0)), false, 'an infinite target is not seen');
+    });
+    const nav = buildNav([], { minX: -10, maxX: 10, minZ: -10, maxZ: 10 });
+    eq(lineClear(nav, 0, 0, Infinity, 0), false, 'an infinite line is not clear');
+    eq(lineClear(nav, 0, 0, NaN, 0), false, 'a NaN line is not clear');
+    ok(lineClear(nav, 0, 0, 5, 5), 'a finite line on open ground is still clear');
+  } finally { console.error = ce; }
+  ok(errs.some((e) => e.includes('rayGround')) && errs.some((e) => e.includes('hasLOS')) && errs.some((e) => e.includes('lineClear')), `each bad input is reported (${errs.join(' | ')})`);
+  ok(Math.abs(wrapAngle(3 * Math.PI / 2) + Math.PI / 2) < 1e-9 && Math.abs(Math.abs(wrapAngle(-3 * Math.PI)) - Math.PI) < 1e-9 && Math.abs(wrapAngle(0.4) - 0.4) < 1e-12, 'angles wrap into (-PI, PI]');
+  ok(Number.isNaN(wrapAngle(NaN)) && Number.isNaN(wrapAngle(Infinity)), 'a bad angle is NaN, not a hang');
+});
+test('H28 removing a unit frees the geometry only it used; a finished level frees its geometries and textures', async () => {
+  const { freeObjectGeometries, freeScene } = await import('../js/gpu-free.js');
+  const watch = (x) => { x.disposedN = 0; x.addEventListener('dispose', () => x.disposedN++); return x; };
+  const shared = watch(new THREE.BoxGeometry()), own = watch(new THREE.BoxGeometry()), own2 = watch(new THREE.SphereGeometry());
+  const m = new THREE.MeshStandardMaterial(); watch(m);
+  const scene = new THREE.Scene(), unit = new THREE.Group();
+  scene.add(new THREE.Mesh(shared, m));
+  const part = new THREE.Mesh(own, m); part.add(new THREE.Mesh(own2, m));
+  unit.add(new THREE.Mesh(shared, m), part, new THREE.Mesh(own, m));
+  scene.add(unit); scene.remove(unit);
+  eq(freeObjectGeometries(unit, scene), 2, 'two geometries freed');
+  eq([shared.disposedN, own.disposedN, own2.disposedN, m.disposedN], [0, 1, 1, 0], 'the shared box stays, each own geometry is freed once, materials stay');
+  const tex = watch(new THREE.Texture()), bg = watch(new THREE.Texture());
+  const lvl = new THREE.Scene(); lvl.background = bg;
+  const g1 = watch(new THREE.PlaneGeometry());
+  lvl.add(new THREE.Mesh(g1, new THREE.MeshBasicMaterial({ map: tex })), new THREE.Mesh(g1, m));
+  const sun = new THREE.DirectionalLight(); sun.castShadow = true; sun.shadow.map = watch(new THREE.WebGLRenderTarget(4, 4)); lvl.add(sun);
+  eq(freeScene(lvl), { geometries: 1, textures: 2, shadows: 1 }, 'level counts');
+  ok(sun.shadow.map === null || sun.shadow.map === undefined || sun.shadow.map.disposedN === 1, 'the sun shadow map is freed');
+  eq([g1.disposedN, tex.disposedN, bg.disposedN, m.disposedN], [1, 1, 1, 0], 'geometry, map and background freed once; materials kept');
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }

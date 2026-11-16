@@ -36,7 +36,17 @@ export function groundAt(x, z) {
  * Distance along a ray (origin, unit dir) to the ground within `far`, or Infinity. Flat maps use the y = 0 plane;
  * terrain maps march the ray and bisect the crossing, so hills block shots and sight lines.
  */
+const nonFiniteSeen = new Set();
+/** H28: report a NaN or infinite input once per call site (console.error), so the caller can return instead of looping on it. */
+export function reportNonFinite(where, ...vals) {
+  if (nonFiniteSeen.has(where)) return;
+  nonFiniteSeen.add(where);
+  console.error(`Non-finite input to ${where}`, ...vals);
+}
+
 export function rayGround(origin, dir, far = Infinity) {
+  // H28: a NaN origin, direction or distance never reached the exit test below and froze the game
+  if (!Number.isFinite(origin.x + origin.y + origin.z + dir.x + dir.y + dir.z) || Number.isNaN(far)) { reportNonFinite('rayGround', origin, dir, far); return Infinity; }
   const gf = G.level?.groundAt;
   if (!gf) return dir.y < -1e-4 ? -origin.y / dir.y : Infinity;
   const end = Math.min(far, 400);

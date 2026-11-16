@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G } from './state.js';
-import { rayGround } from './colliders.js';
+import { rayGround, reportNonFinite } from './colliders.js';
 
 export * from './colliders.js';
 
@@ -10,6 +10,7 @@ const _d = new THREE.Vector3();
 export function hasLOS(a, b) {
   _d.subVectors(b, a);
   const dist = _d.length();
+  if (!Number.isFinite(dist)) { reportNonFinite('hasLOS', a, b); return false; } // H28: a NaN eye or target sees nothing
   if (dist < 0.01) return true;
   _d.divideScalar(dist);
   ray.set(a, _d);

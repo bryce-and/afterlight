@@ -3,6 +3,7 @@
 // classes, which skills each unit runs, how mission zones mix factions, and what a wave of each faction holds.
 // Unit sheets come from Destiny 2 (Destinypedia). Shield elements where the sources disagreed are marked.
 import { ENEMY_TYPES, LOCATIONS } from './data.js';
+import { wrapAngle } from './util.js';
 
 // ---- factions ----
 // `colors` replace the destination's enemy colors for these units (the mission's own scenery colors are untouched).
@@ -347,8 +348,6 @@ export function guardCoreHit(def, lx, ly, lz) {
 export function spinBlocks(def, angle, bearing) {
   const g = def.spinGuard;
   if (!g) return false;
-  let d = bearing - angle;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
+  const d = wrapAngle(bearing - angle);
   return Math.abs(d) < g.arc / 2;
 }

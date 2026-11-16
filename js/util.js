@@ -4,6 +4,8 @@ export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const damp = (a, b, k, dt) => lerp(a, b, 1 - Math.exp(-k * dt));
+/** H28: an angle wrapped to (-PI, PI] with no loop (a NaN or infinite angle gives NaN instead of hanging the frame). */
+export const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export function mulberry32(seed) {
   let a = seed >>> 0;

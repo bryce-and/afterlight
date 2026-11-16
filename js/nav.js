@@ -3,7 +3,7 @@
 // neighbour when the height difference is a step the player could take (NAV.step), so a ledge is a
 // firing position only if a ramp or stairs lead to it.
 import { G } from './state.js';
-import { footprintHit } from './colliders.js';
+import { footprintHit, reportNonFinite } from './colliders.js';
 
 export const NAV = {
   cell: 1,          // metres per cell
@@ -152,7 +152,9 @@ export function nearestWalkable(nav, x, z, rad = 4) {
 
 /** True when the straight segment stays on walkable cells with only small height changes. */
 export function lineClear(nav, x0, z0, x1, z1) {
-  const len = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(len / (nav.cell * 0.4)));
+  const len = Math.hypot(x1 - x0, z1 - z0);
+  if (!Number.isFinite(len)) { reportNonFinite('lineClear', x0, z0, x1, z1); return false; } // H28: an infinite length never ends the march
+  const n = Math.max(1, Math.ceil(len / (nav.cell * 0.4)));
   let prev = heightAt(nav, x0, z0);
   if (prev < 0) return false;
   for (let k = 1; k <= n; k++) {

@@ -45,6 +45,7 @@ import { linesFor, objectiveFor, UNLOCKS } from './story.js';
 import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
 import { updatePatrol, leavePatrol } from './patrol.js';
 import { keyName } from './keybinds.js';
+import { freeScene } from './gpu-free.js';
 
 const _c = new THREE.Vector3();
 const _pt = new THREE.Vector3(), _pdir = new THREE.Vector3(), _pto = new THREE.Vector3(), _pbest = new THREE.Vector3(), _pk = new THREE.Vector3(), _ptgt = new THREE.Vector3(); // H22: per-frame scratch for projectiles and pickups
@@ -142,6 +143,7 @@ export function cleanupMission() {
   if (G.mission?.dungeon) cleanupDungeon(); // U23
   if (G.mission?.patrol) leavePatrol();
   if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
+  if (G.scene) freeScene(G.scene); // H28: the previous level (and the weapon models on the camera) stayed on the GPU after every mission
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
   clearEffects();
   G.scene = null; G.level = null; G.player = null; G.mission = null;
