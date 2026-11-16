@@ -352,3 +352,6 @@
 | 2026-11-15 | U23 chunk C: Hand cannons recoil up and right (adaptive 20 degrees, aggressive 23, precision straight up), the gun model kicks with it, and the iron sights are replaced by a floating glow dot. | Bryce (U23) |
 | 2026-11-15 | U23 chunk C: Perf uses per-map opt-in merge options (`mergeCell`, `mergeMin`, `mergeStatic`); collider meshes stay hidden in the scene for raycasts. | Claude (U23) |
 | 2026-11-15 | U23 chunk C: The in-game Roadmap is empty after v4.7 and shows "No new transmissions yet" until Bryce curates the next teaser. | Claude (U23) |
+| 2026-11-16 | H28: H28 v4.7.1 includes the GPU leak fixes alongside the freeze fix. | Bryce (H28) |
+| 2026-11-16 | H28: Non-finite input to `rayGround`, `hasLOS` or `lineClear` returns at once (no ground, no sight, not clear) and logs one `console.error` per call site. A unit that goes NaN is not removed; the root cause is fixed instead. | Claude (H28) |
+| 2026-11-16 | H28: GPU freeing covers geometries, textures and light shadow maps only. Materials stay, since they share shader programs and freeing the last user would cost a recompile hitch. A freed geometry or texture that is used again is re-uploaded. | Claude (H28) |
