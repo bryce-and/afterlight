@@ -3706,6 +3706,93 @@ test('U23 the Whisper is untouched: still its own registry, timer and rules', ()
   eq(EX.validateExotic(EX.exoticDef('whisper')), []);
 });
 
+// ---------- U23 chunk B: The Underbelly and The Pleasure Gardens ----------
+import * as SR from '../js/shadow-route.js';
+import * as LS from '../js/level-shadow.js';
+test('U23B registry: both new segments are valid and match the layout; new units are Loyalist dungeon units', () => {
+  const d = DGR.dungeonDef('shadow');
+  eq(DGR.validateDungeon(d), []);
+  eq(LS.SHADOW_LAYOUT.segments.map((s) => s.id), ['baths', 'underbelly', 'gardens']);
+  for (const s of LS.SHADOW_LAYOUT.segments) ok(d.segments[s.id], `${s.id} has a registry entry`);
+  for (const id of ['lg_watcher', 'lg_royalbeast']) { ok(FA.UNITS[id]?.dungeon === 'shadow', `${id} marked`); eq(FA.UNITS[id].faction, 'legion'); }
+  eq(d.faction, 'legion');
+});
+test('U23B Watchers: the sweep stays inside its arc; cones, awareness, hurt alarm and the unseen rule', () => {
+  const w = { yaw: 0.5, sweep: 0.9, period: 7, phase: 0 };
+  for (let t = 0; t < 14; t += 0.37) { const y = DGR.watchYaw(w, t); ok(y >= 0.5 - 0.9 - 1e-9 && y <= 0.5 + 0.9 + 1e-9, 'inside the arc'); }
+  ok(DGR.inCone(0, 0, 0, 0, 10, 20, 0.42), 'straight ahead'); ok(!DGR.inCone(0, 0, 0, 0, -10, 20, 0.42), 'behind');
+  ok(!DGR.inCone(0, 0, 0, 0, 25, 20, 0.42), 'out of range'); ok(!DGR.inCone(0, 0, 0, 10, 10, 20, 0.42), 'outside the half-angle');
+  ok(DGR.inCone(0, 0, Math.PI, 0.1, -10, 20, 0.42) && DGR.inCone(0, 0, -Math.PI, -0.1, -10, 20, 0.42), 'wraps round pi');
+  const c = DGR.dungeonDef('shadow').segments.underbelly.watch;
+  let a = 0; for (let i = 0; i < 12; i++) a = DGR.awareStep(a, 1 / 30, true, 10, c);
+  ok(a < 1, 'a glimpse (0.4 s) does not raise the alarm'); a = DGR.awareStep(a, 1, false, 99, c); ok(a < 0.2, 'it fades out of sight');
+  for (let i = 0; i < 40; i++) a = DGR.awareStep(a, 1 / 30, true, 10, c); eq(a, 1, 'about half a second in the cone raises it');
+  ok(!DGR.hurtAlarm(0.5, true, c.hurtAlarm) && DGR.hurtAlarm(0.9, true, c.hurtAlarm) && !DGR.hurtAlarm(5, false, c.hurtAlarm), 'hurt and alive too long');
+  eq(DGR.sectionOutcome([{ alive: false, alarmed: false }, { alive: false, alarmed: false }]), 'unseen');
+  eq(DGR.sectionOutcome([{ alive: false, alarmed: false }, { alive: true, alarmed: false }]), 'watching');
+  eq(DGR.sectionOutcome([{ alive: false, alarmed: true }, { alive: false, alarmed: false }]), 'alarm', 'an alarm stands after the Watcher dies');
+});
+test('U23B Royal Beasts: patrols are deterministic loops with corner pauses; awareness warns before a howl', () => {
+  const seg = LS.SHADOW_LAYOUT.segments.find((s) => s.id === 'gardens'), C = DGR.dungeonDef('shadow').segments.gardens.beast;
+  for (const b of seg.beasts) {
+    const L = DGR.beastLoop(b.path, C.speed, C.pause);
+    const p0 = DGR.beastAt(b.path, C.speed, C.pause, C.look, 3.3), p1 = DGR.beastAt(b.path, C.speed, C.pause, C.look, 3.3 + L);
+    ok(Math.abs(p0.x - p1.x) < 1e-6 && Math.abs(p0.z - p1.z) < 1e-6, 'one loop later it is back');
+    const c = DGR.beastAt(b.path, C.speed, C.pause, C.look, Math.hypot(b.path[1][0] - b.path[0][0], b.path[1][1] - b.path[0][1]) / C.speed + C.pause / 2);
+    ok(!c.moving && Math.abs(c.x - b.path[1][0]) < 1e-6, 'pauses at the corner');
+    // the loop never cuts through a hedge
+    for (let t = 0; t < L; t += 0.25) { const q = DGR.beastAt(b.path, C.speed, C.pause, C.look, t); ok(!seg.hedges.some((h) => q.x > h.x0 - 0.8 && q.x < h.x1 + 0.8 && q.z < h.z0 + 0.8 && q.z > h.z1 - 0.8), `beast clear of hedges at ${q.x.toFixed(1)}, ${q.z.toFixed(1)}`); }
+  }
+  let a = 0, t = 0; while (a < 1) { a = DGR.awareStep(a, 1 / 60, true, 12, C); t += 1 / 60; }
+  ok(t > 1.4, `seen at range it takes ${t.toFixed(2)} s to fill (a visible warning)`);
+  ok(C.howl >= 4, 'the howl gives at least 4 s of warning before the wipe');
+});
+test('U23B Gardens: flowers scale with the fireteam, sit clear of hedges; Bloom stacks; the down timer wipes at 30 s', () => {
+  const seg = LS.SHADOW_LAYOUT.segments.find((s) => s.id === 'gardens'), cfg = DGR.dungeonDef('shadow').segments.gardens;
+  eq([1, 2, 3].map((n) => DGR.flowerCount(cfg, n)), [4, 5, 6]);
+  ok(seg.flowers.length >= 6);
+  for (const f of seg.flowers) ok(!seg.hedges.some((h) => f[0] > h.x0 - 2 && f[0] < h.x1 + 2 && f[2] < h.z0 + 2 && f[2] > h.z1 - 2), `flower ${f} clear of hedges`);
+  const pick = DGR.pickFlowers(6, 8, () => 0.3); eq(new Set(pick).size, 6);
+  eq(+DGR.bloomMult(5, cfg.bloomPer).toFixed(2), 1.6); eq(DGR.bloomMult(0, cfg.bloomPer), 1);
+  ok(STATUS.bloom && STATUS.bloom.maxStacks >= 6, 'Bloom is a stacking status');
+  const downs = {};
+  eq(DGR.downStep(downs, { a: true, b: false }, 29, 30), null);
+  eq(DGR.downStep(downs, { a: false, b: false }, 2, 30), null, 'revived: the count is forgotten');
+  eq(DGR.downStep(downs, { a: true, b: false }, 29.5, 30), null);
+  eq(DGR.downStep(downs, { a: true, b: false }, 0.6, 30), 'a', 'down 30 s: wipe');
+  eq(cfg.downLimit, 30);
+  for (const t of seg.tasters) ok(seg.beasts.every((b) => { for (let k = 0; k < b.path.length; k++) { const p = b.path[k], q = b.path[(k + 1) % b.path.length]; const L2 = (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2; const u = Math.max(0, Math.min(1, ((t[0] - p[0]) * (q[0] - p[0]) + (t[2] - p[1]) * (q[1] - p[1])) / L2)); if (Math.hypot(t[0] - p[0] - u * (q[0] - p[0]), t[2] - p[1] - u * (q[1] - p[1])) < 8) return false; } return true; }), `Taster ${t} away from the patrols`);
+});
+test('U23B Kathrax: DPS windows only, capped hits, a leash, a real-size model scaled down', () => {
+  const cfg = DGR.dungeonDef('shadow').segments.gardens, B = cfg.boss;
+  ok(cfg.windowTime > 0 && !cfg.enrage, 'a DPS window, no damage gates, no enrage (not the final boss)');
+  for (const [k, v] of Object.entries(B.hitFrac)) ok(v > 0 && v < 0.5, `${k} under half a pool`);
+  ok(B.leash > 0 && B.windowLeash > B.leash && B.guard > B.leash, 'leashed to the pavilion outside a window');
+  ok(B.scale < 1 && B.scale >= 0.6, 'scaled down from its real-size model');
+  const f = new DGR.DpsBossFsm(cfg); ok(f.immune); f.openWindow(); eq(f.mode, 'window'); f.tick(cfg.windowTime + 0.1, 100, 100); eq(f.mode, 'immune');
+});
+test('U23B levers: right lights, wrong resets to the start, three right open the hatch', () => {
+  const st = DGR.newLevers(3, () => 0.1); eq(st.order.length, 3); eq(new Set(st.order).size, 3);
+  eq(DGR.pullLever(st, st.order[0]), 'right'); const bad = DGR.SIGILS.find((x) => !st.order.includes(x));
+  eq(DGR.pullLever(st, bad), 'wrong'); eq(st.progress, 0, 'wrong starts over');
+  eq(DGR.pullLever(st, st.order[0]), 'right'); eq(DGR.pullLever(st, st.order[1]), 'right'); eq(DGR.pullLever(st, st.order[2]), 'solved');
+  eq(DGR.pullLever(st, st.order[0]), 'ignored');
+  const seg = LS.SHADOW_LAYOUT.segments.find((s) => s.id === 'underbelly');
+  eq(seg.levers.map((l) => l.sigil).sort(), [...DGR.SIGILS].sort(), 'one lever per sigil');
+});
+test('U23B checkShadowRoute: no class jump or glide at Mobility 50 skips a grate stretch; movers have safe windows', () => {
+  const r = SR.checkShadowRoute();
+  eq(r.problems, [], r.problems.join(' | '));
+  const r2 = SR.checkShadowRoute({ sprint: false }); eq(r2.problems, [], 'walking in the air too');
+  // the checker catches a skip: a planted ledge half way along G1 lets a glide across
+  const bad = SR.checkShadowRoute({ extra: [{ id: 'plant', x0: 6, x1: 9, z0: -114, z1: -118, top: 3, stage: null }] });
+  ok(bad.problems.some((p) => p.includes('stage 0')), 'a planted foothold is caught');
+  // G1 is longer than the best flat reach plus margin from the top of deck cover
+  const A = LS.UB_FOOT.find((f) => f.id === 'ub_a3'), B = LS.UB_FOOT.find((f) => f.id === 'ub_b1');
+  ok(A.z1 - B.z0 > 35.7, `G1 spans ${(A.z1 - B.z0).toFixed(1)} m`);
+  ok(LS.UB_FOOT.find((f) => f.id === 'ub_c1').top - (2 + SR.COVER_LIFT) > 5.57, 'G2 climbs more than any class jump plus margin');
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }

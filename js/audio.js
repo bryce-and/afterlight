@@ -344,6 +344,8 @@ export const sfx = {
   /** A piston charges: a rising hum at its housing (spatial). */
   pistonHum(at) { play('abilities', [{ t: { freq: 70, freqEnd: 190, dur: 1.0, type: 'sawtooth', gain: 0.07 } }, { n: { dur: 1.0, freq: 300, freqEnd: 1400, type: 'bandpass', gain: 0.1 } }], { at, vary: 0, send: 0.2 }); },
   /** The piston slams out. */
+  watcherAlarm(at) { play('abilities', [{ t: { freq: 740, dur: 0.16, type: 'square', gain: 0.06 } }, { t: { freq: 554, dur: 0.16, type: 'square', gain: 0.06, delay: 0.2 } }, { t: { freq: 740, dur: 0.16, type: 'square', gain: 0.06, delay: 0.4 } }], { at, vary: 0, send: 0.3 }); }, // U23 chunk B: an Imperial Watcher calls the guard
+  beastHowl(at) { play('abilities', [{ t: { freq: 210, freqEnd: 520, dur: 1.3, type: 'sawtooth', gain: 0.09 } }, { t: { freq: 330, freqEnd: 170, dur: 1.6, type: 'triangle', gain: 0.07, delay: 0.5 } }, { n: { dur: 1.4, freq: 600, freqEnd: 250, type: 'bandpass', gain: 0.06 } }], { at, vary: 0, send: 0.6 }); }, // U23 chunk B: a Royal Beast has your scent
   pistonSlam(at) { play('abilities', [{ n: { dur: 0.16, freq: 1800, freqEnd: 300, type: 'bandpass', gain: 0.3 } }, { t: { freq: 90, freqEnd: 40, dur: 0.3, gain: 0.3 } }], { at, vary: 0, send: 0.3 }); },
   /** The piston hits you. */
   pistonHit() { play('abilities', [{ t: { freq: 140, freqEnd: 45, dur: 0.3, gain: 0.35 } }, { n: { dur: 0.12, freq: 900, type: 'bandpass', gain: 0.25 } }], { vary: 0 }); },

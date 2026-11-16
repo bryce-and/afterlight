@@ -520,10 +520,131 @@ function phalanx(c) {
   c.height = 2.2;
 }
 
+/** Imperial Watcher (U23 Underbelly, original design): a floating brass-and-gold lantern sentry. An octagonal lantern body (glowing purple glass
+ *  between gold posts), a ring of downward thruster nozzles, three gold vanes fanned on top like a crown and one big round lens on the front (+z,
+ *  the precision spot). No legs or arms. c.lens is its own emissive material so the runtime can recolour it from purple (searching) to red (alarm). */
+function watcher(c) {
+  const brass = mat(0xc9a046, { metalness: 0.6, roughness: 0.4 }), brassD = mat(0x9a7424, { metalness: 0.5, roughness: 0.45 });
+  const gold = mat(0xd9a93c, { metalness: 0.7, roughness: 0.35 }), steel = mat(0x2c3038, { metalness: 0.8, roughness: 0.35 });
+  const glass = mat(0x4a1f6e, { emissive: 0x6a2cc4, emissiveIntensity: 0.9 }), jet = mat(0x8a3cff, { emissive: 0x8a3cff, emissiveIntensity: 1.5 });
+  c.lens = new THREE.MeshStandardMaterial({ color: 0xb06cff, emissive: 0x8a3cff, emissiveIntensity: 2.6, flatShading: true, roughness: 0.3 });
+  const body = c.pivot(0, 0.8, 0);
+  c.torso = body;
+  cyl(c, 0.34, 0.34, 0.74, 8, glass, 0, 0, 0, body);               // glowing glass core
+  cyl(c, 0.3, 0.4, 0.16, 8, brassD, 0, -0.44, 0, body);            // lower taper
+  cyl(c, 0.4, 0.3, 0.16, 8, brassD, 0, 0.44, 0, body);             // upper shoulder
+  cyl(c, 0.2, 0.3, 0.07, 8, brass, 0, 0.55, 0, body);              // top cap
+  cyl(c, 0.26, 0.3, 0.06, 8, steel, 0, -0.55, 0, body);            // base plate
+  for (let k = 0; k < 8; k++) {                                     // gold posts on the octagon corners
+    const a = (k * PI) / 4;
+    c.B(0.07, 0.78, 0.07, Math.sin(a) * 0.4, 0, Math.cos(a) * 0.4, gold, body);
+  }
+  for (const y of [-0.3, 0.3]) c.add(new THREE.TorusGeometry(0.4, 0.035, 4, 8), gold, 0, y, 0, body, false, [PI / 2, PI / 8, 0]);
+  // the lens: a gold ring, the glowing lens and a dark pupil (the crit spot)
+  c.add(new THREE.TorusGeometry(0.27, 0.045, 5, 14), gold, 0, 0.02, 0.4, body, true);
+  cyl(c, 0.23, 0.23, 0.12, 14, c.lens, 0, 0.02, 0.41, body, [PI / 2, 0, 0], true);
+  cyl(c, 0.09, 0.09, 0.05, 10, steel, 0, 0.02, 0.48, body, [PI / 2, 0, 0], true);
+  c.B(0.06, 0.06, 0.03, 0.1, 0.1, 0.5, mat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 1.2 }), body, true); // glint
+  // thruster ring under the body, a faint purple glow
+  c.add(new THREE.TorusGeometry(0.27, 0.04, 4, 12), steel, 0, -0.6, 0, body, false, [PI / 2, 0, 0]);
+  for (let k = 0; k < 8; k++) {
+    const a = (k * PI) / 4;
+    cone(c, 0.06, 0.17, jet, Math.sin(a) * 0.27, -0.7, Math.cos(a) * 0.27, body, [PI, 0, 0], false, 6);
+  }
+  // three gold vanes fanned on top
+  for (const [x, h, rz] of [[-0.15, 0.26, 0.5], [0, 0.36, 0], [0.15, 0.26, -0.5]]) {
+    c.B(0.06, h, 0.3, x, 0.58 + h / 2 - 0.04, 0, gold, body, false, [0, 0, rz]);
+    c.B(0.09, 0.07, 0.34, x + Math.sin(-rz) * h * 0.5, 0.58 + h * 0.95, 0, brass, body, false, [0, 0, rz]);
+  }
+  ico(c, 0.06, 0, jet, 0, 0.5, 0, body);                           // crown jewel
+  c.muzzle.position.set(0, 0.02, 0.55);
+  body.add(c.muzzle);
+  c.legs = []; c.arms = [];
+  c.height = 1.2;
+}
+
+/** Royal Beast (U23 Gardens, original design): a heavy war beast of the Emperor's kennels, ~1.9 m at the shoulder and ~3.6 m long. Gold barding
+ *  plates over the back and shoulders, a purple caparison with gold trim down the flanks, a spiked gold collar, a crested armoured head with a
+ *  glowing visor slit (c.visor, its own emissive material so the runtime can recolour it), heavy clawed legs and a thick tail with a gold weight.
+ *  Four leg pivots in c.legs (swung by rotation.x), head pivot c.head (the precision spot), body c.torso. */
+function royalBeast(c) {
+  const M = cm();
+  const gold = mat(0xd9a93c, { metalness: 0.7, roughness: 0.35 }), goldD = mat(0x9a7424, { metalness: 0.6, roughness: 0.4 });
+  const cloth = mat(0x4a1f6e), clothD = mat(0x35154f), steel = mat(0x2c3038, { metalness: 0.8, roughness: 0.35 });
+  const hide = mat(0x4a3a36), hideD = mat(0x2e2422), bone = mat(0xd8cfbc);
+  c.visor = new THREE.MeshStandardMaterial({ color: 0xb06cff, emissive: 0x8a3cff, emissiveIntensity: 2.6, flatShading: true, roughness: 0.3 });
+  const body = c.pivot(0, 1.4, 0);
+  c.torso = body;
+  c.B(1.1, 0.95, 1.7, 0, 0, 0, hide, body);                          // barrel chest
+  c.B(0.9, 0.3, 1.5, 0, -0.5, 0, hideD, body);                        // belly
+  c.B(1.2, 0.8, 0.8, 0, 0.1, 0.62, hide, body);                       // shoulder mass
+  // gold barding over the back and shoulders: overlapping plates, then shoulder guards
+  for (let i = 0; i < 4; i++) {
+    c.B(1.16, 0.1, 0.5, 0, 0.5 + (i === 0 ? 0.04 : 0), 0.6 - i * 0.45, i % 2 ? goldD : gold, body, false, [0.12 - i * 0.03, 0, 0]);
+    c.B(0.3, 0.12, 0.3, 0, 0.6, 0.6 - i * 0.45, steel, body);          // spine stud
+  }
+  for (const sx of [-1, 1]) {
+    c.B(0.2, 0.7, 0.9, sx * 0.62, 0.1, 0.6, gold, body, false, [0, 0, sx * -0.08]);   // shoulder guard
+    c.B(0.22, 0.12, 0.96, sx * 0.62, 0.48, 0.6, goldD, body);
+    cone(c, 0.07, 0.3, gold, sx * 0.72, 0.5, 0.82, body, [0, 0, sx * -0.9], false, 4); // shoulder spike
+    // the purple caparison down each flank, gold trim at its hem and a gold medallion
+    c.B(0.07, 0.8, 1.25, sx * 0.58, -0.22, -0.15, cloth, body);
+    c.B(0.09, 0.09, 1.3, sx * 0.59, -0.64, -0.15, gold, body);
+    c.B(0.09, 0.7, 0.07, sx * 0.59, -0.22, 0.47, goldD, body);
+    c.B(0.09, 0.2, 0.2, sx * 0.6, -0.15, -0.15, gold, body, false, [PI / 4, 0, 0]);
+  }
+  c.B(1.12, 0.1, 1.2, 0, 0.62, -0.2, clothD, body);                  // cloth across the loins
+  // thick tail with a gold weight
+  const tail = c.pivot(0, 0.15, -0.85, body);
+  tail.rotation.x = -0.25;
+  c.B(0.38, 0.38, 0.6, 0, 0, -0.25, hide, tail);
+  c.B(0.3, 0.3, 0.5, 0, -0.04, -0.7, hideD, tail, false, [-0.2, 0, 0]);
+  c.B(0.34, 0.34, 0.1, 0, 0, -0.1, gold, tail);
+  ico(c, 0.26, 0, gold, 0, -0.1, -1.05, tail);
+  c.B(0.1, 0.1, 0.1, 0, -0.1, -1.32, steel, tail);
+  // spiked gold collar at the base of the neck
+  c.add(new THREE.TorusGeometry(0.5, 0.1, 5, 10), gold, 0, 0.22, 0.95, body);
+  for (let k = 0; k < 8; k++) {
+    const a = (k * PI) / 4;
+    cone(c, 0.07, 0.3, goldD, Math.cos(a) * 0.58, 0.22 + Math.sin(a) * 0.58, 0.95, body, [0, 0, a - PI / 2], false, 4);
+  }
+  // head: low and forward, a crested armoured skull; the whole head is the precision spot
+  const head = c.pivot(0, 0.18, 0.95, body);
+  head.rotation.x = 0.3;
+  c.head = head;
+  c.B(0.62, 0.55, 0.7, 0, 0, 0.3, hide, head, true);                  // skull
+  c.B(0.5, 0.26, 0.5, 0, -0.2, 0.62, hide, head, true);               // snout
+  c.B(0.42, 0.12, 0.5, 0, -0.36, 0.6, hideD, head, true);             // lower jaw
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) cone(c, 0.025, 0.1, bone, sx * 0.14, -0.31, 0.48 + i * 0.1, head, [PI, 0, 0], true, 3); // fangs
+  c.B(0.66, 0.16, 0.8, 0, 0.3, 0.32, gold, head, true);               // crown plate
+  c.B(0.5, 0.2, 0.34, 0, 0.12, 0.74, goldD, head, true);              // brow guard
+  c.B(0.4, 0.1, 0.06, 0, 0.1, 0.85, c.visor, head, true);             // the glowing visor slit
+  c.B(0.1, 0.34, 0.8, 0, 0.5, 0.1, goldD, head, true, [-0.15, 0, 0]); // crest fin
+  for (const sx of [-1, 1]) {
+    c.B(0.1, 0.4, 0.4, sx * 0.34, 0.0, 0.34, gold, head, true);       // cheek plate
+    cone(c, 0.07, 0.4, gold, sx * 0.3, 0.4, -0.1, head, [-0.9, 0, sx * -0.3], true, 4); // swept horns
+    c.B(0.04, 0.26, 0.22, sx * 0.2, 0.34, -0.12, clothD, head, true); // ear fan
+  }
+  // four heavy legs: thick shoulder and haunch, a scaly lower leg, a paw and three claws
+  for (const [x, z] of [[-0.46, 0.68], [0.46, 0.68], [0.46, -0.68], [-0.46, -0.68]]) {
+    const hip = c.pivot(x, 1.0, z);
+    const sx = Math.sign(x);
+    c.B(0.46, 0.62, 0.56, sx * 0.02, -0.28, 0, hide, hip);
+    c.B(0.5, 0.24, 0.5, 0, -0.55, 0.04, gold, hip, false, [0.2, 0, 0]);   // knee guard
+    c.B(0.32, 0.46, 0.36, 0, -0.78, -0.02, hideD, hip);
+    c.B(0.4, 0.14, 0.56, 0, -0.94, 0.08, hide, hip);
+    for (let k = -1; k <= 1; k++) cone(c, 0.04, 0.2, M.claw, k * 0.12, -0.94, 0.4, hip, [PI / 2, 0, 0], false, 4);
+    c.legs.push(hip);
+  }
+  c.muzzle.position.set(0, 1.3, 1.8); c.g.add(c.muzzle);
+  c.height = 2.2;
+}
+
 const BUILD = {
   grunt: legionary, rusher: warBeast, captain: centurion, heavy: colossus,
   lg_incendior: incendior, lg_gladiator: gladiator, lg_psion: psion, lg_phalanx: phalanx,
   lg_bather: gladiator, lg_taster: psion, // U23: built on the Gladiator and Psion (the Loyalist gold comes from the location)
+  lg_watcher: watcher, lg_royalbeast: royalBeast, // U23 chunk B: the Underbelly's sentry and the Gardens' beast
 };
 
 /** Every Cabal unit except the generic boss fallback (enemies.js): the base classes (grunt Legionary, rusher War Beast, captain

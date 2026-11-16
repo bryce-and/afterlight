@@ -110,9 +110,115 @@ export const DUNGEONS = {
         windowAdds: [['grunt', 2], ['lg_phalanx', 1]],
         cleaveEvery: 4.2, slamEvery: 11, slamRadius: 9, burnDps: 18,
       },
+      // U23 chunk B. A traversal: Favor makes the gold grates solid; Watchers call reinforcements unless a deck's Watchers all die unseen.
+      underbelly: {
+        kind: 'traversal',
+        tasterEvery: 12, // a Royal Taster on the deck you stand on when none is alive, at most this often
+        decks: { a: [['grunt', 3], ['lg_phalanx', 1]], b: [['grunt', 3], ['lg_incendior', 1]], c: [['grunt', 2], ['lg_psion', 2], ['captain', 1]] },
+        snipers: [['lg_psion', 1]], // one per perch
+        reinforce: [['grunt', 3], ['lg_psion', 1], ['captain', 1]], // once per deck, when its Watchers raise the alarm
+        watch: { range: 20, half: 0.42, fly: 3, fill: 2.2, decay: 0.8, hurtAlarm: 0.8 }, // fill per second while seen; hurt and alive this long = alarm
+        vent: { hitFrac: 0.25, up: 7 }, // a vent blast: a quarter of health plus shield, thrown up and east
+        levers: 3, // the order on the plaque
+        wrongWave: [['grunt', 2]],
+      },
+      // U23 chunk B. Stealth past the Royal Beasts, light flowers with the prism (Favor) for Bloom, then burn Kathrax in a DPS window.
+      gardens: {
+        kind: 'boss',
+        boss: { id: 'kathrax', name: 'Kathrax, the Royal Huntmaster', model: 'huntmaster', element: 'arc', hpMult: 1, scale: 0.75, radius: 1.0, speed: 3.4, leash: 6, windowLeash: 24, returnSpeed: 6, guard: 18, shotDmg: 26, stompDmg: 50, stompEvery: 9, stompRadius: 7, hitFrac: { shot: 0.25, stomp: 0.4 } }, // ranged: a harpoon cannon, and a stomp up close // model 4.2 m x 0.75 = about 3.2 m tall // guard: outside a window he only fires at players this close to his pavilion
+        flowersBy: [4, 5, 6], // flowers per round for 1, 2, 3 players
+        bloomPer: 0.12, // weapon damage per Bloom stack
+        channel: 1.4, lightR: 2.6, // seconds a Favored player stands at a bud to light it, and how close
+        beast: { speed: 3.0, pause: 1.6, look: 0.9, range: 16, half: 0.75, eye: 1.6, near: 6, fillNear: 1.6, fillFar: 0.6, decay: 0.5, howl: 5 }, // howl: seconds of warning before the wipe
+        downLimit: 30, // fireteam: a player down this long without a revive wipes the team
+        windowTime: 16,
+        tasterEvery: 14,
+        windowAdds: [['grunt', 2], ['lg_phalanx', 1]],
+      },
     },
   },
 };
+// ---------------------------------------------------------------------------
+// U23 chunk B: Watchers, Royal Beasts, Bloom, levers and the down timer (pure; the runtime and tools/tests.js use them)
+// ---------------------------------------------------------------------------
+const TAU = Math.PI * 2;
+const wrapA = (a) => { a = ((a + Math.PI) % TAU + TAU) % TAU - Math.PI; return a; };
+/** A Watcher's facing at time t: it sweeps `sweep` radians either side of `yaw` (0 faces +z) over `period` seconds. */
+export const watchYaw = (w, t) => w.yaw + w.sweep * Math.sin(((t + (w.phase || 0)) / w.period) * TAU);
+/** True when (px, pz) is inside a vision cone at (ex, ez) facing `yaw` (atan2(dx, dz) convention), out to `range`, `half` radians either side. */
+export function inCone(ex, ez, yaw, px, pz, range, half) {
+  const dx = px - ex, dz = pz - ez, d = Math.hypot(dx, dz);
+  if (d > range) return false;
+  if (d < 0.5) return true;
+  return Math.abs(wrapA(Math.atan2(dx, dz) - yaw)) <= half;
+}
+/** Awareness 0..1: rises at `fill` a second while seen (faster close in when `near` and `fillNear` are given), falls at `decay` otherwise. */
+export function awareStep(a, dt, seen, dist, c) {
+  if (!seen) return Math.max(0, a - c.decay * dt);
+  const rate = c.fillNear != null ? (dist <= c.near ? c.fillNear : c.fillFar) : c.fill;
+  return Math.min(1, a + rate * dt);
+}
+/** A deck's Watchers: 'alarm' once any has raised it, 'unseen' when all are dead and none did, else 'watching'. ws: [{ alive, alarmed }]. */
+export function sectionOutcome(ws) {
+  if (ws.some((w) => w.alarmed)) return 'alarm';
+  if (ws.length && ws.every((w) => !w.alive)) return 'unseen';
+  return 'watching';
+}
+/** A Watcher hurt but still alive for `hurtAlarm` seconds raises the alarm (kill it fast, or from outside its cone in one go). */
+export const hurtAlarm = (hurtFor, alive, limit) => alive && hurtFor >= limit;
+
+/**
+ * A Royal Beast on its patrol loop at time t: walks each leg at `speed`, then stands `pause` seconds at the corner looking `look`
+ * radians to either side. Deterministic from t, so every machine agrees. Returns { x, z, yaw, moving }.
+ */
+export function beastAt(path, speed, pause, look, t) {
+  const legs = path.map((p, i) => { const q = path[(i + 1) % path.length]; return { p, q, len: Math.hypot(q[0] - p[0], q[1] - p[1]) }; });
+  const loop = legs.reduce((s, l) => s + l.len / speed + pause, 0);
+  let x = ((t % loop) + loop) % loop;
+  for (const l of legs) {
+    const walk = l.len / speed, yaw = Math.atan2(l.q[0] - l.p[0], l.q[1] - l.p[1]);
+    if (x < walk) { const k = x / walk; return { x: l.p[0] + (l.q[0] - l.p[0]) * k, z: l.p[1] + (l.q[1] - l.p[1]) * k, yaw, moving: true }; }
+    x -= walk;
+    if (x < pause) return { x: l.q[0], z: l.q[1], yaw: yaw + look * Math.sin((x / pause) * TAU), moving: false };
+    x -= pause;
+  }
+  const l = legs[0];
+  return { x: l.p[0], z: l.p[1], yaw: 0, moving: false };
+}
+/** One loop of a patrol path in seconds (the beasts' phases are fractions of it). */
+export const beastLoop = (path, speed, pause) => path.reduce((s, p, i) => { const q = path[(i + 1) % path.length]; return s + Math.hypot(q[0] - p[0], q[1] - p[1]) / speed + pause; }, 0);
+
+/** Flowers a Gardens round needs for this fireteam size. */
+export const flowerCount = (cfg, fireteam) => cfg.flowersBy[ft(fireteam) - 1];
+/** Weapon damage multiplier for n Bloom stacks. */
+export const bloomMult = (n, per) => 1 + Math.max(0, n) * per;
+/** Picks the round's flowers: `n` distinct indices of `total`. */
+export const pickFlowers = (n, total, rnd = Math.random) => shuffled(Array.from({ length: total }, (_, i) => i), rnd).slice(0, Math.min(n, total));
+
+/** The Underbelly's lever puzzle: { order: [sigil x n], progress }. Returns 'right', 'solved', 'wrong' (back to the start) or 'ignored'. */
+export function newLevers(n, rnd = Math.random) { return { order: shuffled(SIGILS, rnd).slice(0, n), progress: 0, solved: false }; }
+export function pullLever(st, sigil) {
+  if (st.solved) return 'ignored';
+  if (st.order[st.progress] === sigil) { st.progress++; if (st.progress >= st.order.length) { st.solved = true; return 'solved'; } return 'right'; }
+  st.progress = 0;
+  return 'wrong';
+}
+
+/**
+ * The down timer (fireteam only): `downs` maps a player key to seconds spent down. Adds dt for the ones down, forgets the ones up.
+ * Returns the key of a player down `limit` seconds or more (the team wipes), else null. Solo play never calls it (a solo death resets anyway).
+ */
+export function downStep(downs, deadByKey, dt, limit) {
+  let over = null;
+  for (const [k, dead] of Object.entries(deadByKey)) {
+    if (!dead) { delete downs[k]; continue; }
+    downs[k] = (downs[k] || 0) + dt;
+    if (downs[k] >= limit && over === null) over = k;
+  }
+  for (const k of Object.keys(downs)) if (!(k in deadByKey)) delete downs[k];
+  return over;
+}
+
 /** The five base classes spawn as the location's own faction (Loyalist Cabal on the Leviathan). */
 /** Where a leashed boss may stand this frame: inside `leash` of home, or anywhere while it chases (DPS). Returns the corrected x, z. */
 export function leashStep(x, z, home, leash, chasing, returnSpeed, dt) {
@@ -140,9 +246,10 @@ export function validateDungeon(d) {
   need(d.enemyLightOver >= 0 && d.g >= 0 && d.favorTime > 0 && d.strikes >= 1, 'enemyLightOver, g, favorTime and strikes');
   need(d.exoticChance > 0 && d.exoticChance < 1, 'exoticChance');
   for (const [id, c] of Object.entries(d.segments || {})) {
-    const kits = [...(c.waves || []).flat(), ...(c.bathers || []), ...(c.wrongWave || []), ...(c.windowAdds || [])];
+    const kits = [...(c.waves || []).flat(), ...(c.bathers || []), ...(c.wrongWave || []), ...(c.windowAdds || []), ...(c.reinforce || []), ...(c.snipers || []), ...Object.values(c.decks || {}).flat()];
     for (const [t, n] of kits) { need(UNITS[t] || BASE_TYPES.includes(t), `${id}: unknown unit ${t}`); need(n >= 1, `${id}: bad count for ${t}`); }
     if (c.kind === 'boss') need(c.boss?.name && c.boss.model && c.windowTime > 0, `${id}: boss`);
+    if (c.flowersBy) need(c.flowersBy.length === 3 && c.flowersBy.every((n, i) => n >= 1 && (i === 0 || n >= c.flowersBy[i - 1])), `${id}: flowersBy`);
     if (c.stepsBy) need(c.stepsBy.length === 3 && c.stepsBy.every((n, i) => n >= 1 && (i === 0 || n >= c.stepsBy[i - 1])), `${id}: stepsBy`);
   }
   return bad;

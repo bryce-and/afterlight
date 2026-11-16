@@ -32,6 +32,8 @@ import {
   dungeonRecord, leashStep, cappedHit, deathOutcome, wipeOutcome, inRegion, inVoid, trackSafe,
 } from './dungeon-rules.js';
 
+import { bindB, initSegB, disposeSegB, ownsB, resetSegB, onResetB, activateB, tickB, localB, objectiveB, snapB, onSnapB, onHostMsgB, onFxB, devB } from './dungeon-b.js';
+
 export * from './dungeon-rules.js';
 
 const LAYOUTS = { 'level-shadow': () => import('./level-shadow.js') };
@@ -53,15 +55,21 @@ export async function startDungeon(id) {
   const loc = mod.SHADOW_LOC, layout = mod.SHADOW_LAYOUT;
   if (!loc || !layout) throw new Error(`${d.layout}.js must export SHADOW_LOC and SHADOW_LAYOUT`);
   for (const seg of layout.segments) if (!d.segments[seg.id]) throw new Error(`${d.layout}.js segment "${seg.id}" has no entry in DUNGEONS.${id}.segments`);
-  buildDungeon(d, loc, layout);
+  buildDungeon(d, loc, layout, mod);
 }
 
-function buildDungeon(d, loc, layout) {
+function buildDungeon(d, loc, layout, mod) {
   cleanupMission();
   const first = layout.segments.find((s) => s.kind === 'boss');
   const def = { id: d.id, name: d.name, power: 0, boss: { ...(first ? d.segments[first.id].boss : {}) }, mood: null };
   const level = buildLevel(loc, def);
   G.level = level; G.scene = level.scene; G.colliders = level.colliders; G.staticMeshes = level.staticMeshes;
+  // U23 chunk B: inside a segment's `pit`, ground under 1 m has no floor (the Underbelly's footholds stand over the void)
+  const pits = layout.segments.filter((s) => s.pit).map((s) => s.pit);
+  if (pits.length && level.groundAt) {
+    const base = level.voidAt, gy = level.groundAt;
+    level.voidAt = (x, z) => !!base?.(x, z) || (pits.some((r) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) && gy(x, z) < 1);
+  }
   G.nav = buildNav(G.colliders, level.bounds);
   G.hitDirty = true;
   G.scene.add(G.camera);
@@ -76,7 +84,7 @@ function buildDungeon(d, loc, layout) {
   const spawn = new THREE.Vector3(...layout.spawn);
   const D = {
     id: d.id, def: d, layout, loc, seg: 0, segs: [], bossDead: false, startT: performance.now(), snapT: 0, chestPrompt: false,
-    safe: { x: spawn.x, y: spawn.y, z: spawn.z }, cupSeq: 0,
+    safe: { x: spawn.x, y: spawn.y, z: spawn.z }, cupSeq: 0, clock: 0, mod, secrets: [],
   };
   D.zones = layout.segments.map((seg, i) => {
     const r = seg.region;
@@ -93,7 +101,7 @@ function buildDungeon(d, loc, layout) {
   G.time = 0;
   G.player = new Player(G.save);
   G.player.spawn(spawn);
-  D.segs = layout.segments.map((seg) => newSegState(seg));
+  D.segs = layout.segments.map((seg) => newSegState(seg, mod));
   G.state = 'playing';
   playMusic('leviathan');
   stinger('start');
@@ -103,8 +111,9 @@ function buildDungeon(d, loc, layout) {
   sfx.areaClear();
 }
 
-function newSegState(seg) {
+function newSegState(seg, mod) {
   const S = { s: 'pending', mech: null, round: null, roundNo: 0, strikes: {}, fsm: null, boss: null, chest: null, chestOpened: false, tasterT: 4, bathT: 10, bathers: new Map(), waveIdx: 0, burnT: 0 };
+  if (initSegB(S, seg, mod?.UB_FOOT || [])) return S; // U23 chunk B: the Underbelly and the Gardens (dungeon-b.js)
   if (seg.id === 'baths') {
     S.mech = buildBaths(seg);
     S.mech.onCenserShot = (i) => onCenserShot(i);
@@ -118,7 +127,8 @@ function newSegState(seg) {
 export function cleanupDungeon() {
   const D = G.mission?.dungeon;
   if (!D) return;
-  for (const S of D.segs) { disposeDungeonMech(S.mech); if (S.chest) G.scene?.remove(S.chest.group); }
+  D.segs.forEach((S, i) => { if (ownsB(D.layout.segments[i])) disposeSegB(S); else disposeDungeonMech(S.mech); if (S.chest) G.scene?.remove(S.chest.group); });
+  for (const X of D.secrets || []) G.scene?.remove(X.c.group);
   if (D.chestPrompt) ui.prompt(null);
 }
 
@@ -145,7 +155,8 @@ function resetSegment(i) {
   if (S.s === 'solved') return; // a cleared encounter stays cleared
   Object.assign(S, { s: 'pending', round: null, roundNo: 0, strikes: {}, fsm: null, boss: null, tasterT: 4, bathT: 10, waveIdx: 0 });
   S.bathers.clear();
-  if (S.mech) {
+  if (ownsB(seg)) resetSegB(D, S, seg);
+  else if (S.mech) {
     for (const c of S.mech.chalices.slice()) removeChalice(S.mech, c.id);
     S.mech.pools.forEach((_, k) => setPoolCorrupt(S.mech, k, false));
     S.mech.plates.forEach((_, k) => setStrikeLabel(S.mech, k, 0, D.def.strikes));
@@ -162,7 +173,8 @@ function resetSegment(i) {
 function onReset() {
   removeAllEnemies();
   const D = G.mission?.dungeon;
-  if (D) for (const S of D.segs) if (S.mech) { S.mech.plates.forEach((_, k) => setStrikeLabel(S.mech, k, 0, D.def.strikes)); for (const c of S.mech.chalices.slice()) removeChalice(S.mech, c.id); }
+  if (D) D.segs.forEach((S, i) => { if (ownsB(D.layout.segments[i])) onResetB(S, D.layout.segments[i]); });
+  if (D) for (const S of D.segs) if (S.mech?.plates) { S.mech.plates.forEach((_, k) => setStrikeLabel(S.mech, k, 0, D.def.strikes)); for (const c of S.mech.chalices.slice()) removeChalice(S.mech, c.id); }
   G.player?.status.remove('favor');
 }
 
@@ -486,9 +498,12 @@ function segmentCleared(D, i, seg) {
   if (seg.chest) placeChest(D, i, seg.chest);
   if (net.isHost) broadcast({ t: 'dfx', k: 'clear', sg: i });
   const name = D.def.segments[seg.id].boss?.name;
-  ui.centerMessage(name ? `${name.split(',')[0]} Falls` : `${seg.name} Cleared`, last ? 'Claim your reward' : 'Claim your reward, then press on', 3);
-  sfx.missionComplete();
-  stinger('complete');
+  if (seg.kind === 'traversal') { ui.centerMessage(`${seg.name} Crossed`, 'Press on', 2.6); sfx.areaClear(); }
+  else {
+    ui.centerMessage(name ? `${name.split(',')[0]} Falls` : `${seg.name} Cleared`, last ? 'Claim your reward' : 'Claim your reward, then press on', 3);
+    sfx.missionComplete();
+    stinger('complete');
+  }
   if (!last) {
     D.seg = i + 1;
     M.checkpoint.set(...D.layout.segments[i + 1].checkpoint);
@@ -511,10 +526,33 @@ function chestTick(D, P, dt) {
     if (c.opened) c.lid.rotation.x = Math.max(-1.9, c.lid.rotation.x - dt * 4);
     else if (!P.dead && P.pos.distanceTo(c.pos) < 3.2) near = i;
   }
-  const want = near !== null;
-  if (want !== D.chestPrompt) { ui.prompt(want ? '[E]  Open Imperial Chest' : null); D.chestPrompt = want; }
+  let secret = null; // U23 chunk B: a hidden chest (the Underbelly's lever puzzle)
+  for (const X of D.secrets) {
+    if (X.c.opened) { X.c.lid.rotation.x = Math.max(-1.9, X.c.lid.rotation.x - dt * 4); continue; }
+    if (!P.dead && P.pos.distanceTo(X.c.pos) < 3.2) secret = X;
+  }
+  const want = near !== null || !!secret;
+  if (want !== D.chestPrompt) { ui.prompt(want ? (secret ? '[E]  Open the Hidden Chest' : '[E]  Open Imperial Chest') : null); D.chestPrompt = want; }
   if (!want || !G.input.pressed.KeyE) return;
-  openEncounterChest(D, near);
+  if (secret) openSecretChest(D, secret); else openEncounterChest(D, near);
+}
+/** Host and members alike: a hidden chest appears (each player opens their own copy). */
+function placeSecret(D, i, at) {
+  if (D.secrets.some((X) => X.i === i)) return;
+  const p = new THREE.Vector3(...at), c = spawnChest(p);
+  c.group.position.copy(p); c.pos.copy(p);
+  D.secrets.push({ i, c, group: c.group });
+}
+/** A hidden chest: one guaranteed item from the dungeon's exclusive pool. */
+function openSecretChest(D, X) {
+  const M = G.mission, s = G.save, c = X.c;
+  c.opened = true; c.beam.visible = false;
+  D.chestPrompt = false; ui.prompt(null);
+  sfx.chest();
+  sparks(c.pos.clone().setY(c.pos.y + 1), 0xf4c542, 30, 8, 0.1, 0.8);
+  const it = makeDungeonDrop(Math.random() < 0.5 ? 'weapon' : 'armor', playerPower(s), s.classId);
+  setTimeout(() => { if (G.mission === M) grantItem(it); }, 300);
+  writeSave(s);
 }
 function openEncounterChest(D, i) {
   const M = G.mission, S = D.segs[i], c = S.chest, s = G.save, last = i >= D.layout.segments.length - 1;
@@ -557,6 +595,7 @@ function objectiveFor(D) {
   const M = G.mission, seg = D.layout.segments[D.seg], S = D.segs[D.seg], cfg = D.def.segments[seg.id];
   const wp = (p) => { M.waypoint = p ? new THREE.Vector3(...p) : null; };
   if (S.s === 'pending') { wp(seg.checkpoint); return `Enter ${seg.name}`; }
+  if (ownsB(seg) && !(S.s === 'solved' && seg.chest)) return objectiveB(D, S, seg);
   if (S.s === 'solved') { wp(seg.chest || null); return 'Open the Imperial Chest'; }
   wp(null);
   const f = S.fsm, fav = G.player.status.has('favor');
@@ -572,14 +611,30 @@ export function updateDungeon(dt) {
   const auth = !M.remote;
   const S = D.segs[D.seg], seg = layout.segments[D.seg];
   const fav = P.status.has('favor');
-  for (const X of D.segs) if (X.mech) updateDungeonMech(X.mech, dt, fav, X.round);
+  // U23 chunk B: a segment may carry its own fog (the Underbelly is dark); the location's fog everywhere else
+  if (G.scene.fog) {
+    D.fog0 ||= { c: G.scene.fog.color.clone(), n: G.scene.fog.near, f: G.scene.fog.far, bg: G.scene.background?.isColor ? G.scene.background.clone() : null };
+    const fz = layout.segments.find((sg) => sg.fog && inRegion(P.pos, sg.region))?.fog;
+    const want = fz ? { c: new THREE.Color(fz.color), n: fz.near, f: fz.far } : D.fog0, F = G.scene.fog, k = Math.min(1, dt * 2.5);
+    F.color.lerp(want.c, k); F.near += (want.n - F.near) * k; F.far += (want.f - F.far) * k;
+    if (D.fog0.bg && G.scene.background?.isColor) G.scene.background.lerp(fz ? want.c : D.fog0.bg, k);
+  }
+  D.clock += dt; // the shared clock (pistons, vents, sweeps); members follow the host's through the snapshot
+  let bPrompt = null;
+  D.segs.forEach((X, i) => {
+    if (ownsB(layout.segments[i])) { const t = localB(D, i, P, dt); if (i === D.seg) bPrompt = t; }
+    else if (X.mech) updateDungeonMech(X.mech, dt, fav, X.round);
+  });
   chestTick(D, P, dt);
   if (M.phase === 'loot' || M.phase === 'done') return;
 
   // the local player: standing on a plate (Royal Guard), the bath water, chalices, offerings, the void
   if (!P.dead) {
-    const B = S?.mech;
+    const B = seg?.id === 'baths' ? S?.mech : null;
     const plate = B ? plateAt(B, P.pos) : -1;
+    const C = S?.mech; // chalices: any segment's Royal Tasters drop them
+    if (C?.chalices && S.s === 'active' && !B) for (const c of C.chalices) if (P.pos.distanceTo(c.pos) < 1.8) { if (M.remote) { if (G.time - (D.cupAskT ?? -9) > 0.5) { D.cupAskT = G.time; send({ t: 'dh', k: 'cup', id: c.id }); } } else takeChalice(D, c.id, localId()); break; }
+    if (!B && bPrompt !== D.plateText) { D.plateText = bPrompt; if (!D.chestPrompt) ui.prompt(bPrompt); }
     P.onPlate = plate >= 0 || (seg?.dais && Math.hypot(P.pos.x - seg.dais.p[0], P.pos.z - seg.dais.p[2]) < seg.dais.r && P.pos.y > seg.dais.p[1] - 0.3);
     if (B && S.s === 'active') {
       const pool = poolAt(B, P.pos);
@@ -594,8 +649,9 @@ export function updateDungeon(dt) {
       if (canOffer && fav && G.input.pressed.KeyE) {
         if (M.remote) send({ t: 'dh', k: 'off', i: plate }); else judgeOffering(D, plate, localId());
       }
-    } else if (D.plateText) { D.plateText = null; if (!D.chestPrompt) ui.prompt(null); }
-    D.safe = trackSafe(D.safe, P.pos, P.onGround, false);
+    } else if (B && D.plateText) { D.plateText = null; if (!D.chestPrompt) ui.prompt(null); }
+    const overGrate = !!S?.mech?.grates?.some((g) => Math.abs(P.pos.y - g.col.max.y) < 0.12 && P.pos.x > g.col.min.x - 0.4 && P.pos.x < g.col.max.x + 0.4 && P.pos.z > g.col.min.z - 0.4 && P.pos.z < g.col.max.z + 0.4);
+    D.safe = trackSafe(D.safe, P.pos, P.onGround, overGrate); // a grate is no safe spot: it fades with your Favor
     if (inVoid(P.pos.y, layout.voidY)) {
       const o = deathOutcome({ fireteam: M.coop ? Math.max(1, allPlayers().length) : 1, cause: 'void' });
       if (o.action === 'downed-at-safe') { P.pos.set(D.safe.x, D.safe.y, D.safe.z); P.vel.set(0, 0, 0); }
@@ -605,9 +661,10 @@ export function updateDungeon(dt) {
 
   if (!auth) return; // members: the rest comes from the host
   if (S.s === 'pending') {
-    if (alivePlayers().some((p) => inRegion(p.pos, seg.region))) { if (seg.id === 'baths') activateBaths(D, D.seg); }
+    if (alivePlayers().some((p) => inRegion(p.pos, seg.region))) { if (seg.id === 'baths') activateBaths(D, D.seg); else if (ownsB(seg)) activateB(D, D.seg); }
   } else if (S.s === 'active') {
     if (seg.id === 'baths') bathsTick(D, S, seg, D.def.segments[seg.id], dt);
+    else if (ownsB(seg)) tickB(D, S, seg, dt);
   }
   M.objective = objectiveFor(D);
   D.snapT -= dt;
@@ -621,9 +678,10 @@ export const dungeonImmune = (e) => !!(e.dgBoss && e.dgImm);
 // Co-op
 // ---------------------------------------------------------------------------
 function snapshot(D) {
-  const S = D.segs[D.seg];
+  const S = D.segs[D.seg], seg = D.layout.segments[D.seg];
+  if (seg.id !== 'baths') return { t: 'ds', sg: D.seg, st: D.segs.map((x) => x.s[0]), ck: Math.round(D.clock * 100) / 100, gt: D.segs.map((x) => (x.mech?.gate?.open ? 1 : 0)), cp: G.mission.checkpoint.toArray().map((v) => Math.round(v * 100) / 100), ...snapB(D, S, seg) };
   return {
-    t: 'ds', sg: D.seg, st: D.segs.map((x) => x.s[0]),
+    t: 'ds', sg: D.seg, st: D.segs.map((x) => x.s[0]), ck: Math.round(D.clock * 100) / 100,
     rd: S.round ? { o: S.round.order, p: S.round.progress, s: S.round.solved ? 1 : 0 } : 0, rn: S.roundNo,
     ps: S.mech ? S.mech.plateSigils : 0, pc: S.mech ? S.mech.pools.map((p) => (p.corrupt ? 1 : 0)) : 0,
     ce: S.mech ? S.mech.censers.map((c) => (c.lowered ? (c.alive ? c.hp : 0) : -1)) : 0,
@@ -638,8 +696,16 @@ function onSnapshot(m) {
   D.seg = m.sg;
   D.segs.forEach((x, i) => { x.s = { p: 'pending', a: 'active', s: 'solved' }[m.st[i]] ?? x.s; });
   M.checkpoint.set(m.cp[0], m.cp[1], m.cp[2]);
-  const S = D.segs[m.sg];
+  if (m.ck != null && Math.abs(m.ck - D.clock) > 0.08) D.clock = m.ck; // follow the host's clock (pistons, vents)
+  const S = D.segs[m.sg], seg = D.layout.segments[m.sg];
   D.segs.forEach((x, i) => { if (x.mech) setGate(x.mech, !!m.gt[i]); });
+  if (ownsB(seg)) {
+    onSnapB(D, S, seg, m);
+    const b = G.enemies.find((e) => e.isBoss);
+    if (b && S.fsm) { b.dgBoss = true; b.dgImm = S.fsm.mode !== 'window'; }
+    M.objective = objectiveFor(D);
+    return;
+  }
   if (!S.mech) return;
   if (m.rd) {
     const key = m.rd.o.join() + '|' + m.rn;
@@ -666,6 +732,7 @@ net.on('ds', (m) => { if (inMission()) onSnapshot(m); });
 net.on('dh', (m, from) => {
   if (!inMission() || !net.isHost) return;
   const D = G.mission.dungeon;
+  if (onHostMsgB(D, m, from)) return;
   if (m.k === 'off') judgeOffering(D, m.i, from);
   else if (m.k === 'cen') hitCenser(m.i);
   else if (m.k === 'cup') takeChalice(D, m.id, from);
@@ -675,6 +742,7 @@ net.on('dfx', (m) => {
   const D = G.mission.dungeon, S = D.segs[D.seg];
   if (m.k === 'cup') { if (S?.mech && !S.mech.chalices.some((c) => c.id === m.id)) addChalice(S.mech, m.id, new THREE.Vector3(m.x, m.y, m.z)); return; }
   if (m.k === 'cupgone') { if (S?.mech) removeChalice(S.mech, m.id); return; }
+  if (onFxB(D, m)) return;
   if (m.k === 'clear') { const seg = D.layout.segments[m.sg]; D.segs[m.sg].s = 'solved'; if (seg.chest) placeChest(D, m.sg, seg.chest); reviveForCompletion(); ui.centerMessage(`${seg.name} Cleared`, 'Claim your reward', 3); sfx.missionComplete(); return; }
   onOfferFx(m);
 });
@@ -688,5 +756,24 @@ if (typeof window !== 'undefined') {
   window.shadowStart = () => startDungeon('shadow');
   window.shadowWindow = () => { const D = G.mission?.dungeon, S = D?.segs[D.seg]; if (!S?.fsm) return 'No boss yet'; S.mech.censers.forEach((c) => { c.alive = false; }); openWindow(D, S); return 'Window open'; };
   window.shadowFavor = () => { giveFavor(); return 'Favored'; };
+  // U23 chunk B: jump to a segment (the ones before it count as cleared), light every flower, read the lever order, check the route
+  window.shadowGo = (id) => {
+    const D = G.mission?.dungeon; if (!D) return 'Start the dungeon first: shadowStart()';
+    const i = D.layout.segments.findIndex((s) => s.id === id); if (i < 0) return `No segment "${id}"`;
+    removeAllEnemies();
+    for (let k = 0; k < i; k++) { D.segs[k].s = 'solved'; if (D.segs[k].mech?.gate) setGate(D.segs[k].mech, true); }
+    D.seg = i; G.mission.checkpoint.set(...D.layout.segments[i].checkpoint); G.player.pos.copy(G.mission.checkpoint); G.player.vel.set(0, 0, 0);
+    return `At ${D.layout.segments[i].name}`;
+  };
+  window.shadowBloom = () => devB(G.mission.dungeon).bloomAll();
+  window.shadowLevers = () => devB(G.mission.dungeon).levers();
+  window.checkShadowRoute = async () => { const r = (await import('./shadow-route.js')).checkShadowRoute(); console.log(r.rows.join('\n')); console.log(r.problems.length ? `PROBLEMS:\n${r.problems.join('\n')}` : 'No route problems'); return r; };
   window.shadowCheckSigils = async () => { const R = await import('./dungeon-rules.js'); const rows = []; for (const a of R.SIGILS) for (const b of R.SIGILS) if (a < b) rows.push(`${a}/${b}: ${R.sigilOverlap(a, b).toFixed(2)}`); console.log(rows.join('\n')); return rows; };
 }
+
+// U23 chunk B: what dungeon-b.js shares with this shell
+bindB({
+  spawnAt, spawnKit, dropChalice, segmentCleared, bossHit, removeLeftovers, placeSecret, localId,
+  alivePlayers: () => alivePlayers(), expand: (kit) => expandKit(kit, 1),
+  reviveAll: () => { reviveForCompletion(); G.player.health = G.player.maxHealth; G.player.shield = G.player.maxShield; },
+});

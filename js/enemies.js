@@ -86,7 +86,7 @@ export function buildModel(e, C, faction) {
   g.scale.setScalar(0.01);
   // H22: fold rigid same-material parts into few draw calls. Builders that capture meshes in death closures (onDeath/deathStep) are left alone.
   const merged = c.onDeath || c.deathStep ? { geos: [] } : mergeEnemyModel(g, hit, e, [c]);
-  return { mergedGeos: merged.geos, group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, lamp: c.lamp, aimLift: c.aimLift, onDeath: c.onDeath, deathStep: c.deathStep };
+  return { mergedGeos: merged.geos, group: g, hit, legs: c.legs, arms: c.arms, torso: c.torso, bodyMat, muzzle: c.muzzle, shield, height: c.height, hover: !!c.hover, spin: c.spin, spinners: c.spinners, flames: c.flames, guard: c.guard, lamp: c.lamp, aimLift: c.aimLift, onDeath: c.onDeath, deathStep: c.deathStep, head: c.head, visor: c.visor, lens: c.lens }; // U23 chunk B: the Royal Beast's head and visor, the Watcher's lens (the runtime recolours them)
 }
 
 /** Two legs; digitigrade bends the knee backward like Fallen and Hive. */

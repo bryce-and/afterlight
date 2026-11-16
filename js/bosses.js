@@ -1166,4 +1166,100 @@ export const BOSS_MODELS = {
     torso.add(c.muzzle);
     c.height = 4.6;
   },
+
+  // U23 chunk B: Kathrax, the Royal Huntmaster (original design). A tall, broad Loyalist hunt-master in gold-and-purple hunting armour with a long
+  // split cloak down the back, a war-beast skull trophy on the left shoulder, a hunting horn on the belt, a domed gold helmet with a visor (the
+  // weak point) and a long harpoon cannon carried in both hands pointing forward (+z). Built ~4.3 m tall (the def scales it 0.75).
+  huntmaster(c) {
+    const { B, bodyMat } = c;
+    const gold = mat(0xd9a93c, { metalness: 0.7, roughness: 0.35 });
+    const goldD = mat(0x9a7424, { metalness: 0.6, roughness: 0.4 });
+    const purple = mat(0x4a1f6e), purpleD = mat(0x35154f);
+    const steel = mat(0x2c3038, { metalness: 0.8, roughness: 0.35 }), steelL = mat(0x4a505c, { metalness: 0.7, roughness: 0.4 });
+    const bone = mat(0xd8cfbc), dark = mat(0x08090c);
+    const eye = mat(0xff8a2a, { emissive: 0xff8a2a, emissiveIntensity: 2.8 });
+    const glow = mat(0xb06cff, { emissive: 0x8a3cff, emissiveIntensity: 2.2 });
+    bodyMat.color.setHex(0xd9a93c);
+    legs(c, 1.6, 0.5, 0.6, steel, goldD);
+    for (const k of c.legs) {
+      B(0.74, 0.46, 0.78, 0, -0.8, 0.08, gold, k);                           // knee guard
+      B(0.68, 0.5, 0.7, 0, -0.4, 0.0, purpleD, k);                             // thigh plate
+      B(0.7, 0.2, 0.7, 0, -1.3, 0, goldD, k);                                  // greave band
+      for (const dx of [-0.18, 0.18]) B(0.2, 0.14, 0.3, dx, -1.52, 0.5, goldD, k); // two-toed boots
+    }
+    const torso = c.pivot(0, 1.6, 0);
+    c.torso = torso;
+    B(1.5, 0.45, 1.0, 0, 0.22, 0, steel, torso);                               // hips
+    B(1.56, 0.16, 1.06, 0, 0.5, 0, goldD, torso);                              // belt
+    B(0.5, 0.5, 0.1, 0, 0.3, 0.55, gold, torso);                               // belt buckle
+    B(1.9, 1.2, 1.1, 0, 1.1, 0, bodyMat, torso);                              // chest plate (the hit flash lights it)
+    B(1.2, 0.5, 0.06, 0, 1.2, 0.58, purple, torso);                            // purple hunting tabard
+    B(0.9, 0.9, 0.08, 0, 0.0, 0.57, purple, torso, false, [0.06, 0, 0]);       // hanging front panel
+    B(0.96, 0.08, 0.1, 0, -0.45, 0.6, gold, torso, false, [0.06, 0, 0]);
+    B(1.5, 0.16, 1.1, 0, 1.52, 0.02, goldD, torso);                            // gorget
+    // pauldrons, the right one plain, the left one carrying the trophy
+    for (const s of [-1, 1]) {
+      B(0.95, 0.3, 1.15, s * 1.25, 1.68, 0, gold, torso, false, [0, 0, s * -0.2]);
+      B(0.9, 0.22, 1.1, s * 1.32, 1.46, 0, goldD, torso, false, [0, 0, s * -0.35]);
+      B(0.14, 0.4, 0.14, s * 1.3, 1.95, 0.35, goldD, torso);                   // pauldron spike
+    }
+    // the war-beast skull on the left shoulder: braincase, snout, sockets, two swept horns, a spike through it
+    B(0.34, 0.5, 0.34, -1.3, 1.95, -0.2, steel, torso);
+    B(0.6, 0.46, 0.7, -1.3, 2.3, 0.0, bone, torso, false, [0.15, 0.2, 0]);
+    B(0.34, 0.26, 0.5, -1.3, 2.18, 0.5, bone, torso, false, [0.35, 0.2, 0]);
+    for (const dx of [-0.16, 0.16]) B(0.14, 0.14, 0.08, -1.3 + dx, 2.38, 0.34, dark, torso);
+    for (const dx of [-0.3, 0.3]) cone(c, 0.09, 0.55, 4, bone, -1.3 + dx, 2.62, -0.1, torso, false, [-0.5, 0, dx * -2.2]);
+    // hunting horn on the right hip: a curved bone-and-gold horn with a flared bell
+    B(0.2, 0.55, 0.2, 0.95, 0.15, 0.5, bone, torso, false, [0, 0, -0.25]);
+    B(0.2, 0.4, 0.2, 1.1, -0.18, 0.5, bone, torso, false, [0, 0, -0.7]);
+    cone(c, 0.3, 0.45, 8, gold, 1.35, -0.35, 0.5, torso, false, [0, 0, 2.2]);
+    B(0.24, 0.08, 0.24, 0.95, 0.42, 0.5, gold, torso);                         // mouthpiece band
+    // the long split hunting cloak: two panels down the back from a gold collar, a gold hem on each
+    B(1.9, 0.3, 0.5, 0, 1.62, -0.52, gold, torso);
+    for (const s of [-1, 1]) {
+      B(0.92, 3.0, 0.1, s * 0.5, 0.15, -0.66, purple, torso, false, [0.06, 0, s * 0.05]);
+      B(0.96, 0.1, 0.14, s * 0.5, -1.33, -0.74, gold, torso, false, [0.06, 0, s * 0.05]);
+      B(0.08, 2.9, 0.14, s * 0.97, 0.15, -0.66, goldD, torso, false, [0.06, 0, s * 0.05]);
+    }
+    B(0.06, 2.9, 0.12, 0, 0.15, -0.66, goldD, torso, false, [0.06, 0, 0]);
+    // neck and the domed gold helmet with a visor, a purple crest and a glowing slit (the weak point)
+    B(0.62, 0.3, 0.6, 0, 1.78, 0.08, steel, torso);
+    const head = c.pivot(0, 1.85, 0.1, torso);
+    head.rotation.x = 0.05;
+    B(0.92, 0.82, 0.96, 0, 0.1, 0, gold, head, true);
+    ico(c, 0.52, 1, gold, 0, 0.42, -0.02, head, true).scale.set(1, 0.7, 1.05); // the dome
+    B(0.98, 0.1, 1.0, 0, -0.34, 0, goldD, head, true);
+    B(0.84, 0.22, 0.08, 0, 0.1, 0.5, dark, head, true);                         // visor
+    B(0.62, 0.06, 0.05, 0, 0.12, 0.54, eye, head, true);                        // the glowing slit
+    B(0.12, 0.5, 0.1, 0, -0.1, 0.52, goldD, head, true);                        // nasal bar
+    for (const s of [-1, 1]) B(0.1, 0.55, 0.3, s * 0.47, 0.0, 0.3, goldD, head, true, [0, s * 0.3, 0]); // cheek guards
+    B(0.14, 0.34, 1.0, 0, 0.7, -0.05, purple, head, true);                     // crest
+    B(0.18, 0.08, 1.04, 0, 0.55, -0.05, gold, head, true);
+    // arms aimed at the gun's grips (hip height): right to the rear grip, a longer left to the foregrip. Not in c.arms, so the shared
+    // enemy animation never swings them off the gun (Bryce: hold it lower, it looked broken).
+    const rArm = arm(c, torso, 1.1, 1.55, 1.58, 0.5, steel, -0.733, -0.566);
+    const lArm = arm(c, torso, -1.1, 1.55, 2.31, 0.5, steel, -1.053, 0.496);
+    for (const [a, len] of [[rArm, 1.58], [lArm, 2.31]]) {
+      B(0.62, 0.6, 0.62, 0, -0.35, 0, gold, a);                                 // upper arm plate
+      B(0.58, 0.5, 0.58, 0, -len * 0.7, 0, goldD, a);                           // forearm bracer
+      B(0.58, 0.5, 0.58, 0, -len - 0.1, 0, steelL, a);                          // gauntlet over the grip
+    }
+    // the harpoon cannon, carried low at the hip pointing +z: stock, receiver, grips, a heavy barrel, a gold muzzle ring and a loaded harpoon head
+    const GY = 0.72; // the gun's centre line above the torso pivot (waist height)
+    B(0.34, 0.45, 0.7, 0, GY, 0.3, steel, torso);                                // stock against the hip
+    B(0.56, 0.6, 1.3, 0, GY, 1.35, steel, torso);                                // receiver
+    B(0.3, 0.1, 1.3, 0, GY + 0.34, 1.35, gold, torso);                           // gold rail
+    B(0.06, 0.34, 0.4, 0.29, GY, 1.0, glow, torso);                              // glowing charge window (right side)
+    B(0.34, 0.46, 0.3, 0, GY - 0.42, 0.95, steelL, torso, false, [0.3, 0, 0]);   // rear grip
+    B(0.3, 0.4, 0.3, 0, GY - 0.4, 1.85, steelL, torso, false, [-0.15, 0, 0]);    // foregrip
+    B(0.34, 0.34, 1.5, 0, GY, 2.75, steel, torso);                               // barrel
+    for (const z of [2.3, 2.8, 3.3]) B(0.46, 0.46, 0.14, 0, GY, z, goldD, torso); // barrel bands
+    B(0.5, 0.5, 0.2, 0, GY, 3.55, gold, torso);                                  // muzzle ring
+    cone(c, 0.15, 0.7, 4, gold, 0, GY, 3.9, torso, false, [PI / 2, 0, 0]);       // harpoon head
+    cyl(c, 0.28, 0.28, 0.5, 8, goldD, 0.4, GY, 1.65, torso, false, [0, 0, PI / 2]); // cable winch on the right side
+    c.add(new THREE.TorusGeometry(0.3, 0.06, 4, 10), steelL, 0.68, GY, 1.65, torso, false, [0, PI / 2, 0]);
+    c.muzzle.position.set(0, GY, 4.25);
+    torso.add(c.muzzle);
+    c.height = 4.3;
+  },
 };

@@ -115,6 +115,10 @@ export const UNITS = {
   // U23 The Emperor's Shadow: Loyalist units of the Imperial Baths. A Ceremonial Bather is a slow, heavy Gladiator that wades the
   // pools (it corrupts a pool it stands in too long); a Royal Taster is a Psion that drops the chalice that gives Favor.
   lg_bather:    { faction: 'legion', base: 'rusher', name: 'Ceremonial Bather', dungeon: 'shadow', hp: 820, speed: 4.6, meleeDmg: 46, scale: 1.4, skills: [] },
+  // U23 chunk B: an Imperial Watcher is a floating sentry that only watches (the runtime sweeps it and calls reinforcements); a Royal
+  // Beast is the Emperor's kennel hound, immune, walked along its patrol by the runtime (it hunts by sight, it never fights).
+  lg_watcher:   { faction: 'legion', base: 'grunt', name: 'Imperial Watcher', dungeon: 'shadow', hp: 70, noShield: true, stationary: true, fly: 3, speed: 0, range: 1, prefer: 1, burst: 1, burstGap: 1, fireCd: [1e9, 1e9], dmg: 0, scale: 1, noDrops: true, skills: [] },
+  lg_royalbeast: { faction: 'legion', base: 'rusher', name: 'Royal Beast', dungeon: 'shadow', hp: 9000, noShield: true, static: true, speed: 3, meleeDmg: 0, scale: 1, noDrops: true, skills: [] },
   lg_taster:    { faction: 'legion', base: 'grunt', name: 'Royal Taster', dungeon: 'shadow', hp: 140, speed: 3.4, range: 50, prefer: 22, burst: 1, burstGap: 0.2, fireCd: [2.6, 3.6], dmg: 11, projSpeed: 34, shotSize: 0.12, shotColor: 0xffc247, scale: 0.85, noDrops: true, skills: [] },
 };
 

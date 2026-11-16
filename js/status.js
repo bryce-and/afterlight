@@ -32,6 +32,7 @@ export const STATUS = {
   tithe: { name: 'Gilded Tithe', group: 'weapon', glyph: '◆', color: '#ffc247', t: 10, maxStacks: 5 },
   tithedmg: { name: 'Tithe Paid', group: 'weapon', glyph: '◆', color: '#ffd27a', t: 6 },
   instinct: { name: "Taster's Instinct", group: 'weapon', glyph: '◆', color: '#ffd27a', t: 8 },
+  bloom: { name: 'Bloom', group: 'general', glyph: '✿', color: '#ffd24d', t: Infinity, maxStacks: 10 }, // U23 chunk B: the Pleasure Gardens' flowers (weapon damage per stack)
   attuned: { name: 'Attuned', group: 'general', glyph: '◈', color: '#5ff2dc', t: 20 },
   // U22 Darkness: debuffs enemy Stasis and Strand put on you, and the Darkness aspect and fragment buffs
   chilled: { name: 'Chilled', group: 'general', glyph: '❄', color: '#9fc0ff', t: 3, maxStacks: 3, debuff: true },

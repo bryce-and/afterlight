@@ -7,6 +7,7 @@ import { G } from './state.js';
 import { dealDamage, explode, enemiesNear } from './game.js';
 import { ringFx, sparks } from './effects.js';
 import { IMPERIAL_TUNE as T } from './dungeon-loot.js';
+import { bloomMult, DUNGEONS } from './dungeon-rules.js';
 
 export const MANDATE = { window: 3, hits: 3, radius: 4, dmg: 1.5, refund: 2 };
 const _c = new THREE.Vector3();
@@ -49,6 +50,7 @@ export const imperialMethods = {
     let m = 1;
     if (this.status.has('tithedmg', w.idx)) m *= T.titheDmg;
     if (this.status.has('instinct', w.idx)) m *= T.instinctDmg;
+    m *= bloomMult(this.status.stacks('bloom'), DUNGEONS.shadow.segments.gardens.bloomPer); // U23 chunk B: the Pleasure Gardens' Bloom
     return m;
   },
   /** The reload time multiplier. */
