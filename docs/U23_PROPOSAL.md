@@ -46,6 +46,7 @@ v14, additive: per Guardian `dungeons: { shadow: { clears, bestTime } }`. Nothin
 - **A:** dungeon runtime and pure rules (several bosses, DPS windows, enrage and final stand), Favor, offerings and sigils, the exclusive loot (weapons, perks, armor, shader, exotic), save v14, unlock and the Activities entry, the Imperial Baths and Vhorrak.
 - **B:** the Underbelly and the Pleasure Gardens.
 - **C:** the Gauntlet, the Throne and Calus, solo tuning, perf pass, title artwork, release.
+- **C, added by Bryce (2026-11-15):** a hand cannon feel rework. First-person recoil kicks up and to the right as in Destiny 2 (precision frames kick straight up), the gun model's own kick included; the physical iron sights become a glowing dot floating above the gun (not a physical part).
 
 ## Status
 - **Chunk A (2026-11-15): built, uncommitted on `update/23-emperors-shadow`.** New: `js/dungeon.js`, `js/dungeon-rules.js`, `js/dungeon-mech.js`, `js/dungeon-loot.js`, `js/dungeon-perks.js`, `js/level-shadow.js` (entrance and Baths only; bounds end at z -40, the north gate at z -36 leads on). Vhorrak (`anointedBather`, bosses.js) is a melee boss (Bryce): scale 0.8 (about 3.7 m body), the enemies.js melee lunge plus a telegraphed cleave and slam, no ranged fire. Units `lg_bather`, `lg_taster` (factions.js, `dungeon: 'shadow'`). `DpsBossFsm` already has the enrage and final stand for Calus (chunk C). Dev console: `shadowStart()`, `shadowFavor()`, `shadowWindow()`, `shadowCheckSigils()`.
