@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '5.0.1', name: 'Hotfix', date: '2026-11-16', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Enemy Guardians in the Crucible now show their name over their heads while you can see them.',
+    notes: [
+      'Enemy Guardians show their name and subclass over their heads, in red, while they are in your line of sight within 60 m. Allies keep their blue name tags',
+      'Every Guardian keeps one name for the whole match, so the name tag, the aimed plate and the kill feed always match',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.0', name: 'Rival Guardians', date: '2026-11-16', accent: '#ffb547', glyph: '✧',
     summary: 'Crucible AI Guardians now fight like Guardians: every one has its own subclass, guns, grenade, class ability, super and shader for the whole match, and rifts, wells and barricades belong to a team.',
     notes: [
