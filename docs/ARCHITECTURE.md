@@ -208,3 +208,11 @@ The module map is in the README. These notes cover systems added during the over
 - `afterlight.html` (an older single-file entry) is stale and not maintained. `index.html` is the game.
 - After a deploy, a browser can briefly pair a cached `index.html` with new modules. `tools/stamp_version.py` cache-busts every release; run it before each push.
 - No current level has ramps or stairs, so units reach ledges only by hopping (up to 1.6 m). Dynamic colliders (Guardian barricades) are not on the nav grid; units path into them and are pushed out. Fireteam members see the leader's close-range swing as a raised arm and the suicide fuse as a blink, not the full animation.
+
+## Mission Blitz and armor bands (`js/blitz.js`, U28)
+- `js/blitz.js` is pure rules: `blitzUnlocked` (account-wide), `pickMissions(seed)` (5 different missions from every campaign mission, `mulberry32`), run state (`newRun`, `runAt`, `clearStep`, `failRun`, `recordRun`), `BLITZ_TIER` (Legendary with `floor: false`, `lethal: true`; its id stays `legendary`), `blitzPools` and `blitzLegendaries`. `tierEnemyLight` accepts a tier object as well as an id.
+- `startMission(li, mi, tier, blitz)` takes the run; `M.blitz`, `M.lethal`. `finishMission` shows the Blitz card (`ui.showBlitzCard`) or, after mission 5, pays the reward (`finishBlitzStep`: `queueBlitzMenu` plus legendary drops). A death goes through `missionFailed` and `ui.showBlitzFailed`.
+- Co-op: the host picks the seed and sends `{ t: 'start', bz: { s: seed, n: step } }` (`coop.launchBlitz`) for mission 1 and for every next mission; members rebuild the run with `runAt`. Any death ends the run via the existing lethal wipe path. A member on the Blitz card is released by `end` and `hostgone`.
+- The reward menu is the U20b menu with `REWARD_MENUS.blitz` (`keepAny: 1`), stored in `pendingMenus`; `rollBlitzMenu` / `queueBlitzMenu` in `js/rewards.js`.
+- Armor bands: `armorBand(s)` (`js/campaign.js`, per Guardian from `tierCleared`) and `ARMOR_BANDS` / `armorTotal` (`js/armor.js`). `makeArmor` and `rollItem` take a trailing `band`; every drop site passes `armorBand(G.save)` (or the save in use). Callers that omit it get the Base band.
+- Activities screen: `OPS_NODES` in `js/ui.js`, selection state `actNode`; a fireteam selection of `li: -4` is Mission Blitz.
