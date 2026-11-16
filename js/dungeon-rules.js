@@ -96,7 +96,7 @@ export const DUNGEONS = {
     segments: {
       baths: {
         kind: 'boss',
-        boss: { id: 'vhorrak', name: 'Vhorrak, the Anointed', model: 'anointedBather', element: 'solar', hpMult: 1, melee: true, scale: 0.8, radius: 1.1, speed: 4.2, meleeDmg: 48 }, // a melee boss: two cleavers, no ranged attacks; about 3.7 m tall (model 4.6 m x 0.8)
+        boss: { id: 'vhorrak', name: 'Vhorrak, the Anointed', model: 'anointedBather', element: 'solar', hpMult: 1, melee: true, scale: 0.8, radius: 1.1, speed: 4.2, meleeDmg: 48, leash: 10, returnSpeed: 6, hitFrac: { cleave: 0.45, slam: 0.35, lunge: 0.3 } }, // hitFrac: each hit takes this share of the target's health plus shield, so no single hit kills from full (Bryce) // leash: outside a DPS window he guards this radius around his spawn (Bryce); in a window he chases // a melee boss: two cleavers, no ranged attacks; about 3.7 m tall (model 4.6 m x 0.8)
         stepsBy: [3, 4, 5], // offering steps per round for 1, 2, 3 players
         shuffleFrom: 2, // from this round on the plates shuffle their sigils after every window
         windowTime: 14, // seconds of DPS
@@ -114,6 +114,16 @@ export const DUNGEONS = {
   },
 };
 /** The five base classes spawn as the location's own faction (Loyalist Cabal on the Leviathan). */
+/** Where a leashed boss may stand this frame: inside `leash` of home, or anywhere while it chases (DPS). Returns the corrected x, z. */
+export function leashStep(x, z, home, leash, chasing, returnSpeed, dt) {
+  if (chasing) return [x, z];
+  const dx = x - home[0], dz = z - home[2], d = Math.hypot(dx, dz);
+  if (d <= leash) return [x, z];
+  const back = Math.min(d - leash, returnSpeed * dt); // walk back toward the edge of his area, never teleport
+  return [x - (dx / d) * back, z - (dz / d) * back];
+}
+/** A capped boss hit: the raw damage after Light and fireteam multipliers, never more than `frac` of the target's health plus shield. */
+export const cappedHit = (raw, pool, frac) => Math.min(raw, pool * frac);
 export const BASE_TYPES = ['grunt', 'rusher', 'captain', 'heavy'];
 export const dungeonList = () => Object.values(DUNGEONS);
 export function dungeonDef(id) {

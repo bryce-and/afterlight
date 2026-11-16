@@ -29,7 +29,7 @@ import {
 } from './dungeon-mech.js';
 import {
   dungeonDef, dungeonEnemyLight, offeringSteps, expandKit, newRound, offer, shuffled, SIGILS, DpsBossFsm, clearDrops, recordDungeonClear,
-  dungeonRecord, deathOutcome, wipeOutcome, inRegion, inVoid, trackSafe,
+  dungeonRecord, leashStep, cappedHit, deathOutcome, wipeOutcome, inRegion, inVoid, trackSafe,
 } from './dungeon-rules.js';
 
 export * from './dungeon-rules.js';
@@ -217,11 +217,26 @@ function activateBaths(D, i) {
   b.dgBoss = true; b.dgImm = true;
   if (cfg.boss.scale) { b.scale = cfg.boss.scale; b.radius = cfg.boss.radius ?? b.radius; b.height = b.model.height * b.scale; }
   if (cfg.boss.melee) { // his own copy of the stats: the melee lunge in place of the boss's guns (enemies.js def.melee); never fires a shot
-    b.def = { ...b.def, melee: true, closeMelee: false, meleeDmg: cfg.boss.meleeDmg, speed: cfg.boss.speed ?? b.def.speed, range: 4, prefer: 1.5, fireCd: [1e9, 1e9], burst: 0 };
+    const pool = G.player.maxHealth + G.player.maxShield, inc = G.mission.incomingMult || 1;
+    b.def = { ...b.def, melee: true, closeMelee: false, meleeDmg: cappedHit(cfg.boss.meleeDmg * b.dmgMult * inc, pool, cfg.boss.hitFrac.lunge) / (b.dmgMult * inc), speed: cfg.boss.speed ?? b.def.speed, range: 4, prefer: 1.5, fireCd: [1e9, 1e9], burst: 0 };
     b.fireT = 1e9;
   }
   b.cleaveT = cfg.cleaveEvery; b.slamT = cfg.slamEvery; b.slamWind = 0; b.cleaveWind = 0;
   b.bossUpdate = (dt, dist) => vhorrakAttacks(D, S, b, cfg, dt, dist);
+  if (cfg.boss.leash) { // outside a DPS window he keeps to his end of the baths; in a window he chases (Bryce, 2026-11-15)
+    const home = seg.boss, upd = b.update.bind(b);
+    b.update = (dt) => {
+      const out = upd(dt);
+      if (b.alive) {
+        const chasing = S.fsm?.mode === 'window';
+        const prev = [b.pos.x, b.pos.z];
+        // the base AI walks toward the player at his speed; outside a window, cancel any step past the leash and walk him back
+        const [x, z] = leashStep(b.pos.x, b.pos.z, home, cfg.boss.leash, chasing, cfg.boss.returnSpeed + cfg.boss.speed, dt);
+        if (x !== prev[0] || z !== prev[1]) { b.pos.x = x; b.pos.z = z; b.model.group.position.x = x; b.model.group.position.z = z; }
+      }
+      return out;
+    };
+  }
   S.boss = b;
   S.fsm = new DpsBossFsm(cfg);
   newOfferingRound(D, S, cfg, false);
@@ -339,7 +354,7 @@ function vhorrakAttacks(D, S, b, cfg, dt, dist) {
         if (dd > 6.5) continue;
         const face = Math.atan2(dx, dz) - b.cleaveYaw;
         if (Math.cos(face) < 0.2) continue; // behind him
-        if (p.remote) damageRemote(p, 55 * b.dmgMult, b.pos); else damagePlayer(55 * b.dmgMult, b.pos, 'melee');
+        bossHit(p, b, 55, cfg.boss.hitFrac.cleave, 'melee');
       }
     }
   } else {
@@ -360,7 +375,7 @@ function vhorrakAttacks(D, S, b, cfg, dt, dist) {
       sfx.explosion(8, b.pos);
       for (const p of allPlayers()) {
         if (!p || p.dead || Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) > cfg.slamRadius || p.pos.y > b.pos.y + 1.4) continue;
-        if (p.remote) damageRemote(p, 40 * b.dmgMult, b.pos); else damagePlayer(40 * b.dmgMult, b.pos, 'splash');
+        bossHit(p, b, 40, cfg.boss.hitFrac.slam, 'splash');
       }
     }
   } else {
@@ -369,6 +384,15 @@ function vhorrakAttacks(D, S, b, cfg, dt, dist) {
   }
 }
 
+/** One of Vhorrak's hits on a player, capped to a share of their health plus shield (no one-hit kills from full). damagePlayer
+ *  multiplies by the Light gap afterwards, so the cap is divided back out of the amount passed in. */
+function bossHit(p, b, base, frac, kind) {
+  const inc = G.mission.incomingMult || 1, me = G.player;
+  // a teammate's record carries no health pool here; members share the leader's Light, so the host's own pool stands in
+  const pool = p.remote ? (p.maxHealth ?? me.maxHealth) + (p.maxShield ?? me.maxShield) : p.maxHealth + p.maxShield;
+  const amount = cappedHit(base * b.dmgMult * inc, pool, frac) / inc;
+  if (p.remote) damageRemote(p, amount, b.pos); else damagePlayer(amount, b.pos, kind);
+}
 function bathsTick(D, S, seg, cfg, dt) {
   const M = G.mission, zone = D.zones[D.seg];
   const b = S.boss;

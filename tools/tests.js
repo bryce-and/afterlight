@@ -3687,6 +3687,20 @@ test('U23 save v14: v13 migrates with everything kept, per Guardian dungeons add
   const n = S.createSave('stalker'); eq(n.dungeons, { shadow: { clears: 0, bestTime: null } });
   DGR.recordDungeonClear(n, 'shadow', 900); S.switchCharacter(n, 'vanguard'); eq(DGR.dungeonRecord(n, 'shadow').clears, 0); S.switchCharacter(n, 'stalker'); eq(DGR.dungeonRecord(n, 'shadow').clears, 1);
 });
+test('U23 leash: outside DPS a boss keeps to its area and walks back; in a window it chases', () => {
+  const home = [0, 0, -26];
+  eq(DGR.leashStep(3, -24, home, 10, false, 6, 0.1), [3, -24], 'inside the area: free');
+  eq(DGR.leashStep(0, -10, home, 10, true, 6, 0.1), [0, -10], 'in a window: no leash');
+  const [x, z] = DGR.leashStep(0, -10, home, 10, false, 6, 0.1); eq([x, +z.toFixed(2)], [0, -10.6], 'outside: steps back 0.6 m, no teleport');
+  let p = [0, 4]; for (let i = 0; i < 200; i++) p = DGR.leashStep(p[0], p[1], home, 10, false, 6, 0.1); ok(Math.abs(Math.hypot(p[0], p[1] + 26) - 10) < 1e-6, 'ends at the edge of the area');
+  eq(DGR.dungeonDef('shadow').segments.baths.boss.leash, 10);
+});
+test('U23 Vhorrak never one-shots: every hit is capped below a full health plus shield pool', () => {
+  const f = DGR.dungeonDef('shadow').segments.baths.boss.hitFrac;
+  for (const [k, v] of Object.entries(f)) ok(v > 0 && v < 0.5, `${k} takes under half the pool`);
+  eq(DGR.cappedHit(220, 201, 0.45), 201 * 0.45, 'a 220 cleave on a 201 pool lands for 90');
+  eq(DGR.cappedHit(30, 201, 0.45), 30, 'a weak hit is not raised');
+});
 test('U23 the Whisper is untouched: still its own registry, timer and rules', () => {
   eq(EX.exoticList().map((x) => x.id), ['whisper']); eq(EX.exoticDef('whisper').timeLimit, 1200); eq(EX.exoticDef('whisper').enemyLightOver, 10);
   eq(EX.validateExotic(EX.exoticDef('whisper')), []);

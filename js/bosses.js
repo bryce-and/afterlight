@@ -1150,12 +1150,16 @@ export const BOSS_MODELS = {
       B(0.62, 0.22, 0.62, 0, -0.35, 0, gold, a);                           // upper arm band
       B(0.56, 0.5, 0.56, 0, -1.35, 0, gold, a);                            // forearm band
       B(0.6, 0.1, 0.6, 0, -1.07, 0, goldD, a);
-      B(0.58, 0.5, 0.52, 0, -2.1, 0, skin2, a);                            // fist
-      B(0.14, 0.7, 0.14, 0, -2.2, 0.28, goldD, a);                         // grip
-      B(0.1, 1.5, 0.78, 0, -3.1, 0.34, steel, a);                          // blade
-      B(0.12, 1.5, 0.08, 0, -3.1, 0.75, gold, a);                          // gold edge
-      B(0.14, 0.14, 0.82, 0, -2.4, 0.34, gold, a);                         // guard
-      B(0.12, 0.2, 0.7, 0, -3.95, 0.34, steel, a, false, [0.5, 0, 0]);     // clipped tip
+      // a knife grip (Bryce, 2026-11-15): the handle runs through the closed fist at a right angle to the forearm (local z), and the
+      // blade carries on forward from the fist, spine up and the gold edge down, so a raised arm holds the cleaver out like a knife
+      B(0.58, 0.5, 0.56, 0, -2.1, 0, skin2, a);                            // closed fist
+      for (const k of [-1, 0, 1]) B(0.12, 0.1, 0.5, k * 0.17, -2.32, 0.02, skin2, a); // knuckle ridge under the handle
+      B(0.15, 0.15, 1.0, 0, -2.1, 0.05, goldD, a);                         // handle, through the fist
+      B(0.2, 0.2, 0.12, 0, -2.1, -0.5, gold, a);                           // pommel cap behind the fist
+      B(0.14, 0.9, 0.12, 0, -2.2, 0.55, gold, a);                          // guard
+      B(0.1, 0.8, 1.6, 0, -2.3, 1.4, steel, a);                            // blade: spine at -1.9, edge at -2.7
+      B(0.12, 0.09, 1.6, 0, -2.72, 1.4, gold, a);                          // gold cutting edge
+      B(0.1, 0.62, 0.3, 0, -2.36, 2.26, steel, a, false, [0.55, 0, 0]);    // clipped tip
     }
     c.arms.push(...arms);
     c.muzzle.position.set(0, 1.1, 1.3);
