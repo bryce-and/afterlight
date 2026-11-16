@@ -2,11 +2,13 @@
 // stylesheet is touched; everything is removed when the match is left (hideCrucibleHud).
 import * as THREE from 'three';
 import { G } from './state.js';
+import { hasLOS } from './physics.js';
 import { killPoints, zonesHeld, DUEL } from './pvp.js';
 
 const TEAM = { blue: '#6ec8ff', red: '#ff6a5a' };
 let root = null, el = {}, labels = [], plates = [], styleEl = null, plateCount = 0;
-const _p = new THREE.Vector3();
+const _p = new THREE.Vector3(), _eye = new THREE.Vector3(), _q = new THREE.Vector3();
+const FOE_TAG_RANGE = 60; // m: a foe's name tag shows inside this, in line of sight
 
 const CSS = `
 #crucible-hud{position:fixed;inset:0;pointer-events:none;z-index:6;font-family:inherit;color:#eef3f8}
@@ -28,6 +30,7 @@ const CSS = `
 #crucible-hud .cr-feed div{background:rgba(10,14,20,.55);padding:2px 8px;border-radius:3px}
 #crucible-hud .cr-lbl{position:absolute;left:0;top:0;font-weight:700;font-size:22px;text-shadow:0 0 6px #000;transform:translate(-50%,-50%);white-space:nowrap}
 #crucible-hud .cr-lbl small{display:block;font-size:11px;font-weight:600;opacity:.85;text-align:center}
+#crucible-hud .cr-ally.cr-foe{color:#ff8a7a}
 #crucible-hud .cr-ally{position:absolute;left:0;top:0;font-size:12px;font-weight:600;color:#6ec8ff;text-shadow:0 0 4px #000;transform:translate(-50%,-100%);white-space:nowrap}
 #crucible-end{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(6,9,14,.78);font-family:inherit;color:#eef3f8}
 #crucible-end .ce{width:min(560px,92vw);background:rgba(16,22,32,.96);border:1px solid rgba(255,255,255,.18);padding:28px 30px;text-align:center}
@@ -63,10 +66,16 @@ export function showCrucibleHud(M) {
   labels = M.crucible.zones.map((z) => { const d = div('cr-lbl', root); d.innerHTML = `${z.id}<small>${z.name}</small>`; return d; });
   buildPlates(M);
 }
-/** An ally's name over their head. Rebuilt when a human's body joins the match (it is made when their first message arrives). */
+/**
+ * Every Guardian's name over their head: allies always (blue), foes while you can see them (red, H29). The name is the one the roster gave
+ * that Guardian for the whole match, so the tag, the aimed plate and the kill feed always agree. Rebuilt when a human's body joins.
+ */
 function buildPlates(M) {
   for (const p of plates) p.d.remove();
-  plates = M.crucible.guardians.filter((g) => g.team === M.team).map((g) => ({ g, d: div('cr-ally', root, g.subName && !g.humanId ? `${g.name}  ·  ${g.subName}` : g.name) })); // U29: an ally AI's subclass too
+  plates = M.crucible.guardians.map((g) => {
+    const ally = g.team === M.team, d = div(ally ? 'cr-ally' : 'cr-ally cr-foe', root, g.subName && !g.humanId ? `${g.name}  ·  ${g.subName}` : g.name);
+    return { g, d, ally, seen: false, losT: Math.random() * 0.2 };
+  });
   plateCount = M.crucible.guardians.length;
 }
 
@@ -101,8 +110,14 @@ export function updateCrucibleHud(M) {
     d.style.display = p ? 'block' : 'none';
     if (p) { d.style.left = `${p[0].toFixed(0)}px`; d.style.top = `${p[1].toFixed(0)}px`; d.style.color = z.owner ? TEAM[z.owner] : '#eeeeee'; }
   });
+  const eye = G.camera.getWorldPosition(_eye), dt = Math.min(0.1, G.time - (el.lastT ?? G.time)); el.lastT = G.time;
   for (const pl of plates) {
-    const g = pl.g, p = g.alive ? proj(g.pos.x, g.pos.y + 2.7, g.pos.z) : null;
+    const g = pl.g;
+    if (!pl.ally) { // a foe's tag shows only while it is in sight and in range (checked a few times a second)
+      pl.losT -= dt;
+      if (pl.losT <= 0) { pl.losT = 0.15; pl.seen = g.alive && eye.distanceTo(g.pos) < FOE_TAG_RANGE && hasLOS(eye, _q.set(g.pos.x, g.pos.y + 1.6, g.pos.z)); }
+    }
+    const p = g.alive && (pl.ally || pl.seen) ? proj(g.pos.x, g.pos.y + 2.7, g.pos.z) : null;
     pl.d.style.display = p ? 'block' : 'none';
     if (p) { pl.d.style.left = `${p[0].toFixed(0)}px`; pl.d.style.top = `${p[1].toFixed(0)}px`; }
   }
