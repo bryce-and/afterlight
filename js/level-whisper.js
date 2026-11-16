@@ -296,7 +296,7 @@ export const WHISPER_LOC = {
 };
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Layout contract (see docs/U21_PROPOSAL.md). Phase block `p` is the block CENTRE, `s` its full size. Everything else: y is the floor to stand on.
+// Layout contract (see docs/archive/proposals/U21_PROPOSAL.md). Phase block `p` is the block CENTRE, `s` its full size. Everything else: y is the floor to stand on.
 // ---------------------------------------------------------------------------------------------------------------------------------
 const blk = (id, sy = 0.8) => { const b = PL.get(id); return { p: [(b.x0 + b.x1) / 2, b.top - sy / 2, (b.z0 + b.z1) / 2], s: [b.x1 - b.x0, sy, b.z1 - b.z0] }; };
 /** A point on a foothold or block: fx, fz are 0..1 across it; y is the floor to stand on. */
