@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ELEMENTS, EXOTIC_WEAPONS } from './data.js';
 import { mat } from './world.js';
 import { IMPERIAL_LOOK } from './dungeon-loot.js';
+import { CRUCIBLE_LOOK } from './crucible-loot.js';
 
 // Viewmodel guns are authored in "f" coordinates: f = metres forward of the
 // pistol grip (model z = -f), y = up from the bore line, x = right.
@@ -187,7 +188,7 @@ function finish(g, { muzzleF, muzzleY = 0, S, hip, ads, flash = 0xffd27a, gripF 
 const EXO_LOOK = Object.fromEntries(EXOTIC_WEAPONS.map((e) => [e.name, e.look]));
 
 export function buildGunModel(item) {
-  const look = item.rarity === 'exotic' ? EXO_LOOK[item.name] : item.dungeon ? IMPERIAL_LOOK : null; // U23: dungeon legendaries wear the Imperial look
+  const look = item.rarity === 'exotic' ? EXO_LOOK[item.name] : item.dungeon ? IMPERIAL_LOOK : item.crucible ? CRUCIBLE_LOOK : null; // U23: dungeon legendaries wear the Imperial look; U25: Crucible ones the crimson and gunmetal look
   if (look?.model) return CUSTOM_GUNS[look.model](item, look); // H22: an exotic with its own model replaces the archetype's base
   const g = buildBaseGun(item, look);
   if (look) exoticParts(g, look);
@@ -714,6 +715,22 @@ function exoticParts(g, look) {
       case 'gem': { // U23 Imperial: a purple cut gem set in the frame on both sides
         const gem = mat(look.glow ?? 0xa060ff, { emissive: look.glow ?? 0xa060ff, emissiveIntensity: 1.5 });
         for (const x of [-1, 1]) add(new THREE.OctahedronGeometry(0.02, 0), gem, x * 0.045, 0.0, mf * 0.35);
+        break;
+      }
+      case 'crucible': { // U25 Crucible: crimson panels, bronze trim, chipped edges, scorch marks and the emblem (crossed blades over a horned shield) on both sides
+        const red = mat(look.panel, { emissive: look.panel, emissiveIntensity: 0.25 }), bronze = mat(look.accent, { metalness: 0.5 }), char = mat(0x0c0c0e);
+        for (const x of [-1, 1]) {
+          B(0.006, 0.026, 0.24, x * 0.044, 0.012, 0.08, red); // crimson panel
+          B(0.006, 0.007, 0.34, x * 0.044, -0.02, 0.06, bronze); // worn bronze trim
+          B(0.006, 0.02, 0.012, x * 0.044, 0.012, 0.19, bronze); // panel end cap
+          for (const [f, y, w] of [[0.15, 0.02, 0.03], [0.03, 0.0, 0.022], [0.0, 0.026, 0.02]]) B(0.007, 0.008, w, x * 0.0445, y, f, char, 0.3); // scorch marks and chips
+          // emblem on the rear receiver / stock: two crossed blades, a horned shield in front of them
+          const e = x * 0.0475;
+          B(0.004, 0.012, 0.075, e, 0.0, -0.06, bronze, 0.75); B(0.004, 0.012, 0.075, e, 0.0, -0.06, bronze, -0.75);
+          B(0.005, 0.044, 0.034, e + x * 0.002, -0.004, -0.06, bronze);
+          B(0.006, 0.036, 0.026, e + x * 0.003, -0.004, -0.06, red);
+          for (const s of [-1, 1]) add(new THREE.ConeGeometry(0.006, 0.026, 4), bronze, e + x * 0.003, 0.026, -0.06 + s * 0.016, 0).rotation.z = 0;
+        }
         break;
       }
       case 'prongs': for (const [x, y] of [[0, 0.04], [-0.035, -0.02], [0.035, -0.02]]) B(0.01, 0.01, 0.14, x, y, mf + 0.03, glow); break;

@@ -97,6 +97,13 @@ function body(k, P, S, accent) {
   else if (cv.plate === 'layered') { box(P.chestW * 0.86, 0.12, 0.33, 0, 0.3, 0, Ch.armor, torso); box(P.chestW * 0.6, 0.05, 0.03, 0, 0.3, 0.175, Ch.trim, torso); }
   else if (cv.plate === 'vents') for (const s of [-1, 1]) for (const y of [0.6, 0.53]) box(0.09, 0.04, 0.03, s * P.chestW * 0.3, y, 0.165, Ch.dark, torso);
   else if (cv.plate === 'emblem') mesh(new THREE.OctahedronGeometry(0.055, 0), accent, 0, 0.52, 0.2, torso);
+  else if (cv.plate === 'crucible') { // U25: the Crucible emblem (crossed blades over a horned shield), red cloth strips and scorch marks
+    for (const r of [0.8, -0.8]) box(0.03, 0.2, 0.02, 0, 0.52, 0.18, Ch.trim, torso, [0, 0, r]);
+    box(0.12, 0.13, 0.03, 0, 0.5, 0.2, Ch.trim, torso); box(0.095, 0.105, 0.03, 0, 0.5, 0.215, Ch.cloth, torso);
+    for (const s of [-1, 1]) mesh(cone(0.02, 0.07), Ch.trim, s * 0.05, 0.58, 0.2, torso);
+    for (const s of [-1, 1]) box(0.05, 0.3, 0.015, s * 0.09, -0.08, 0.14, Ch.cloth, torso, [0.06, 0, s * 0.04]); // hanging red strips
+    box(0.07, 0.04, 0.02, -0.12, 0.36, 0.16, Ch.dark, torso, [0, 0, 0.4]); box(0.05, 0.03, 0.02, 0.13, 0.62, 0.16, Ch.dark, torso, [0, 0, -0.3]); // scorch
+  }
   // arms and gauntlets
   k.slot = 'arms';
   const A = S.arms, av = A.v.arms;

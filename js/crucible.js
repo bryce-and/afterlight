@@ -11,7 +11,6 @@ import { sfx } from './audio.js';
 import * as ui from './ui.js';
 import { playMusic } from './music.js';
 import { playerPower, playerLevel, writeSave } from './save.js';
-import { rollItem } from './loot.js';
 import { armorBand } from './campaign.js';
 import { onMissionStart, launchCrucible } from './coop.js';
 import { net, broadcast } from './net.js';
@@ -26,6 +25,7 @@ import { Guardian } from './guardian-ai.js';
 import { crSendDeath, crRequestCrate } from './crucible-net.js';
 import { showCrucibleHud, updateCrucibleHud, hideCrucibleHud, showCrucibleEnd } from './crucible-hud.js';
 import { cleanupMission, abandonMission, gainXp, grantItem } from './game.js';
+import { makeCrucibleDrop } from './crucible-loot.js';
 
 const TEAM_HEX = { blue: 0x6ec8ff, red: 0xff6a5a };
 const FOE = { blue: 'red', red: 'blue' };
@@ -457,7 +457,7 @@ export function endMatch(winner) {
   let item = null;
   if (!C.spectate) {
     gainXp(won ? CRUCIBLE_REWARD.xpWin : CRUCIBLE_REWARD.xpLoss);
-    item = rollItem(playerPower(G.save), CRUCIBLE_REWARD.rarity, null, 'earth', G.save.classId, G.save.exoticsFound, playerLevel(G.save), armorBand(G.save));
+    item = makeCrucibleDrop(playerPower(G.save), G.save.classId, Math.random, armorBand(G.save)); // U25 chunk C: the Crucible pool; endMatch runs once (C.over)
     grantItem(item);
     writeSave(G.save);
   }

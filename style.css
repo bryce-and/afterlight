@@ -1121,6 +1121,7 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .rt-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; padding-right: 4px; }
 .rt-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--rc); background: rgba(255,255,255,0.03); color: var(--text); cursor: pointer; }
 .rt-row:hover, .rt-row.sel { background: rgba(255,255,255,0.09); border-color: var(--rc); }
+.rt-sec { margin: 10px 2px 2px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #d8604a; border-bottom: 1px solid #7a2a24; padding-bottom: 3px; }
 .rt-sil .w-ico { width: 44px; height: 17px; opacity: 0.85; }
 .rt-rn { min-width: 0; }
 .rt-rn b { display: block; font-family: var(--head); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

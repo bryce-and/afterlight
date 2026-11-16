@@ -4,6 +4,7 @@
 import { ARCHETYPES, ELEMENTS, PERKS, EXOTIC_PERKS, EXOTIC_WEAPONS, PERK_COLUMN_NAMES, RARITIES, SLOT_NAMES } from './data.js';
 import { LEGENDARY_WEAPONS, NAMED_WEAPONS, FRAMES, perkPoolFor, frameSlot } from './frames.js';
 import { exoticDef } from './exotic-rules.js';
+import { CRUCIBLE_WEAPONS } from './crucible-loot.js';
 import { weaponIcon, weaponSilhouette, elementIcon } from './icons.js';
 import { esc } from './util.js';
 
@@ -22,6 +23,7 @@ const SRC = {
   levelExotic: 'Level track exotic engram at levels 20 and 40',
   tiers: 'Legendary tier: an exotic on every clear of the final campaign mission; Ultimate tier: one on the first clear of every mission',
   menus: 'Legendary and Ultimate unlock reward menus: pick from random exotics',
+  crucible: 'Crucible: a finished Control or Duel match pays one Crucible item (a weapon or an armor piece), win or lose. It never drops anywhere else',
   kiosk: 'Exotic Kiosk (after you earn it): buy it again for glimmer',
 };
 
@@ -30,6 +32,7 @@ const perkName = (id) => perkInfo(id)?.name || id;
 const frameName = (arch, frame) => (frame ? FRAMES[arch]?.[frame]?.name ?? frame : null);
 
 function sourcesFor(rarity, tpl) {
+  if (tpl?.crucible) return [SRC.crucible]; // U25
   if (rarity === 'exotic') {
     if (tpl.dungeon) return ["Dungeon: The Emperor's Shadow. A 5% chance from each encounter and boss; it never drops anywhere else", SRC.kiosk]; // U23
     if (tpl.mission) {
@@ -46,13 +49,14 @@ function sourcesFor(rarity, tpl) {
 let cached = null, cachedKey = '';
 /** One entry per weapon: named commons to rares, legendaries and exotics. Rebuilt when the tables change size, so late additions show. */
 export function trackerEntries() {
-  const key = `${NAMED_WEAPONS.length}|${LEGENDARY_WEAPONS.length}|${EXOTIC_WEAPONS.length}|${Object.keys(PERKS).length}|${Object.keys(EXOTIC_PERKS).length}`;
+  const key = `${NAMED_WEAPONS.length}|${LEGENDARY_WEAPONS.length}|${CRUCIBLE_WEAPONS.length}|${EXOTIC_WEAPONS.length}|${Object.keys(PERKS).length}|${Object.keys(EXOTIC_PERKS).length}`;
   if (cached && key === cachedKey) return cached;
   const out = [];
   const add = (n, rarity) => {
     out.push({
+      crucible: !!n.crucible,
       name: n.name, arch: n.arch, frame: n.frame, element: n.element, slot: frameSlot(n.arch, n.frame), rarity, exotic: false,
-      pool: perkPoolFor(n), sources: sourcesFor(rarity),
+      pool: perkPoolFor(n), sources: sourcesFor(rarity, n),
     });
   };
   for (const n of NAMED_WEAPONS) add(n, n.rarity);
@@ -63,6 +67,7 @@ export function trackerEntries() {
       perks: [...x.perks], mission: x.mission || null, flavor: x.flavor || '', sources: sourcesFor('exotic', x),
     });
   }
+  for (const c of CRUCIBLE_WEAPONS) add(c, 'legendary'); // U25: the Crucible pool, under its own heading
   cached = out; cachedKey = key;
   return out;
 }
@@ -88,12 +93,12 @@ export function searchTracker(query = '', filters = {}) {
 // Screen
 // ---------------------------------------------------------------------------
 const view = { query: '', element: '', slot: '', arch: '', sel: null };
-const keyOf = (e) => `${e.arch}|${e.name}`;
+const keyOf = (e) => `${e.arch}|${e.name}${e.crucible ? '|c' : ''}`; // two Crucible weapons share a name with an ordinary legendary
 const RARITY_NAME = Object.fromEntries(RARITIES.map((r) => [r.id, r]));
 const RARITY_NOTE = 'Uncommon drops roll 1 perk (Magazine), Rare drops 2 (Magazine and one of Damage or Effect), Legendary drops all 3. Common drops have none.';
 
 function iconFor(e) {
-  const item = { kind: 'weapon', name: e.name, arch: e.arch, frame: e.frame, element: e.element, rarity: e.rarity, slot: e.slot, perks: [], exotic: e.exotic ? e.perks[0] : null };
+  const item = { kind: 'weapon', crucible: !!e.crucible, name: e.name, arch: e.arch, frame: e.frame, element: e.element, rarity: e.rarity, slot: e.slot, perks: [], exotic: e.exotic ? e.perks[0] : null };
   try { return `<img class="rt-big" src="${weaponIcon(item)}" alt="" draggable="false">`; }
   catch (err) { console.error('Roll Tracker: weapon icon failed for', e.name, err); return weaponSilhouette(e.arch); }
 }
@@ -153,7 +158,7 @@ export function renderRollTracker(main) {
     const rows = searchTracker(view.query, view);
     if (!rows.some((e) => keyOf(e) === view.sel)) view.sel = rows[0] ? keyOf(rows[0]) : null;
     $q('#rt-count').textContent = `${rows.length} of ${all.length} weapons`;
-    $q('#rt-list').innerHTML = rows.map((e) => `<button class="rt-row${keyOf(e) === view.sel ? ' sel' : ''}" data-k="${esc(keyOf(e))}" style="--rc:${RARITY_NAME[e.rarity].color}">
+    $q('#rt-list').innerHTML = rows.map((e, i) => `${e.crucible && !rows[i - 1]?.crucible ? '<div class="rt-sec">Crucible</div>' : ''}<button class="rt-row${keyOf(e) === view.sel ? ' sel' : ''}" data-k="${esc(keyOf(e))}" style="--rc:${RARITY_NAME[e.rarity].color}">
       <span class="rt-sil">${weaponSilhouette(e.arch)}</span>
       <span class="rt-rn"><b>${esc(e.name)}</b><small>${esc(RARITY_NAME[e.rarity].name)}  ·  ${esc(ARCHETYPES[e.arch].name)}  ·  ${esc(ELEMENTS[e.element].name)}</small></span></button>`).join('') || '<div class="ins-none">No weapon or perk matches.</div>';
     const sel = rows.find((e) => keyOf(e) === view.sel);

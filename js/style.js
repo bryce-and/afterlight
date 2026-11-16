@@ -80,8 +80,19 @@ SETS.imperial = {
   bonus: { name: 'Imperial Bearing', desc: 'Favor drains 30% slower, and you take 10% less damage while Favored.' },
   look: look(C(0xe9e2d2, 0xd9a520, 0x1c1424, 0x6a2c9c), { visor: 'wide', crest: 'crown' }, { cuff: 'layered', light: true }, { plate: 'emblem', shoulder: 'tall' }, { knee: 'guard', shin: 'stripe' }),
 };
-/** Destination sets: the ones a legendary drop or an old save can be given. Dungeon sets are left out. */
-export const SET_IDS = Object.keys(SETS).filter((id) => !SETS[id].dungeon);
+// U25: the Crucible set drops only from a finished Crucible match (js/crucible-loot.js). It has no set bonus: it is worn for the look.
+SETS.crucible = {
+  name: 'Crucible', dest: 'The Crucible', crucible: true, pieces: pieces('Crucible', 'Helm', 'Gauntlets', 'Plate', 'Greaves'),
+  classPieces: {
+    vanguard: pieces('Phoenix Strife', 'Helm', 'Gauntlets', 'Plate', 'Greaves'),
+    stalker: pieces('Ankaa Seeker', 'Mask', 'Grips', 'Vest', 'Strides'),
+    arcanist: pieces('Wing Discipline', 'Hood', 'Gloves', 'Robes', 'Boots'),
+  },
+  bonus: { name: 'Battle Scars', desc: 'No bonus. This set is worn for its look.' },
+  look: look(C(0x585c64, 0xb07a3a, 0x2a2d32, 0xa3222a), { visor: 'wide', crest: 'horns' }, { cuff: 'layered' }, { plate: 'crucible', shoulder: 'big' }, { knee: 'guard', shin: 'plated' }),
+};
+/** Destination sets: the ones a legendary drop or an old save can be given. Dungeon and Crucible sets are left out. */
+export const SET_IDS = Object.keys(SETS).filter((id) => !SETS[id].dungeon && !SETS[id].crucible);
 for (const id of Object.keys(SETS)) LOOKS[id] = SETS[id].look;
 /** The piece name for a set, slot and class (dungeon sets name each class's pieces). */
 export const setPieceName = (set, slot, classId) => SETS[set].classPieces?.[classId]?.[slot] ?? SETS[set].pieces[slot];

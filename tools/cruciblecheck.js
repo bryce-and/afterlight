@@ -55,6 +55,22 @@ export async function cruciblecheck(modeId = 'control', { cap = 900 } = {}) {
     const dmg = h0 - (Pe.health + Pe.shield);
     lines.push(`  PvE mission (${G.mission.pvp ? 'pvp flag SET' : 'pvp off'}): pvh damage ${dmg} ${dmg === 0 ? '(none, as required)' : '(PLAYER HURT)'}`);
     if (dmg !== 0 || G.mission.pvp) lines.push('  ERROR player damage outside pvp');
+    // U25 chunk C: a finished match pays exactly one Crucible item, even when the end is reported twice
+    g.cleanupMission?.();
+    G.save = S.createSave('vanguard');
+    const count = () => [...G.save.inventory, ...(G.save.vault || []), ...(G.save.postmaster || [])].filter((i) => i.crucible || i.set === 'crucible').length;
+    const before = count();
+    Cr.startCrucible('control');
+    step(30);
+    Cr.endMatch('blue'); Cr.endMatch('blue'); Cr.endMatch('red');
+    const got = count() - before;
+    lines.push(`  match reward: ${got} Crucible item after endMatch called three times ${got === 1 ? '(once, as required)' : '(WRONG)'}`);
+    if (got !== 1) lines.push('  ERROR the reward did not fire exactly once');
+    g.cleanupMission?.();
+    G.save = S.createSave('vanguard');
+    const b2 = count();
+    Cr.startCrucible('control', { spectate: true }); step(30); Cr.endMatch('blue');
+    if (count() !== b2) lines.push('  ERROR a spectated match paid a reward');
   } catch (e) {
     lines.push(`RUN ERROR ${e.message} | ${String(e.stack).split('\n').slice(1, 3).join(' | ')}`);
   } finally {

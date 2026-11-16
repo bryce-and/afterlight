@@ -3386,7 +3386,7 @@ test('H23: Roll Tracker covers every weapon, searches by perk and name, and give
   const F = await import('../js/frames.js');
   const D = await import('../js/data.js');
   const all = RT.trackerEntries();
-  eq(all.length, F.NAMED_WEAPONS.length + F.LEGENDARY_WEAPONS.length + D.EXOTIC_WEAPONS.length, 'one entry per weapon');
+  eq(all.length, F.NAMED_WEAPONS.length + F.LEGENDARY_WEAPONS.length + D.EXOTIC_WEAPONS.length + 7, 'one entry per weapon (plus the 7 Crucible weapons, U25c)');
   for (const e of all) ok(e.sources.length > 0 && e.sources.every((x) => x && !/[\u2013\u2014]/.test(x)), `${e.name} has a source`);
   const hits = RT.searchTracker('incandescent');
   ok(hits.length > 0, 'incandescent is on some weapons');
@@ -4228,6 +4228,54 @@ test('U25b the crucible net handlers all start from the pvp:true switch', async 
   const src = await (await fetch('../js/crucible-net.js')).text();
   ok(/const matchOf = \(\) => \(G\.mission\?\.pvp === true/.test(src), 'every handler reads the match through the pvp flag');
   ok(!/pvpDamagePlayer\([^)]*\)/.test(src.replace(/net\.on\('pvh'[\s\S]*?\n\}\);/, '')), 'only the pvh handler applies player damage');
+});
+
+// ---------- U25 Crucible loot pool (chunk C) ----------
+import * as CL from '../js/crucible-loot.js';
+test('U25c Crucible pool: seven legendaries kept out of every pool, covering four elements, with the look flag', () => {
+  const names = CL.CRUCIBLE_WEAPONS.map((w) => w.name);
+  eq(names, ['Trust', "Redrix's Broadsword", 'Recluse', "Mindbender's Ambition", 'Revoker', 'Loaded Question', 'The Mountaintop']);
+  const clash = ['Loaded Question', "Mindbender's Ambition"]; // already ordinary legendaries before U25; the Crucible copies are told apart by the `crucible` flag
+  ok(!LEGENDARY_WEAPONS.some((l) => l.crucible) && !NAMED_WEAPONS.some((l) => l.crucible || (names.includes(l.name) && !clash.includes(l.name))), 'no Crucible entry in any named pool');
+  eq(new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.arch)).size, 7, 'seven archetypes');
+  eq([...new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.element))].sort(), ['arc', 'kinetic', 'solar', 'void']);
+  for (const w of CL.CRUCIBLE_WEAPONS) {
+    const it = CL.makeCrucibleWeapon(100, Math.random, w);
+    eq([it.name, it.rarity, it.crucible, it.frame, it.element, it.perks.length], [w.name, 'legendary', true, w.frame, w.element, 3]);
+  }
+  ok(!ST.SET_IDS.includes('crucible') && ST.SETS.crucible.crucible, 'set kept out of random sets');
+  for (const [cls, a, b] of [['vanguard', 'Phoenix Strife Helm', 'Phoenix Strife Greaves'], ['stalker', 'Ankaa Seeker Mask', 'Ankaa Seeker Strides'], ['arcanist', 'Wing Discipline Hood', 'Wing Discipline Boots']]) {
+    const h = CL.makeCrucibleArmor(100, cls, Math.random, 'helmet'), l = CL.makeCrucibleArmor(100, cls, Math.random, 'legs');
+    eq([h.name, l.name, h.set, h.rarity], [a, b, 'crucible', 'legendary']);
+  }
+  const kinds = new Set(); for (let i = 0; i < 200; i++) kinds.add(CL.makeCrucibleDrop(100, 'stalker').kind); eq([...kinds].sort(), ['armor', 'weapon']);
+});
+test('U25c Crucible items never come from any other source (random rolls, reward menus, Blitz, kiosks, skip gear, level track)', () => {
+  const names = new Set(CL.CRUCIBLE_WEAPONS.map((w) => w.name));
+  const bad = (it) => it && (it.crucible || it.set === 'crucible' || (names.has(it.name) && !['Loaded Question', "Mindbender's Ambition"].includes(it.name)));
+  for (let i = 0; i < 6000; i++) {
+    const dest = i % 7 === 0 ? null : LOCATIONS[i % LOCATIONS.length].id;
+    ok(!bad(rollItem(100 + (i % 200), i % 5, null, dest, ['vanguard', 'stalker', 'arcanist'][i % 3], [], Infinity, 'base')), 'rollItem');
+  }
+  for (const slot of ['kinetic', 'energy', 'heavy', 'primary', 'special']) for (let i = 0; i < 100; i++) { try { ok(!bad(rollItem(100, 3, slot)), 'slot roll'); } catch { /* not a valid slot name */ } }
+  const s = { classId: 'stalker', exoticsFound: [], cleared: {}, inventory: [], vault: [], pendingMenus: [], tierCleared: { legendary: {}, ultimate: {} }, level: 60, xp: 0 };
+  for (const tier of Object.keys(RW.REWARD_MENUS)) for (let i = 0; i < 30; i++) {
+    let m; try { m = RW.rollMenu(s, tier); } catch { continue; }
+    for (const it of [...(m.weapons || []), ...(m.armor || [])]) ok(!bad(it) && !bad(it.item), `${tier} menu`);
+  }
+  for (let i = 0; i < 30; i++) { let m; try { m = RW.rollBlitzMenu(s); } catch { continue; } for (const it of [...(m.weapons || []), ...(m.armor || [])]) ok(!bad(it) && !bad(it.item), 'Blitz menu'); }
+  for (const it of [...EXOTIC_WEAPONS.map((e) => e.name)]) ok(!names.has(it), 'exotic list holds none (Kiosk and Tower sell only exotics)');
+  for (const it of RW.starterGear?.('stalker') || []) ok(!bad(it), 'starter gear');
+  for (const id of Object.keys(ST.SETS)) if (id !== 'crucible') for (let i = 0; i < 5; i++) ok(ST.setForLegacy({ id: `x${i}${id}` }) !== 'crucible', 'legacy set');
+});
+test('U25c the match reward: one Crucible item per finished match through the Crucible pool, guarded by the over flag', async () => {
+  const src = await (await fetch('../js/crucible.js')).text();
+  ok(/if \(C\.over\) return;\n\s*C\.over = true/.test(src), 'endMatch returns when the match is already over');
+  eq((src.match(/grantItem\(/g) || []).length, 1, 'one grant in the Crucible');
+  ok(/makeCrucibleDrop\(/.test(src) && !/rollItem\(/.test(src), 'the reward comes from the Crucible pool, not a random roll');
+  const RT2 = await import('../js/rolltracker.js');
+  const cr = RT2.trackerEntries().filter((e) => e.crucible);
+  eq(cr.length, 7); ok(cr.every((e) => e.sources.length === 1 && /Crucible/.test(e.sources[0])), 'Crucible sources');
 });
 
 for (const t of tests) {
