@@ -797,6 +797,7 @@ export function getHitTargets() {
     if (G.mission?.exotic) for (const m of mechTargets()) G.hitTargets.push(m); // U21: Attuned eyes and live blights
     if (G.mission?.dungeon) for (const m of dungeonTargets()) G.hitTargets.push(m); // U23: lowered censers
     for (const m of darkTargets()) G.hitTargets.push(m); // U22: your Stasis crystals and Strand tangles
+    if (G.mission?.pvp && G.pvpWalls) for (const m of G.pvpWalls) G.hitTargets.push(m); // U29: Crucible barricades stop the other team's shots
     G.hitDirty = false;
   }
   return G.hitTargets;

@@ -55,7 +55,7 @@ export function startCrucible(modeId = 'control', opts = {}) {
   G.hitDirty = true;
   G.scene.add(G.camera);
   initEffects(G.scene);
-  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
+  G.pvpWalls = []; G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const myId = meId();
   const members = opts.spectate ? [] : net.active ? net.members : [{ id: 'me', name: G.save.settings.name || 'You', cls: G.save.classId, team: 'blue' }];
   const roster = opts.roster || buildRoster(members, modeId);
@@ -104,7 +104,7 @@ function buildFighters(roster, C, myId) {
     const [sx, sz] = spawnAt(s.team, s.slot);
     register(C, new Guardian({
       team: s.team, slot: s.slot, name: s.name, classId: s.cls, element: s.el, arch: s.arch, special: s.special, pos: new THREE.Vector3(sx, 0, sz),
-      gid: s.gid, puppet: net.isClient,
+      gid: s.gid, puppet: net.isClient, kit: s, look: s.lk ? decodeAppearance(s.lk) : undefined,
     }));
   }
   void myId;
@@ -222,7 +222,13 @@ function crateTake(crate, who) {
     sfx.engram?.(1);
     return true;
   }
-  if (crate.type === 'heavy' || !who.special) return false; // AI Guardians carry no heavy weapon
+  if (crate.type === 'heavy') { // U29: an AI Guardian's heavy weapon is empty until it reaches the heavy crate
+    const h = who.heavy;
+    if (!h || h.ammo + h.reserve >= h.A.mag * 2) return false;
+    h.reserve += heavyCrateAmount(h.A.id, h.A.mag);
+    return true;
+  }
+  if (!who.special) return false;
   const w = who.special, cap = w.A.mag * 2;
   if (w.ammo + w.reserve >= cap) return false;
   w.reserve += specialCrateAmount(w.A.brick || 1);
@@ -380,7 +386,12 @@ export function aiGoal(g) {
 export function crateGoal(g) {
   const C = G.mission.crucible;
   let best = null, bd = 38;
-  for (const c of C.crates) if (c.type === 'special' && c.ready) { const d = Math.hypot(c.x - g.pos.x, c.z - g.pos.z); if (d < bd) { bd = d; best = c; } }
+  const needSpecial = g.special && g.special.ammo + g.special.reserve <= 0, needHeavy = g.heavy && g.heavy.ammo + g.heavy.reserve <= 0;
+  for (const c of C.crates) {
+    if (!c.ready || (c.type === 'special' ? !needSpecial : !needHeavy)) continue;
+    const d = Math.hypot(c.x - g.pos.x, c.z - g.pos.z) * (c.type === 'heavy' ? 0.6 : 1); // U29: heavy is worth a longer walk
+    if (d < bd) { bd = d; best = c; }
+  }
   return best ? { x: best.x, z: best.z, r: 1 } : null;
 }
 
@@ -388,15 +399,17 @@ export function crateGoal(g) {
 // Kills and score (the host and solo score; a client only mirrors, see js/crucible-net.js)
 // ---------------------------------------------------------------------------
 function score(team, pts) { M().crucible.score[team] += pts; }
-function killLine(killer, victim, kteam, vteam, pts) {
+function killLine(killer, victim, kteam, vteam, pts, how = '') {
   const C = M().crucible;
-  C.feed.push({ t: G.time, killer, victim, kteam, vteam, pts });
+  C.feed.push({ t: G.time, killer, victim, kteam, vteam, pts, how });
   if (C.feed.length > 6) C.feed.shift();
 }
 /** Who someone is on the wire and in the feed: { id, name, team, human }. */
 export const descOf = (g) => ({ id: g.gid, name: g.name, team: g.team, human: !!g.humanId });
 export const localDesc = () => ({ id: M().crucible.me.id, name: G.save.settings.name || 'You', team: M().team, human: true });
 
+/** U29: what the local player is holding, for the kill feed. */
+function localHow() { const P = G.player; if (P?.superActive) return 'Super'; const w = P?.weapons?.[P.cur ?? P.wi ?? 0]; return w?.item?.name || ''; }
 /** The local player scored a kill. `fromNet`: a human was killed on the host's say-so, so the hit marker and sound come from here. */
 export function localKill(fromNet = false) {
   const Mi = G.mission, C = Mi.crucible, P = G.player;
@@ -407,14 +420,14 @@ export function localKill(fromNet = false) {
 }
 
 /** Host and solo: `k` killed `v` ({ id, name, team }). Scores it, tells everyone, and ends a Duel round. */
-export function recordKill(v, k) {
+export function recordKill(v, k, how = '') {
   const Mi = G.mission, C = Mi?.crucible;
   if (!C || C.over || net.isClient) return;
   if (C.duel && C.duel.phase !== 'live') return; // the break between rounds: nothing scores
   const pts = C.duel ? 1 : killPoints(zonesHeld(C.zones, k.team));
   if (!C.duel) score(k.team, pts);
-  killLine(k.name, v.name, k.team, v.team, pts);
-  if (net.isHost) broadcast({ t: 'pvk', k: k.name, v: v.name, kt: k.team, vt: v.team, pts, kid: k.id, vid: v.id });
+  killLine(k.name, v.name, k.team, v.team, pts, how);
+  if (net.isHost) broadcast({ t: 'pvk', k: k.name, v: v.name, kt: k.team, vt: v.team, pts, kid: k.id, vid: v.id, h: how });
   if (k.id && k.id === C.me.id && !C.spectate) localKill(!!v.human && v.id !== C.me.id);
   if (C.duel) duelRoundEnd(k.team);
 }
@@ -423,8 +436,8 @@ export function recordKill(v, k) {
 export function onGuardianDeath(g, attacker) {
   const C = G.mission?.crucible;
   if (!C || C.over) return;
-  if (attacker && !attacker.puppet) attacker.kills++;
-  recordKill(descOf(g), attacker ? descOf(attacker) : localDesc());
+  if (attacker && !attacker.puppet) attacker.onKill?.();
+  recordKill(descOf(g), attacker ? descOf(attacker) : localDesc(), attacker ? attacker.how || '' : localHow());
 }
 
 /** The local player died to `attacker` (a Guardian or a human's body), or to the map. */
@@ -434,8 +447,8 @@ export function onPlayerDeath(attacker) {
   C.stats.deaths++;
   if (net.isClient) crSendDeath(attacker ? attacker.gid : null); // the host scores it
   else {
-    if (attacker && !attacker.puppet) attacker.kills++;
-    recordKill(localDesc(), attacker ? descOf(attacker) : { id: null, name: 'The map', team: FOE[Mi.team] });
+    if (attacker && !attacker.puppet) attacker.onKill?.();
+    recordKill(localDesc(), attacker ? descOf(attacker) : { id: null, name: 'The map', team: FOE[Mi.team] }, attacker?.how || '');
   }
   ui.showDeath('Eliminated', attacker ? `by ${attacker.name}` : '');
 }

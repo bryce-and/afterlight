@@ -4185,6 +4185,35 @@ test('U25b team pick: a joiner goes to the smaller team', () => {
   eq(balanceTeam([{ team: 'blue' }, { team: 'red' }]), 'blue');
   eq(balanceTeam([{ team: 'blue' }, { team: 'blue' }, { team: 'red' }]), 'red');
 });
+test('U29 AI Guardian kits: a full random kit per bot, a Light subclass that matches its element, a real shader', () => {
+  const rng = mulberry32(29), seen = new Set(), shaders = new Set();
+  for (let i = 0; i < 60; i++) {
+    const k = PV.rollKit(rng);
+    ok(PV.AI_CLASS_IDS.includes(k.cls) && PV.AI_ELEMENT_IDS.includes(k.el), 'class and element');
+    ok(k.sc && k.scName, `a subclass for ${k.cls}/${k.el}`);
+    eq(PV.BOT_SUPERS[k.cls][k.el].id, k.su, 'the super belongs to that subclass');
+    ok(PV.BOT_GRENADES[k.el].some((g) => g.id === k.gr), 'the grenade is of its element');
+    ok(PV.BOT_CLASS[k.cls].some((c) => c.id === k.ca), 'the class ability is of its class');
+    ok(PV.GUARDIAN_AI.loadouts.includes(k.arch) && PV.GUARDIAN_AI.specials.includes(k.special) && PV.GUARDIAN_AI.heavies.includes(k.heavy), 'three guns');
+    ok(PV.BOT_ABILITY[k.su], `numbers for ${k.su}`);
+    const [, sh] = k.lk.split('|'); if (sh) shaders.add(sh);
+    seen.add(`${k.cls}${k.el}`);
+  }
+  ok(seen.size >= 7, 'the kits vary across class and element');
+  ok(shaders.size >= 4, 'random shaders');
+  const r = PV.buildRoster([], 'control', PV.gamerTags(12, mulberry32(3)), mulberry32(4));
+  ok(r.slots.every((s) => s.su && s.gr && s.ca && s.lk && s.heavy), 'every AI slot carries its whole kit');
+  eq(JSON.stringify(PV.buildRoster([], 'control', PV.gamerTags(12, mulberry32(3)), mulberry32(4))), JSON.stringify(r), 'the same seed gives the same roster');
+});
+test('U29 a Crucible barricade blocks the other team and lets its own team through', () => {
+  const old = G.colliders;
+  const wall = () => ({ min: { x: -0.3, y: 0, z: -3 }, max: { x: 0.3, y: 2.2, z: 3 }, pass: true, team: 'blue' });
+  const run = (team) => { G.colliders = [wall()]; const pos = { x: -2, y: 0, z: 0 }, vel = { x: 6, y: 0, z: 0 }; for (let i = 0; i < 60; i++) moveBody(pos, vel, 1 / 60, 0.4, 1.8, 0.6, team); return pos.x; };
+  ok(run('blue') > 1.5, 'its own team walks through');
+  ok(run('red') < -0.6, 'the other team is stopped');
+  ok(run(null) > 1.5, 'outside PvP (no team) it stays a pass-through wall, as before');
+  G.colliders = old;
+});
 test('U25b rosters: humans take slots first, AI Guardians fill each team to its size', () => {
   const humans = [{ id: 'a', name: 'A', cls: 'vanguard', team: 'blue' }, { id: 'b', name: 'B', cls: 'stalker', team: 'red' }, { id: 'c', name: 'C', cls: 'arcanist', team: 'red' }];
   const r = PV.buildRoster(humans, 'control');

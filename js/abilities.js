@@ -54,6 +54,7 @@ function lobBolt(from, to, local, target) {
 }
 
 export function castFx(kind, o) {
+  if (G.mission?.pvp && o.team == null) o.team = G.mission.team; // U29: in Crucible every effect carries its caster's team (rifts, wells, barricades)
   const wire = {};
   for (const [k, v] of Object.entries(o)) wire[k] = v instanceof THREE.Vector3 ? arr(v) : Array.isArray(v) && v[0] instanceof THREE.Vector3 ? v.map(arr) : v;
   sendFx({ t: 'fx', k: 'ab', kind, o: { ...wire, by: net.myId } }); // by: the caster, for effects that follow them
@@ -62,6 +63,23 @@ export function castFx(kind, o) {
 
 /** Replay from the network. */
 export function replayFx(kind, o) { abilityFx(kind, o, false); }
+
+/** U29: an AI Guardian's effect. Visuals (and team buffs) only, on every screen: the AI deals its own PvP damage (js/guardian-ai.js). */
+export function npcFx(kind, o) {
+  const wire = {};
+  for (const [k, v] of Object.entries(o)) wire[k] = v instanceof THREE.Vector3 ? arr(v) : v;
+  sendFx({ t: 'fx', k: 'ab', kind, o: { ...wire, by: null, npc: true } });
+  return abilityFx(kind, { ...o, npc: true }, false);
+}
+
+/** U29: in a PvP match a rift, well or barricade works only for its caster's team. True outside PvP or for an untagged effect. */
+const teamOk = (o, team) => !G.mission?.pvp || !o.team || o.team === team;
+/** U29: the AI Guardians (simulated on this screen) on the effect's team standing inside a circle. */
+function alliedBots(o, p, r) {
+  const C = G.mission?.pvp ? G.mission.crucible : null;
+  if (!C || !o.team) return [];
+  return C.guardians.filter((g) => g.alive && !g.puppet && g.team === o.team && Math.hypot(g.pos.x - p.x, g.pos.z - p.z) < r && Math.abs(g.pos.y - p.y) < 3);
+}
 
 function zoneMesh(pt, r, color, sphere = false) {
   const g = new THREE.Group();
@@ -236,6 +254,9 @@ export function abilityFx(kind, o, local) {
       G.scene.add(mesh);
       // a wall on every screen for enemies and their shots; Guardians (and their shots) pass through
       const box = { min: new THREE.Vector3(p.x - w / 2, base - sk, p.z - d / 2), max: new THREE.Vector3(p.x + w / 2, base + h, p.z + d / 2), pass: true };
+      // U29: in Crucible it stops the other team (bodies and bullets); its own team walks and shoots through it
+      const pvpWall = !!(G.mission?.pvp && o.team);
+      if (pvpWall) { box.team = o.team; mesh.userData.barricade = o.team; (G.pvpWalls ||= []).push(mesh); G.hitDirty = true; }
       G.colliders.push(box);
       shockwave(p.clone().setY(base + 0.05), 4, col, 0.5);
       for (let i = 0; i < 16; i++) glowBurst(p.clone().add(new THREE.Vector3(alongX ? (Math.random() - 0.5) * w : 0, 0.1, alongX ? 0 : (Math.random() - 0.5) * d)), i % 2 ? col : 0xffffff, 1, 3, 0.1, 0.7, 4, 1);
@@ -248,7 +269,10 @@ export function abilityFx(kind, o, local) {
           mesh.material.opacity = 0.35 + 0.15 * Math.sin(G.time * 4);
           return life > 0;
         },
-        dispose() { scene.remove(mesh); mesh.material.dispose(); geo.dispose(); const i = G.colliders.indexOf(box); if (i >= 0) G.colliders.splice(i, 1); },
+        dispose() {
+          scene.remove(mesh); mesh.material.dispose(); geo.dispose(); const i = G.colliders.indexOf(box); if (i >= 0) G.colliders.splice(i, 1);
+          if (pvpWall && G.pvpWalls) { const j = G.pvpWalls.indexOf(mesh); if (j >= 0) G.pvpWalls.splice(j, 1); G.hitDirty = true; }
+        },
       });
       break;
     }
@@ -274,7 +298,8 @@ export function abilityFx(kind, o, local) {
           if (Math.random() < 0.7) swirl(p, 4.3, glow, 1.4, false, 0.035, 3.5); // small white motes (U9), so standing inside stays readable
           if (pulse <= 0) { pulse = 1; ringFx(p, 4.5, col, 0.8); }
           const P = G.player;
-          const inside = P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 4.7 && Math.abs(P.pos.y - p.y) < 3;
+          const inside = P && !P.dead && teamOk(o, P.team) && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < 4.7 && Math.abs(P.pos.y - p.y) < 3;
+          for (const g of alliedBots(o, p, 4.7)) g.allyBuff(empower ? 'empower' : 'rift', dt);
           if (inside) {
             if (empower) P.status.apply('empower', { t: 0.25 });
             else { P.status.apply('rift', { t: 0.2 }); P.healPct(0.28 * dt); P.regenT = Math.min(P.regenT, 0.5); }
@@ -475,7 +500,8 @@ export function abilityFx(kind, o, local) {
             }
           }
           const P = G.player;
-          const now = !!(P && !P.dead && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r && Math.abs(P.pos.y - p.y) < 3);
+          const now = !!(P && !P.dead && teamOk(o, P.team) && Math.hypot(P.pos.x - p.x, P.pos.z - p.z) < r && Math.abs(P.pos.y - p.y) < 3);
+          for (const g of alliedBots(o, p, r)) g.allyBuff('well', dt);
           if (now) {
             // the buff shows how long the well has left; a much stronger Restoration lingers briefly after leaving
             P.status.apply('well', { t: Math.max(0.1, life), set: true });

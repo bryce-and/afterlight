@@ -1765,7 +1765,7 @@ function updateEnemyPlate(dt) {
   if (e) {
     if (e !== plateE) {
       const imm = !!G.mission?.lightImmune; // U19: 51+ under-Light, a "?" in place of the faction emblem and a scrambled name
-      plateE = e; setText(hud.plateName, 'epn', imm ? scrambleName(e.name) : e.name);
+      plateE = e; setText(hud.plateName, 'epn', imm ? scrambleName(e.name) : e.plateName || e.name); // U29: a Guardian's plate names its subclass and gun
       const fk = imm ? '?' : e.faction;
       if (cache.get('epf') !== fk) { cache.set('epf', fk); hud.plateIco.innerHTML = imm ? '<span class="ep-unknown">?</span>' : e.isGuardian ? '' : factionIcon(e.faction); hud.plateIco.title = imm ? 'Unknown' : e.isGuardian ? 'Guardian' : FACTION_NAMES[e.faction]; }
       setClass(hud.plate, 'epm', 'major', e.tier === 'major'); // orange bar for majors, red for minors (U13b)

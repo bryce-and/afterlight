@@ -81,7 +81,7 @@ function snapshot(C, key) {
     const f = (g.alive ? 0 : 1) | (g.speedNow > 5 ? 2 : 0) | (g.netAir ? 4 : 0) | (g.firing ? 8 : 0);
     const pool = Math.round(((g.hp + g.shield) / (g.maxHp + g.maxShield)) * 1000);
     if (g.humanId) { if (g.seen) h.push([g.humanId, r2(g.netPos.x), r2(g.netPos.y), r2(g.netPos.z), r2(g.netYaw), (g.alive ? 0 : 1) | (g.netSprint ? 2 : 0) | (g.netAir ? 4 : 0) | (g.netFire ? 8 : 0), pool, ...(key && g.ident ? [g.ident] : [])]); }
-    else a.push([g.gid, r2(g.pos.x), r2(g.pos.y), r2(g.pos.z), r2(g.yaw), f, pool]);
+    else a.push([g.gid, r2(g.pos.x), r2(g.pos.y), r2(g.pos.z), r2(g.yaw), f, pool, g.weaponSlot ?? 0]); // U29: which gun it holds
   }
   const m = {
     t: 'cs', tl: Math.round(C.timeLeft * 10) / 10, sc: [C.score.blue, C.score.red], h, a,
@@ -127,7 +127,7 @@ net.on('cs', (m) => {
     if (ident) { if (g) g.setGunKey(ident.w); else g = ensurePuppet(id, ident); }
     if (g) applyRow(g, x, y, z, yaw, f, pool);
   }
-  for (const [gid, x, y, z, yaw, f, pool] of m.a) { const g = C.fighters.get(gid); if (g) applyRow(g, x, y, z, yaw, f, pool); }
+  for (const [gid, x, y, z, yaw, f, pool, ws] of m.a) { const g = C.fighters.get(gid); if (g) { applyRow(g, x, y, z, yaw, f, pool); g.holdSlot?.(ws ?? 0); } }
   C.score.blue = m.sc[0]; C.score.red = m.sc[1]; C.timeLeft = m.tl;
   m.z.forEach(([o, p], i) => { const z = C.zones[i]; if (z) { z.owner = OWNER[o]; z.prog = p / 1000; } });
   C.crates.forEach((c, i) => crateReadyState(c, !!(m.cr & (1 << i))));
@@ -168,14 +168,14 @@ net.on('pvd', (m, from) => {
   v.deathScored = true; v.setNetAlive(false);
   const k = m.by === net.myId && !C.spectate ? localDesc() : m.by ? (C.fighters.get(m.by) ? descOf(C.fighters.get(m.by)) : null) : null; // the host's own player is not a body in `fighters`
   if (k && k.team === v.team) return; // never a team kill
-  recordKill(descOf(v), k || { id: null, name: 'The map', team: v.team === 'blue' ? 'red' : 'blue' });
+  recordKill(descOf(v), k || { id: null, name: 'The map', team: v.team === 'blue' ? 'red' : 'blue' }, (m.by && C.fighters.get(m.by)?.how) || '');
 });
 
 // client <- host: a kill happened (the feed line, and the killer's own feedback)
 net.on('pvk', (m) => {
   const C = matchOf();
   if (!C || net.isHost) return;
-  C.feed.push({ t: G.time, killer: m.k, victim: m.v, kteam: m.kt, vteam: m.vt, pts: m.pts });
+  C.feed.push({ t: G.time, killer: m.k, victim: m.v, kteam: m.kt, vteam: m.vt, pts: m.pts, how: m.h || '' });
   if (C.feed.length > 6) C.feed.shift();
   if (m.kid === net.myId) localKill(true);
 });

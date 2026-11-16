@@ -498,7 +498,7 @@ export class Player {
     }
     const vyBefore = this.vel.y;
     const wasGround = this.onGround;
-    const res = moveBody(this.pos, this.vel, dt, this.radius, this.height);
+    const res = moveBody(this.pos, this.vel, dt, this.radius, this.height, 0.6, G.mission?.pvp ? this.team : null);
     this.onGround = res.onGround; this.hitWall = res.hitWall;
     if (this.diving && res.onGround) {
       // Phoenix Dive landing
@@ -932,6 +932,7 @@ export class Player {
     const seen = new Set();
     for (const h of hits) {
       if (h.distance > groundT) break;
+      if (h.object.userData.barricade && h.object.userData.barricade === this.team) continue; // U29: your team's barricade lets your shots through
       const e = h.object.userData.enemy;
       if (e) {
         if (!e.alive || seen.has(e)) continue;

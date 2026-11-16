@@ -3,7 +3,8 @@
 // changes. A hit only comes here when the activity has `pvp: true` (G.mission.pvp). See docs/U25_PROPOSAL.md.
 import { shieldMax } from './armor.js';
 import { falloffMult } from './combat.js';
-import { ARCHETYPES, DEFAULT_FALLOFF } from './data.js';
+import { ARCHETYPES, DEFAULT_FALLOFF, CLASSES } from './data.js';
+import { LOOKS, SHADER_IDS, encodeAppearance } from './style.js';
 
 // ---------- health ----------
 export const PVP_HEALTH = 100;
@@ -195,8 +196,81 @@ export const GUARDIAN_AI = {
   abilityEvery: 14, // seconds between ability uses
   abilityDmg: 40, // what a thrown ability does in PvP
   loadouts: ['auto', 'hand', 'pulse', 'scout', 'smg', 'sidearm'], // the primaries AI Guardians carry
-  specials: ['shotgun', 'sniper', 'fusion', null], // special picks; null = none
+  specials: ['shotgun', 'sniper', 'fusion', 'glaive'], // every AI Guardian carries one special (U29)
+  heavies: ['rocket', 'mg', 'linear'], // heavy picks: empty until the Guardian reaches a heavy crate (U29)
+  // U29: movement and kits
+  jumpV: 10.4, // take-off speed (reaches a ~2.2 m ledge with gravity 24)
+  jumpReach: 2.4, // tallest obstacle top (above the feet) an AI Guardian jumps onto
+  hopChance: 0.25, // chance per strafe flip of a combat hop
+  classEvery: 18, // seconds between class ability uses (barricade, rift, dodge)
+  superTime: 110, // seconds for a super to charge from empty with no kills
+  superPerKill: 8, // super energy (of 100) per kill
+  superDR: 0.5, // damage taken while a roaming super is up
 };
+
+// ---------- AI Guardian kits (U29) ----------
+/** What each class's Light subclass brings, by element: the super an AI Guardian casts and its name for the HUD. */
+export const BOT_SUPERS = {
+  vanguard: { solar: { id: 'hammers', name: 'Hammer of Sol' }, arc: { id: 'fists', name: 'Fists of Havoc' }, void: { id: 'sentinel', name: 'Sentinel Shield' } },
+  stalker: { solar: { id: 'goldengun', name: 'Golden Gun' }, arc: { id: 'staff', name: 'Arc Staff' }, void: { id: 'tether', name: 'Shadowshot' } },
+  arcanist: { solar: { id: 'well', name: 'Well of Radiance' }, arc: { id: 'stormtrance', name: 'Stormtrance' }, void: { id: 'nova', name: 'Nova Bomb' } },
+};
+/** The grenades an AI Guardian can roll per element. `fx` names the shape it plays (js/guardian-ai.js). */
+export const BOT_GRENADES = {
+  solar: [{ id: 'solar', name: 'Solar Grenade', fx: 'pulse' }, { id: 'swarm', name: 'Swarm Grenade', fx: 'burst' }],
+  arc: [{ id: 'pulse', name: 'Pulse Grenade', fx: 'pulse' }, { id: 'storm', name: 'Storm Grenade', fx: 'storm' }, { id: 'flux', name: 'Flux Grenade', fx: 'burst' }],
+  void: [{ id: 'vortex', name: 'Vortex Grenade', fx: 'vortex' }, { id: 'axion', name: 'Axion Bolt', fx: 'burst' }, { id: 'suppressor', name: 'Suppressor Grenade', fx: 'burst' }],
+};
+/** The class abilities an AI Guardian can roll. */
+export const BOT_CLASS = {
+  vanguard: [{ id: 'barricade', name: 'Towering Barricade' }, { id: 'rally', name: 'Rally Barricade' }],
+  stalker: [{ id: 'marksman', name: "Marksman's Dodge" }, { id: 'gambler', name: "Gambler's Dodge" }],
+  arcanist: [{ id: 'rift', name: 'Healing Rift' }, { id: 'empower', name: 'Empowering Rift' }],
+};
+/** PvP numbers for AI Guardian abilities and supers (per hit, or per tick where it ticks). */
+export const BOT_ABILITY = {
+  grenade: { pulse: { r: 3.5, tick: 14, n: 4, first: 30 }, burst: { r: 3.5, dmg: 75 }, storm: { r: 4.5, tick: 16, n: 5 }, vortex: { r: 4.5, tick: 10, n: 8, last: 40 } },
+  melee: 60,
+  hammers: { n: 5, every: 1.2, r: 3.2, dmg: 75, range: 35 },
+  fists: { n: 4, every: 1.6, r: 4, dmg: 90, lunge: 9 },
+  sentinel: { n: 4, every: 1.3, dmg: 70, range: 30 },
+  goldengun: { n: 3, every: 0.9, dmg: 140, range: 60 },
+  staff: { n: 6, every: 1.1, dmg: 65, reach: 3.2, lunge: 8 },
+  tether: { r: 5, dmg: 45, range: 40 },
+  well: { r: 6, life: 18, blast: 70, burn: 8 },
+  stormtrance: { t: 7, every: 0.3, dmg: 12, range: 14 },
+  nova: { r: 6, dmg: 150, range: 40 },
+};
+/** Roaming supers last a while and cut the damage the caster takes; burst supers fire and end. */
+export const ROAMING_SUPERS = ['hammers', 'fists', 'sentinel', 'staff', 'stormtrance'];
+
+/** The Light subclass of `classId` with `element` ({ id, name }). */
+export function subclassFor(classId, element) {
+  const subs = CLASSES[classId]?.subclasses || {};
+  const id = Object.keys(subs).find((k) => subs[k].element === element);
+  return id ? { id, name: subs[id].name } : null;
+}
+
+/**
+ * One AI Guardian's whole kit, rolled once for a match and kept every life (U29): class, subclass, grenade, class ability, super,
+ * primary, special, heavy, and a look with a random shader (encoded the same way a human's appearance travels). `rng` returns [0, 1).
+ */
+export function rollKit(rng = Math.random) {
+  const pick = (a) => a[Math.floor(rng() * a.length)];
+  const cls = pick(AI_CLASS_IDS), el = pick(AI_ELEMENT_IDS);
+  const sub = subclassFor(cls, el), su = BOT_SUPERS[cls][el];
+  const looks = Object.keys(LOOKS), shader = rng() < 0.85 ? pick(SHADER_IDS) : null;
+  const look = { helmet: pick(looks), arms: pick(looks), chest: pick(looks), legs: pick(looks), shader };
+  return {
+    cls, el, sc: sub?.id || null, scName: sub?.name || '',
+    gr: pick(BOT_GRENADES[el]).id, ca: pick(BOT_CLASS[cls]).id, su: su.id,
+    arch: pick(GUARDIAN_AI.loadouts), special: pick(GUARDIAN_AI.specials), heavy: pick(GUARDIAN_AI.heavies),
+    lk: encodeAppearance(look),
+  };
+}
+export const grenadeDef = (el, id) => (BOT_GRENADES[el] || []).find((g) => g.id === id) || BOT_GRENADES[el]?.[0] || BOT_GRENADES.arc[0];
+export const classDef = (cls, id) => (BOT_CLASS[cls] || []).find((c) => c.id === id) || BOT_CLASS[cls]?.[0] || null;
+export const superName = (cls, el) => BOT_SUPERS[cls]?.[el]?.name || 'Super';
 
 // ---------- Crucible modes ----------
 /** The Crucible node's activities. `pvp: true` is the one switch that lets players hurt each other. */
@@ -233,7 +307,7 @@ export function launchCheck(members, modeId) {
  * the rest. A slot: { gid (the member id, or 'g<n>' for an AI), human, name, team, slot (index within the team), cls, el, arch, special }.
  * `names` supplies the AI gamer tags (a fresh list every match).
  */
-export function buildRoster(members, modeId, names = gamerTags(12)) {
+export function buildRoster(members, modeId, names = gamerTags(12), rng = Math.random) {
   const mode = modeOf(modeId);
   if (!mode) throw new Error(`Unknown Crucible mode ${modeId}`);
   const per = mode.teamSize, slots = [], used = { blue: 0, red: 0 };
@@ -244,11 +318,8 @@ export function buildRoster(members, modeId, names = gamerTags(12)) {
   let n = 0;
   for (const team of ['blue', 'red']) {
     for (let i = used[team]; i < per; i++, n++) {
-      const k = (team === 'blue' ? 0 : 7) + i;
-      slots.push({
-        gid: `g${n}`, human: false, name: names[n % names.length] || `Bot${n}`, team, slot: i, cls: AI_CLASS_IDS[k % 3], el: AI_ELEMENT_IDS[(k + 1) % 3],
-        arch: GUARDIAN_AI.loadouts[(k + (team === 'red' ? 2 : 0)) % GUARDIAN_AI.loadouts.length], special: GUARDIAN_AI.specials[k % GUARDIAN_AI.specials.length],
-      });
+      // U29: a random kit per AI Guardian, kept for the whole match (every life), so its subclass and guns can be read and learned
+      slots.push({ gid: `g${n}`, human: false, name: names[n % names.length] || `Bot${n}`, team, slot: i, ...rollKit(rng) });
     }
   }
   return { mode: modeId, slots };

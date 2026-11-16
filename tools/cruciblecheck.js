@@ -29,6 +29,14 @@ export async function cruciblecheck(modeId = 'control', { cap = 900 } = {}) {
     if (!C.over) lines.push('  ERROR the match did not end');
     if (C.score.blue + C.score.red === 0) lines.push('  ERROR nobody scored');
     if (!C.duel && (C.score.blue === 0 || C.score.red === 0)) lines.push(`  note: only one team scored (blue ${C.score.blue}, red ${C.score.red})`);
+    // U29: the AI Guardians use their whole kit: supers, grenades, class abilities, jumps and more than one gun
+    const sum = (k) => C.guardians.reduce((n, x) => n + (x.stat?.[k] || 0), 0);
+    const kinds = new Set(C.guardians.filter((x) => x.stat?.supers).map((x) => x.superId));
+    lines.push(`  kits: ${sum('supers')} supers (${[...kinds].join(', ') || 'none'}), ${sum('grenades')} grenades, ${sum('classes')} class abilities, ${sum('jumps')} jumps, ${sum('swaps')} weapon swaps, ${sum('specialShots')} special and ${sum('heavyShots')} heavy shots`);
+    if (!C.duel) { // two Duelists are too few to promise every part of a kit shows up
+      for (const k of ['supers', 'grenades', 'classes', 'jumps', 'swaps', 'specialShots']) if (!sum(k)) lines.push(`  ERROR no AI Guardian used ${k}`);
+      if (new Set(C.guardians.map((x) => x.subName)).size < 3) lines.push('  ERROR the AI Guardians all run the same subclass');
+    }
 
     // networked rules, on a fresh Control match with a human in it (host role, as in a lobby)
     g.cleanupMission?.();
@@ -45,6 +53,24 @@ export async function cruciblecheck(modeId = 'control', { cap = 900 } = {}) {
     const spoof = (() => { const before = P.health + P.shield; Net.net.handlers.pvh({ v: 'me', d: 20, oh: 0, by: red.gid }, 'someone-else'); return before - (P.health + P.shield); })();
     lines.push(`  pvh reported by a different sender: ${spoof === 0 ? 'ignored' : 'ACCEPTED'}`);
     if (spoof !== 0) lines.push('  ERROR spoofed pvh accepted');
+    // U29: a red rift does not heal a blue player; a blue one does; a red barricade stops blue shots and lets red ones through
+    {
+      const Ab = await mod('abilities');
+      P.pos.set(0, 0, 0); P.health = 30; P.shield = 0;
+      Ab.npcFx('rift', { p: P.pos.clone(), el: 'solar', kind: 'rift', team: 'red' }); step(60);
+      const afterRed = P.health;
+      Ab.npcFx('rift', { p: P.pos.clone(), el: 'solar', kind: 'rift', team: 'blue' }); step(60);
+      const afterBlue = P.health;
+      lines.push(`  rifts: a foe's rift ${afterRed <= 30.5 ? 'does not heal you' : 'HEALED YOU'}, your team's ${afterBlue > afterRed + 5 ? 'heals you' : 'DID NOT HEAL'}`);
+      if (afterRed > 30.5 || !(afterBlue > afterRed + 5)) lines.push('  ERROR rift team rule');
+      const THREE = await import(new URL(map.three, document.baseURI).href);
+      Ab.npcFx('barricade', { p: new THREE.Vector3(10, 0, 30), el: 'solar', alongX: true, team: 'red' }); step(20);
+      const walls = (G.pvpWalls || []).filter((m) => m.userData.barricade === 'red');
+      const rc = new THREE.Raycaster(new THREE.Vector3(10, 1, 25), new THREE.Vector3(0, 0, 1), 0, 10);
+      const hitWall = rc.intersectObjects(g.getHitTargets(), false).some((h) => h.object.userData.barricade === 'red');
+      lines.push(`  barricade: ${walls.length ? 'in the hit list' : 'MISSING'}, a shot through it ${hitWall ? 'meets it (blocks the other team)' : 'PASSES'}`);
+      if (!walls.length || !hitWall) lines.push('  ERROR barricade rule');
+    }
     // a PvE mission: no pvh ever hurts
     g.cleanupMission?.();
     G.save = S.createSave('vanguard');

@@ -78,9 +78,12 @@ function pushOutOriented(p, r, c) {
   p.z = q.cz - nx * q.s + nz * q.c;
 }
 
-function blockedAt(p, r, h, y) {
+/** U29: a collider that stops this mover. A pass collider (a barricade) is solid only for the other team in Crucible (`c.team`). */
+const solid = (c, team) => !c.pass || (c.team != null && team != null && c.team !== team);
+
+function blockedAt(p, r, h, y, team = null) {
   const q = { x: p.x, y, z: p.z };
-  return G.colliders.some((c) => !c.pass && overlaps(q, r, h, c));
+  return G.colliders.some((c) => solid(c, team) && overlaps(q, r, h, c));
 }
 
 function pushOutMin(p, r, c) {
@@ -94,7 +97,7 @@ function pushOutMin(p, r, c) {
 }
 
 /** Axis-separated AABB movement for the player. Mutates pos & vel. Colliders marked pass (barricades) let players through. */
-export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
+export function moveBody(pos, vel, dt, r, h, stepUp = 0.6, team = null) {
   const C = G.colliders;
   const res = { onGround: false, hitWall: false };
   const terrain = !!G.level?.groundAt;
@@ -108,8 +111,8 @@ export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
       pos[axis] = before; res.hitWall = true; continue;
     }
     for (const c of C) {
-      if (c.pass || !overlaps(pos, r, h, c)) continue;
-      if (c.max.y - pos.y <= stepUp && vel.y <= 0.5 && !blockedAt(pos, r, h, c.max.y)) { pos.y = c.max.y; continue; }
+      if (!solid(c, team) || !overlaps(pos, r, h, c)) continue;
+      if (c.max.y - pos.y <= stepUp && vel.y <= 0.5 && !blockedAt(pos, r, h, c.max.y, team)) { pos.y = c.max.y; continue; }
       if (c.rot) pushOutOriented(pos, r, c);
       else if (vel[axis] > 0) pos[axis] = c.min[axis] - r - 1e-3;
       else if (vel[axis] < 0) pos[axis] = c.max[axis] + r + 1e-3;
@@ -120,7 +123,7 @@ export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
   const prevY = pos.y;
   pos.y += vel.y * dt;
   for (const c of C) {
-    if (c.pass || !overlaps(pos, r, h, c)) continue;
+    if (!solid(c, team) || !overlaps(pos, r, h, c)) continue;
     if (vel.y <= 0 && prevY >= c.max.y - 0.02) { pos.y = c.max.y; vel.y = 0; }
     else if (vel.y > 0) { pos.y = Math.max(prevY, c.min.y - h - 1e-3); vel.y = 0; }
   }
@@ -128,7 +131,7 @@ export function moveBody(pos, vel, dt, r, h, stepUp = 0.6) {
   const gy = open ? -Infinity : (terrain ? groundAt(pos.x, pos.z) : 0);
   if (!open && pos.y <= gy) { pos.y = gy; if (vel.y < 0) vel.y = 0; }
   else if (grounded && !open && vel.y <= 0 && pos.y - gy <= dispH * 0.7 + 0.05) { pos.y = gy; vel.y = 0; } // walking downhill hugs the slope
-  res.onGround = (!open && pos.y - gy <= 1e-3) || C.some((c) => !c.pass && Math.abs(pos.y - c.max.y) < 0.03 &&
+  res.onGround = (!open && pos.y - gy <= 1e-3) || C.some((c) => solid(c, team) && Math.abs(pos.y - c.max.y) < 0.03 &&
     footprintHit(c, pos.x, pos.z, r));
   return res;
 }

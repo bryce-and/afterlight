@@ -24,6 +24,7 @@ const CSS = `
 #crucible-hud .cr-zone i{position:absolute;left:0;right:0;bottom:0;height:0;opacity:.55}
 #crucible-hud .cr-kv{font-size:12px;opacity:.85;letter-spacing:.06em}
 #crucible-hud .cr-feed{position:absolute;top:96px;right:18px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:13px}
+#crucible-hud .cr-how{opacity:.85;font-size:12px;color:#d8dde4}
 #crucible-hud .cr-feed div{background:rgba(10,14,20,.55);padding:2px 8px;border-radius:3px}
 #crucible-hud .cr-lbl{position:absolute;left:0;top:0;font-weight:700;font-size:22px;text-shadow:0 0 6px #000;transform:translate(-50%,-50%);white-space:nowrap}
 #crucible-hud .cr-lbl small{display:block;font-size:11px;font-weight:600;opacity:.85;text-align:center}
@@ -40,6 +41,7 @@ const CSS = `
 #crucible-end button.primary{background:#2c7fd0;border-color:#5aa6ee}
 `;
 
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 function div(cls, parent, text = '') { const d = document.createElement('div'); d.className = cls; if (text) d.textContent = text; parent.appendChild(d); return d; }
 
 export function showCrucibleHud(M) {
@@ -64,7 +66,7 @@ export function showCrucibleHud(M) {
 /** An ally's name over their head. Rebuilt when a human's body joins the match (it is made when their first message arrives). */
 function buildPlates(M) {
   for (const p of plates) p.d.remove();
-  plates = M.crucible.guardians.filter((g) => g.team === M.team).map((g) => ({ g, d: div('cr-ally', root, g.name) }));
+  plates = M.crucible.guardians.filter((g) => g.team === M.team).map((g) => ({ g, d: div('cr-ally', root, g.subName && !g.humanId ? `${g.name}  ·  ${g.subName}` : g.name) })); // U29: an ally AI's subclass too
   plateCount = M.crucible.guardians.length;
 }
 
@@ -91,7 +93,7 @@ export function updateCrucibleHud(M) {
   const key = live.map((f) => f.t).join(',');
   if (el.feedKey !== key) {
     el.feedKey = key;
-    el.feed.innerHTML = live.map((f) => `<div><b style="color:${TEAM[f.kteam]}">${f.killer}</b> eliminated <b style="color:${TEAM[f.vteam]}">${f.victim}</b> <span style="opacity:.7">+${f.pts}</span></div>`).join('');
+    el.feed.innerHTML = live.map((f) => `<div><b style="color:${TEAM[f.kteam]}">${esc(f.killer)}</b> ${f.how ? `<span class="cr-how">[${esc(f.how)}]</span>` : 'eliminated'} <b style="color:${TEAM[f.vteam]}">${esc(f.victim)}</b> <span style="opacity:.7">+${f.pts}</span></div>`).join(''); // U29: the weapon, grenade or super that got the kill
   }
   // zone letters over the map and ally names over their heads
   C.zones.forEach((z, i) => {
