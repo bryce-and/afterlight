@@ -4,6 +4,7 @@ import { SLOTS, WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, 
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
 import { rollItem, exoticWeights, pickExotic, EXOTIC_REPEAT_WEIGHT } from '../js/loot.js';
 import * as S from '../js/save.js';
+import * as MOB from '../js/mobile.js';
 import { mulberry32 } from '../js/util.js';
 import { RELEASES, ROADMAP, ROADMAP_STATUSES, titleRelease } from '../js/releases.js';
 import { StatusSet, STATUS } from '../js/status.js';
@@ -4442,6 +4443,53 @@ test('U24 roguelike endless: the curve never levels off past wave 30 (only the e
   ok(BN.waveScale(30, BN.ENDLESS_SCALE).hp > BN.waveScale(30).hp, 'steeper than Horde');
   const acts = DATA.ACTIVITIES; ok(acts.find((x) => x.id === 'endless_rogue')?.roguelike, 'the mode exists'); ok(acts.find((x) => x.id === 'horde_rogue').roguelike && acts.find((x) => x.id === 'horde_rogue').waves === 30, 'Roguelike Horde exists'); ok(!acts.find((x) => x.id === 'horde').roguelike, 'classic Horde is unchanged'); ok(!acts.find((x) => x.id === 'endless').roguelike, 'plain Endless is unchanged');
   eq([30, 35, 1001].map((w) => BN.boonDue(w, Infinity)), [true, true, false]);
+});
+
+test('U26 mobile: detect honours ?mobile, ?mobile=0 and the touch default', () => {
+  eq([MOB.detectMobile('', false), MOB.detectMobile('', true), MOB.detectMobile('?mobile', false), MOB.detectMobile('?a=1&mobile', false), MOB.detectMobile('?mobile=0', true), MOB.detectMobile('?mobile=off', true), MOB.detectMobile('?mobilex', false)], [false, true, true, true, false, false, false]);
+});
+
+test('U26 mobile: desktop reads identity tuning, Mobile mode on and off round-trips exactly', () => {
+  eq(MOB.tuning(), MOB.DESKTOP_TUNING, 'default is the identity');
+  eq([MOB.DESKTOP_TUNING.strafeSpeed, MOB.DESKTOP_TUNING.strafeInterval, MOB.DESKTOP_TUNING.hitScale, MOB.DESKTOP_TUNING.particleScale], [1, 1, 1, 1]);
+  MOB.setMobileMode(true);
+  eq([MOB.tuning().strafeSpeed, MOB.tuning().hitScale], [0.6, 1.35], 'calmer strafe, wider hit');
+  ok(MOB.tuning().strafeInterval > 1, 'longer strafe interval');
+  MOB.setMobileMode(false);
+  eq(MOB.tuning(), MOB.DESKTOP_TUNING, 'off restores the exact desktop values');
+});
+
+test('U26 mobile: stick math (dead zone, clamp, keys, sprint)', () => {
+  eq(MOB.stickVec(3, 2, 56), { x: 0, y: 0, m: 0 }, 'dead zone');
+  const f = MOB.stickVec(0, -200, 56); near(f.m, 1, 1e-9); near(f.y, -1, 1e-9);
+  eq(MOB.stickKeys(f), { KeyW: true, KeyS: false, KeyA: false, KeyD: false, ShiftLeft: true }, 'full forward sprints');
+  const half = MOB.stickVec(0, -30, 56); ok(half.m > 0.3 && half.m < 0.8); eq(MOB.stickKeys(half).ShiftLeft, false, 'half push walks');
+  const d = MOB.stickKeys(MOB.stickVec(60, 60, 56)); eq([d.KeyD, d.KeyS, d.KeyW, d.KeyA], [true, true, false, false], 'diagonal');
+  eq(Object.values(MOB.stickKeys({ x: 0, y: 0, m: 0 })).some(Boolean), false, 'released');
+});
+
+test('U26 mobile: look delta scales and clamps', () => {
+  eq(MOB.lookDelta(10, -5, 2), { dx: 20, dy: -10 }); eq(MOB.lookDelta(10, 10, 2, 0.5), { dx: 10, dy: 10 }, 'aim assist slows it');
+  eq(MOB.lookDelta(1000, -1000, 3).dx, 250, 'clamped like mouse input');
+});
+
+test('U26 mobile: settings block loads old saves with defaults and rejects bad values', () => {
+  eq(MOB.sanitizeMobile(undefined), MOB.defaultMobileSettings(), 'an old save gets the defaults'); eq(MOB.sanitizeMobile('x'), MOB.defaultMobileSettings());
+  const c = MOB.sanitizeMobile({ mode: 'yes', look: 99, aimToggle: 1, aimAssist: false, layout: { fire: { x: 5, y: -2, s: 1 }, nope: { x: 0.5 }, jump: 'bad' } });
+  eq([c.mode, c.look, c.aimToggle, c.aimAssist], [null, MOB.LOOK_RANGE[1], true, false]);
+  eq(Object.keys(c.layout), ['fire']); eq([c.layout.fire.x, c.layout.fire.y, c.layout.fire.s], [0.98, 0.04, MOB.BTN_SIZE[0]], 'clamped on screen and in size');
+});
+
+test('U26 mobile: layout save and load round-trips; defaults stay on screen and cover every action', () => {
+  const placed = MOB.layoutFor({ layout: { reload: { x: 0.4, y: 0.5, s: 70 } } });
+  eq(placed.length, MOB.TOUCH_BUTTONS.length); const r = placed.find((b) => b.id === 'reload'); eq([r.x, r.y, r.s], [0.4, 0.5, 70]);
+  eq(MOB.layoutFor(null).map((b) => [b.x, b.y]), MOB.TOUCH_BUTTONS.map((b) => [b.x, b.y]), 'no saved layout = defaults');
+  const again = MOB.sanitizeMobile(JSON.parse(JSON.stringify({ layout: { reload: { x: 0.4, y: 0.5, s: 70 } } })));
+  eq(MOB.layoutFor(again).find((b) => b.id === 'reload').s, 70, 'survives JSON');
+  for (const b of MOB.TOUCH_BUTTONS) ok(b.x > 0 && b.x < 1 && b.y > 0 && b.y < 1 && b.s >= MOB.BTN_SIZE[0] && b.s <= MOB.BTN_SIZE[1], `${b.id} on screen`);
+  const ids = MOB.TOUCH_BUTTONS.map((b) => b.id); eq(new Set(ids).size, ids.length, 'unique ids');
+  for (const need of ['fire', 'ads', 'jump', 'reload', 'melee', 'grenade', 'classAbility', 'super', 'swap', 'interact', 'pause', 'inventory']) ok(ids.includes(need), `${need} button exists`);
+  eq([MOB.mobileModeOn({ mode: null }, true), MOB.mobileModeOn({ mode: null }, false), MOB.mobileModeOn({ mode: false }, true), MOB.mobileModeOn({ mode: true }, false)], [true, false, false, true], 'Automatic follows the device, an explicit choice wins');
 });
 
 for (const t of tests) {

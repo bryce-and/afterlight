@@ -15,6 +15,7 @@ f.addEventListener('load', async () => {
   const out = document.getElementById('result');
   try {
     await new Promise((r) => setTimeout(r, 1500));
+    if (new URLSearchParams(location.search).get('mobile') === '1') await f.contentWindow.eval(`import('/js/mobile.js').then((m) => m.setMobileMode(true))`); // U26: Mobile mode on (rival calming)
     out.textContent = await f.contentWindow.eval(`(async () => { const C = await import('/tools/cruciblecheck.js'); return C.cruciblecheck(${JSON.stringify(MODE)}); })()`);
   } catch (e) { out.textContent = 'HARNESS ERROR ' + e.message; }
   document.body.dataset.done = '1';

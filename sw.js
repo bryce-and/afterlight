@@ -1,7 +1,7 @@
 // Afterlight service worker.
 // Game files: network first (always the newest version when online), cached copy when offline.
 // CDN libraries and fonts: cache first (their URLs are pinned to exact versions).
-const CACHE = 'afterlight-v1';
+const CACHE = 'afterlight-v2'; // U26: bumped so installed copies pick up the mobile build
 const CDN = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', () => self.skipWaiting());

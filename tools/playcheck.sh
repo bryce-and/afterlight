@@ -3,6 +3,7 @@
 # A bot fights through every zone of each mission and reports clear times, kills, deaths, damage taken, stalls and every page error.
 # Usage: sh tools/playcheck.sh <location id> [mission indexes, comma separated] [tier: base|legendary|ultimate]
 #   LOADOUT=starter sh tools/playcheck.sh earth 0      compare against the starter kit
+#   MOBILE=1 sh tools/playcheck.sh earth 0             U26: with Mobile mode on (slower strafe, wider hit boxes); compare against a run without it
 #   EXOTIC="Coldheart" sh tools/playcheck.sh moon 1    force a named exotic weapon
 #   sh tools/playcheck.sh endless_rogue 12             the same for Roguelike Endless
 #   sh tools/playcheck.sh horde_rogue 12                     U24 Roguelike Horde: a bot plays 12 waves (boon picks, sealed room, fair spawns)
@@ -15,6 +16,7 @@ loc=${1:?location id (earth, moon, mars, titan, tangled, io, dc, leviathan)}
 mi=${2:-0}
 tier=${3:-base}
 loadout=${LOADOUT:-meta}
+mobile=${MOBILE:-0}
 exotic=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "${EXOTIC:-}")
 port=$((8200 + $$ % 700))
 python3 -m http.server "$port" --bind 127.0.0.1 --directory "$root" >/dev/null 2>&1 &
@@ -23,7 +25,7 @@ profile=$(mktemp -d)
 trap 'kill $srv 2>/dev/null; wait $srv 2>/dev/null || true; rm -rf "$profile"' EXIT
 sleep 1
 dom=$("$chrome" --headless=new --user-data-dir="$profile" --enable-unsafe-swiftshader --use-angle=swiftshader \
-  --virtual-time-budget=600000 --dump-dom "http://127.0.0.1:$port/tools/playcheck.html?loc=$loc&mi=$mi&tier=$tier&loadout=$loadout&exotic=$exotic" 2>/dev/null)
+  --virtual-time-budget=600000 --dump-dom "http://127.0.0.1:$port/tools/playcheck.html?loc=$loc&mi=$mi&tier=$tier&loadout=$loadout&exotic=$exotic&mobile=$mobile" 2>/dev/null)
 res=$(printf '%s' "$dom" | python3 -c "import sys,re,html; m=re.search(r'<pre id=\"result\">(.*?)</pre>', sys.stdin.read(), re.S); print(html.unescape(m.group(1)) if m else 'no result (page did not finish)')")
 echo "$res"
 case "$res" in *ERROR*|*"no result"*|running) exit 1 ;; esac

@@ -18,6 +18,7 @@ f.addEventListener('load', async () => {
   const out = document.getElementById('result');
   try {
     await new Promise((r) => setTimeout(r, 1500));
+    if (q.get('mobile') === '1') await f.contentWindow.eval(`import('/js/mobile.js').then((m) => m.setMobileMode(true))`); // U26: Mobile mode on for the whole run
     out.textContent = await f.contentWindow.eval(`(async () => {
       const P = await import('/tools/playcheck.js'), d = await import('/js/data.js');
       if (${JSON.stringify(LOC)} === 'horde_rogue' || ${JSON.stringify(LOC)} === 'endless_rogue') return await P.hordecheck(${JSON.stringify(MIS[0] || 6)}, { act: ${JSON.stringify(LOC)}, allBoons: ${JSON.stringify(OPT.loadout === 'allboons')} }); // U24: mi is the number of waves

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { tuning } from './mobile.js'; // U26: Mobile mode tuning (identity on desktop)
 import { G } from './state.js';
 import { ENEMY_TYPES, ELEMENTS } from './data.js';
 import { STAGGER } from './combat.js';
@@ -44,6 +45,25 @@ function castsShadow(geo) {
   const x = b.max.x - b.min.x, y = b.max.y - b.min.y, z = b.max.z - b.min.z;
   const hi = Math.max(x, y, z), lo = Math.min(x, y, z);
   return hi >= 0.35 && x + y + z - hi - lo >= 0.12;
+}
+
+/** U26 Mobile mode: for each hit mesh add an invisible box child, `k` times its bounds, that counts as the same hit (same enemy, same crit flag). The look of the enemy is untouched. */
+const _hitGeo = new Map(), _hitMat = new THREE.MeshBasicMaterial({ visible: false });
+function widenHitMeshes(hit, k) {
+  const extra = [];
+  for (const m of hit) {
+    if (!m.geometry) continue;
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    const bb = m.geometry.boundingBox; if (!bb || bb.isEmpty()) continue;
+    const sx = Math.max(0.22, (bb.max.x - bb.min.x) * k), sy = Math.max(0.22, (bb.max.y - bb.min.y) * k), sz = Math.max(0.22, (bb.max.z - bb.min.z) * k);
+    const key = `${sx.toFixed(2)},${sy.toFixed(2)},${sz.toFixed(2)}`;
+    let geo = _hitGeo.get(key); if (!geo) { geo = new THREE.BoxGeometry(sx, sy, sz); _hitGeo.set(key, geo); }
+    const box = new THREE.Mesh(geo, _hitMat);
+    box.position.set((bb.max.x + bb.min.x) / 2, (bb.max.y + bb.min.y) / 2, (bb.max.z + bb.min.z) / 2);
+    box.userData = { ...m.userData, hitProxy: true }; box.castShadow = box.receiveShadow = false;
+    m.add(box); extra.push(box);
+  }
+  hit.push(...extra);
 }
 
 export function buildModel(e, C, faction) {
@@ -234,6 +254,7 @@ export class Enemy {
     this.model = buildModel(this, this.colors, faction);
     this.height = this.model.height * this.scale;
     this.hitMeshes = this.model.hit;
+    if (tuning().hitScale !== 1) widenHitMeshes(this.hitMeshes, tuning().hitScale); // U26: Mobile mode, bigger hit boxes (damage unchanged)
     this.model.group.position.copy(this.pos);
     this.model.group.rotation.order = 'YXZ'; // pitch (stagger, death) tilts about the enemy's own right axis
     G.scene.add(this.model.group);
@@ -365,8 +386,8 @@ export class Enemy {
         // airborne Centurion: the jet state machine owns height and leaps; while hovering it drifts and holds range
         if (this.jet.s === 'hover') {
           this.strafeT -= dt;
-          if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(1.5, 3); }
-          mx = -nz * this.strafe * 0.6; mz = nx * this.strafe * 0.6;
+          if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(1.5, 3) * tuning().strafeInterval; }
+          mx = -nz * this.strafe * 0.6 * tuning().strafeSpeed; mz = nx * this.strafe * 0.6 * tuning().strafeSpeed;
           if (dist < def.prefer - 4) { mx -= nx * 0.6; mz -= nz * 0.6; } else if (dist > def.prefer + 6) { mx += nx * 0.7; mz += nz * 0.7; }
         }
       } else if (this.rushing) {
@@ -376,9 +397,9 @@ export class Enemy {
         if (this.windup > 0 || this.lunge > 0) { /* rooted while winding up; lunge moves below */ }
         else if (this.escort && dist < SUICIDE_BLAST.escortDist) {
           // a Cursed Thrall with company keeps its distance and weaves until it is alone (or the escort timer ends)
-          mx = -nz * this.strafe * 0.7; mz = nx * this.strafe * 0.7;
+          mx = -nz * this.strafe * 0.7 * tuning().strafeSpeed; mz = nx * this.strafe * 0.7 * tuning().strafeSpeed;
           this.strafeT -= dt;
-          if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(0.8, 1.6); }
+          if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(0.8, 1.6) * tuning().strafeInterval; }
         } else if (dist > 1.5 || lt.held) {
           const sd = this.steer(lt.x, lt.z, dt);
           const zig = (this.escort || !(def.suicide && this.prof.rushAlone) ? Math.sin(G.time * 3 + this.seed) : 0) * (dist > 6 ? 0.6 : 0);
@@ -408,8 +429,8 @@ export class Enemy {
           mx = sd.x; mz = sd.z;
         } else if (dist < want - 6 && !(reach && dist < reach + 1.5 && this.cmCd <= 0)) { mx = -nx; mz = -nz; }
         this.strafeT -= dt;
-        if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(2, 4); }
-        const sf = (pushing ? 0.25 : 0.35) * this.prof.strafe;
+        if (this.strafeT <= 0) { this.strafe *= -1; this.strafeT = rand(2, 4) * tuning().strafeInterval; }
+        const sf = (pushing ? 0.25 : 0.35) * this.prof.strafe * tuning().strafeSpeed;
         if (!this.post) { mx += -nz * this.strafe * sf; mz += nx * this.strafe * sf; }
         if (this.usesCover && coverOn) {
           this.ai.t -= dt;

@@ -1224,3 +1224,57 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .bn-ask { display: none; margin: 8px 4px 2px; font-size: 12px; color: #ffd84d; line-height: 1.4; }
 .bn-card.ask .bn-ask { display: block; }
 .bn-card.ask { border-color: #ffd84d; }
+
+/* ===== U26 Mobile: everything below only applies on a touch device (html.mobile, set by js/touch-controls.js) or in portrait on one ===== */
+:root { --sat: env(safe-area-inset-top, 0px); --sar: env(safe-area-inset-right, 0px); --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px); }
+html.mobile, html.mobile body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+html.mobile input, html.mobile textarea { -webkit-user-select: text; user-select: text; }
+#touch { display: none; position: fixed; inset: var(--sat) var(--sar) var(--sab) var(--sal); z-index: 6; pointer-events: none; touch-action: none; }
+#touch.show { display: block; }
+#touch .t-layer { position: fixed; inset: 0; pointer-events: auto; touch-action: none; }
+#touch.editing .t-layer { background: rgba(0,0,0,0.35); }
+#touch .t-stick { position: fixed; left: 0; top: 0; width: 112px; height: 112px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.06); opacity: 0; pointer-events: none; }
+#touch .t-stick.on { opacity: 1; }
+#touch .t-stick i { position: absolute; left: 34px; top: 34px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.7); }
+#touch .tbtn { position: absolute; border-radius: 50%; padding: 0; border: 2px solid rgba(255,255,255,0.4); background: rgba(10,14,22,0.42); color: #fff; font-family: var(--head); font-weight: 700; letter-spacing: 0.06em; display: grid; place-items: center; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; text-shadow: 0 1px 2px #000; }
+#touch .tbtn.down { background: rgba(255,255,255,0.35); border-color: #fff; }
+#touch .tbtn.k-fire { border-color: rgba(255,120,90,0.8); background: rgba(120,30,20,0.4); }
+#touch .tbtn.k-super { border-color: rgba(255,214,120,0.85); }
+#touch.editing .tbtn { border-style: dashed; background: rgba(10,14,22,0.7); }
+#touch .tbtn.sel { border-color: #ffd36a; box-shadow: 0 0 0 3px rgba(255,211,106,0.35); }
+#touch .t-editbar { position: fixed; left: 50%; bottom: calc(10px + var(--sab)); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(8,11,17,0.92); border: 1px solid rgba(255,255,255,0.25); font-family: var(--head); font-size: 14px; pointer-events: auto; z-index: 2; }
+#touch .t-editbar.hidden { display: none; }
+#touch .t-editbar button { min-width: 44px; min-height: 44px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; font: 700 15px var(--head); }
+#touch .t-editbar .primary { background: #ffd36a; color: #111; }
+.t-install { position: fixed; left: 50%; bottom: calc(14px + var(--sab)); transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 12px; padding: 10px 14px; max-width: 80vw; background: rgba(8,11,17,0.94); border: 1px solid rgba(255,255,255,0.3); font-family: var(--head); font-size: 14px; color: #e9eef5; }
+.t-install button { min-height: 44px; padding: 0 14px; background: #ffd36a; color: #111; border: 0; font: 700 14px var(--head); }
+.t-rotate { display: none; position: fixed; inset: 0; z-index: 99999; background: #06080c; color: #e9eef5; font-family: var(--head); text-align: center; place-items: center; }
+.t-rotate div { display: grid; gap: 8px; } .t-rotate b { font-size: 22px; letter-spacing: 0.06em; } .t-rotate span { opacity: 0.7; }
+@media (orientation: portrait) { html.mobile .t-rotate { display: grid; } }
+/* Phone landscape (an iPhone is about 874 x 402 points): every control stays out of the Dynamic Island and the home indicator. */
+html.mobile #objective { left: calc(14px + var(--sal)); top: calc(10px + var(--sat)); }
+html.mobile #vitals { top: calc(8px + var(--sat)); }
+html.mobile #roster { left: calc(14px + var(--sal)); }
+html.mobile #lock-hint { display: none; }
+html.mobile .btn, html.mobile .row-btns button { min-height: 44px; }
+html.mobile .screen { padding-left: var(--sal); padding-right: var(--sar); padding-top: var(--sat); padding-bottom: var(--sab); box-sizing: border-box; }
+/* Menus were laid out for a desktop window. On a phone's short landscape screen they are drawn zoomed out (a 874 x 402 point screen lays out like a 1410 x 650 window). */
+html.mobile { --ui-zoom: 0.62; }
+html.mobile .screen, html.mobile .loot-ov, html.mobile .rw-ov, html.mobile .unlock-ov, html.mobile #terms { zoom: var(--ui-zoom); }
+html.mobile .btn, html.mobile .row-btns button, html.mobile .sp-opt, html.mobile .tile { min-height: 64px; }
+/* vh and vw do not follow zoom, so the sized panels are corrected here */
+html.mobile .modal { max-height: calc(92vh / var(--ui-zoom)); width: min(560px, calc(92vw / var(--ui-zoom))); padding: 20px 26px; }
+html.mobile .modal.wide { width: min(880px, calc(94vw / var(--ui-zoom))); }
+html.mobile .coll-box { max-height: calc((100vh - 16px) / var(--ui-zoom)); }
+html.mobile .ins-panel { max-height: calc((100vh - 24px) / var(--ui-zoom)); }
+html.mobile .terms-body { max-height: calc(52vh / var(--ui-zoom)); }
+html.mobile .spf-opts .sp-opts { max-height: calc(100vh / var(--ui-zoom) - 220px); }
+html.mobile #pause .tset { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+/* Phone HUD: the weapon panel moves to the top right (the thumbs own the bottom corners), keyboard hints go */
+html.mobile #weapons { right: calc(14px + var(--sar)); top: calc(10px + var(--sat)); bottom: auto; }
+html.mobile #abilities { left: calc(14px + var(--sal)); bottom: calc(10px + var(--sab)); }
+html.mobile #xpbar { bottom: calc(6px + var(--sab)); }
+html.mobile #hud kbd, html.mobile #reload-hint { display: none; }
+html.mobile #pause .modal .row-btns { position: sticky; bottom: -20px; padding: 10px 0 4px; background: var(--panel2); z-index: 1; }
+html.mobile { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* iOS otherwise inflates paragraphs in landscape */
+html.mobile .terms-modal { width: min(720px, calc(94vw / var(--ui-zoom))); }

@@ -10,6 +10,7 @@ import { setForLegacy, appearance, shaderFor, SHADERS } from './style.js';
 import { tierClears, capRoll, overloadOn, overloadUnlocked, armorBand } from './campaign.js';
 import { newDungeons } from './dungeon-rules.js';
 import { sanitizeKeybinds } from './keybinds.js';
+import { sanitizeMobile } from './mobile.js';
 
 const KEY = 'afterlight_save_v2';
 // First Light (v1.1) started every Guardian over: a pre-overhaul save is copied
@@ -213,6 +214,7 @@ export function loadSave() {
     }
     s.settings = { ...DEFAULT_SETTINGS, ...(s.settings || {}) };
     s.settings.keybinds = sanitizeKeybinds(s.settings.keybinds); // H27: additive, a save without binds gets the Keyboard scheme
+    s.settings.mobile = sanitizeMobile(s.settings.mobile); // U26: additive, an old save gets the defaults (no reset)
     const refreshed = refreshWeapons(s);
     if (enforceGates(s) || refreshed) writeSave(s);
     return s;
@@ -240,6 +242,7 @@ export function createSave(classId) {
     settings: { ...DEFAULT_SETTINGS, ...backupSettings() },
   };
   s.settings.keybinds = sanitizeKeybinds(s.settings.keybinds);
+  s.settings.mobile = sanitizeMobile(s.settings.mobile);
   writeSave(s);
   return s;
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { tuning } from './mobile.js'; // U26: fewer particles in Mobile mode
 import { G } from './state.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1);
@@ -52,6 +53,7 @@ function add(mesh, life, update, dispose) {
 }
 
 export function sparks(pos, color, n = 6, speed = 6, size = 0.07, life = 0.35) {
+  const pk = tuning().particleScale; if (pk !== 1) n = Math.max(1, Math.round(n * pk));
   for (let i = 0; i < n; i++) {
     const m = new THREE.Mesh(box, basicMat(color));
     m.scale.setScalar(size);

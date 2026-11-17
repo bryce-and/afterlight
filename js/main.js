@@ -7,14 +7,17 @@ import { setVolume, initAudio } from './audio.js';
 import { updateGame } from './game.js';
 import * as ui from './ui.js';
 import { openTerms, termsAccepted } from './terms.js';
+import { isMobile, MOBILE_TUNING } from './mobile.js';
+import { initTouch } from './touch-controls.js';
 import { syncLive, liveKeybinds, liveTargets, mousePhys, wheelState, wheelStep } from './keybinds.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+const PHONE = isMobile(); // U26: the phone render budget is behind the same gate as touch controls
+renderer.setPixelRatio(Math.min(devicePixelRatio, PHONE ? MOBILE_TUNING.pixelRatioCap : 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.type = PHONE && MOBILE_TUNING.cheapShadows ? THREE.BasicShadowMap : THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 G.renderer = renderer;
@@ -26,6 +29,7 @@ G.save = loadSave();
 if (G.save) setVolume(G.save.settings.volume);
 
 ui.initUI();
+initTouch({ pause: () => ui.showPause(), character: () => ui.toggleCharacter() }); // U26: no-op off a touch device
 ui.showTitle();
 if (!termsAccepted()) openTerms({ required: true }); // H27: the first-launch agreement
 

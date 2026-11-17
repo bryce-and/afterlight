@@ -40,6 +40,8 @@ import { dungeonList, dungeonDef, dungeonUnlocked, dungeonLockText, dungeonRecor
 import { renderRollTracker } from './rolltracker.js';
 import { controlsList, keyName, syncLive, liveKeybinds } from './keybinds.js';
 import { openControls } from './keybinds-ui.js';
+import { isMobile } from './mobile.js';
+import { settingsHtml as touchSettingsHtml, bindSettings as bindTouchSettings } from './touch-controls.js';
 import { openTerms, termsAccepted } from './terms.js';
 import { exoticList, exoticDef, exoticUnlocked, exoticLockText, exoticRecord, clock } from './exotic-rules.js';
 import { blitzUnlocked, blitzRecord, BLITZ_LOCKED_HINT, BLITZ_LENGTH, runLabel, runMission, blitzLegendaries } from './blitz.js';
@@ -1779,7 +1781,7 @@ function updateEnemyPlate(dt) {
   _head.project(G.camera);
   const behind = _head.z > 1;
   const x = (_head.x * 0.5 + 0.5) * innerWidth, y = (-_head.y * 0.5 + 0.5) * innerHeight;
-  const ps = G.save?.settings.hudScale ?? 1; // the plate follows HUD scale (its CSS sizes use --hud-scale)
+  const ps = effHudScale(); // the plate follows HUD scale (its CSS sizes use --hud-scale)
   hud.plate.style.transform = `translate(${(x - PLATE_CENTER * ps).toFixed(0)}px, ${y.toFixed(0)}px) translate(0, -100%)`;
   setStyle(hud.plate, 'epo', 'opacity', behind ? '0' : Math.min(1, plateHold / PLATE_FADE).toFixed(2));
   setStyle(hud.plateHp, 'eph', 'width', `${(Math.max(0, plateE.hp) / plateE.maxHp * 100).toFixed(1)}%`);
@@ -1852,7 +1854,7 @@ export function showDeath(title, sub) {
 export function updateDeath(text) { const el = $('#death .d-timer'); if (el && el.textContent !== text) el.textContent = text; }
 export function hideDeath() { $('#death').classList.add('hidden'); }
 
-export function setLockHint(show) { $('#lock-hint').classList.toggle('hidden', !show); }
+export function setLockHint(show) { $('#lock-hint').classList.toggle('hidden', !show || isMobile()); } // U26: a phone has no pointer lock to ask for
 
 // ---------------------------------------------------------------------------
 // Pause / complete / failed
@@ -1885,6 +1887,7 @@ export function showPause() {
         <label>Effects <span id="v-fx">${Math.round((s.effectsVolume ?? 1) * 100)}%</span><input type="range" id="s-fx" min="0" max="1" step="0.05" value="${s.effectsVolume ?? 1}"></label>
         <label>Volume <span id="v-vol">${Math.round(s.volume * 100)}%</span><input type="range" id="s-vol" min="0" max="1" step="0.05" value="${s.volume}"></label>
       </div>
+      ${touchSettingsHtml()}
       <div class="row-btns">
         <button class="btn primary" id="p-resume">Resume</button>
         <button class="btn" id="p-controls">Controls</button>
@@ -1901,6 +1904,7 @@ export function showPause() {
   $('#s-mus').addEventListener('input', (e) => { s.musicVolume = +e.target.value; $('#v-mus').textContent = `${Math.round(s.musicVolume * 100)}%`; setMusicVolume(s.musicVolume); writeSave(G.save); });
   $('#s-fx').addEventListener('input', (e) => { s.effectsVolume = +e.target.value; $('#v-fx').textContent = `${Math.round(s.effectsVolume * 100)}%`; setEffectsVolume(s.effectsVolume); writeSave(G.save); });
   $('#s-vol').addEventListener('input', (e) => { s.volume = +e.target.value; $('#v-vol').textContent = `${Math.round(s.volume * 100)}%`; setVolume(s.volume); writeSave(G.save); });
+  bindTouchSettings(el, backToPause);
   $('#p-resume').addEventListener('click', resumeGame);
   $('#p-controls').addEventListener('click', () => { sfx.ui(); openControls(el, backToPause); }); // H27
   $('#p-terms').addEventListener('click', (e) => { e.preventDefault(); openTerms(); });
@@ -1970,8 +1974,11 @@ export function charEscape() {
 }
 
 /** HUD scale setting (70%-200%), applied to every HUD panel and the enemy plate through a CSS variable. */
+/** U26: the HUD scale in force. A phone draws the HUD smaller (a 402 point tall screen), on top of the player's own setting. */
+const PHONE_HUD = 0.62;
+function effHudScale() { return (G.save?.settings.hudScale ?? 1) * (isMobile() ? PHONE_HUD : 1); }
 export function applyHudScale() {
-  document.documentElement.style.setProperty('--hud-scale', String(G.save?.settings.hudScale ?? 1));
+  document.documentElement.style.setProperty('--hud-scale', String(effHudScale()));
 }
 
 export function resumeGame() {

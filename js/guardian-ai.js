@@ -4,6 +4,7 @@
 // hands every hit on it to crucible.js pvpDealDamage, so no PvE number is ever applied to it.
 import * as THREE from 'three';
 import { G } from './state.js';
+import { tuning } from './mobile.js'; // U26: Mobile mode tuning (identity on desktop)
 import { ARCHETYPES, ELEMENTS } from './data.js';
 import { buildCharacter } from './characters.js';
 import { StatusSet, ENEMY_STATUS } from './status.js';
@@ -80,7 +81,7 @@ export class Guardian {
     const mk = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: TEAM_HEX[this.team], fog: false }));
     mk.position.y = 2.35; this.marker = mk; this.group.add(mk);
     const hbMat = new THREE.MeshBasicMaterial({ visible: false });
-    const bodyBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.35, 0.6), hbMat), headBox = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.4, 0.38), hbMat);
+    const bodyBox = new THREE.Mesh(new THREE.BoxGeometry(0.8 * tuning().hitScale, 1.35 * tuning().hitScale, 0.6 * tuning().hitScale), hbMat), headBox = new THREE.Mesh(new THREE.BoxGeometry(0.38 * tuning().hitScale, 0.4 * tuning().hitScale, 0.38 * tuning().hitScale), hbMat);
     bodyBox.position.y = 0.68; headBox.position.y = 1.55;
     bodyBox.userData = { enemy: this, crit: false }; headBox.userData = { enemy: this, crit: true };
     bodyBox.visible = headBox.visible = false;
@@ -270,11 +271,12 @@ export class Guardian {
     if (this.tgt) {
       const t = this.tgt, dx = t.pos.x - this.pos.x, dz = t.pos.z - this.pos.z, dist = Math.hypot(dx, dz) || 0.01, nx = dx / dist, nz = dz / dist;
       facing = [nx, nz];
-      this.strafeT -= dt; if (this.strafeT <= 0) { this.strafeT = AI.strafe * (0.6 + Math.random() * 0.8); this.strafe = -this.strafe; if (this.onGround && Math.random() < AI.hopChance) this.jump(); }
+      this.strafeT -= dt; if (this.strafeT <= 0) { this.strafeT = AI.strafe * tuning().strafeInterval * (0.6 + Math.random() * 0.8); this.strafe = -this.strafe; if (this.onGround && Math.random() < AI.hopChance) this.jump(); }
       const want = Math.min(this.cur.A.range * 0.9, 24);
       let fwd = dist > want * 1.15 ? 1 : dist < Math.min(6, want * 0.5) ? -1 : 0;
       if (hurt) fwd = -1;
-      wx = nx * fwd * STRAFE + -nz * this.strafe * STRAFE; wz = nz * fwd * STRAFE + nx * this.strafe * STRAFE;
+      const SF = STRAFE * tuning().strafeSpeed; // U26
+      wx = nx * fwd * STRAFE + -nz * this.strafe * SF; wz = nz * fwd * STRAFE + nx * this.strafe * SF;
       speed = STRAFE;
       const cg = this.goal && this.goal.r === 1 ? this.goal : null; // U29: a crate it needs a few steps away is worth breaking off for
       if (cg && !hurt && Math.hypot(cg.x - this.pos.x, cg.z - this.pos.z) < 14) { const g = this.toGoal(dt); wx = g.x * SPEED; wz = g.z * SPEED; speed = SPEED; }
