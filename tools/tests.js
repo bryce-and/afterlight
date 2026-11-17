@@ -49,6 +49,7 @@ import * as Q from '../js/quests.js';
 import * as CA from '../js/campaign.js';
 import * as RW from '../js/rewards.js';
 import * as BZ from '../js/blitz.js';
+import * as BN from '../js/boons.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
 
@@ -4304,6 +4305,117 @@ test('U25c the match reward: one Crucible item per finished match through the Cr
   const RT2 = await import('../js/rolltracker.js');
   const cr = RT2.trackerEntries().filter((e) => e.crucible);
   eq(cr.length, 7); ok(cr.every((e) => e.sources.length === 1 && /Crucible/.test(e.sources[0])), 'Crucible sources');
+});
+
+// ---------- U24 Roguelike Horde: boons ----------
+const near = (a, b, tol = 1e-9, msg = '') => { if (Math.abs(a - b) > tol) throw new Error(`${msg} expected ~${b}, got ${a}`); };
+const seeded = (seed) => { let a = seed; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
+const WPOOL = [{ slot: 'kinetic', name: 'Legend A', exotic: false }, { slot: 'energy', name: 'Legend B', exotic: false }, { slot: 'heavy', name: 'Exo C', exotic: true }];
+
+test('U24 boons: 25 data rows, unique ids, each with an effect', () => {
+  eq(BN.BOONS.length, 25);
+  eq(new Set(BN.BOONS.map((b) => b.id)).size, 25, 'unique ids');
+  for (const b of BN.BOONS) { ok(b.name && b.desc, b.id); ok(Object.keys(b.fx).length > 0, `${b.id} has fx`); }
+});
+
+test('U24 boons: stacking adds the same amount again (two Bladefury = triple melee charge)', () => {
+  const run = BN.newBoonRun();
+  eq(BN.chargeMult(BN.boonTotals(run), 'melee'), 1, 'no boon = 1x');
+  BN.addBoon(run, 'bladefury'); eq(BN.chargeMult(BN.boonTotals(run), 'melee'), 2);
+  eq(BN.addBoon(run, 'bladefury'), 2, 'stack count'); eq(BN.chargeMult(BN.boonTotals(run), 'melee'), 3);
+  eq(BN.boonTotals(run).phoenix || 0, 0);
+  BN.addBoon(run, 'phoenix_rite'); BN.addBoon(run, 'phoenix_rite'); eq(BN.boonTotals(run).phoenix, 2, 'two saves per wave');
+  eq(BN.totalBoons(run), 4);
+  let threw = false; try { BN.addBoon(run, 'nope'); } catch { threw = true; } ok(threw, 'unknown boon throws');
+});
+
+test('U24 boons: unlimited stacks stay finite (high-stack formulas)', () => {
+  const run = BN.newBoonRun();
+  for (let i = 0; i < 200; i++) { BN.addBoon(run, 'iron_skin'); BN.addBoon(run, 'quickhands'); BN.addBoon(run, 'frostbite_rounds'); BN.addBoon(run, 'momentum'); }
+  const t = BN.boonTotals(run);
+  const dt = BN.damageTakenMult(t); ok(dt >= BN.BOON_CONST.toughnessFloor && dt <= 1, 'damage taken floors');
+  const rl = BN.reloadTimeMult(t); ok(rl >= BN.BOON_CONST.reloadFloor && rl <= 1, 'reload floors');
+  ok(BN.frostSlow(t) <= BN.BOON_CONST.frostMax, 'slow capped');
+  const m = BN.damageMult(t, { momentumStacks: 99 }); ok(Number.isFinite(m) && m > 1, 'damage finite');
+  eq(BN.damageTakenMult({}), 1); eq(BN.reloadTimeMult({}), 1);
+});
+
+test('U24 boons: damage bonuses add (boss, elite, execute, last stand, momentum)', () => {
+  const run = BN.newBoonRun();
+  for (const id of ['giantslayer', 'duelist', 'executioner', 'last_stand', 'momentum']) BN.addBoon(run, id);
+  const t = BN.boonTotals(run);
+  eq(BN.damageMult({}, { boss: true }), 1, 'no boons = 1');
+  near(BN.damageMult(t, {}), 1, 1e-9);
+  near(BN.damageMult(t, { boss: true }), 1.10, 1e-9);
+  near(BN.damageMult(t, { elite: true }), 1.15, 1e-9);
+  near(BN.damageMult(t, { targetFrac: 0.2 }), 1.20, 1e-9); near(BN.damageMult(t, { targetFrac: 0.5 }), 1, 1e-9);
+  near(BN.damageMult(t, { selfFrac: 0.2 }), 1.30, 1e-9);
+  near(BN.damageMult(t, { momentumStacks: 5 }), 1.10, 1e-9); near(BN.damageMult(t, { momentumStacks: 50 }), 1.20, 1e-9, 'momentum caps at 10 stacks');
+});
+
+test('U24 boons: offers roll per member, are distinct, and are reproducible from the rng', () => {
+  const a = BN.rollOffer(seeded(5)); eq(a.length, 3); eq(new Set(a.map((o) => o.id)).size, 3, 'distinct buffs'); ok(a.every((o) => o.kind === 'boon'), 'no pool = all buffs');
+  eq(BN.rollOffer(seeded(5)), a, 'same rng, same offer');
+  const o = BN.rollOffers(['a', 'b', 'c'], seeded(9)); eq(Object.keys(o), ['a', 'b', 'c']);
+  ok(JSON.stringify(o.a) !== JSON.stringify(o.b) || JSON.stringify(o.b) !== JSON.stringify(o.c), 'members differ');
+  let weapons = 0, exo = 0;
+  for (let i = 1; i <= 400; i++) {
+    const off = BN.rollOffer(seeded(i), WPOOL); eq(off.length, 3);
+    for (const x of off) if (x.kind === 'weapon') { weapons++; if (x.exotic) exo++; ok(WPOOL.some((w) => w.name === x.name && w.slot === x.slot), 'from the pool'); }
+    eq(new Set(off.map((x) => x.kind === 'boon' ? x.id : x.name)).size, 3, 'no repeats within an offer');
+  }
+  ok(weapons > 40, 'weapon offers appear'); ok(exo < weapons, 'exotics rarer than legendaries');
+});
+
+test('U24 boons: auto-pick takes the first; the pick timer ends when all picked or time is up', () => {
+  eq(BN.autoPick(BN.rollOffer(seeded(1))), 0);
+  let threw = false; try { BN.autoPick([]); } catch { threw = true; } ok(threw);
+  const s0 = BN.pickState(['a', 'b'], new Set(['a']), 3); eq([s0.done, s0.timedOut], [false, []]); near(s0.remaining, 7, 1e-9);
+  const s1 = BN.pickState(['a', 'b'], new Set(['a', 'b']), 1); eq(s1.done, true);
+  const s2 = BN.pickState(['a', 'b'], new Set(['a']), 10); eq([s2.done, s2.timedOut], [true, ['b']]);
+  eq(BN.BOON_PICK_SECONDS, 10); eq(BN.BOON_EVERY, 5);
+});
+
+test('U24 boons: a weapon swap fills the slot, applyOption works, reset clears the run', () => {
+  const run = BN.newBoonRun();
+  BN.applyOption(run, { kind: 'boon', id: 'duelist' });
+  BN.applyOption(run, { kind: 'weapon', slot: 'heavy', name: 'Exo C', exotic: true });
+  eq(run.weapons.heavy, { name: 'Exo C', exotic: true }); eq(BN.boonCount(run, 'duelist'), 1); eq(run.picks, 2);
+  BN.resetBoonRun(run); eq(run, BN.newBoonRun(), 'reset');
+  let threw = false; try { BN.applyOption(run, { kind: 'x' }); } catch { threw = true; } ok(threw);
+});
+
+test('U24 boons: a boon is due every 5 waves but not after the last', () => {
+  eq([4, 5, 10, 25, 30].map((w) => BN.boonDue(w, 30)), [false, true, true, true, false]);
+});
+
+test('U24 horde scaling: wave 1 is 1x; values rise per wave, stay capped and bosses outgrow the rest', () => {
+  const w1 = BN.waveScale(1); eq([w1.count, w1.hp, w1.dmg, w1.bossHp], [1, 1, 1, 1]);
+  let prev = w1;
+  for (let w = 2; w <= 30; w++) {
+    const s = BN.waveScale(w);
+    ok(s.count >= prev.count && s.hp >= prev.hp && s.dmg >= prev.dmg && s.bossHp >= prev.bossHp, `wave ${w} never drops`);
+    ok(s.bossHp >= s.hp, 'bosses grow at least as fast'); prev = s;
+  }
+  const hi = BN.waveScale(9999); eq([hi.count, hi.hp, hi.dmg, hi.bossHp], [BN.HORDE_SCALE.countMax, BN.HORDE_SCALE.hpMax, BN.HORDE_SCALE.dmgMax, BN.HORDE_SCALE.bossHpMax]);
+});
+
+test('U24 horde spawns: enemies keep 15 m from living players, players keep 15 m from suicide units and 8 m from the rest', () => {
+  const players = [{ x: 0, z: 0 }, { x: 60, z: 0 }];
+  eq(BN.enemySpotOk({ x: 14, z: 0 }, players, true), false); eq(BN.enemySpotOk({ x: 16, z: 0 }, players, true), true);
+  eq(BN.enemySpotOk({ x: 14, z: 0 }, players, false), false, 'any enemy keeps 15 m from every player, not only the host');
+  eq(BN.enemySpotOk({ x: 30, z: 0 }, players, false), true);
+  eq(BN.enemySpotOk({ x: 60, z: 10 }, players, false), false, 'a fireteam member counts too');
+  const enemies = [{ x: 0, z: 0, suicide: true }, { x: 50, z: 0, suicide: false }];
+  eq(BN.playerSpotOk({ x: 14, z: 0 }, enemies), false); eq(BN.playerSpotOk({ x: 16, z: 0 }, enemies), true);
+  eq(BN.playerSpotOk({ x: 44, z: 0 }, enemies), false, '6 m from a normal enemy is not allowed');
+  eq(BN.playerSpotOk({ x: 59, z: 0 }, enemies), true, '9 m from a normal enemy is fine');
+  eq(BN.playerSpotOk({ x: 45, z: 0 }, enemies), false);
+  const cands = BN.ringCandidates(0, 0, 3, 20, 60, 7);
+  const spot = BN.pickFairSpot(cands, (p) => BN.playerSpotOk(p, enemies), (p) => BN.nearestDist(p, enemies), seeded(3));
+  ok(BN.playerSpotOk(spot, enemies), 'a fair spot is chosen when one exists');
+  const allBad = BN.ringCandidates(0, 0, 1, 5, 20, 2), far = BN.pickFairSpot(allBad, () => false, (p) => BN.nearestDist(p, enemies), seeded(3));
+  eq(far, allBad.reduce((b, p) => BN.nearestDist(p, enemies) > BN.nearestDist(b, enemies) ? p : b), 'falls back to the farthest');
 });
 
 for (const t of tests) {
