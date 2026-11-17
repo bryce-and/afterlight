@@ -4488,7 +4488,7 @@ test('U26 mobile: layout save and load round-trips; defaults stay on screen and 
   eq(MOB.layoutFor(again).find((b) => b.id === 'reload').s, 70, 'survives JSON');
   for (const b of MOB.TOUCH_BUTTONS) ok(b.x > 0 && b.x < 1 && b.y > 0 && b.y < 1 && b.s >= MOB.BTN_SIZE[0] && b.s <= MOB.BTN_SIZE[1], `${b.id} on screen`);
   const ids = MOB.TOUCH_BUTTONS.map((b) => b.id); eq(new Set(ids).size, ids.length, 'unique ids');
-  for (const need of ['fire', 'ads', 'jump', 'reload', 'melee', 'grenade', 'classAbility', 'super', 'swap', 'interact', 'pause', 'inventory']) ok(ids.includes(need), `${need} button exists`);
+  for (const need of ['fire', 'ads', 'jump', 'reload', 'super', 'interact', 'pause']) ok(ids.includes(need), `${need} button exists`);
   eq([MOB.mobileModeOn({ mode: null }, true), MOB.mobileModeOn({ mode: null }, false), MOB.mobileModeOn({ mode: false }, true), MOB.mobileModeOn({ mode: true }, false)], [true, false, false, true], 'Automatic follows the device, an explicit choice wins');
 });
 

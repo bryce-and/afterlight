@@ -29,7 +29,7 @@ G.save = loadSave();
 if (G.save) setVolume(G.save.settings.volume);
 
 ui.initUI();
-initTouch({ pause: () => ui.showPause(), character: () => ui.toggleCharacter() }); // U26: no-op off a touch device
+initTouch({ pause: () => ui.showPause(), character: () => ui.toggleCharacter(), resume: () => ui.resumeGame() }); // U26: no-op off a touch device
 ui.showTitle();
 if (!termsAccepted()) openTerms({ required: true }); // H27: the first-launch agreement
 

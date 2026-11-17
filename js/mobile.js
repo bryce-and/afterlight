@@ -32,22 +32,15 @@ export function setMobileMode(on) { return Object.assign(live, on ? MOBILE_TUNIN
 // ---------------- saved settings (settings.mobile) ----------------
 export const LOOK_RANGE = [0.4, 3];
 export const BTN_SIZE = [40, 130];
-/** Touch buttons. `kind`: 'key' sets a canonical key, 'mouse' left or right, 'wheel' weapon swap, 'ui' a menu call. Default x, y are fractions of the screen (centre), s is the size in CSS px. */
+/** Touch buttons. Grenade, melee, class ability and weapon swap are taps on the HUD tiles (see touch-controls.js); Ghost and Gear live in the pause menu. `kind`: 'key' sets a canonical key, 'mouse' left or right, 'wheel' weapon swap, 'ui' a menu call. Default x, y are fractions of the screen (centre), s is the size in CSS px. */
 export const TOUCH_BUTTONS = [
   { id: 'fire', label: 'FIRE', kind: 'mouse', target: 'left', x: 0.90, y: 0.62, s: 96 },
   { id: 'ads', label: 'AIM', kind: 'mouse', target: 'right', x: 0.79, y: 0.78, s: 70 },
   { id: 'jump', label: 'JUMP', kind: 'key', target: 'Space', x: 0.93, y: 0.84, s: 62 },
-  { id: 'reload', label: 'RLD', kind: 'key', target: 'KeyR', x: 0.70, y: 0.88, s: 52 },
-  { id: 'melee', label: 'MELEE', kind: 'key', target: 'KeyB', x: 0.80, y: 0.50, s: 52 },
-  { id: 'grenade', label: 'GREN', kind: 'key', target: 'KeyQ', x: 0.74, y: 0.34, s: 52 },
-  { id: 'classAbility', label: 'CLASS', kind: 'key', target: 'KeyC', x: 0.84, y: 0.30, s: 52 },
+  { id: 'reload', label: 'RLD', kind: 'key', target: 'KeyR', x: 0.70, y: 0.56, s: 52 },
   { id: 'super', label: 'SUPER', kind: 'key', target: 'KeyF', x: 0.94, y: 0.34, s: 60 },
-  { id: 'swap', label: 'SWAP', kind: 'wheel', target: '1', x: 0.66, y: 0.66, s: 50 },
   { id: 'interact', label: 'USE', kind: 'key', target: 'KeyE', x: 0.62, y: 0.80, s: 56 },
-  { id: 'charged', label: 'CHRG', kind: 'key', target: 'KeyV', x: 0.66, y: 0.44, s: 46 },
-  { id: 'ghost', label: 'GHOST', kind: 'key', target: 'Tab', x: 0.70, y: 0.12, s: 46 },
-  { id: 'inventory', label: 'GEAR', kind: 'ui', target: 'character', x: 0.62, y: 0.12, s: 46 },
-  { id: 'pause', label: 'II', kind: 'ui', target: 'pause', x: 0.54, y: 0.12, s: 46 },
+  { id: 'pause', label: 'II', kind: 'ui', target: 'pause', x: 0.04, y: 0.10, s: 46 },
 ];
 const BTN_BY_ID = Object.fromEntries(TOUCH_BUTTONS.map((b) => [b.id, b]));
 const clampN = (v, lo, hi, d) => (Number.isFinite(+v) && v !== null && v !== '' ? Math.min(hi, Math.max(lo, +v)) : d);

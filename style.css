@@ -1278,3 +1278,10 @@ html.mobile #hud kbd, html.mobile #reload-hint { display: none; }
 html.mobile #pause .modal .row-btns { position: sticky; bottom: -20px; padding: 10px 0 4px; background: var(--panel2); z-index: 1; }
 html.mobile { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* iOS otherwise inflates paragraphs in landscape */
 html.mobile .terms-modal { width: min(720px, calc(94vw / var(--ui-zoom))); }
+/* U26: HUD tiles are the buttons for grenade, melee, class ability and weapon swap (tap them) */
+html.mobile #hud { z-index: 7; }
+html.mobile #abilities .ab, html.mobile #weapons .wrow { pointer-events: auto; touch-action: none; }
+html.mobile #abilities .ab { min-width: 78px; min-height: 70px; }
+html.mobile #weapons .wrow { min-height: 62px; }
+html.mobile #objective { left: calc(76px + var(--sal)); }
+html.mobile #pause .ctl-grid, html.mobile #pause #p-controls { display: none; } /* keyboard cheat sheet is for desktop */

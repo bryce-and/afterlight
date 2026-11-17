@@ -14,7 +14,7 @@ const inp = G.input;
 const STICK_R = 56;           // px of travel for full deflection
 const MOVE_ZONE = 0.42;       // left share of the screen is the move zone
 let root = null, layer = null, stickEl = null, knobEl = null, editBar = null;
-let cb = { pause: () => {}, character: () => {} };
+let cb = { pause: () => {}, character: () => {}, resume: () => {} };
 const btnEls = new Map();     // id -> element
 let editing = false, selected = null;
 let moveId = null, moveOrigin = null, lookId = null, lookLast = null;
@@ -48,6 +48,21 @@ function releaseAll() {
   inp.mouse.left = inp.mouse.right = false;
   stickEl.classList.remove('on');
   for (const e of btnEls.values()) e.classList.remove('down');
+}
+
+/** A one-frame press of a canonical key (a tap on a HUD tile). */
+function tap(k) { inp.pressed[k] = true; inp.keys[k] = true; setTimeout(() => { inp.keys[k] = false; }, 100); }
+/** Tap the grenade, melee or class tile to use it, or a weapon row to swap to it. */
+function bindHudTaps() {
+  const AB = { grenade: 'KeyQ', melee: 'KeyV', class: 'KeyC' };
+  document.querySelector('#abilities')?.addEventListener('pointerdown', (e) => {
+    const t = e.target.closest?.('.ab'); if (!t || !AB[t.dataset.ab] || !visible()) return;
+    e.preventDefault(); tap(AB[t.dataset.ab]);
+  });
+  document.querySelector('#weapons')?.addEventListener('pointerdown', (e) => {
+    const r = e.target.closest?.('.wrow'); if (!r || !visible()) return;
+    e.preventDefault(); tap('Digit' + (+r.dataset.i + 1));
+  });
 }
 
 // ---------------- aim assist: is the crosshair on an enemy? ----------------
@@ -163,6 +178,7 @@ export function settingsHtml() {
     <label class="toggle-row">Aim assist <span class="hint">Slows the look drag a little while your crosshair is on an enemy</span><input type="checkbox" id="s-tassist" ${c.aimAssist ? 'checked' : ''}></label>
     <label class="toggle-row">Aim button toggles <span class="hint">Tap AIM to zoom in and tap again to zoom out, instead of holding</span><input type="checkbox" id="s-ttoggle" ${c.aimToggle ? 'checked' : ''}></label>
     <label class="toggle-row">Mobile mode <span class="hint">Enemies strafe slower and have bigger hit boxes. Damage is unchanged</span><input type="checkbox" id="s-tmode" ${on ? 'checked' : ''}></label>
+    <div class="row-btns"><button class="btn" id="p-tgear">Gear</button><button class="btn" id="p-tghost">Ghost</button></div>
     <div class="row-btns"><button class="btn" id="p-tedit">Edit touch layout</button><button class="btn" id="p-treset">Reset layout</button></div>
   </div>`;
 }
@@ -174,6 +190,8 @@ export function bindSettings(rootEl, reopen) {
   $('#s-tassist').addEventListener('change', (e) => { c.aimAssist = e.target.checked; writeSave(G.save); });
   $('#s-ttoggle').addEventListener('change', (e) => { c.aimToggle = e.target.checked; ads = false; writeSave(G.save); });
   $('#s-tmode').addEventListener('change', (e) => { c.mode = e.target.checked; syncMode(); writeSave(G.save); });
+  $('#p-tgear').addEventListener('click', () => cb.character());
+  $('#p-tghost').addEventListener('click', () => { cb.resume(); setTimeout(() => tap('Tab'), 120); });
   $('#p-tedit').addEventListener('click', () => { rootEl.classList.add('hidden'); editLayout(() => { rootEl.classList.remove('hidden'); reopen?.(); }); });
   $('#p-treset').addEventListener('click', () => { resetLayout(); });
 }
@@ -212,7 +230,7 @@ export function initTouch(callbacks) {
   });
   root.appendChild(editBar);
   document.body.appendChild(root);
-  buildButtons();
+  buildButtons(); bindHudTaps();
   layer.addEventListener('pointerdown', layerDown); layer.addEventListener('pointermove', layerMove);
   layer.addEventListener('pointerup', layerUp); layer.addEventListener('pointercancel', layerUp);
   // no pinch zoom (CSS handles the callout, selection and double-tap zoom)
