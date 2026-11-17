@@ -67,3 +67,7 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-17 | Fair spawns: enemies spawn at least 15 m from living players (suicide units included); players respawn 15 m from suicide units and 8 m from other enemies. | Claude (U24) |
 | 2026-11-17 | ENDLESS_SCALE has no cap on health, damage or boss health (only the enemy count is capped, at 3.5x). | Claude (U24) |
 | 2026-11-17 | Death camera (every mode): about 3 s on the body from behind, 1.5 s in the Crucible (its 4 s respawn), then an orbitable Ghost. | Claude (U24) |
+| 2026-11-17 | Mobile HUD tiles are the ability and weapon buttons: tapping the grenade, melee and class tiles uses them, and tapping a weapon row swaps to it. | Claude (U26) |
+| 2026-11-17 | No crouch or slide button on mobile, because the game has no crouch or slide. | Claude (U26) |
+| 2026-11-17 | The melee tile fires the V ability, so plain punch (B) has no touch button. | Claude (U26) |
+| 2026-11-17 | Phone pixel ratio is capped at 2.0, with cheaper shadows on phones. | Claude (U26) |

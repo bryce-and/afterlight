@@ -32,7 +32,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 |---|---|---|---|
 | V23 | Harder with 3 players (retune) | U13b | Complete and published (v2.4) |
 | V30 | End every update session with a co-op connection check | Process | In place |
-| V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U26 (optional) | Planned |
 
 ## Future Update Implementation (Bryce, 2026-10-15)
 
@@ -41,3 +40,4 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F17 | Minor (red) and major (orange) variant of every enemy, Destiny 2 style: majors have more health; at low difficulty mostly captains and heavies spawn as majors, at high difficulty more of every unit | U13b (variants), U20 (difficulty scaling) | Complete and published (v2.4) |
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear | U28 | Built (v4.8), awaiting release |
 | F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U19, U20a, U20b | Complete |
+| H30 | Hotfix candidate: remote-shield ticker in `js/player.js` (line 1455, `this.remoteShield.t`) throws "Cannot set properties of null (setting 't')" with some exotics. Found during U26, pre-existing, not U26 scope | Hotfix candidate | Planned |

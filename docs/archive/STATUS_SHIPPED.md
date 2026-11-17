@@ -80,6 +80,7 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 
 | ID | Requirement | Update | Status |
 |---|---|---|---|
+| V31 | Mobile only: touch controls, mobile HUD/menus, Mobile mode (calmer AI, bigger hitboxes). Desktop unchanged | U26 (optional) | Complete and published (v5.2) |
 | V01 | Ionic Trace refunds super too fast: investigate, nerf; tune super-related armor perks | H1 | Complete and published (v1.3.1): cause was a loop (uncapped Ionic Trace cooldown refunds on every Arc ability kill, jolt chains included, feeding Hands-On super per kill). Electrostatic 15 to 8%, Spark of Ions 10 to 5%, one trace per 0.5 s, none from jolt chains, Hands-On 3 to 1.5%/piece, Dynamo 12 to 8%. Scripted loop, empty to full super: Electrostatic + 3 Hands-On 5.8 s to 34.3 s; with Spark of Ions 1.1 s to 34.3 s; plain 77.8 s unchanged |
 | V02 | Nerf Celestial Nighthawk (Nova Bomb, Golden Gun) | H1 | Complete and published (v1.3.1): Golden Gun 6x to 4x, other supers 4x to 2.5x (`combat.js` `NIGHTHAWK`) |
 | V03 | Far fewer drops; caches give 2 to 3 items | H1 | Complete and published (v1.3.1): kill engrams grunt 2%, rusher 2%, captain 5%, heavy 8% (were 6/5/30/45%); bosses still drop 3; caches already gave 2 to 3 (unchanged) |

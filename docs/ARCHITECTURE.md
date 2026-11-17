@@ -236,3 +236,11 @@ The module map is in the README. These notes cover systems added during the over
 - The wave curve comes from `waveScale` in `game.js`: `ENDLESS_SCALE` for infinite waves, `HORDE_SCALE` otherwise.
 - `js/deathcam.js` holds `DEATH_CAM` (3 s body in every mode, 1.5 s in the Crucible) and the pure phase and orbit math (`deathPhase`, `orbitStep`, `pushIn`).
 - Save: no change. Boons and weapon swaps are run-only; caches pay real items through the normal loot path.
+
+## Mobile (v5.2, U26, `js/mobile.js`, `js/touch-controls.js`)
+- `js/mobile.js` holds phone detection, the `MOBILE_TUNING` table (enemy strafe x0.6 with longer intervals, enemy hit boxes x1.35, fewer particles; damage unchanged), the floating-stick and layout math, and the settings block.
+- `js/touch-controls.js` builds the touch controls (floating move stick, drag to look, Fire, Aim, Jump, Reload, Super, Use, Pause), the layout editor (move and resize), and the taps on the grenade, melee and class HUD tiles and the weapon rows.
+- Desktop is unchanged: no touch UI and no mobile tuning unless `?mobile` is set. Mobile mode is on by default for phones.
+- Save: one additive `settings.mobile` block. No reset.
+- Installed web app: `viewport-fit=cover`, Apple web app meta, landscape manifest, Add to Home Screen hint, screen wake lock, pause on app switch, service worker cache v2 (`sw.js`).
+- Phone pixel ratio is capped at 2.0, with cheaper shadows.

@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.2 "Mobile" (U26)**: play on a phone, with touch controls, a phone HUD and menus, and Mobile mode (on by default on phones) with calmer enemy strafing and bigger enemy hit boxes. Desktop is unchanged.
 - **v5.1 "Roguelike Horde" (U24)**: two new roguelike modes, Roguelike Horde (30 waves) and Roguelike Endless. You start with a rifle, shotgun and grenade launcher, and every fifth wave lets each member pick one of three boons (25 boons, stacking; some offers are weapon swaps). Boons last only for the run. Classic Horde and Endless are unchanged. A death camera shows your body, then an orbitable Ghost, in every mode.
 - **v5.0.1 and v5.0.2 "Hotfix" (H29)**: Enemy Guardians in the Crucible show their name over their heads while you can see them (v5.0.2: name only, no subclass or weapon).
 - **v5.0 "Rival Guardians" (U29)**: Crucible AI Guardians with full kits: each one rolls a class, subclass, grenade, super, weapons and shader per match, and rifts, wells and barricades belong to a team.
@@ -116,6 +117,8 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/pvp.js` | Crucible PvP rules (health, one-hit and ammo rules, map ammo crates), behind the `pvp` flag |
 | `js/crucible-net.js` | Networked Crucible: lobby, host-synced score, zones, crates, clock, shooter-resolved hits |
 | `js/crucible-loot.js` | Crucible loot pool: seven legendary weapons and Crucible armor |
+| `js/mobile.js` | Phone detection, Mobile mode tuning (`MOBILE_TUNING`), touch stick and layout math, mobile settings |
+| `js/touch-controls.js` | Touch controls, layout editor, and taps on the HUD tiles and weapon rows (phones only) |
 | `js/ui.js` | Menus, inventory, HUD |
 | `js/net.js` / `js/coop.js` | Fireteam networking and co-op game sync |
 
