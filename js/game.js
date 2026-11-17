@@ -50,7 +50,7 @@ import { freeScene } from './gpu-free.js';
 import { updateCrucible, cleanupCrucible, pvpDealDamage, pvpDamagePlayer, pvpExplodeHit } from './crucible.js';
 import { dropMult } from './boon-run.js';
 import { startBoonRun, endBoonRun, takeOption, weaponPool, itemForOption, newWave } from './boon-run.js';
-import { BOON_BY_ID, waveScale, boonDue, pickState, rollOffer, BOON_PICK_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
+import { BOON_BY_ID, HORDE_SCALE, ENDLESS_SCALE, waveScale, boonDue, pickState, rollOffer, BOON_PICK_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
 import { openBoonMenu, closeBoonMenu } from './rewards-ui.js';
 
 const _c = new THREE.Vector3();
@@ -258,7 +258,7 @@ export function spawnClear(p) {
 
 // U24 Roguelike Horde: enemies appear inside the sealed boss room and never within SPAWN_RULES of a living player (suicide units included).
 let spawnSuicide = false;
-const hordeRoom = () => (G.mission?.act?.id === 'horde' ? G.mission.zones?.[0]?.room || null : null);
+const hordeRoom = () => (G.mission?.act?.roguelike ? G.mission.zones?.[0]?.room || null : null);
 function hordeFair(p) {
   const r = hordeRoom();
   if (!r) return true;
@@ -1288,7 +1288,7 @@ export function startActivity(actId, seed) {
   };
   G.time = 0;
   loadArena(0, true);
-  if (act.id === 'horde') { // U24 Roguelike Horde: one revive (a solo death ends the run; in co-op a full wipe does), starting kit, empty boon inventory
+  if (act.roguelike) { // U24 Roguelike Horde and Roguelike Endless: one revive (a solo death ends the run; in co-op a full wipe does), starting kit, empty boon inventory
     G.mission.revives = 1; G.mission.lives = 0;
     startBoonRun(G.mission, G.player, pp);
   }
@@ -1352,12 +1352,12 @@ function loadArena(i, first = false) {
   initEffects(G.scene);
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const arena = level.zones[level.zones.length - 1];
-  if (M.act.id === 'horde') sealArena(level, arena); // U24: the boss room is shut for the whole run in it
+  if (M.act.roguelike) sealArena(level, arena); // U24: the boss room is shut for the whole run in it
   const prev = level.zones.length > 1 ? level.zones[level.zones.length - 2].center : level.spawn;
   const dir = prev.clone().sub(arena.center).setY(0);
   if (dir.lengthSq() < 1) dir.set(0, 0, 1);
   const start = arena.center.clone().addScaledVector(dir.normalize(), 13);
-  if (M.act.id === 'horde' && arena.room) { start.x = clamp(start.x, arena.room.minX + 3, arena.room.maxX - 3); start.z = clamp(start.z, arena.room.minZ + 3, arena.room.maxZ - 3); start.y = groundAt(start.x, start.z); } // always inside the sealed room
+  if (M.act.roguelike && arena.room) { start.x = clamp(start.x, arena.room.minX + 3, arena.room.maxX - 3); start.z = clamp(start.z, arena.room.minZ + 3, arena.room.maxZ - 3); start.y = groundAt(start.x, start.z); } // always inside the sealed room
   Object.assign(M, { loc, arenaDef: def, arenaIdx: i, checkpoint: start.clone(), bossModel: def.boss.model, chest: null });
   playMusic(loc.id);
   M.zones = [{ center: arena.center.clone(), name: arena.name, isBoss: false, leash: arena.leash, room: arena.room, idx: 0, state: 'active', waves: [], waveIdx: 0, enemies: [] }];
@@ -1398,8 +1398,8 @@ function startWave() {
   M.g = M.g0 + Math.floor(n / 5);
   M.hpMult = (1 + M.g0 * 0.1) * (1 + 0.045 * (n - 1));
   M.dmgMult = (1 + M.g0 * 0.07) * (1 + 0.02 * (n - 1));
-  if (M.act.id === 'horde') { // U24: the curve is data (boons.js HORDE_SCALE); bosses grow faster
-    M.scale = waveScale(n);
+  if (M.act.roguelike) { // U24: the curve is data (boons.js HORDE_SCALE, or ENDLESS_SCALE with no end); bosses grow faster
+    M.scale = waveScale(n, M.act.waves === Infinity ? ENDLESS_SCALE : HORDE_SCALE);
     M.hpMult = (1 + M.g0 * 0.1) * M.scale.hp; M.dmgMult = (1 + M.g0 * 0.07) * M.scale.dmg;
     newWave(); // Phoenix Rite saves refill
   }
@@ -1466,9 +1466,9 @@ function activityWaveCleared() {
   ui.centerMessage(final ? `${act.name} Complete` : `Wave ${n} Cleared`, '', 2.5);
   sfx.areaClear();
   stinger('clear');
-  if (act.id === 'endless') {
+  if (act.waves === Infinity) { // Endless and Roguelike Endless each keep their own best wave
     G.save.records = G.save.records || {};
-    if (n > (G.save.records.endless || 0)) { G.save.records.endless = n; writeSave(G.save); }
+    if (n > (G.save.records[act.id] || 0)) { G.save.records[act.id] = n; writeSave(G.save); }
   }
   if (n % act.chestEvery === 0 || final) {
     const c = M.zones[0].center;
@@ -1477,11 +1477,11 @@ function activityWaveCleared() {
     placeActChest(pos, n, final);
     announceActChest(pos, n, final);
   }
-  if (final) { M.phase = 'final'; if (act.id === 'horde') endBoonRun(M); return; }
+  if (final) { M.phase = 'final'; if (act.roguelike) endBoonRun(M); return; }
   const boss = n % act.arenaEvery === 0;
   if (boss) ui.feed('Moving to a new arena in 12s. Open your cache!', '#f4c542');
   const next = boss ? { phase: 'move', moveT: 12 } : { phase: 'inter', interT: n % act.chestEvery === 0 ? 10 : 5 };
-  if (act.id === 'horde') {
+  if (act.roguelike) {
     reviveAllDown(); // U24: the dead come back inside the boss room when the wave is cleared (co-op; a solo death already ended the run)
     if (boonDue(n, act.waves)) { beginBoonPick(n, next); return; }
   }
@@ -1559,7 +1559,7 @@ function openActChest() {
     const lvl = playerLevel(G.save);
     let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(lvl, 2 + Math.floor(c.wave / 5)));
     if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
-    if (M.act.id === 'endless' && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
+    if (M.act.waves === Infinity && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
     rIdx = capRarity(rIdx, lvl); // never above what this level can use
     rewards.push(rollItem(capRoll(pp, randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound, playerLevel(G.save), armorBand(G.save))); // U20a: past 200 an activity holds your Light
   }

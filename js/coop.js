@@ -647,7 +647,7 @@ net.on('xwipe', () => { if (inMission()) onWipe(); });
 net.on('xfail', () => { if (inMission()) failOutOfTime(); });
 
 // activities
-net.on('bnst', (m) => { if (inMission() && G.mission.act?.id === 'horde') showBoonMenu(m.n); });
+net.on('bnst', (m) => { if (inMission() && G.mission.act?.roguelike) showBoonMenu(m.n); });
 net.on('bnend', () => { if (inMission()) closeBoonMenu(); });
 net.on('bnok', (m, from) => { if (inMission() && net.isHost) G.mission.boonPicked?.add(from); });
 net.on('arena', (m) => { if (inMission() && G.mission.act) moveArena(m.i); });

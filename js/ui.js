@@ -528,7 +528,6 @@ function renderActivities(main) {
   if (actNode === 'vanguard') { if (selExo || selDun) { selExo = selDun = null; selBlitz = true; } } else { selBlitz = false; if (!selExo && !selDun) selExo = exoticList()[0].id; }
   const node = OPS_NODES.find((n) => n.id === actNode);
   const a = ACTIVITIES[selAct];
-  const best = s.records?.endless || 0;
   const exo = selExo ? exoticDef(selExo) : null;
   const level = playerLevel(s);
   const dun = selDun ? dungeonDef(selDun) : null;
@@ -620,7 +619,7 @@ function renderActivities(main) {
   };
   const actRows = ACTIVITIES.map((x, i) => `<button class="loc ${!selBlitz && !selExo && !selDun && i === selAct ? 'sel' : ''}" data-act="${i}">
             <div class="loc-planet">${x.waves === Infinity ? 'Endless waves' : `${x.waves} waves`}</div><div class="loc-name">${x.name}</div>
-            <div class="loc-prog">${x.id === 'endless' ? (best ? `Best: wave ${best}` : 'No record yet') : 'Exotic at wave 30'}</div></button>`).join('');
+            <div class="loc-prog">${x.waves === Infinity ? (s.records?.[x.id] ? `Best: wave ${s.records[x.id]}` : 'No record yet') : 'Exotic at wave 30'}</div></button>`).join('');
   const rows = actNode === 'vanguard' ? `${bzRow}${actRows}` : `<div class="eyebrow loc-head">Exotic Missions</div>${exoRows}<div class="eyebrow loc-head">Dungeons</div>${dunRows}`;
   main.innerHTML = `
     <div class="director">
@@ -2103,7 +2102,7 @@ export function showFailed(M) {
     <div class="modal">
       <div class="eyebrow">${M.loc.name}</div>
       <h1 class="screen-title red">${M.act ? `${esc(M.act.name)} Over` : 'Mission Failed'}</h1>
-      <p class="desc">${M.act ? `You cleared ${cleared} wave${cleared === 1 ? '' : 's'}${M.act.id === 'endless' && cleared > 0 && cleared >= (G.save.records?.endless || 0) ? ', a new record' : ''}.` : (M.tier === 'ultimate' ? `Ultimate allows no deaths: ${esc(M.def.name)} starts over.` : `You ran out of ${M.coop ? 'lives' : 'revives'} in ${esc(M.def.name)}.`)} Loot you picked up along the way is yours to keep.</p>
+      <p class="desc">${M.act ? `You cleared ${cleared} wave${cleared === 1 ? '' : 's'}${M.act.waves === Infinity && cleared > 0 && cleared >= (G.save.records?.[M.act.id] || 0) ? ', a new record' : ''}.` : (M.tier === 'ultimate' ? `Ultimate allows no deaths: ${esc(M.def.name)} starts over.` : `You ran out of ${M.coop ? 'lives' : 'revives'} in ${esc(M.def.name)}.`)} Loot you picked up along the way is yours to keep.</p>
       <div class="summary">${M.act ? `<div><b>${cleared}</b><span>Waves cleared</span></div>` : ''}<div><b>${M.kills}</b><span>Kills</span></div><div><b>${M.loot.length}</b><span>Items found</span></div><div><b>+${(M.xp || 0).toLocaleString()}</b><span>XP</span></div><div><b>◆ ${playerPower(G.save)}</b><span>Light</span></div></div>
       <div class="row-btns">
         <button class="btn primary" id="f-retry">Retry</button>

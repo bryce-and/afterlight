@@ -177,6 +177,16 @@ export const HORDE_SCALE = {
   dmgPerWave: 0.02, dmgMax: 1.6,
   bossHpPerWave: 0.10, bossHpMax: 6,
 };
+/**
+ * Roguelike Endless: the same start as Horde, but nothing levels off. Past wave 30 the slopes steepen, because boons stack without end
+ * and a flat curve would let a long run coast. Only the enemy count is capped (frame rate); health, damage and boss health keep rising.
+ */
+export const ENDLESS_SCALE = {
+  countPerWave: 0.04, countMax: 3.5,
+  hpPerWave: 0.07, hpMax: Infinity,
+  dmgPerWave: 0.025, dmgMax: Infinity,
+  bossHpPerWave: 0.12, bossHpMax: Infinity,
+};
 /** The multipliers for a wave (1-based): { count, hp, dmg, bossHp }. Wave 1 is exactly 1 for all four. */
 export function waveScale(wave, S = HORDE_SCALE) {
   const w = Math.max(0, wave - 1);

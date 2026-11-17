@@ -4435,6 +4435,15 @@ test('U24 death camera: orbit and zoom stay within limits; the wall push keeps t
   eq(DCAM.pushIn(5, null), 5); near(DCAM.pushIn(5, 2), 2 - DCAM.DEATH_CAM.wall, 1e-12); eq(DCAM.pushIn(5, 0.1), 0.4, 'never inside the target'); eq(DCAM.pushIn(2, 9), 2, 'a far wall does not move it');
 });
 
+test('U24 roguelike endless: the curve never levels off past wave 30 (only the enemy count is capped)', () => {
+  const a = BN.waveScale(30, BN.ENDLESS_SCALE), b = BN.waveScale(100, BN.ENDLESS_SCALE), c = BN.waveScale(1000, BN.ENDLESS_SCALE);
+  ok(b.hp > a.hp && c.hp > b.hp, 'health keeps rising'); ok(b.dmg > a.dmg && c.dmg > b.dmg, 'damage keeps rising'); ok(c.bossHp > b.bossHp && c.bossHp > c.hp, 'bosses outgrow the rest');
+  eq(c.count, BN.ENDLESS_SCALE.countMax, 'count capped'); eq(BN.waveScale(1, BN.ENDLESS_SCALE), { count: 1, hp: 1, dmg: 1, bossHp: 1 });
+  ok(BN.waveScale(30, BN.ENDLESS_SCALE).hp > BN.waveScale(30).hp, 'steeper than Horde');
+  const acts = DATA.ACTIVITIES; ok(acts.find((x) => x.id === 'endless_rogue')?.roguelike, 'the mode exists'); ok(acts.find((x) => x.id === 'horde').roguelike); ok(!acts.find((x) => x.id === 'endless').roguelike, 'plain Endless is unchanged');
+  eq([30, 35, 1001].map((w) => BN.boonDue(w, Infinity)), [true, true, false]);
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }

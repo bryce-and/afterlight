@@ -14,7 +14,7 @@ import { dealDamage, enemiesNear, explode } from './game.js';
 /** The kit every Horde run starts with, whatever the player owns: assault rifle, shotgun, grenade launcher (O1). */
 export const HORDE_KIT = [{ slot: 'primary', arch: 'auto' }, { slot: 'special', arch: 'shotgun' }, { slot: 'heavy', arch: 'glauncher' }];
 
-export const hordeRun = () => (G.mission?.act?.id === 'horde' ? G.mission.boonRun || null : null);
+export const hordeRun = () => (G.mission?.act?.roguelike ? G.mission.boonRun || null : null);
 let cache = { run: null, picks: -1, t: {} };
 /** The summed boon effects for the running Horde, {} outside one. Cached until a pick changes the run. */
 export function bt() {

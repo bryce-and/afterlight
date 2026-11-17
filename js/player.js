@@ -2182,7 +2182,7 @@ export class Player {
     if (M.pvp) pvpRespawnPrep(this); // U25: a team spawn away from foes and the start ammo
     this.health = this.maxHealth; this.shield = this.maxShield;
     if (!inPlace) { this.pos.copy(M.checkpoint); if (!M.exotic && !M.dungeon && !M.pvp) this.pos.add(new THREE.Vector3(0, 0, 6)); } // U21: exotic missions respawn exactly at the checkpoint
-    if (!inPlace && M.act?.id === 'horde') this.pos.copy(hordeRespawnSpot()); // U24: a fair spot inside the sealed room
+    if (!inPlace && M.act?.roguelike) this.pos.copy(hordeRespawnSpot()); // U24: a fair spot inside the sealed room
     this.status.remove('attuned');
     this.vel.set(0, 0, 0);
     this.viewmodel.visible = true;

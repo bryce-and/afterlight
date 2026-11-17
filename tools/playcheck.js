@@ -103,7 +103,7 @@ let lastTarget = null;
  * waves, takes the first boon at each boon screen, and the run reports per-wave clear time, boons held, the sealed room and spawn fairness.
  * Fails on page errors, a bot that leaves the room, a spawn inside the fair distances, or a wave that does not clear.
  */
-export async function hordecheck(waves = 6, { light = 250, allBoons = false } = {}) {
+export async function hordecheck(waves = 6, { light = 250, allBoons = false, act = 'horde' } = {}) {
   const [{ G }, S, g, L, PG, Ph, B] = await Promise.all([mod('state'), mod('save'), mod('game'), mod('loot'), mod('progression'), mod('physics'), mod('boons')]);
   const errs = [], onErr = (e) => errs.push(e.message || String(e.reason));
   window.addEventListener('error', onErr); window.addEventListener('unhandledrejection', onErr);
@@ -114,7 +114,7 @@ export async function hordecheck(waves = 6, { light = 250, allBoons = false } = 
     G.save.progression.xp = PG.xpForLevel(30);
     for (const slot of ['helmet', 'arms', 'chest', 'legs']) { const it = L.makeArmor(slot, light, 3, null, G.save.classId); S.addItem(G.save, it); G.save.equipped[it.slot] = it.id; }
     for (const slot of ['primary', 'special', 'heavy']) { const it = L.makeWeapon(slot, light, 3); S.addItem(G.save, it); G.save.equipped[slot] = it.id; }
-    g.startActivity('horde', 12345);
+    g.startActivity(act, 12345);
     const M = G.mission, P = G.player, inp = G.input;
     if (!M.boonRun) throw new Error('hordecheck: no boon run started');
     if (allBoons) { // LOADOUT=allboons: every boon twice, to shake out errors in every effect
@@ -174,7 +174,7 @@ export async function hordecheck(waves = 6, { light = 250, allBoons = false } = 
     const boons = Object.entries(M.boonRun.boons).map(([k, n]) => `${k}${n > 1 ? ' x' + n : ''}`).join(', ') || 'none';
     const wep = Object.entries(M.boonRun.weapons).map(([k, v]) => `${k}: ${v.name}`).join(', ') || 'none';
     const bad = outside || unfair || rep.some((x) => x.includes('TIME CAP')) || (M.wave > 5 && !M.boonRun.picks);
-    const head = `Horde (${waves} waves, armor Light ${light}, kit: ${kit}): ${bad ? 'PROBLEM' : 'ok'}, wave ${M.wave}, arena ${M.arenaIdx + 1} (${M.loc.name}), ${M.kills} kills, ${deaths} bot deaths`;
+    const head = `${M.act.name} (${waves} waves, armor Light ${light}, kit: ${kit}): ${bad ? 'PROBLEM' : 'ok'}, wave ${M.wave}, arena ${M.arenaIdx + 1} (${M.loc.name}), ${M.kills} kills, ${deaths} bot deaths`;
     return `${head}\n  ${rep.join('\n  ')}\n  boons: ${boons}; weapon swaps: ${wep}; sealed room: ${outside ? outside + ' LEAKS' : 'no leaks'}; unfair spawns: ${unfair}${errs.length ? `\n  ERRORS ${[...new Set(errs)].join('; ')}` : '\n  no errors'}`;
   } catch (e) {
     return `RUN ERROR ${e.message} | ${String(e.stack).split('\n').slice(1, 3).join(' | ')}${errs.length ? `\n  ERRORS ${errs.join('; ')}` : ''}`;
