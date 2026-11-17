@@ -19,6 +19,7 @@ const btnEls = new Map();     // id -> element
 let editing = false, selected = null;
 let moveId = null, moveOrigin = null, lookId = null, lookLast = null;
 const held = new Map();       // pointerId -> button id
+let btnLook = null;           // the pointer holding Fire, which also looks
 let ads = false;              // aim-toggle latch
 let _mode = null;
 
@@ -127,9 +128,15 @@ function buildButtons() {
       e.preventDefault(); e.stopPropagation();
       if (editing) { startDrag(e, b, n); return; }
       held.set(e.pointerId, b.id); n.classList.add('down'); press(b, true);
+      if (b.kind === 'mouse' && b.target === 'left') btnLook = { id: e.pointerId, x: e.clientX, y: e.clientY }; // the firing thumb can drag to aim
       try { n.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     });
-    const up = (e) => { if (editing) return; if (held.get(e.pointerId) === b.id) { held.delete(e.pointerId); n.classList.remove('down'); press(b, false); } };
+    n.addEventListener('pointermove', (e) => {
+      if (editing || !btnLook || e.pointerId !== btnLook.id || held.get(e.pointerId) !== b.id) return;
+      const c = cfg(), d = lookDelta(e.clientX - btnLook.x, e.clientY - btnLook.y, c.look, c.aimAssist && crosshairOnEnemy() ? AIM_ASSIST_SLOW : 1);
+      inp.mouse.dx += d.dx; inp.mouse.dy += d.dy; btnLook.x = e.clientX; btnLook.y = e.clientY;
+    });
+    const up = (e) => { if (editing) return; if (btnLook && btnLook.id === e.pointerId) btnLook = null; if (held.get(e.pointerId) === b.id) { held.delete(e.pointerId); n.classList.remove('down'); press(b, false); } };
     n.addEventListener('pointerup', up); n.addEventListener('pointercancel', up);
     root.appendChild(n); btnEls.set(b.id, n);
   }
@@ -188,7 +195,7 @@ export function bindSettings(rootEl, reopen) {
   const c = cfg();
   $('#s-tlook').addEventListener('input', (e) => { c.look = +e.target.value; $('#v-tlook').textContent = c.look.toFixed(2); writeSave(G.save); });
   $('#s-tassist').addEventListener('change', (e) => { c.aimAssist = e.target.checked; writeSave(G.save); });
-  $('#s-ttoggle').addEventListener('change', (e) => { c.aimToggle = e.target.checked; ads = false; writeSave(G.save); });
+  $('#s-ttoggle').addEventListener('change', (e) => { c.aimToggle = e.target.checked; c.aimToggleSet = true; ads = false; writeSave(G.save); });
   $('#s-tmode').addEventListener('change', (e) => { c.mode = e.target.checked; syncMode(); writeSave(G.save); });
   $('#p-tgear').addEventListener('click', () => cb.character());
   $('#p-tghost').addEventListener('click', () => { cb.resume(); setTimeout(() => tap('Tab'), 120); });

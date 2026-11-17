@@ -375,11 +375,12 @@ function renderDirector(main) {
   const nodes = $$('.dir-node', main);
   G.menu.director.onFrame((list) => {
     const off = main.getBoundingClientRect(); // the map is drawn full-window, the click targets live under the top bar
+    const z = parseFloat(getComputedStyle(main.closest('.screen') || main).zoom) || 1; // phones zoom .screen (--ui-zoom): convert window pixels to the zoomed box's own pixels
     for (const n of list) {
       const el = nodes.find((x) => x.dataset.id === n.id);
       if (!el) continue;
       const d = Math.max(28, n.r * 2);
-      el.style.cssText = `left:${n.x - off.left - d / 2}px;top:${n.y - off.top - d / 2}px;width:${d}px;height:${d}px`;
+      el.style.cssText = `left:${(n.x - off.left - d / 2) / z}px;top:${(n.y - off.top - d / 2) / z}px;width:${d / z}px;height:${d / z}px`;
       el.classList.toggle('far', n.x < -d || n.x > innerWidth + d);
       // small bodies carry their name underneath, big ones directly over themselves
       el.classList.toggle('small', d < 110);

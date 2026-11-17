@@ -5,6 +5,16 @@
 
 export const RELEASES = [
   {
+    version: '5.2.1', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Phone fixes: the star map lines up again, aim toggles by default, and you can drag to aim while firing.',
+    notes: [
+      'Star map on phones: planet labels and tap targets line up with the planets again. They had been off position since v5.2',
+      'Aim on phones now toggles by default: tap AIM to zoom in, and tap again to zoom out. To hold instead, turn off the Aim button toggle in Settings. If you already set this option yourself, your choice stays',
+      'You can drag the thumb that is holding Fire to aim while shooting',
+      'Save changes: one added flag in the mobile settings. Nothing is reset',
+    ],
+  },
+  {
     version: '5.2', name: 'Mobile', date: '2026-11-17', accent: '#a8c8ff', glyph: '▭',
     summary: 'Play on a phone. Touch controls, a phone HUD and menus, and Mobile mode, which is on by default on phones: calmer enemy strafing and bigger enemy hit boxes. Desktop is unchanged.',
     notes: [

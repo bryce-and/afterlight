@@ -46,7 +46,7 @@ const BTN_BY_ID = Object.fromEntries(TOUCH_BUTTONS.map((b) => [b.id, b]));
 const clampN = (v, lo, hi, d) => (Number.isFinite(+v) && v !== null && v !== '' ? Math.min(hi, Math.max(lo, +v)) : d);
 
 /** The default settings block. `mode` null = automatic (on for a phone, off for a desktop). */
-export const defaultMobileSettings = () => ({ mode: null, look: 1.4, aimToggle: false, aimAssist: true, layout: {} });
+export const defaultMobileSettings = () => ({ mode: null, look: 1.4, aimToggle: true, aimToggleSet: false, aimAssist: true, layout: {} });
 /** Cleans settings.mobile from a save: unknown fields dropped, bad numbers fall back, layout limited to known buttons. */
 export function sanitizeMobile(raw) {
   const d = defaultMobileSettings();
@@ -59,7 +59,7 @@ export function sanitizeMobile(raw) {
       layout[id] = { x: clampN(l.x, 0.02, 0.98, b.x), y: clampN(l.y, 0.04, 0.96, b.y), s: clampN(l.s, BTN_SIZE[0], BTN_SIZE[1], b.s) };
     }
   }
-  return { mode: raw.mode === true || raw.mode === false ? raw.mode : null, look: clampN(raw.look, LOOK_RANGE[0], LOOK_RANGE[1], d.look), aimToggle: !!raw.aimToggle, aimAssist: raw.aimAssist !== false, layout };
+  return { mode: raw.mode === true || raw.mode === false ? raw.mode : null, look: clampN(raw.look, LOOK_RANGE[0], LOOK_RANGE[1], d.look), aimToggle: raw.aimToggleSet === true ? !!raw.aimToggle : true, aimToggleSet: raw.aimToggleSet === true, aimAssist: raw.aimAssist !== false, layout };
 }
 /** Is Mobile mode on for this settings block? (Automatic follows the device.) */
 export const mobileModeOn = (s, device = isMobile()) => (s && typeof s.mode === 'boolean' ? s.mode : !!device);

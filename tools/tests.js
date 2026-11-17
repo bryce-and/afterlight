@@ -4475,8 +4475,9 @@ test('U26 mobile: look delta scales and clamps', () => {
 
 test('U26 mobile: settings block loads old saves with defaults and rejects bad values', () => {
   eq(MOB.sanitizeMobile(undefined), MOB.defaultMobileSettings(), 'an old save gets the defaults'); eq(MOB.sanitizeMobile('x'), MOB.defaultMobileSettings());
-  const c = MOB.sanitizeMobile({ mode: 'yes', look: 99, aimToggle: 1, aimAssist: false, layout: { fire: { x: 5, y: -2, s: 1 }, nope: { x: 0.5 }, jump: 'bad' } });
-  eq([c.mode, c.look, c.aimToggle, c.aimAssist], [null, MOB.LOOK_RANGE[1], true, false]);
+  const c = MOB.sanitizeMobile({ mode: 'yes', look: 99, aimToggle: false, aimToggleSet: true, aimAssist: false, layout: { fire: { x: 5, y: -2, s: 1 }, nope: { x: 0.5 }, jump: 'bad' } });
+  eq([c.mode, c.look, c.aimToggle, c.aimAssist], [null, MOB.LOOK_RANGE[1], false, false]);
+  eq(MOB.sanitizeMobile({ aimToggle: false }).aimToggle, true, 'aim toggles by default, even over an older stored false'); eq(MOB.sanitizeMobile({ aimToggle: false, aimToggleSet: true }).aimToggle, false, 'an explicit choice is kept');
   eq(Object.keys(c.layout), ['fire']); eq([c.layout.fire.x, c.layout.fire.y, c.layout.fire.s], [0.98, 0.04, MOB.BTN_SIZE[0]], 'clamped on screen and in size');
 });
 
