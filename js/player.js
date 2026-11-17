@@ -21,7 +21,8 @@ import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
 import { installDarkness } from './darkness.js';
 import { DARK_EXO } from './darkness-rules.js';
-import { makeShieldDome, buildCharacter, SUPER_POSES } from './characters.js';
+import { makeShieldDome, buildCharacter, SUPER_POSES, ghost as buildGhost } from './characters.js';
+import { DEATH_CAM, deathPhase, collapseK, newOrbit, orbitStep, orbitOffset, pushIn } from './deathcam.js';
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
@@ -245,7 +246,8 @@ export class Player {
 
   /** Your own body, shown while the camera is over the shoulder. */
   updateBody(dt) {
-    const k = this.tpsT || 0;
+    const D = this.deathCam; // U24: the death camera shows the body in third person
+    const k = D ? 1 : this.tpsT || 0;
     if (k <= 0.02) {
       if (this.body) this.body.group.visible = false;
       this.viewmodel.visible = !this.dead && this.ghostLower < 1;
@@ -271,7 +273,7 @@ export class Player {
       });
     }
     this.viewmodel.visible = !this.dead && k < 0.3 && this.ghostLower < 1;
-    const prop = this.tpsProp;
+    const prop = D ? null : this.tpsProp;
     const swordHex = prop === 'sword' ? ELEMENTS[wEl(this.weapon)].hex : 0, propKey = prop === 'sword' ? `sword${swordHex}` : prop;
     if (this.bodyProp !== propKey) { this.bodyProp = propKey; this.body.setProp(prop, swordHex); }
     const swinging = this.swingT > 0 && prop === 'sword';
@@ -282,6 +284,11 @@ export class Player {
       const r = this.ragdoll; r.t += dt;
       b.position.y += 0.9; if (fig) fig.position.y = -0.9;
       b.rotation.set(r.sx * r.t, b.rotation.y + r.sy * r.t, r.sz * r.t, 'YXZ');
+    } else if (D && !D.fell) { // U24: a procedural collapse (no physics): the body tips over and ends lying on the ground, as teammates see a downed Guardian
+      const c = collapseK(D.t);
+      if (fig) fig.position.y = 0;
+      b.position.y += 0.12 * c;
+      b.rotation.set(-1.45 * c, b.rotation.y + D.spin * c, 0, 'YXZ');
     } else { if (fig) fig.position.y = 0; b.rotation.x = 0; b.rotation.z = 0; }
     this.body.update(dt, { ride: !!this.mount, speed: this.mount ? 0 : Math.hypot(this.vel.x, this.vel.z), sprint: !!this.sprinting, air: !this.onGround, pitch: this.pitch, firing: false, armsLow: prop === 'fists' && this.punchT <= 0, punch: this.punchT > 0 ? 1 - this.punchT / this.punchMax : 0, swing: swinging ? { k: 1 - this.swingT / this.swingMax, heavy: !!this.swingHeavy, kind: this.swingKind || 'cleave', dir: this.swingDir || 1 } : null, swordGuard: prop === 'sword' && !!this.wGuard, guard: prop === 'sentinel' && !!this.superActive?.guard, superPose: this.superPose, hover: this.superHover });
   }
@@ -384,6 +391,7 @@ export class Player {
     this.darkTick(dt); // U22: grapple pull, Cryoclasm, Banner of War, Shatterdive and Ensnaring Slam landings
     if (!this.social && !this.ghostBusy && !this.mount) { this.updateCombat(dt); this.updateAbilities(dt); }
     this.updateRegen(dt);
+    if (this.onGround) (this.lastSolid ||= new THREE.Vector3()).copy(this.pos); // U24: where a fall's Ghost waits
     this.updateCamera(dt);
     this.updateViewmodel(dt);
     this.updateBody(dt);
@@ -2131,6 +2139,7 @@ export class Player {
     this.status.remove('favor'); // U23: Favor is lost on death
     this.viewmodel.visible = false;
     M.deaths++;
+    this.startDeathCam(); // U24: body, then Ghost
     if (M.pvp) { this.respawnT = CONTROL.respawn; sfx.death(); onPlayerDeath(this.lastAttacker); return; } // U25
     if (M.exotic || M.dungeon) { // U21: restricted respawns (U23: dungeons too)
       const o = deathOutcome({ fireteam: M.coop ? Math.max(1, allPlayers().length) : 1, cause });
@@ -2158,6 +2167,7 @@ export class Player {
     this.superActive = null;
     this.viewmodel.visible = false;
     this.respawnT = 3.6;
+    this.startDeathCam(true); // U24: the Ghost waits at the last solid ground
     this.ragdoll = { t: 0, sx: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3), sy: (Math.random() - 0.5) * 4, sz: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 3) };
     ui.showDeath('You Fell', sub);
     sfx.death();
@@ -2167,6 +2177,7 @@ export class Player {
   respawn(inPlace = false, quiet = false) {
     const M = G.mission;
     this.dead = false;
+    this.endDeathCam();
     this.ragdoll = null;
     if (M.pvp) pvpRespawnPrep(this); // U25: a team spawn away from foes and the start ammo
     this.health = this.maxHealth; this.shield = this.maxShield;
@@ -3518,6 +3529,7 @@ export class Player {
   // -------------------------------------------------------------------------
   updateCamera(dt) {
     const cam = G.camera;
+    if (this.deathCam) { this.updateDeathCam(dt); return; }
     this.eye.set(this.pos.x, this.pos.y + (this.dead ? 0.35 : this.eyeH - this.landDip), this.pos.z);
     this.shake = damp(this.shake, 0, 6, dt);
     const sx = (Math.random() - 0.5) * this.shake * 0.25, sy = (Math.random() - 0.5) * this.shake * 0.25;
@@ -3540,6 +3552,62 @@ export class Player {
     cam.rotation.set(this.pitch + sx, this.yaw + sy, this.dead ? 0.4 : 0);
     this.fovKick = damp(this.fovKick, 0, 5, dt);
     const fov = this.baseFov / lerp(1, this.currentZoom(), this.adsT) + this.sprintT * 6 + this.fovKick;
+    if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
+  }
+
+  // ---- U24 death camera: the body from behind for about 3 s, then the Ghost; the mouse orbits it, the wheel zooms, walls push the camera in ----
+  startDeathCam(fell = false) {
+    this.endDeathCam();
+    const pvp = !!G.mission?.pvp;
+    const anchor = (fell && this.lastSolid ? this.lastSolid : this.pos).clone(); // a fall: the Ghost waits where you last stood on solid ground
+    this.deathCam = { ...newOrbit(this.yaw), t: 0, fell, anchor, spin: (Math.random() - 0.5) * 1.2, bodySecs: pvp ? DEATH_CAM.bodySecsCrucible : DEATH_CAM.bodySecs, ghost: null, ghostK: 0 };
+  }
+  endDeathCam() {
+    const D = this.deathCam;
+    if (!D) return;
+    D.ghost?.removeFromParent();
+    this.deathCam = null;
+    this.tpsT = 0;
+  }
+  updateDeathCam(dt) {
+    const D = this.deathCam, cam = G.camera, inp = G.input;
+    D.t += dt;
+    if (!D.fell) D.anchor.copy(this.pos); // a body that dies in the air follows it to the ground
+    const phase = deathPhase(D.t, D.bodySecs);
+    if (phase === 'body') D.yaw += DEATH_CAM.drift * dt;
+    else orbitStep(D, inp.mouse.dx * this.sens, inp.mouse.dy * this.sens, inp.mouse.wheel);
+    if (phase === 'ghost' && !D.ghost) { // the Ghost appears over the body
+      const g = new THREE.Group(), model = buildGhost();
+      model.scale.setScalar(3.2);
+      const glow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), new THREE.MeshBasicMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+      g.add(model, glow);
+      g.userData = { model, glow };
+      G.scene.add(g);
+      D.ghost = g;
+    }
+    D.ghostK = phase === 'ghost' ? Math.min(1, D.ghostK + dt * 1.5) : 0;
+    const base = D.anchor;
+    // target: the body while it falls, then the Ghost hovering over it
+    const hover = 1.5 + Math.sin(G.time * 2.4) * 0.08;
+    const tx = base.x, tz = base.z, ty = base.y + (phase === 'ghost' ? lerp(0.7, hover, D.ghostK) : 0.7);
+    if (D.ghost) {
+      D.ghost.position.set(tx, base.y + hover, tz);
+      D.ghost.userData.model.lookAt(cam.position);
+      D.ghost.userData.glow.scale.setScalar(1 + Math.sin(G.time * 5) * 0.18);
+    }
+    _pv.set(tx, ty, tz);
+    const off = orbitOffset(D);
+    _cp.set(tx + off.x, ty + off.y, tz + off.z);
+    _f.copy(_cp).sub(_pv);
+    const len = _f.length();
+    _ray.set(_pv, _f.normalize()); _ray.far = len;
+    const hit = _ray.intersectObjects(G.staticMeshes, false)[0];
+    const dist = pushIn(len, hit ? hit.distance : null);
+    cam.position.copy(_pv).addScaledVector(_f, dist);
+    if (G.level?.groundAt) cam.position.y = Math.max(cam.position.y, groundAt(cam.position.x, cam.position.z) + DEATH_CAM.floor);
+    cam.lookAt(fellBodyTarget(D, this, _pv));
+    this.eye.copy(cam.position);
+    const fov = this.baseFov;
     if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
   }
 
@@ -3618,3 +3686,9 @@ installDarkness(Player); // U22: Stasis and Strand behavior (darkness.js)
 
 // U23: the dungeon's exclusive perks, its exotic and the Imperial set bonus (js/dungeon-perks.js)
 Object.assign(Player.prototype, imperialMethods);
+
+/** U24: while a fall's body is still dropping, the camera keeps watching it; otherwise it looks at the orbit target. */
+function fellBodyTarget(D, P, fallback) {
+  if (D.fell && deathPhase(D.t, D.bodySecs) === 'body') return _r.set(P.pos.x, P.pos.y + 0.7, P.pos.z);
+  return fallback;
+}

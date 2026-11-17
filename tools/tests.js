@@ -50,6 +50,7 @@ import * as CA from '../js/campaign.js';
 import * as RW from '../js/rewards.js';
 import * as BZ from '../js/blitz.js';
 import * as BN from '../js/boons.js';
+import * as DCAM from '../js/deathcam.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
 
@@ -4416,6 +4417,22 @@ test('U24 horde spawns: enemies keep 15 m from living players, players keep 15 m
   ok(BN.playerSpotOk(spot, enemies), 'a fair spot is chosen when one exists');
   const allBad = BN.ringCandidates(0, 0, 1, 5, 20, 2), far = BN.pickFairSpot(allBad, () => false, (p) => BN.nearestDist(p, enemies), seeded(3));
   eq(far, allBad.reduce((b, p) => BN.nearestDist(p, enemies) > BN.nearestDist(b, enemies) ? p : b), 'falls back to the farthest');
+});
+
+// ---------- U24 death camera ----------
+test('U24 death camera: about 3 s of body, then the Ghost (1.5 s in the Crucible)', () => {
+  eq([0, 2.9, 3, 10].map((t) => DCAM.deathPhase(t)), ['body', 'body', 'ghost', 'ghost']);
+  eq([1.4, 1.5].map((t) => DCAM.deathPhase(t, DCAM.DEATH_CAM.bodySecsCrucible)), ['body', 'ghost']);
+  eq([DCAM.collapseK(0), DCAM.collapseK(10)], [0, 1]); ok(DCAM.collapseK(0.3) > 0.3 && DCAM.collapseK(0.3) < 1, 'eased');
+});
+
+test('U24 death camera: orbit and zoom stay within limits; the wall push keeps the camera in front of a wall', () => {
+  const o = DCAM.newOrbit(1.2); eq([o.yaw, o.dist], [1.2, DCAM.DEATH_CAM.startDist]);
+  DCAM.orbitStep(o, 0, 99, 99); eq([o.pitch, o.dist], [DCAM.DEATH_CAM.pitchMax, DCAM.DEATH_CAM.maxDist]);
+  DCAM.orbitStep(o, 0, -99, -99); eq([o.pitch, o.dist], [DCAM.DEATH_CAM.pitchMin, DCAM.DEATH_CAM.minDist]);
+  const y0 = o.yaw; DCAM.orbitStep(o, 0.5, 0, 0); near(o.yaw, y0 - 0.5, 1e-12, 'mouse orbits');
+  const off = DCAM.orbitOffset(DCAM.newOrbit(0), 4); near(Math.hypot(off.x, off.y, off.z), 4, 1e-9, 'offset has the given length'); ok(off.z > 0, 'behind a Guardian facing yaw 0');
+  eq(DCAM.pushIn(5, null), 5); near(DCAM.pushIn(5, 2), 2 - DCAM.DEATH_CAM.wall, 1e-12); eq(DCAM.pushIn(5, 0.1), 0.4, 'never inside the target'); eq(DCAM.pushIn(2, 9), 2, 'a far wall does not move it');
 });
 
 for (const t of tests) {
