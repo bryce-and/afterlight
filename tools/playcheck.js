@@ -103,7 +103,7 @@ let lastTarget = null;
  * waves, takes the first boon at each boon screen, and the run reports per-wave clear time, boons held, the sealed room and spawn fairness.
  * Fails on page errors, a bot that leaves the room, a spawn inside the fair distances, or a wave that does not clear.
  */
-export async function hordecheck(waves = 6, { light = 250, allBoons = false, act = 'horde' } = {}) {
+export async function hordecheck(waves = 6, { light = 250, allBoons = false, act = 'horde_rogue' } = {}) {
   const [{ G }, S, g, L, PG, Ph, B] = await Promise.all([mod('state'), mod('save'), mod('game'), mod('loot'), mod('progression'), mod('physics'), mod('boons')]);
   const errs = [], onErr = (e) => errs.push(e.message || String(e.reason));
   window.addEventListener('error', onErr); window.addEventListener('unhandledrejection', onErr);

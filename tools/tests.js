@@ -4440,7 +4440,7 @@ test('U24 roguelike endless: the curve never levels off past wave 30 (only the e
   ok(b.hp > a.hp && c.hp > b.hp, 'health keeps rising'); ok(b.dmg > a.dmg && c.dmg > b.dmg, 'damage keeps rising'); ok(c.bossHp > b.bossHp && c.bossHp > c.hp, 'bosses outgrow the rest');
   eq(c.count, BN.ENDLESS_SCALE.countMax, 'count capped'); eq(BN.waveScale(1, BN.ENDLESS_SCALE), { count: 1, hp: 1, dmg: 1, bossHp: 1 });
   ok(BN.waveScale(30, BN.ENDLESS_SCALE).hp > BN.waveScale(30).hp, 'steeper than Horde');
-  const acts = DATA.ACTIVITIES; ok(acts.find((x) => x.id === 'endless_rogue')?.roguelike, 'the mode exists'); ok(acts.find((x) => x.id === 'horde').roguelike); ok(!acts.find((x) => x.id === 'endless').roguelike, 'plain Endless is unchanged');
+  const acts = DATA.ACTIVITIES; ok(acts.find((x) => x.id === 'endless_rogue')?.roguelike, 'the mode exists'); ok(acts.find((x) => x.id === 'horde_rogue').roguelike && acts.find((x) => x.id === 'horde_rogue').waves === 30, 'Roguelike Horde exists'); ok(!acts.find((x) => x.id === 'horde').roguelike, 'classic Horde is unchanged'); ok(!acts.find((x) => x.id === 'endless').roguelike, 'plain Endless is unchanged');
   eq([30, 35, 1001].map((w) => BN.boonDue(w, Infinity)), [true, true, false]);
 });
 
