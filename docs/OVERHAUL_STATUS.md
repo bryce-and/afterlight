@@ -41,3 +41,4 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 | F18 | Mission Blitz: 5 Legendary missions without dying (any fireteam death ends the run), guaranteed exotic; rewards and difficulty scale with fireteam size; unlocks after a Legendary campaign clear | U28 | Built (v4.8), awaiting release |
 | F24 | Split Legend and Ultimate: Light and Scaling (Light rework, fireteam scaling) first | U19, U20a, U20b | Complete |
 | H30 | Hotfix candidate: remote-shield ticker in `js/player.js` (line 1455, `this.remoteShield.t`) throws "Cannot set properties of null (setting 't')" with some exotics. Found during U26, pre-existing, not U26 scope | Hotfix candidate | Planned |
+| H31 | Hotfix: phone star map labels and tap targets line up with the planets again (off since v5.2); aim on phones toggles by default; drag the Fire thumb to aim while shooting | Hotfix (v5.2.1) | Complete and published (v5.2.1) |
