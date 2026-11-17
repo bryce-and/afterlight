@@ -5,6 +5,20 @@
 
 export const RELEASES = [
   {
+    version: '5.1', name: 'Roguelike Horde', date: '2026-11-17', accent: '#8fe39a', glyph: '↻',
+    summary: 'Two new roguelike modes, Roguelike Horde and Roguelike Endless: you start with a rifle, a shotgun and a grenade launcher, and every fifth wave brings a choice of boons. Classic Horde and Endless are unchanged.',
+    notes: [
+      'Each member picks one of three boons after every fifth wave, within 10 seconds (the first option is taken if time runs out). There are 25 boons, and they stack without limit. Some offers are weapon swaps, mostly legendary and sometimes exotic, and a swap asks you to confirm first',
+      'Boons and weapon swaps last only for the run. Caches still give you real items that stay in your inventory',
+      'Boss rooms are sealed for the whole run. Enemies spawn 15 m away from living players, and you respawn 15 m away from suicide units and 8 m away from other enemies',
+      'In a solo run, your death ends it. In co-op, the run ends only when the whole fireteam is down, and the fallen return when the wave clears',
+      'Roguelike Endless has no wave limit. Its curve steepens and has no cap on health or damage, it keeps its own best-wave record, and an exotic drops every 10 waves past wave 30',
+      'After you die, you watch your body from behind for about 3 seconds (1.5 seconds in the Crucible), then take over an orbitable Ghost, whose camera moves in when a wall is in the way. This happens in every mode',
+      'Save changes: none',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="rhBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1418"/><stop offset="0.7" stop-color="#1a1424"/><stop offset="1" stop-color="#07060a"/></linearGradient><radialGradient id="rhGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#c58bff" stop-opacity="0.55"/><stop offset="1" stop-color="#c58bff" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#rhBg)"/><ellipse cx="160" cy="60" rx="120" ry="50" fill="url(#rhGlow)"/><g fill="none" stroke="#3a2f52" stroke-width="2"><rect x="10" y="12" width="300" height="156"/><line x1="10" y1="150" x2="310" y2="150"/></g><g stroke-width="1.6"><g transform="translate(70 34)"><rect width="52" height="72" fill="#10141c" stroke="#6ec8ff"/><polygon points="26,16 36,36 26,56 16,36" fill="#6ec8ff" opacity="0.85"/><rect x="8" y="62" width="36" height="3" fill="#6ec8ff" opacity="0.5"/></g><g transform="translate(134 26)"><rect width="52" height="72" fill="#1a1520" stroke="#ffd27a"/><polygon points="26,14 38,36 26,58 14,36" fill="#ffd27a"/><circle cx="26" cy="36" r="5" fill="#1a1520"/><rect x="8" y="62" width="36" height="3" fill="#ffd27a" opacity="0.6"/></g><g transform="translate(198 34)"><rect width="52" height="72" fill="#10141c" stroke="#ff8a7a"/><polygon points="26,16 36,36 26,56 16,36" fill="#ff8a7a" opacity="0.85"/><rect x="8" y="62" width="36" height="3" fill="#ff8a7a" opacity="0.5"/></g></g><g fill="#0b0b10" stroke="#ff6a5a" stroke-width="1.1"><polygon points="20,150 26,132 32,150"/><polygon points="38,150 46,126 54,150"/><polygon points="60,150 66,138 72,150"/><polygon points="248,150 256,128 264,150"/><polygon points="270,150 276,136 282,150"/><polygon points="288,150 296,124 304,150"/></g><g fill="#0f1218" stroke="#6ec8ff" stroke-width="1.2"><circle cx="160" cy="128" r="6"/><path d="M151 137 L169 137 L172 150 L148 150 Z"/></g><rect x="155" y="125.5" width="10" height="2" fill="#6ec8ff"/></svg>',
+  },
+  {
     version: '5.0.2', name: 'Hotfix', date: '2026-11-16', accent: '#ff8a7a', glyph: '✚',
     summary: 'Crucible name tags now show only the Guardian\'s name.',
     notes: [
