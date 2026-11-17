@@ -93,8 +93,6 @@ export class Guardian {
   }
 
   get pool() { return this.hp + this.shield; }
-  /** U29: the aimed plate reads name, subclass and the gun in hand, so you can learn what each Guardian runs. */
-  get plateName() { const w = this.slotGun(this.weaponSlot); return `${this.name}  ·  ${this.subName} ${this.className}${w ? `  ·  ${w.A.name}` : ''}`; }
   slotGun(i) { return i === 2 ? this.heavy : i === 1 ? this.special : this.primary; }
   /** Shows the gun for slot `i` in its hands (a puppet calls this from the host's snapshot). */
   holdSlot(i) {

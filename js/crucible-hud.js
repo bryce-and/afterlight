@@ -73,7 +73,7 @@ export function showCrucibleHud(M) {
 function buildPlates(M) {
   for (const p of plates) p.d.remove();
   plates = M.crucible.guardians.map((g) => {
-    const ally = g.team === M.team, d = div(ally ? 'cr-ally' : 'cr-ally cr-foe', root, g.subName && !g.humanId ? `${g.name}  ·  ${g.subName}` : g.name);
+    const ally = g.team === M.team, d = div(ally ? 'cr-ally' : 'cr-ally cr-foe', root, g.name); // names only (Bryce)
     return { g, d, ally, seen: false, losT: Math.random() * 0.2 };
   });
   plateCount = M.crucible.guardians.length;
