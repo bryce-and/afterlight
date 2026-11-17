@@ -5,6 +5,14 @@
 
 export const RELEASES = [
   {
+    version: '5.0.2', name: 'Hotfix', date: '2026-11-16', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Crucible name tags now show only the Guardian\'s name.',
+    notes: [
+      'Name tags over Guardians\' heads, and the plate you see when aiming at one, now show only their name. The subclass and weapon are no longer shown there',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.0.1', name: 'Hotfix', date: '2026-11-16', accent: '#ff8a7a', glyph: '✚',
     summary: 'Enemy Guardians in the Crucible now show their name over their heads while you can see them.',
     notes: [
