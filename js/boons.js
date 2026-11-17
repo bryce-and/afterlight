@@ -141,7 +141,7 @@ export function rollOffer(rnd = Math.random, weaponPool = [], size = BOON_OFFER_
     const b = buffs.splice(Math.floor(rnd() * buffs.length), 1)[0];
     if (!ids.has(b.id)) { ids.add(b.id); out.push({ kind: 'boon', id: b.id }); }
   }
-  return out;
+  return out.sort((a, b) => (a.kind === 'boon' ? 0 : 1) - (b.kind === 'boon' ? 0 : 1)); // buffs first: the timeout pick (the first option) never swaps a weapon unasked
 }
 /** Each member rolls separately, so teammates get different offers. `members`: array of ids; returns { id: offer }. */
 export function rollOffers(members, rnd = Math.random, weaponPool = []) {

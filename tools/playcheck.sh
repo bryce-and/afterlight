@@ -4,6 +4,7 @@
 # Usage: sh tools/playcheck.sh <location id> [mission indexes, comma separated] [tier: base|legendary|ultimate]
 #   LOADOUT=starter sh tools/playcheck.sh earth 0      compare against the starter kit
 #   EXOTIC="Coldheart" sh tools/playcheck.sh moon 1    force a named exotic weapon
+#   sh tools/playcheck.sh horde 12                     U24 Roguelike Horde: a bot plays 12 waves (boon picks, sealed room, fair spawns)
 # Exit code 1 when a run errors or a zone does not clear. TIME CAP lines are a warning: the bot was too slow, the zone was finished raw.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -25,5 +26,7 @@ dom=$("$chrome" --headless=new --user-data-dir="$profile" --enable-unsafe-swifts
 res=$(printf '%s' "$dom" | python3 -c "import sys,re,html; m=re.search(r'<pre id=\"result\">(.*?)</pre>', sys.stdin.read(), re.S); print(html.unescape(m.group(1)) if m else 'no result (page did not finish)')")
 echo "$res"
 case "$res" in *ERROR*|*"no result"*|running) exit 1 ;; esac
+case "$res" in *PROBLEM*) exit 1 ;; esac
+[ "$loc" = horde ] && exit 0
 printf '%s\n' "$res" | grep -E '^  .*: ' | grep -vq ': cleared' && exit 1
 exit 0

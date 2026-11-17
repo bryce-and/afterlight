@@ -1204,3 +1204,23 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 .rw-ov.blitz { background: radial-gradient(ellipse at 50% 20%, rgba(8,30,40,0.96), rgba(3,6,10,0.98) 75%); }
 .rw-ov.blitz .rw-eyebrow { color: #7fd8ff; }
 .rw-ov.blitz .rw-pick.on { border-color: #7fd8ff; box-shadow: 0 0 22px rgba(127,216,255,0.5); }
+
+/* U24 Roguelike Horde: the boon choice */
+.rw-ov.boon { background: radial-gradient(ellipse at 50% 20%, rgba(34,18,48,0.96), rgba(5,3,10,0.98) 75%); }
+.rw-ov.boon .rw-eyebrow { color: #c79bff; }
+.rw-ov.boon .rw-pick.on, .rw-ov.boon .rw-pick:hover { border-color: #c79bff; box-shadow: 0 0 22px rgba(199,155,255,0.5); }
+.bn-bar { height: 6px; background: rgba(255,255,255,0.12); margin: 0 0 18px; }
+.bn-bar i { display: block; height: 100%; width: 100%; background: #c79bff; }
+.bn-grid { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.bn-card { position: relative; background: rgba(255,255,255,0.05); padding: 16px 16px 14px; min-height: 150px; }
+.bn-card.weapon { padding: 10px; }
+.bn-key { position: absolute; top: 8px; right: 10px; font-family: var(--head); font-size: 13px; color: #8b93a1; }
+.bn-name { font-family: var(--head); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; font-size: 20px; color: #fff; padding-right: 20px; }
+.bn-desc { margin: 8px 0 12px; color: #d7dde6; line-height: 1.45; }
+.bn-held { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #c79bff; }
+.bn-tag { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #f4c542; margin: 0 0 8px; padding-right: 20px; }
+.bn-card.exo .bn-tag { color: #ffd84d; }
+@media (max-width: 640px) { .bn-grid { grid-template-columns: 1fr; } .bn-card { min-height: 0; } }
+.bn-ask { display: none; margin: 8px 4px 2px; font-size: 12px; color: #ffd84d; line-height: 1.4; }
+.bn-card.ask .bn-ask { display: block; }
+.bn-card.ask { border-color: #ffd84d; }

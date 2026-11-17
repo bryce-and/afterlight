@@ -112,7 +112,7 @@ document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === canvas;
   inp.locked = locked;
   if (locked) { inp.wasLocked = true; initAudio(); }
-  else if (G.state === 'playing' && inp.wasLocked) { inp.mouse.left = inp.mouse.right = false; ui.showPause(); }
+  else if (G.state === 'playing' && inp.wasLocked && !G.boonMenu) { inp.mouse.left = inp.mouse.right = false; ui.showPause(); }
   ui.setLockHint(G.state === 'playing' && !locked);
 });
 

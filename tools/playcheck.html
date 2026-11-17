@@ -20,6 +20,7 @@ f.addEventListener('load', async () => {
     await new Promise((r) => setTimeout(r, 1500));
     out.textContent = await f.contentWindow.eval(`(async () => {
       const P = await import('/tools/playcheck.js'), d = await import('/js/data.js');
+      if (${JSON.stringify(LOC)} === 'horde') return await P.hordecheck(${JSON.stringify(MIS[0] || 6)}, { allBoons: ${JSON.stringify(OPT.loadout === 'allboons')} }); // U24: mi is the number of waves
       const li = d.LOCATIONS.findIndex((l) => l.id === ${JSON.stringify(LOC)}), lines = [];
       if (li < 0) return 'NO SUCH LOCATION ' + ${JSON.stringify(LOC)} + ' (have: ' + d.LOCATIONS.map((l) => l.id).join(', ') + ')';
       for (const mi of ${JSON.stringify(MIS)}) lines.push(await P.playcheck(li, mi, ${JSON.stringify(OPT)}));

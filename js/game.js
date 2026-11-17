@@ -43,11 +43,15 @@ import { dungeonTargets, dungeonSplash } from './dungeon-mech.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
 import { linesFor, objectiveFor, UNLOCKS } from './story.js';
-import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBanner } from './coop.js';
+import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBoonStart, announceBoonEnd, sendBoonPick, reviveAllDown, announceBanner } from './coop.js';
 import { updatePatrol, leavePatrol } from './patrol.js';
 import { keyName } from './keybinds.js';
 import { freeScene } from './gpu-free.js';
 import { updateCrucible, cleanupCrucible, pvpDealDamage, pvpDamagePlayer, pvpExplodeHit } from './crucible.js';
+import { dropMult } from './boon-run.js';
+import { startBoonRun, endBoonRun, takeOption, weaponPool, itemForOption, newWave } from './boon-run.js';
+import { BOON_BY_ID, waveScale, boonDue, pickState, rollOffer, BOON_PICK_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
+import { openBoonMenu, closeBoonMenu } from './rewards-ui.js';
 
 const _c = new THREE.Vector3();
 const _pt = new THREE.Vector3(), _pdir = new THREE.Vector3(), _pto = new THREE.Vector3(), _pbest = new THREE.Vector3(), _pk = new THREE.Vector3(), _ptgt = new THREE.Vector3(); // H22: per-frame scratch for projectiles and pickups
@@ -252,16 +256,27 @@ export function spawnClear(p) {
   return !pointInColliders(_c.copy(p).setY(p.y + 0.5), 0.9) && !pointInColliders(_c.copy(p).setY(p.y + 1.4), 0.9);
 }
 
+// U24 Roguelike Horde: enemies appear inside the sealed boss room and never within SPAWN_RULES of a living player (suicide units included).
+let spawnSuicide = false;
+const hordeRoom = () => (G.mission?.act?.id === 'horde' ? G.mission.zones?.[0]?.room || null : null);
+function hordeFair(p) {
+  const r = hordeRoom();
+  if (!r) return true;
+  if (p.x < r.minX + 1.5 || p.x > r.maxX - 1.5 || p.z < r.minZ + 1.5 || p.z > r.maxZ - 1.5) return false;
+  return enemySpotOk(p, allPlayers().filter((q) => !q.dead).map((q) => ({ x: q.pos.x, z: q.pos.z })), spawnSuicide);
+}
+
 export function findSpawn(center, angle, spread, rMin, rMax) {
-  const b = G.level.bounds;
-  for (let i = 0; i < 32; i++) {
+  const b = G.level.bounds, room = hordeRoom();
+  for (let i = 0; i < (room ? 120 : 32); i++) {
     const a = angle + rand(-spread, spread), r = rand(rMin, rMax);
     const p = new THREE.Vector3(center.x + Math.sin(a) * r, 0, center.z + Math.cos(a) * r);
+    if (room && i >= 32) { p.x = rand(room.minX + 1.5, room.maxX - 1.5); p.z = rand(room.minZ + 1.5, room.maxZ - 1.5); } // the arc has no fair spot: anywhere in the room
     p.x = clamp(p.x, b.minX + 2, b.maxX - 2);
     p.z = clamp(p.z, b.minZ + 2, b.maxZ - 2);
     if (G.level.voidAt?.(p.x, p.z)) continue; // U17f: never over the abyss
     p.y = groundAt(p.x, p.z);
-    if (spawnClear(p) && p.distanceTo(G.player.pos) > 8) return p;
+    if (spawnClear(p) && p.distanceTo(G.player.pos) > 8 && hordeFair(p)) return p;
   }
   // H17: no clear spot in the arc: the nearest walkable cell to the centre, not the centre itself (it can be inside a wall)
   const w = G.nav && nearestWalkable(G.nav, center.x, center.z, 6);
@@ -274,7 +289,7 @@ export function spawnUnit(z, type, pos, o = {}) {
   const M = G.mission, FT = fireteamScale(M.fireteam);
   const cls = classOf(type), def = UNITS[type];
   const e = new Enemy(type, pos, {
-    zone: z, hpMult: M.hpMult * (type === 'boss' ? (1 + M.g * 0.08) * FT.boss : FT.hp) * (o.hpFrac ?? 1), dmgMult: M.dmgMult * (type === 'boss' ? 1 : FT.dmg),
+    zone: z, hpMult: M.hpMult * (type === 'boss' ? (1 + M.g * 0.08) * FT.boss * (M.scale?.bossHp ?? 1) : FT.hp) * (o.hpFrac ?? 1), dmgMult: M.dmgMult * (type === 'boss' ? 1 : FT.dmg),
     element: o.element, name: o.name, model: o.model, faction: o.faction,
     tier: o.tier || (def?.support || def?.life ? 'minor' : rollTier(cls, M.g, Math.random(), M.tier)),
     noDrops: o.noDrops, revived: o.revived, owner: o.owner, life: o.life, totemKind: o.totemKind, isClone: o.isClone,
@@ -295,7 +310,11 @@ function spawnWave(z, idx) {
     if (sp.type === 'fl_shank') {
       packAt ||= findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 9, 19);
       pos = findSpawn(packAt, 0, Math.PI, 0.8, 2.4);
-    } else pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
+    } else {
+      spawnSuicide = classOf(sp.type) === 'suicide' || UNITS[sp.type]?.base === 'suicide';
+      pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
+      spawnSuicide = false;
+    }
     spawnUnit(z, sp.type, pos, { element: sp.element, name: sp.name, model: sp.model, faction: sp.faction });
   }
   G.hitDirty = true;
@@ -955,7 +974,7 @@ export function rollDrops(e) {
   if (P) {
     const M = AMMO_METER.size;
     P.ammoMeter ??= { special: Math.random() * M.special * 0.5, heavy: Math.random() * M.heavy * 0.5 }; // start part-filled so the first brick isn't fixed
-    const brick = meterKill(P.ammoMeter, killValue(e.tier, e.isBoss), 1 + (P.finderS ?? 0) * 4, 1 + (P.finderH ?? 0) * 4); // Ammo Finder mods fill it faster
+    const brick = meterKill(P.ammoMeter, killValue(e.tier, e.isBoss), (1 + (P.finderS ?? 0) * 4) * dropMult(), 1 + (P.finderH ?? 0) * 4); // Ammo Finder mods fill it faster
     if (brick) spawnPickup(brick, pos);
   }
   if (Math.random() < (ENGRAM_CHANCE[e.cls] ?? 0)) dropEngram(pos);
@@ -1269,11 +1288,47 @@ export function startActivity(actId, seed) {
   };
   G.time = 0;
   loadArena(0, true);
+  if (act.id === 'horde') { // U24 Roguelike Horde: one revive (a solo death ends the run; in co-op a full wipe does), starting kit, empty boon inventory
+    G.mission.revives = 1; G.mission.lives = 0;
+    startBoonRun(G.mission, G.player, pp);
+  }
   G.state = 'playing';
   ui.enterMission();
   ui.centerMessage(act.name, `${G.mission.loc.name}  ·  Wave 1 incoming`, 3.5);
   sfx.areaClear();
   stinger('start');
+}
+
+/**
+ * U24 Roguelike Horde: seals the boss room. Its doors close (the same lockable doors syncBossLocks uses in a mission), and a wall of
+ * invisible colliders runs along the room's bounds, so an opening with no door is shut too. Players and enemies cannot leave.
+ */
+function sealArena(level, arena) {
+  const r = arena.room;
+  if (!r) throw new Error(`Horde: the boss room of ${G.mission.loc?.name ?? 'this map'} has no room bounds to seal`);
+  level.syncLocks(new Set([level.zones.length - 1]), []); // doors with a lock tag close (nobody is in a doorway at load)
+  const T = 3, y0 = -20, y1 = 60, V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const wall = (x0, z0, x1, z1) => level.colliders.push({ min: V(x0, y0, z0), max: V(x1, y1, z1), invisible: true });
+  wall(r.minX - T, r.minZ - T, r.maxX + T, r.minZ); wall(r.minX - T, r.maxZ, r.maxX + T, r.maxZ + T); // north, south
+  wall(r.minX - T, r.minZ, r.minX, r.maxZ); wall(r.maxX, r.minZ, r.maxX + T, r.maxZ); // west, east
+  G.nav = buildNav(G.colliders, level.bounds);
+  G.hitDirty = true;
+}
+
+/**
+ * U24: where a Guardian comes back in a Horde arena: a spot inside the room at least 15 m from any suicide unit and 8 m from any other
+ * living enemy (SPAWN_RULES). Nothing stands in the room right after a wave, so this mostly spreads the team out; with foes near it still never fails.
+ */
+export function hordeRespawnSpot() {
+  const M = G.mission, r = M.zones[0].room, c = M.checkpoint;
+  const foes = G.enemies.filter((e) => e.alive).map((e) => ({ x: e.pos.x, z: e.pos.z, suicide: !!e.def?.suicide }));
+  const cands = ringCandidates(c.x, c.z, 0, 10, 40, Math.floor(Math.random() * 1e6)).map((q) => {
+    const p = new THREE.Vector3(q.x, 0, q.z);
+    p.y = groundAt(p.x, p.z);
+    return p;
+  }).filter((p) => (!r || (p.x > r.minX + 2 && p.x < r.maxX - 2 && p.z > r.minZ + 2 && p.z < r.maxZ - 2)) && spawnClear(p));
+  if (!cands.length) return c.clone();
+  return pickFairSpot(cands, (p) => playerSpotOk(p, foes), (p) => nearestDist(p, foes));
 }
 
 /** Builds arena i (a mission map's boss arena) and puts the player at its edge. */
@@ -1297,10 +1352,12 @@ function loadArena(i, first = false) {
   initEffects(G.scene);
   G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const arena = level.zones[level.zones.length - 1];
+  if (M.act.id === 'horde') sealArena(level, arena); // U24: the boss room is shut for the whole run in it
   const prev = level.zones.length > 1 ? level.zones[level.zones.length - 2].center : level.spawn;
   const dir = prev.clone().sub(arena.center).setY(0);
   if (dir.lengthSq() < 1) dir.set(0, 0, 1);
   const start = arena.center.clone().addScaledVector(dir.normalize(), 13);
+  if (M.act.id === 'horde' && arena.room) { start.x = clamp(start.x, arena.room.minX + 3, arena.room.maxX - 3); start.z = clamp(start.z, arena.room.minZ + 3, arena.room.maxZ - 3); start.y = groundAt(start.x, start.z); } // always inside the sealed room
   Object.assign(M, { loc, arenaDef: def, arenaIdx: i, checkpoint: start.clone(), bossModel: def.boss.model, chest: null });
   playMusic(loc.id);
   M.zones = [{ center: arena.center.clone(), name: arena.name, isBoss: false, leash: arena.leash, room: arena.room, idx: 0, state: 'active', waves: [], waveIdx: 0, enemies: [] }];
@@ -1314,7 +1371,7 @@ function loadArena(i, first = false) {
 /** Wave n's enemies in two pushes; every arenaEvery-th wave is the arena's boss. Each new arena is denser. */
 function activityWave(n) {
   const M = G.mission;
-  const more = fireteamScale(M.fireteam).count * (1 + 0.3 * M.arenaIdx);
+  const more = fireteamScale(M.fireteam).count * (1 + 0.3 * M.arenaIdx) * (M.scale?.count ?? 1); // U24: Horde's per-wave density
   const T = (type, k) => Array.from({ length: Math.round(k * more) }, () => ({ type }));
   const k = Math.min(n, 20);
   const alt = activityFaction(M.loc.id, n); // U14: every third wave on Io is the destination's second faction; U17d: every wave on the Tangled Shore is Scorn
@@ -1341,6 +1398,11 @@ function startWave() {
   M.g = M.g0 + Math.floor(n / 5);
   M.hpMult = (1 + M.g0 * 0.1) * (1 + 0.045 * (n - 1));
   M.dmgMult = (1 + M.g0 * 0.07) * (1 + 0.02 * (n - 1));
+  if (M.act.id === 'horde') { // U24: the curve is data (boons.js HORDE_SCALE); bosses grow faster
+    M.scale = waveScale(n);
+    M.hpMult = (1 + M.g0 * 0.1) * M.scale.hp; M.dmgMult = (1 + M.g0 * 0.07) * M.scale.dmg;
+    newWave(); // Phoenix Rite saves refill
+  }
   z.waves = activityWave(n);
   z.waveIdx = 0;
   z.enemies = [];
@@ -1382,6 +1444,12 @@ function updateActivity(dt) {
     M.objective = `Wave ${M.wave}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
     M.waypoint = alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
     if (step.cleared) activityWaveCleared();
+  } else if (M.phase === 'boon') {
+    M.boonT += dt;
+    const members = boonMembers(), st = pickState(members, M.boonPicked, M.boonT);
+    M.objective = `Choose a boon  ·  ${Math.ceil(st.remaining)}s`;
+    M.waypoint = null;
+    if (st.done) { announceBoonEnd(); closeBoonMenu(); Object.assign(M, M.afterBoon); }
   } else if (M.phase === 'move') {
     M.moveT -= dt;
     M.objective = `New arena in ${Math.ceil(Math.max(0, M.moveT))}s`;
@@ -1409,9 +1477,41 @@ function activityWaveCleared() {
     placeActChest(pos, n, final);
     announceActChest(pos, n, final);
   }
-  if (final) { M.phase = 'final'; return; }
-  if (n % act.arenaEvery === 0) { M.phase = 'move'; M.moveT = 12; ui.feed('Moving to a new arena in 12s. Open your cache!', '#f4c542'); }
-  else { M.phase = 'inter'; M.interT = n % act.chestEvery === 0 ? 10 : 5; }
+  if (final) { M.phase = 'final'; if (act.id === 'horde') endBoonRun(M); return; }
+  const boss = n % act.arenaEvery === 0;
+  if (boss) ui.feed('Moving to a new arena in 12s. Open your cache!', '#f4c542');
+  const next = boss ? { phase: 'move', moveT: 12 } : { phase: 'inter', interT: n % act.chestEvery === 0 ? 10 : 5 };
+  if (act.id === 'horde') {
+    reviveAllDown(); // U24: the dead come back inside the boss room when the wave is cleared (co-op; a solo death already ended the run)
+    if (boonDue(n, act.waves)) { beginBoonPick(n, next); return; }
+  }
+  Object.assign(M, next);
+}
+
+// ---- U24 Roguelike Horde: the boon pick (the host holds the next wave until every member has picked, or 10 s pass) ----
+function beginBoonPick(n, next) {
+  const M = G.mission;
+  M.phase = 'boon'; M.boonT = 0; M.afterBoon = next; M.boonPicked = new Set();
+  announceBoonStart(n);
+  showBoonMenu(n);
+}
+const boonMembers = () => (G.mission.coop ? allPlayers().map((p) => p.id ?? net.myId) : [net.myId ?? 'me']);
+/** Everyone (host and members): roll my own offer and take my pick. */
+export async function showBoonMenu(n) {
+  const M = G.mission, P = G.player;
+  if (!M.boonRun || M.boonMenuOpen) return;
+  M.boonMenuOpen = true;
+  const power = M.def.power, pool = weaponPool(power);
+  const offer = rollOffer(Math.random, pool.map(({ slot, name, exotic }) => ({ slot, name, exotic })));
+  const items = offer.map((o) => (o.kind === 'weapon' ? itemForOption(o, power, pool) : null));
+  const current = Object.fromEntries(P.weapons.map((w) => [w.item.slot, w.item.name]));
+  const i = await openBoonMenu({ wave: n, offer, held: M.boonRun.boons, items, seconds: BOON_PICK_SECONDS, current });
+  M.boonMenuOpen = false;
+  if (G.mission !== M) return; // the run ended while the menu was open
+  const o = offer[i] ?? offer[0];
+  takeOption(P, o, items[offer.indexOf(o)]);
+  ui.feed(o.kind === 'boon' ? `Boon: ${BOON_BY_ID[o.id].name} x${M.boonRun.boons[o.id]}` : `Weapon: ${o.name} (${o.slot})`, '#c79bff');
+  if (net.isHost) M.boonPicked?.add(net.myId); else sendBoonPick();
 }
 
 /** Everyone: move to arena i (any unopened cache is opened for you first). */

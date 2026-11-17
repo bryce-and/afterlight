@@ -11,7 +11,7 @@ import { wrapAngle } from './util.js';
 import { tracer, explosionFx, sparks, firePool } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
-import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startBlitzStep, claimPendingCache, startActivity, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
+import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startBlitzStep, claimPendingCache, startActivity, showBoonMenu, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
 import { XP } from './progression.js';
 import { barrierStops } from './combat.js';
 import { playerPower, playerLevel } from './save.js';
@@ -30,6 +30,7 @@ import { startExotic, exoticWipe, onSnapshot, onRemoteShot, onChest, onReset, on
 import { startCrucible } from './crucible.js';
 import { crNetTick, crMemberLeft } from './crucible-net.js';
 import { buildRoster } from './pvp.js';
+import { closeBoonMenu } from './rewards-ui.js';
 import * as ui from './ui.js';
 import { keyName } from './keybinds.js';
 
@@ -154,6 +155,16 @@ export function onLevelSwap() {
   lastHits.clear();
 }
 export function announceArena(i) { if (net.isHost) broadcast({ t: 'arena', i }); }
+// U24 Roguelike Horde: the boon pick. The host starts it and holds the next wave; each member rolls and picks their own boon locally.
+export function announceBoonStart(n) { if (net.isHost) broadcast({ t: 'bnst', n }); }
+export function announceBoonEnd() { if (net.isHost) broadcast({ t: 'bnend' }); }
+export function sendBoonPick() { if (net.active && !net.isHost) send({ t: 'bnok' }); }
+/** Host: a Horde wave was cleared, so every downed fireteam member comes back inside the boss room. */
+export function reviveAllDown() {
+  if (!net.isHost) return;
+  if (G.player.dead) revivePlayer(net.myId, false);
+  for (const r of remotes.values()) if (r.inMission && r.dead) revivePlayer(r.id, false);
+}
 export function announceActChest(pos, n, final) { if (net.isHost) broadcast({ t: 'ach', x: r2(pos.x), z: r2(pos.z), n, f: final ? 1 : 0 }); }
 
 // ---------------------------------------------------------------------------
@@ -636,6 +647,9 @@ net.on('xwipe', () => { if (inMission()) onWipe(); });
 net.on('xfail', () => { if (inMission()) failOutOfTime(); });
 
 // activities
+net.on('bnst', (m) => { if (inMission() && G.mission.act?.id === 'horde') showBoonMenu(m.n); });
+net.on('bnend', () => { if (inMission()) closeBoonMenu(); });
+net.on('bnok', (m, from) => { if (inMission() && net.isHost) G.mission.boonPicked?.add(from); });
 net.on('arena', (m) => { if (inMission() && G.mission.act) moveArena(m.i); });
 net.on('ptr', (m) => { if (inMission() && G.mission.patrol) receivePatrolReward(new THREE.Vector3(m.x, m.y, m.z), m.n, m.xp); });
 net.on('ach', (m) => { if (inMission() && G.mission.act) placeActChest(new THREE.Vector3(m.x, 0, m.z), m.n, !!m.f); });

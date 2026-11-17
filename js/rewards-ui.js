@@ -8,6 +8,8 @@ import { switchCharacter } from './save.js';
 import { sfx } from './audio.js';
 import { esc } from './util.js';
 import { itemCard, orbitNotice, showOrbit } from './ui.js';
+import { BOON_BY_ID } from './boons.js';
+import { lockPointer, unlockPointer } from './state.js';
 
 const UNLOCKS = {
   legendary: { cls: 'legendary', title: 'LEGENDARY CAMPAIGN UNLOCKED', sub: 'The same fight, harder. Enemies stand 25 Light above you, or above the mission if you are under it. Pick it in the Director.', ms: 3600 },
@@ -175,3 +177,76 @@ export function openSkipConfirm(s, classId, onCancel) {
   hold.addEventListener('keyup', stop);
   el.querySelector('#rw-cancel').addEventListener('click', () => { stop(); el.remove(); onCancel?.(); });
 }
+
+/**
+ * U24 Roguelike Horde: the boon choice. Reuses the reward overlay's look (.rw-ov, .rw-pick) but not its claim step: a boon is not a save item,
+ * so one click takes it. `offer`: [{ kind: 'boon', id } | { kind: 'weapon', slot, name, exotic }]; `held`: { id: stacks }; `items`: weapon items by
+ * option index (for the card). Counts down `seconds`; at 0 the first option is taken. Resolves with the index taken.
+ */
+export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10, current = {} }) {
+  return new Promise((resolve) => {
+    menuEl?.remove();
+    const el = document.createElement('div');
+    el.className = 'rw-ov boon';
+    menuEl = el;
+    G.boonMenu = true;
+    unlockPointer();
+    const card = (o, i) => {
+      if (o.kind === 'boon') {
+        const b = BOON_BY_ID[o.id], n = held[o.id] || 0;
+        return `<div class="rw-pick bn-card" data-i="${i}" role="button" tabindex="0"><div class="bn-key">${i + 1}</div><div class="bn-name">${esc(b.name)}</div><p class="bn-desc">${esc(b.desc)}</p><div class="bn-held">${n ? `Held x${n}  ·  taking it makes x${n + 1}` : 'New'}</div></div>`;
+      }
+      const it = items[i];
+      return `<div class="rw-pick bn-card weapon${o.exotic ? ' exo' : ''}" data-i="${i}" role="button" tabindex="0"><div class="bn-key">${i + 1}</div><div class="bn-tag">${o.exotic ? 'Exotic weapon' : 'Legendary weapon'}  ·  replaces your ${esc(o.slot)} weapon</div>${it ? itemCard(it) : `<div class="bn-name">${esc(o.name)}</div>`}<div class="bn-ask">Replace ${esc(current[o.slot] || `your ${o.slot} weapon`)} for the rest of this run? Click again to confirm.</div></div>`;
+    };
+    el.innerHTML = `
+      <div class="rw-wrap">
+        <div class="rw-eyebrow">Wave ${wave} cleared</div>
+        <h1 class="rw-title">Choose a boon</h1>
+        <p class="rw-sub">Boons last until this run ends. <span id="bn-left"></span></p>
+        <div class="bn-bar"><i id="bn-fill"></i></div>
+        <div class="rw-grid bn-grid">${offer.map(card).join('')}</div>
+      </div>`;
+    document.body.appendChild(el);
+    let done = false;
+    const t0 = performance.now();
+    const finish = (i) => {
+      if (done) return;
+      done = true;
+      clearInterval(tick);
+      removeEventListener('keydown', onKey, true);
+      el.remove();
+      if (menuEl === el) menuEl = null;
+      G.boonMenu = false;
+      lockPointer();
+      resolve(i);
+    };
+    const tick = setInterval(() => {
+      const left = Math.max(0, seconds - (performance.now() - t0) / 1000);
+      const f = el.querySelector('#bn-fill'), l = el.querySelector('#bn-left');
+      if (f) f.style.width = `${(left / seconds) * 100}%`;
+      if (l) l.textContent = `Auto-picks the first in ${Math.ceil(left)} s`;
+      if (left <= 0) finish(0);
+    }, 100);
+    // a weapon swap asks first (the card opens a confirm line; the same card again takes it, any other card cancels it)
+    let asked = -1;
+    const choose = (i) => {
+      if (offer[i].kind === 'weapon' && asked !== i) {
+        asked = i; sfx.ui();
+        el.querySelectorAll('.bn-card').forEach((c) => c.classList.toggle('ask', +c.dataset.i === i));
+        return;
+      }
+      sfx.engram(3); finish(i);
+    };
+    const onKey = (e) => { const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code); if (i >= 0 && i < offer.length) { e.preventDefault(); e.stopPropagation(); choose(i); } };
+    addEventListener('keydown', onKey, true);
+    el.querySelectorAll('.bn-card').forEach((c) => {
+      const go = () => choose(+c.dataset.i);
+      c.addEventListener('click', go);
+      c.addEventListener('keydown', (e) => { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); go(); } });
+    });
+    el._forceFinish = finish;
+  });
+}
+/** The host ended the pick: take the first option for a Guardian who has not chosen (a closed menu resolves with 0). */
+export function closeBoonMenu() { menuEl?._forceFinish?.(0); }

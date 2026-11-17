@@ -8,7 +8,7 @@ import { sfx } from './audio.js';
 import { tracer, sparks, flashLight, ringFx, lightning, glowBurst, ember, beam, shockwave, pillar, flare, swirl, homingMote, afterimage, voidMote, VOID_FX } from './effects.js';
 import { weaponDamage, frameRatio, CONTROL } from './pvp.js';
 import { pvpRespawnPrep, onPlayerDeath } from './crucible.js';
-import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh, abandonMission } from './game.js';
+import { dealDamage, explode, getHitTargets, addTicker, spawnPlayerProjectile, enemiesNear, missionFailed, projectileMesh, abandonMission, hordeRespawnSpot } from './game.js';
 import { initGhost, updateGhost, driveSparrow, riderPos, dismount } from './sparrow.js';
 import { getEquipped, activeKit, playerLevel, wornAppearance } from './save.js';
 import { activeSets, encodeAppearance, SET_TUNE } from './style.js';
@@ -29,6 +29,7 @@ import { weaponHandling, recoilProfileFor, recoilKick, recoilQueue, recoilStep, 
 import { brickScale } from './tiers.js';
 import { DEV } from './devcommands.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops, falloffMult } from './combat.js';
+import { applyBoonStats, reloadMult, moveMult, outgoing, afterHit, onKillBoons, incoming, phoenixSave, onGrenade } from './boon-run.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3(), _UP = new THREE.Vector3(0, 1, 0);
@@ -411,6 +412,7 @@ export class Player {
     this.sprintT = damp(this.sprintT, this.sprinting ? 1 : 0, 10, dt);
     let speed = this.speed * (this.status.has('wind') ? 1.15 : 1) * (this.sprinting ? (this.exo.has('transversive') ? 1.72 : 1.5) : 1) * lerp(1, 0.55, this.adsT);
     if (!this.superActive && this.weapon.A.move) speed *= this.weapon.A.move; // Lightweight Frame
+    speed *= moveMult(); // U24: Adrenaline Rush
     if (this.status.has('amplified')) speed *= ASPECT_TUNE.amplitude.speed; // Amplified
     if (this.superActive?.type === 'hammers') speed *= 1.1;
     if (this.superActive?.type === 'fists') speed *= 1.3;
@@ -652,6 +654,7 @@ export class Player {
     w.reloading = true;
     let t = w.s.reload;
     if (this.status.has('outlaw')) t *= 0.55;
+    t *= reloadMult(); // U24: Quickhands
     t *= this.imperialReload(); // U23: Banquet Rush
     if (w.has('hotswap')) t *= 0.85;
     if (w.has('alloymag') && w.ammo === 0) t *= LOOT_PERKS.alloy;
@@ -964,7 +967,7 @@ export class Player {
   applyHit(w, e, dmg, crit, point, o = {}) {
     if (e.isGuardian) return this.pvpHit(w, e, crit, point, o); // U25: a Guardian takes the weapon's PvP numbers, nothing else (no perks, Light or tier)
     if (crit && w.has('fullstop') && !(e.shield > 0)) dmg *= ARSENAL.fullStop; // Forerunner: Full Stop
-    const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit);
+    const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit) * outgoing(this, e); // U24: Horde boons
     const element = o.element ?? wEl(w);
     const prowl = !o.isSuper && this.asp.has('prowl') && !this.prowlUsed && (this.status.has('invisible') || this.prowlShot); // On the Prowl
     if (prowl) this.prowlUsed = true;
@@ -972,6 +975,7 @@ export class Player {
     const jolt = !o.isSuper && w.has('jolting') && this.joltingHit(w, e) ? LOOT_PERKS.joltT : 0; // Jolting Feedback
     const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...(o.isSuper ? null : this.darkDeal(w, e, crit)), ...o.deal });
     if (o.isSuper) return res;
+    afterHit(this, e, dmg * m, crit, point); // U24: Frostbite, Arc Conductor, Ricochet
     w.hitCount++;
     this.darkWeaponHit(); // U22: Thread of Generation
     this.lootPerksOnHit(w, e, crit);
@@ -1634,6 +1638,7 @@ export class Player {
     for (const k of ['grenade', 'melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - KILL_CD_REFUND);
     if (this.ap.recuperation) this.healPct(0.15 * this.ap.recuperation);
     if (!chain && (o.source === 'ability' || o.source === 'melee') && this.ap.handson && !this.superActive) this.superCharge = Math.min(100, this.superCharge + SUPER_HANDSON * this.ap.handson);
+    onKillBoons(this, e, o); // U24: Horde boons
     this.buildOnKill(e, o);
     this.modsOnKill(e, o, chain);
     this.traitOnKill(e, o);
@@ -1943,6 +1948,7 @@ export class Player {
     this.cdMax.melee = this.cdBase.melee * cd(st.str, 1 - 0.15 * ap('brawler')) * (this.exo.has('synthoceps') ? 0.75 : 1) * (this.sets.has('leviathan') ? SET_TUNE.meleeCd : 1); // Emperor's Feast: Calus's Indulgence
     this.cdMax.class = this.cdBase.class * cd(st[CLASS_STAT[this.cls.id]], 1 - 0.2 * ap('kickstart')) * (this.exo.has('stomp') ? 0.7 : 1) * (this.exo.has('abeyant') && this.cls.subclassId === 'berserker' ? DARK_EXO.abeyant.classCd : 1) * (this.sets.has('dc') ? SET_TUNE.classCd : 1); // Dreaming Court: Queen's Grace
     if (this.exo.has('stomp')) { this.jumpV *= 1.3; this.speed *= 1.08; }
+    applyBoonStats(this); // U24: Horde boons
   }
 
   chargeDur() { return CHARGE.decay * (1 + CHARGE.timeDil * (this.ap.timedil || 0)); }
@@ -2088,6 +2094,7 @@ export class Player {
     if (amount <= 0) return;
     if (this.dash > 0) amount *= 0.5;
     if (this.status.has('juggernaut')) amount *= 0.5; // Juggernaut: frontal shield while sprinting
+    amount = incoming(amount); // U24: Iron Skin
     if (this.status.has('contraverse')) amount *= 0.8; // Contraverse Hold
     amount *= this.darkResist(); // U22: Woven Mail, Weavewalk, Whisper of Chains
     const cw = this.weapon;
@@ -2105,6 +2112,7 @@ export class Player {
       }
     }
     this.health -= amount;
+    if (this.health <= 0 && phoenixSave(this)) { sfx.hurt(); ui.damageFlash(); return; } // U24: Phoenix Rite
     sfx.hurt();
     ui.damageFlash();
     if (from) ui.damageDir(from);
@@ -2163,6 +2171,7 @@ export class Player {
     if (M.pvp) pvpRespawnPrep(this); // U25: a team spawn away from foes and the start ammo
     this.health = this.maxHealth; this.shield = this.maxShield;
     if (!inPlace) { this.pos.copy(M.checkpoint); if (!M.exotic && !M.dungeon && !M.pvp) this.pos.add(new THREE.Vector3(0, 0, 6)); } // U21: exotic missions respawn exactly at the checkpoint
+    if (!inPlace && M.act?.id === 'horde') this.pos.copy(hordeRespawnSpot()); // U24: a fair spot inside the sealed room
     this.status.remove('attuned');
     this.vel.set(0, 0, 0);
     this.viewmodel.visible = true;
@@ -2409,6 +2418,7 @@ export class Player {
   detonateGrenade(g, pt, hitEnemy = null) {
     if (this.isDarkGrenade(g)) { this.darkGrenade(g, pt, hitEnemy); return; } // U22: Stasis and Strand grenades (darkness.js)
     pt.y = Math.max(pt.y, 0.3);
+    onGrenade(this, pt.clone()); // U24: Scorched Earth
     if (this.exo.has('contraverse') && g.element === 'void' && enemiesNear(pt, 6).length) this.cd.grenade *= 0.7; // refund 30% (Void grenades)
     if (this.exo.has('raspberry') && g.element === 'arc') {
       // Lucky Raspberry: Arc grenades chain further and refund energy when they catch someone
