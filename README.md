@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.1 "Roguelike Horde" (U24)**: two new roguelike modes, Roguelike Horde (30 waves) and Roguelike Endless. You start with a rifle, shotgun and grenade launcher, and every fifth wave lets each member pick one of three boons (25 boons, stacking; some offers are weapon swaps). Boons last only for the run. Classic Horde and Endless are unchanged. A death camera shows your body, then an orbitable Ghost, in every mode.
 - **v5.0.1 and v5.0.2 "Hotfix" (H29)**: Enemy Guardians in the Crucible show their name over their heads while you can see them (v5.0.2: name only, no subclass or weapon).
 - **v5.0 "Rival Guardians" (U29)**: Crucible AI Guardians with full kits: each one rolls a class, subclass, grenade, super, weapons and shader per match, and rifts, wells and barricades belong to a team.
 - **v4.9 "Crucible" (U25)**: Player versus player on Bannerfall: Control (6v6 over three zones) and one-on-one Duels, solo against AI Guardians or in a lobby of up to 12. Each match can reward a Crucible legendary weapon or Crucible armor piece.

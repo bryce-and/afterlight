@@ -19,7 +19,6 @@ Rows that reached "Complete and published" live in `docs/archive/STATUS_SHIPPED.
 
 | ID | Requirement | Current | Update | Status |
 |---|---|---|---|---|
-| O1 | Roguelike Horde: boons every 5 rounds, game paused, 10 s choice, stacking buffs or weapon swaps (with confirmation), mostly legendaries and some exotics, multiple exotic weapons OK, no exotic armor, AR/shotgun/GL start, run inventory resets but caches pay into real inventory | A 30-wave Horde exists (not roguelike) | U24 | Planned |
 | O2 | PvP: 3 to 5 maps | Bannerfall only (v4.9) | U25 | In progress (Bannerfall, v4.9) |
 
 ## Master-prompt requirements

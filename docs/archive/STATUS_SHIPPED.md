@@ -64,6 +64,7 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | O3 | Control and Duel | U25 | Complete and published (v4.9) |
 | O4 | AI Guardians (not too strong) | U25 | Complete and published (v4.9) |
 | O5 | Crucible AI Guardians with full kits: each Guardian rolls a class, Light subclass, grenade, class ability, super, weapons, armor and shader per match, uses them, and team-only rifts, wells and barricades | U29 | Complete and published (v5.0) |
+| O1 | Roguelike Horde: boons every 5 rounds, game paused, 10 s choice, stacking buffs or weapon swaps (with confirmation), mostly legendaries and some exotics, multiple exotic weapons OK, no exotic armor, AR/shotgun/GL start, run inventory resets but caches pay into real inventory | U24 | Complete and published (v5.1): Roguelike Horde (`horde_rogue`) and Roguelike Endless (`endless_rogue`) as roguelike runs beside the classic modes, 25 boons, sealed boss rooms, fair spawns, death camera |
 
 ## Master-prompt requirements
 

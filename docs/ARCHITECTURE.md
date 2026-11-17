@@ -227,3 +227,12 @@ The module map is in the README. These notes cover systems added during the over
 - AI kits (U29): `js/pvp.js` `rollKit` picks each AI Guardian's kit per match, from the `BOT_SUPERS`, `BOT_GRENADES`, `BOT_CLASS` and `BOT_ABILITY` tables. `js/guardian-ai.js` runs them (`fightAt`, `useClass`, `startSuper`/`superStep`). Their effects go through `abilities.js` `npcFx`, which shows visuals and team buffs on every screen; the host deals the PvP damage.
 - Team effects (U29): `castFx` stamps `o.team` in PvP. Rift and well use `teamOk` and `alliedBots` (`Guardian.allyBuff`). Barricades carry `box.team` and `mesh.userData.barricade`; `moveBody(..., stepUp, team)` treats a pass collider of the other team as solid. `G.pvpWalls` joins `getHitTargets` in PvP, and player hitscan and AI shots skip their own team's wall.
 - `sh tools/cruciblecheck.sh` (U29) also reports kit use and checks the rift and barricade team rules.
+
+## Roguelike runs (v5.1, U24, `js/boons.js`, `js/boon-run.js`, `js/deathcam.js`)
+- `js/boons.js` is pure rules with no rendering dependency, covered by tests in `tools/tests.js`: `BOONS` (25), `BOON_EVERY`, `rollOffers` (weapon swaps via `WEAPON_OFFER_CHANCE`), stacking (`addBoon`, `boonTotals`), `HORDE_SCALE` and `ENDLESS_SCALE` through `waveScale`, and the fair-spawn rules (`SPAWN_RULES`, `enemySpotOk`, `playerSpotOk`, `pickFairSpot`).
+- `js/boon-run.js` wires them in: `startBoonRun` and `endBoonRun` (run state lives on `mission.boonRun` and resets each run), `takeOption`, and the stat hooks (`applyBoonStats`, `outgoing`, `afterHit`, `incoming`, `onKillBoons`, `onGrenade`). `HORDE_KIT` is the rifle, shotgun and grenade launcher start.
+- Roguelike is the `roguelike: true` flag on an activity in `data.js`: `horde_rogue` (Roguelike Horde) and `endless_rogue` (Roguelike Endless). Classic `horde` and `endless` have no flag and are unchanged.
+- Sealed boss rooms: `sealArena` in `js/game.js` runs when the activity is roguelike. Enemies appear inside the room and keep the fair-spawn distances.
+- The wave curve comes from `waveScale` in `game.js`: `ENDLESS_SCALE` for infinite waves, `HORDE_SCALE` otherwise.
+- `js/deathcam.js` holds `DEATH_CAM` (3 s body in every mode, 1.5 s in the Crucible) and the pure phase and orbit math (`deathPhase`, `orbitStep`, `pushIn`).
+- Save: no change. Boons and weapon swaps are run-only; caches pay real items through the normal loot path.

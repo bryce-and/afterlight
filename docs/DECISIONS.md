@@ -61,3 +61,9 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-16 | U25 Crucible armor (v4.9): Phoenix Strife (Titan), Ankaa Seeker (Hunter) and Wing Discipline (Warlock) are Destiny Crucible armor names. The class pairing is unverified; Bryce to confirm or rename. | Claude (U25) |
 | 2026-11-16 | U29 was built and shipped in one session without a Gate B proposal: Bryce asked for it to be developed, implemented and pushed while he was away, with a review to read afterwards. | Bryce |
 | 2026-11-16 | AI Guardian kits are random per match and fixed for every life (not per life), so players can learn each opponent; heavy weapons start empty and fill only from the heavy crate. | Claude (from Bryce's request) |
+| 2026-11-17 | Both classic and roguelike variants are kept: classic Horde (`horde`) and Endless (`endless`) are unchanged, and Roguelike Horde (`horde_rogue`) and Roguelike Endless (`endless_rogue`) sit beside them. The two roguelike modes share one roguelike gate (`act.roguelike`). | Bryce |
+| 2026-11-17 | Boons and weapon swaps last only for the run; caches still pay real items into the inventory. | Claude (U24) |
+| 2026-11-17 | Roguelike boss rooms are sealed for the whole run (the doors close and the room is walled in). | Claude (U24) |
+| 2026-11-17 | Fair spawns: enemies spawn at least 15 m from living players (suicide units included); players respawn 15 m from suicide units and 8 m from other enemies. | Claude (U24) |
+| 2026-11-17 | ENDLESS_SCALE has no cap on health, damage or boss health (only the enemy count is capped, at 3.5x). | Claude (U24) |
+| 2026-11-17 | Death camera (every mode): about 3 s on the body from behind, 1.5 s in the Crucible (its 4 s respawn), then an orbitable Ghost. | Claude (U24) |
