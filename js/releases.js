@@ -5,6 +5,21 @@
 
 export const RELEASES = [
   {
+    version: '5.2', name: 'Mobile', date: '2026-11-17', accent: '#a8c8ff', glyph: '▭',
+    summary: 'Play on a phone. Touch controls, a phone HUD and menus, and Mobile mode, which is on by default on phones: calmer enemy strafing and bigger enemy hit boxes. Desktop is unchanged.',
+    notes: [
+      'Touch controls: a floating move stick, drag to look, and buttons for Fire, Aim, Jump, Reload, Super, Use and Pause',
+      'Tap the grenade, melee and class tiles on the HUD to use them, and tap a weapon row to swap to it',
+      'On mobile, Gear and Ghost are in the pause menu',
+      'A layout editor lets you move and resize the touch buttons, and there are settings for look sensitivity, aim assist and the aim toggle',
+      'The phone HUD and menus fit within the screen edges, and a rotate-to-landscape card appears when the game needs landscape',
+      'Installed web app: an Add to Home Screen hint, a landscape manifest, the screen stays awake during play, and the game pauses when you switch apps',
+      'Mobile mode: enemies strafe less, with longer intervals between strafes, enemy hit boxes are 35% bigger, and there are fewer particles. Damage is unchanged',
+      'Save changes: one added settings block for mobile options. Nothing is reset',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="mobBg52" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c1420"/><stop offset="0.7" stop-color="#14203a"/><stop offset="1" stop-color="#06080e"/></linearGradient><radialGradient id="mobGlow52" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#a8c8ff" stop-opacity="0.5"/><stop offset="1" stop-color="#a8c8ff" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#mobBg52)"/><ellipse cx="160" cy="90" rx="130" ry="70" fill="url(#mobGlow52)"/><g><rect x="50" y="34" width="220" height="112" rx="14" fill="#0b0f18" stroke="#a8c8ff" stroke-width="2"/><rect x="60" y="42" width="200" height="96" rx="6" fill="#121a2c" stroke="#3a4a6a" stroke-width="1"/><polygon points="60,112 100,92 130,108 170,82 210,106 260,88 260,138 60,138" fill="#0b0f18" stroke="#6ea0ff" stroke-width="1"/><circle cx="92" cy="104" r="16" fill="none" stroke="#a8c8ff" stroke-width="1.5" opacity="0.8"/><circle cx="92" cy="104" r="6" fill="#a8c8ff" opacity="0.8"/><g fill="#a8c8ff" opacity="0.9"><circle cx="232" cy="106" r="11" fill="#ff8a7a"/><circle cx="212" cy="122" r="7" opacity="0.7"/><circle cx="246" cy="126" r="7" opacity="0.7"/><circle cx="224" cy="86" r="6" opacity="0.6"/></g><g fill="none" stroke="#ffd27a" stroke-width="1.4"><circle cx="160" cy="90" r="9"/><line x1="160" y1="76" x2="160" y2="82"/><line x1="160" y1="98" x2="160" y2="104"/><line x1="146" y1="90" x2="152" y2="90"/><line x1="168" y1="90" x2="174" y2="90"/></g></g><rect x="44" y="82" width="4" height="16" rx="2" fill="#a8c8ff"/></svg>',
+  },
+  {
     version: '5.1', name: 'Roguelike Horde', date: '2026-11-17', accent: '#8fe39a', glyph: '↻',
     summary: 'Two new roguelike modes, Roguelike Horde and Roguelike Endless: you start with a rifle, a shotgun and a grenade launcher, and every fifth wave brings a choice of boons. Classic Horde and Endless are unchanged.',
     notes: [
