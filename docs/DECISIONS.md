@@ -79,3 +79,4 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-17 | H32: Bryce chose to make the boss model redesign (all 25 bosses in js/bosses.js) its own update with a Gate B proposal, not part of H32. | Bryce (H32) |
 | 2026-11-17 | H32: Each gun's color scheme is a hash of its item name. | Claude (H32) |
 | 2026-11-17 | H32: Gun sights are chosen per archetype and frame, from per-family lists. | Claude (H32) |
+| 2026-11-17 | H33: The Strand grapple pull accelerates you toward a midair pivot (up to 26 m/s) and keeps your swing; a surface hit lifts you off the floor so the pull does not drag you along it. | Claude (H33) |

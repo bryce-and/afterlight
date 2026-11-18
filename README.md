@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.3.2 "Hotfix" (H33)**: the Strand grapple pulls hard (a midair pivot launches you off the floor and keeps your swing), and Khvostov 7G-02 is a military black rifle.
 - **v5.3.1 "Hotfix" (H32)**: Cyclops stay on the ground, the Taken Goblin and Emperor Calus have new models, guns and exotic armor have their own looks, the Strand grapple fires as a line that pulls you or hangs a midair pivot to swing from, and a few balance numbers change.
 - **v5.3 "Prismatic" (U27)**: a sixth subclass for every Guardian, mixing Light and Darkness, with Transcendence, a fifth armor slot for class items (Cloak, Mark, Bond), and exotic class items. Clear the Legendary campaign to unlock Prismatic.
 - **v5.2.1 "Hotfix" (H31)**: phone star map labels and tap targets line up with the planets again, phone aim toggles by default, and you can drag the Fire thumb to aim while shooting.
