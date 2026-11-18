@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '5.4.5', name: 'Hotfix', date: '2026-11-18', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Roguelike weapon swaps are back to 25% of boon options, and exotics are still 40% of weapon options.',
+    notes: [
+      'Roguelike Horde and Endless: a weapon swap is 25% of boon options again (v5.4.3 had raised it to 40%)',
+      'Exotic weapons are still 40% of weapon options, so they show up far more often than before v5.4.3 (10%)',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.4.4', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
     summary: 'A weapon swap taken from the Roguelike boon pick shows up in the weapon list at once.',
     notes: [

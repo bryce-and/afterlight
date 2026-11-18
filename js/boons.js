@@ -6,7 +6,7 @@ import { mulberry32 } from './util.js';
 export const BOON_EVERY = 1;        // a boon choice after every wave (waves 1, 2, 3, ...)
 export const BOON_OFFER_SIZE = 3;   // options per member
 export const BOON_PICK_SECONDS = 10; // the first option is taken on timeout
-export const WEAPON_OFFER_CHANCE = 0.4;  // chance each option is a weapon swap instead of a buff (H37: was 0.25)
+export const WEAPON_OFFER_CHANCE = 0.25; // chance each option is a weapon swap instead of a buff (H39: back to 0.25 after H37 raised it)
 export const EXOTIC_SHARE = 0.4;         // chance a weapon option is an exotic (H37: was 0.1)
 
 /**
