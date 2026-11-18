@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Boss baseline recorder</title></head>
+<body>
+<!-- U29: dev page. Prints the JSON baselines of every boss builder (tools/bossmeasure.js). Run: sh tools/bossbaseline.sh -->
+<pre id="out">running</pre>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+<script type="module">
+import { measureBoss } from './bossmeasure.js';
+import { BOSS_MODELS } from '../js/bosses.js';
+const out = {}, errors = [];
+for (const k of Object.keys(BOSS_MODELS)) { try { out[k] = measureBoss(k); } catch (e) { errors.push(k + ': ' + e.message); } }
+document.getElementById('out').textContent = 'BASELINE' + JSON.stringify({ out, errors }) + 'END';
+</script>
+</body></html>

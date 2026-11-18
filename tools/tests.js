@@ -4635,6 +4635,32 @@ test('U27 exotic class items: two distinct spirit perks, one-exotic rule, only a
   ok(RW.rollBlitzMenu(s).armor.some((a) => a.slot === 'classitem' && a.rarity === 'exotic'), 'always in the Blitz pick menu after unlock');
 });
 
+// ---------- U29: boss redesign guards ----------
+// Every live boss builder keeps the old model's hit footprint: height, XZ extent, crit volume, mesh budget, muzzle and script hooks (baselines recorded from the pre-U29 models, tools/boss-baselines.json).
+test('U29 every boss builder keeps its baseline: height, footprint, crit region, mesh budget, muzzle and script hooks', async () => {
+  const { measureBoss } = await import('./bossmeasure.js');
+  const BM = await import('../js/bosses.js');
+  const base = await (await fetch('./boss-baselines.json')).json();
+  const names = Object.keys(BM.BOSS_MODELS);
+  for (const k of Object.keys(base)) ok(names.includes(k), `${k} still has a builder`);
+  for (const k of names) ok(base[k], `${k} has a recorded baseline`);
+  const bad = [];
+  for (const k of names) {
+    const o = base[k], n = measureBoss(k), w = o.maxX - o.minX, d = o.maxZ - o.minZ;
+    if (!n.torso) bad.push(`${k}: c.torso unset`);
+    if (Math.abs(n.height - o.height) > o.height * 0.05) bad.push(`${k}: height ${n.height} vs ${o.height}`);
+    if (n.minX < o.minX - w * 0.1 || n.maxX > o.maxX + w * 0.1 || n.minZ < o.minZ - d * 0.1 || n.maxZ > o.maxZ + d * 0.1) bad.push(`${k}: footprint x ${n.minX}..${n.maxX} z ${n.minZ}..${n.maxZ} vs x ${o.minX}..${o.maxX} z ${o.minZ}..${o.maxZ}`);
+    if (n.maxY > o.maxY * 1.1 || n.maxY < o.maxY * 0.9) bad.push(`${k}: top ${n.maxY} vs ${o.maxY}`);
+    if (n.critMeshes < 1) bad.push(`${k}: no crit mesh`);
+    if (n.critVol > o.critVol * 1.1 + 1e-6) bad.push(`${k}: crit volume ${n.critVol} vs ${o.critVol}`);
+    if (n.meshes > o.meshes * 1.25) bad.push(`${k}: ${n.meshes} meshes vs ${o.meshes}`);
+    if (JSON.stringify(n.hooks) !== JSON.stringify(o.hooks)) bad.push(`${k}: hooks ${n.hooks} vs ${o.hooks}`);
+    const [mx, my, mz] = n.muzzle;
+    if (my < 0 || my > n.maxY || mx < n.minX || mx > n.maxX || mz < n.minZ || mz > n.maxZ + 1.6) bad.push(`${k}: muzzle ${n.muzzle} outside the model`);
+  }
+  eq(bad, [], bad.join(' | '));
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }
