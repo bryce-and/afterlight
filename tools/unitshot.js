@@ -5,6 +5,8 @@
 const map = JSON.parse(document.querySelector('script[type="importmap"]').textContent).imports;
 const mod = (name) => import(new URL(map[`./js/${name}.js`], document.baseURI).href);
 
+const BOSS_SCALE = { emperorCalus: 0.8, anointedBather: 0.8, huntmaster: 0.75 }; // the scale overrides set in code (enemies.js, dungeon-rules.js)
+
 export async function lineup(units, { loc = 'io', size = [340, 420], crit = false, cols = 6 } = {}) {
   const [{ G }, E, F, D, THREE] = await Promise.all([mod('state'), mod('enemies'), mod('factions'), mod('data'), import('three')]);
   const L = D.LOCATIONS.find((l) => l.id === loc);
@@ -28,13 +30,14 @@ export async function lineup(units, { loc = 'io', size = [340, 420], crit = fals
   wrap.style.cssText = `position:fixed;inset:0;z-index:99999;background:#111;display:grid;grid-template-columns:repeat(${cols},1fr);gap:3px;padding:4px;color:#fff;font:12px sans-serif;overflow:auto`;
   const errors = [];
   for (const id of units) {
-    const [fx, t] = id.includes(':') ? id.split(':') : [null, id];
-    const def = F.UNITS[t] || D.ENEMY_TYPES[t];
-    const faction = fx || F.UNITS[t]?.faction;
+    const bossModel = id.startsWith('@') ? id.slice(1) : null; // U29: '@takenMind' draws a boss model the way a mission builds it (boss unit def, the mission's raw palette)
+    const [fx, t] = bossModel ? [null, 'boss'] : id.includes(':') ? id.split(':') : [null, id];
+    const def = bossModel ? { ...(F.UNITS.boss || D.ENEMY_TYPES.boss), scale: BOSS_SCALE[bossModel] ?? (F.UNITS.boss || D.ENEMY_TYPES.boss).scale } : F.UNITS[t] || D.ENEMY_TYPES[t];
+    const faction = fx || F.UNITS[t]?.faction || (bossModel ? 'legion' : undefined);
     let m;
     try {
       if (!def || !faction) throw new Error('unknown unit');
-      m = E.buildModel({ typeId: t, bossModel: null, maxShield: 0 }, F.enemyColors(faction, L), faction);
+      m = E.buildModel({ typeId: t, bossModel, maxShield: 0 }, F.enemyColors(faction, L, !!bossModel), faction);
     } catch (err) { errors.push(`${id}: ${err.message}`); continue; }
     const s = def.scale ?? 1, h = m.height * s;
     m.group.scale.setScalar(s);

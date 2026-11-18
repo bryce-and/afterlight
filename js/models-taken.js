@@ -502,41 +502,58 @@ export function buildTakenMind(c = null) {
   const red = mat(0xff3a2a, { emissive: 0xff2a1a, emissiveIntensity: 3.5 });
   const PI = Math.PI;
   g.name = 'takenMind';
-  const body = pivot(0, 2.9, 0);
-  // the great hexagonal head plate, black with a bronze inner plate, edged in white Light
-  add(new THREE.CylinderGeometry(1.7, 1.7, 0.5, 6).rotateX(PI / 2), plate, 0, 0, 0, body);
-  add(new THREE.CylinderGeometry(1.3, 1.3, 0.5, 6).rotateX(PI / 2), bronze, 0, 0, 0.07, body);
-  add(new THREE.TorusGeometry(1.68, 0.06, 4, 6).rotateZ(PI / 6), white, 0, 0, 0.27, body);
-  // the eye: a red orb in a white ring (the weak point)
-  const eye = add(new THREE.SphereGeometry(0.85, 12, 8), red, 0, 0, 0.42, body, true);
-  eye.scale.z = 0.55;
+  const body = pivot(0, 2.5, 0);
+  const at = (y) => y - 2.5; // heights below are from the floor; the pivot sits at 2.5
+  const cyl = (rt, rb, h, seg, m, x, y, z, parent = body, crit = false, r = null) => add(new THREE.CylinderGeometry(rt, rb, h, seg), m, x, y, z, parent, crit, r);
+  const cone = (rad, h, seg, m, x, y, z, parent = body, r = null) => add(new THREE.ConeGeometry(rad, h, seg), m, x, y, z, parent, false, r);
+  // U29: a Vex Mind frame taken over by the Darkness, built as a monolith: a tapering hex column with real mass, a domed head with one
+  // red eye sunk in a bronze faceplate, great pauldrons and two floating fists, black tendrils where the legs would be.
+  // the column: hex prism narrowing to a point, squashed in depth so the footprint stays as it was
+  cyl(1.05, 0.45, 2.7, 6, plate, 0, at(2.35), 0).scale.z = 0.72;
+  cyl(1.12, 1.12, 0.22, 6, bronze, 0, at(3.62), 0).scale.z = 0.72; // collar band
+  cyl(0.8, 0.5, 0.3, 6, bronze, 0, at(2.2), 0.28).scale.z = 0.4; // chest plate
+  add(new THREE.IcosahedronGeometry(0.3, 1), white, 0, at(2.25), 0.5, body); // the white heart shows through the chest
+  for (const s of [-1, 1]) B(0.14, 2.2, 0.16, s * 0.62, at(2.35), 0.5, brass, body, false, [0, 0, -s * 0.2]); // ribs framing the heart
+  // pauldrons: slabs sloping down and out, each with three black horns
+  for (const s of [-1, 1]) {
+    B(1.3, 0.34, 1.0, s * 1.55, at(3.55), 0, plate, body, false, [0, 0, -s * 0.3]);
+    B(1.1, 0.1, 0.8, s * 1.6, at(3.74), 0, bronze, body, false, [0, 0, -s * 0.3]);
+    for (let i = 0; i < 3; i++) cone(0.13, 0.9 - i * 0.18, 4, black, s * (1.2 + i * 0.42), at(4.0 + i * 0.05), -0.1, body, [0, 0, -s * (0.35 + i * 0.12)]);
+  }
+  // the head: a black dome in a halo ring, a hex bronze faceplate, and the eye (the only weak point)
+  add(new THREE.SphereGeometry(0.95, 12, 8), plate, 0, at(4.25), -0.05, body).scale.set(1, 0.95, 0.95);
+  cyl(0.78, 0.78, 0.16, 6, bronze, 0, at(4.2), 0.68, body, false, [PI / 2, 0, 0]);
+  const eye = add(new THREE.SphereGeometry(0.46, 12, 8), red, 0, at(4.2), 0.76, body, true);
+  eye.scale.z = 0.6;
   eye.name = 'eye';
-  add(new THREE.TorusGeometry(1.12, 0.08, 4, 12), white, 0, 0, 0.5, body, true);
-  add(new THREE.TorusGeometry(1.0, 0.07, 4, 6), brass, 0, 0, 0.46, body, false);
-  // the hollowed core hanging below: a black mass with a white heart showing through ribs
-  add(new THREE.IcosahedronGeometry(0.9, 1), black, 0, -1.65, -0.05, body);
-  add(new THREE.IcosahedronGeometry(0.4, 1), white, 0, -1.65, 0.05, body);
+  add(new THREE.TorusGeometry(0.6, 0.06, 4, 12), white, 0, at(4.2), 0.8, body, true);
+  add(new THREE.TorusGeometry(1.45, 0.05, 4, 6).rotateZ(PI / 6), white, 0, at(4.25), -0.55, body); // the halo behind the head
+  for (let i = 0; i < 5; i++) { // a crown of spines
+    const a = (i - 2) * 0.36;
+    cone(0.12, 1.0 + (i === 2 ? 0.35 : 0), 4, black, Math.sin(a) * 0.95, at(5.1 + (i === 2 ? 0.1 : 0) - Math.abs(i - 2) * 0.1), -0.2, body, [0, 0, -a]);
+  }
+  // two great fists hanging apart from the body, joined by cables, three black talons each
+  for (const s of [-1, 1]) {
+    B(0.75, 0.9, 0.8, s * 2.75, at(2.5), 0.05, plate, body, false, [0, 0, s * 0.15]);
+    B(0.6, 0.12, 0.62, s * 2.75, at(3.0), 0.05, bronze, body, false, [0, 0, s * 0.15]);
+    for (let i = -1; i <= 1; i++) cone(0.1, 0.7, 4, black, s * 2.75 + i * 0.22, at(1.8), 0.05, body, [PI, 0, 0]);
+    B(1.2, 0.1, 0.1, s * 1.95, at(3.0), 0.05, black, body, false, [0, 0, s * 0.3]);
+  }
+  // modular blocks drifting behind the column, black and bronze with a white inlay
   for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * PI * 2;
-    B(0.12, 1.4, 0.12, Math.cos(a) * 0.75, -1.1, Math.sin(a) * 0.5 - 0.05, plate, body, false, [Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35]);
+    const a = (i / 6) * PI * 2, sz = 0.42 + (i % 3) * 0.07, x = Math.cos(a) * 1.9, y = at(2.9 + Math.sin(a) * 1.35);
+    B(sz, sz, sz, x, y, -0.35, i % 2 ? bronze : plate, body, false, [a, a * 0.7, 0]);
+    if (i % 2 === 0) B(sz * 0.2, sz * 1.1, sz * 1.1, x, y, -0.35, white, body, false, [a, a * 0.7, 0]);
   }
-  // modular blocks orbiting the frame, black and bronze, as on a Vex Mind
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * PI * 2, s = 0.5 + (i % 3) * 0.08;
-    B(s, s, s, Math.cos(a) * 2.9, Math.sin(a) * 2.9 * 0.85, -0.2, i % 2 ? bronze : plate, body, false, [a, a * 0.7, 0]);
-    if (i % 2 === 0) B(s * 0.2, s * 1.1, s * 1.1, Math.cos(a) * 2.9, Math.sin(a) * 2.9 * 0.85, -0.2, white, body, false, [a, a * 0.7, 0]);
+  // void tendrils trailing from the base where legs would be, plus the Taken's flame off the head and shoulders
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * PI * 2, l = 1.0 + ((i * 37) % 10) / 14;
+    cone(0.13, l, 4, black, Math.cos(a) * 0.32, at(1.1 - l / 2 + 0.2), Math.sin(a) * 0.22, body, [Math.sin(a) * 0.2, 0, -Math.cos(a) * 0.2 + PI]);
   }
-  // backplate spines and ragged tatters of Darkness hanging under the frame
-  for (const s of [-1, 0, 1]) add(new THREE.ConeGeometry(0.2, 1.8, 4), black, s * 0.8, 1.4, -0.55, body, false, [-0.3, 0, -s * 0.45]);
-  for (let i = 0; i < 9; i++) {
-    const l = 0.6 + ((i * 37) % 10) / 20, x = (i - 4) * 0.36;
-    B(0.12, l, 0.03, x, -1.5 - l / 2, 0.15 - (i % 3) * 0.2, black, body, false, [((i % 3) - 1) * 0.12, 0, ((i % 2) ? 1 : -1) * 0.1]);
-  }
-  // the Taken's flame: white-rimmed black wisps off the head and both shoulders of the plate
-  wisps(kit, body, 1.7, 1.35, 2.6, -0.1, 3);
-  wisps(kit, body, 1.1, 1.9, 2.2, -0.2, 6);
+  wisps(kit, body, at(5.2), 0.9, 2.2, 0.05, 3);
+  wisps(kit, body, at(4.1), 2.1, 2.0, 0, 6);
   const muzzle = c ? c.muzzle : new THREE.Object3D();
-  muzzle.position.set(0, 0, 1.2);
+  muzzle.position.set(0, 0.7, 1.4);
   body.add(muzzle);
   if (c) { c.hover = true; c.torso = body; c.height = 5; } else g.userData = { ...g.userData, muzzle, height: 5, torso: body };
   return g;
