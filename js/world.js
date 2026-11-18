@@ -108,7 +108,7 @@ export function buildLevel(loc, def) {
   // U16e: a map may list terrain features (js/terrain.js); without them the ground is flat and every number below is unchanged
   const terrain = buildTerrain(set.terrain), gAt = terrain ? terrain.at : null;
   const GY = gAt || (() => 0);
-  const zones = set.zones.map((z) => ({ center: new THREE.Vector3(z.x, GY(z.x, z.z), z.z), isBoss: !!z.boss, name: z.name, leash: z.leash, room: z.room }));
+  const zones = set.zones.map((z) => ({ center: new THREE.Vector3(z.x, GY(z.x, z.z), z.z), isBoss: !!z.boss, name: z.name, leash: z.leash, room: z.room, round: z.round }));
   const spawn = new THREE.Vector3(set.spawn[0], GY(set.spawn[0], set.spawn[1]), set.spawn[1]);
   const [minX, maxX, minZ, maxZ] = set.bounds;
   const bounds = { minX, maxX, minZ, maxZ };

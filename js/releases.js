@@ -5,6 +5,16 @@
 
 export const RELEASES = [
   {
+    version: '5.4.3', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Spawns and caches in Crota\'s End stay inside the room walls, Roguelike weapon offers are more common and more often exotic, and weapon cards show their full roll before you pick one.',
+    notes: [
+      'Crota\'s End (Moon), campaign and Horde: hostiles and caches could appear inside or behind the walls of the Throne of Crota and the Deathsinger\'s Ward. Spawns and caches are now kept inside the room\'s walls',
+      'Horde caches open on open floor, not inside a wall or on the dais',
+      'Roguelike weapon offers: a weapon swap is 40% of options (was 25%), and 40% of those are exotic (was 10%)',
+      'Roguelike boon pick: hover or focus a weapon card to see its full roll (stats, archetype and perks), legendary or exotic, before you pick it',
+    ],
+  },
+  {
     version: '5.4.2', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
     summary: 'Roguelike bosses gain health more slowly, and you get a boon pick after every wave instead of every three.',
     notes: [

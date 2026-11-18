@@ -671,8 +671,8 @@ export default {
     zones: [
       { name: 'The Abyss', x: -7, z: -43 },
       { name: 'The Bridge', x: 0, z: -118 },
-      { name: "Deathsinger's Ward", x: 0, z: -182 },
-      { name: 'Throne of Crota', x: 22, z: -286, boss: true, room: { minX: 0, maxX: 60, minZ: -300, maxZ: -240 } },
+      { name: "Deathsinger's Ward", x: 0, z: -182, round: { x: 0, z: -194, r: 21.5 } }, // the octagon, as its inscribed circle
+      { name: 'Throne of Crota', x: 22, z: -286, round: { x: 30, z: -270, r: 29 }, boss: true, room: { minX: 0, maxX: 60, minZ: -300, maxZ: -240 } },
     ],
     noEdge: true,
     // a void storm: black-green cloud banks, restless aurora, Hive spires on the horizon

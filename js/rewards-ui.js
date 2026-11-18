@@ -8,7 +8,7 @@ import { OVERLOAD_NAME } from './campaign.js';
 import { switchCharacter } from './save.js';
 import { sfx } from './audio.js';
 import { esc } from './util.js';
-import { itemCard, orbitNotice, showOrbit } from './ui.js';
+import { itemCard, orbitNotice, showOrbit, tipHTML } from './ui.js';
 import { BOON_BY_ID } from './boons.js';
 import { lockPointer, unlockPointer } from './state.js';
 
@@ -210,6 +210,28 @@ export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10,
         <div class="rw-grid bn-grid">${offer.map(card).join('')}</div>
       </div>`;
     document.body.appendChild(el);
+    // H37: hovering a weapon card shows its roll (stats, archetype, perks) before you pick it; press and hold does on phones
+    const tip = document.createElement('div');
+    tip.className = 'cs-tip pm-tip hidden';
+    el.appendChild(tip);
+    const showTip = (card) => {
+      const it = items[+card.dataset.i];
+      if (!it) return;
+      tip.innerHTML = tipHTML(it, 'boon');
+      tip.classList.remove('hidden');
+      const r = card.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+      let x = r.right + 12;
+      if (x + tw > window.innerWidth - 8) x = Math.max(8, r.left - tw - 12);
+      tip.style.left = `${x}px`;
+      tip.style.top = `${Math.min(Math.max(8, r.top), Math.max(8, window.innerHeight - th - 8))}px`;
+    };
+    const hideTip = () => tip.classList.add('hidden');
+    el.querySelectorAll('.bn-card.weapon').forEach((c) => {
+      c.addEventListener('mouseenter', () => showTip(c));
+      c.addEventListener('mouseleave', hideTip);
+      c.addEventListener('focus', () => showTip(c));
+      c.addEventListener('blur', hideTip);
+    });
     let done = false;
     const t0 = performance.now();
     const finish = (i) => {

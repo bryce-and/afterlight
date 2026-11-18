@@ -6,7 +6,8 @@ import { mulberry32 } from './util.js';
 export const BOON_EVERY = 1;        // a boon choice after every wave (waves 1, 2, 3, ...)
 export const BOON_OFFER_SIZE = 3;   // options per member
 export const BOON_PICK_SECONDS = 10; // the first option is taken on timeout
-export const WEAPON_OFFER_CHANCE = 0.25; // chance each option is a weapon swap instead of a buff
+export const WEAPON_OFFER_CHANCE = 0.4;  // chance each option is a weapon swap instead of a buff (H37: was 0.25)
+export const EXOTIC_SHARE = 0.4;         // chance a weapon option is an exotic (H37: was 0.1)
 
 /**
  * The boon table. `fx` keys are read through boonTotals(); values are per stack.
@@ -129,9 +130,9 @@ export function rollOffer(rnd = Math.random, weaponPool = [], size = BOON_OFFER_
   const buffs = [...BOONS], pool = [...weaponPool];
   while (out.length < size) {
     if (pool.length && rnd() < WEAPON_OFFER_CHANCE) {
-      // exotics are rarer than legendaries: draw from the legendary rows first nine times in ten
+      // exotics are still rarer than legendaries (EXOTIC_SHARE of weapon options)
       const exo = pool.filter((w) => w.exotic), leg = pool.filter((w) => !w.exotic);
-      const from = exo.length && (!leg.length || rnd() < 0.1) ? exo : leg.length ? leg : exo;
+      const from = exo.length && (!leg.length || rnd() < EXOTIC_SHARE) ? exo : leg.length ? leg : exo;
       const w = from[Math.floor(rnd() * from.length)];
       if (!names.has(w.name)) { names.add(w.name); out.push({ kind: 'weapon', slot: w.slot, name: w.name, exotic: !!w.exotic }); }
       pool.splice(pool.indexOf(w), 1);

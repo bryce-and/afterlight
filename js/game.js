@@ -258,6 +258,18 @@ export function spawnClear(p) {
 
 // U24 Roguelike Horde: enemies appear inside the sealed boss room and never within SPAWN_RULES of a living player (suicide units included).
 let spawnSuicide = false;
+/**
+ * H37: a round or octagonal room (a zone's `round: { x, z, r }`) is not its bounding rectangle. A spawn or a chest for a zone centred inside one
+ * must land inside the round too; the rectangle's corners are outside the wall, where no collider stops a spawn.
+ */
+function inRoundRoom(center, x, z) {
+  for (const zr of G.level?.zones || []) {
+    const r = zr.round;
+    if (!r || (center.x - r.x) ** 2 + (center.z - r.z) ** 2 > r.r * r.r) continue;
+    return (x - r.x) ** 2 + (z - r.z) ** 2 <= (r.r - 1.5) ** 2;
+  }
+  return true;
+}
 const hordeRoom = () => (G.mission?.act?.roguelike ? G.mission.zones?.[0]?.room || null : null);
 function hordeFair(p) {
   const r = hordeRoom();
@@ -275,6 +287,7 @@ export function findSpawn(center, angle, spread, rMin, rMax) {
     p.x = clamp(p.x, b.minX + 2, b.maxX - 2);
     p.z = clamp(p.z, b.minZ + 2, b.maxZ - 2);
     if (G.level.voidAt?.(p.x, p.z)) continue; // U17f: never over the abyss
+    if (!inRoundRoom(center, p.x, p.z)) continue; // H37: stay inside a round room's wall
     p.y = groundAt(p.x, p.z);
     if (spawnClear(p) && p.distanceTo(G.player.pos) > 8 && hordeFair(p)) return p;
   }
@@ -670,6 +683,7 @@ function chestSpot(want, from) {
   const reach = nav ? floodReach(nav, from.x, from.z) : null;
   const free = (x, z) => {
     const y = groundAt(x, z);
+    if (!inRoundRoom(want, x, z)) return false; // H37
     for (const c of G.colliders) if (c.max.y > y + 0.2 && c.min.y < y + 2 && footprintHit(c, x, z, 1.3)) return false;
     if (!reach) return true;
     for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const i = cellIndex(nav, x + dx, z + dz); if (i < 0 || !reach[i]) return false; }
@@ -1329,7 +1343,7 @@ export function hordeRespawnSpot() {
     const p = new THREE.Vector3(q.x, 0, q.z);
     p.y = groundAt(p.x, p.z);
     return p;
-  }).filter((p) => (!r || (p.x > r.minX + 2 && p.x < r.maxX - 2 && p.z > r.minZ + 2 && p.z < r.maxZ - 2)) && spawnClear(p));
+  }).filter((p) => inRoundRoom(c, p.x, p.z) && (!r || (p.x > r.minX + 2 && p.x < r.maxX - 2 && p.z > r.minZ + 2 && p.z < r.maxZ - 2)) && spawnClear(p));
   if (!cands.length) return c.clone();
   return pickFairSpot(cands, (p) => playerSpotOk(p, foes), (p) => nearestDist(p, foes));
 }
@@ -1477,8 +1491,9 @@ function activityWaveCleared() {
     const c = M.zones[0].center;
     const dir = P.pos.clone().sub(c).setY(0);
     const pos = c.clone().add(dir.lengthSq() > 1 ? dir.normalize().multiplyScalar(4) : new THREE.Vector3(0, 0, 4));
-    placeActChest(pos, n, final);
-    announceActChest(pos, n, final);
+    const at = chestSpot(pos, P.pos); // H37: open floor inside the room, not inside a wall or a dais
+    placeActChest(at, n, final);
+    announceActChest(at, n, final);
   }
   if (final) { M.phase = 'final'; if (act.roguelike) endBoonRun(M); return; }
   const boss = n % act.arenaEvery === 0;

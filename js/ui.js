@@ -1061,7 +1061,7 @@ export function tipHTML(it, side) { // U27: the Postmaster (tower-ui.js) shows t
   const rar = RARITIES[rarityIndex(it.rarity)];
   const eq = getEquipped(s, it.slot);
   const equipped = eq === it;
-  const cmp = !equipped && eq ? eq : null;
+  const cmp = side === 'boon' ? null : !equipped && eq ? eq : null; // H37: a boon offer's roll is shown on its own, not against your own gear
   const delta = (a, b, invert = false) => {
     if (!cmp) return '';
     const d = invert ? b - a : a - b;
@@ -1120,10 +1120,11 @@ export function tipHTML(it, side) { // U27: the Postmaster (tower-ui.js) shows t
   if (it.kind === 'weapon' && it.rarity === 'exotic' && !overloadOn(s)) {
     body += '<div class="tt-note">Only one exotic weapon can be equipped.</div>';
   }
-  if (!canUseRarity(it.rarity, playerLevel(s))) body += `<div class="tt-note warn">Requires level ${RARITY_GATE[it.rarity]}. ${LEVEL_TOO_LOW}</div>`;
+  if (side !== 'boon' && !canUseRarity(it.rarity, playerLevel(s))) body += `<div class="tt-note warn">Requires level ${RARITY_GATE[it.rarity]}. ${LEVEL_TOO_LOW}</div>`;
   const inf = infuseInfo(s, it);
   const lockLine = `<span>Middle-click: ${it.locked ? 'Unlock' : 'Lock'}</span>`;
-  const foot = side === 'postmaster' ? `<div class="tt-foot"><span>Click: Take it</span></div>`
+  const foot = side === 'boon' ? ''
+    : side === 'postmaster' ? `<div class="tt-foot"><span>Click: Take it</span></div>`
     : side === 'vault' ? `<div class="tt-foot"><span>Click: Move to character</span>${lockLine}</div>`
     : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span>${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span><i class="tt-hold"><em></em></i></div>`
     : equipped
