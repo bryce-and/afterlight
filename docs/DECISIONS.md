@@ -85,3 +85,7 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-17 | H36: Roguelike boss health uses the boss curve alone and is lowered again: Horde +2% per wave capped at x1.6 (was +10%, cap x6), Endless +3% per wave uncapped (was 12%) (`HORDE_SCALE`, `ENDLESS_SCALE` in `js/boons.js`). | Claude (H36) |
 | 2026-11-17 | H36: A boon pick comes after every wave in Roguelike Horde and Endless (`BOON_EVERY` 1), never after the last wave (was after wave 1, then every 3). | Claude (H36) |
 | 2026-11-17 | H36: The test assertion that bosses grow at least as fast as hp was dropped, because `bossHp` is now the sole boss curve. | Claude (H36) |
+| 2026-11-17 | H37: Spawns and caches stay inside a room's round wall. A zone may carry `round: {x, z, r}`; `findSpawn`, `chestSpot` and `hordeRespawnSpot` check it (`inRoundRoom` in `js/game.js`), not the room rectangle. | Claude (H37) |
+| 2026-11-17 | H37: Horde caches use `chestSpot` (open floor, not inside a wall or the dais). | Claude (H37) |
+| 2026-11-17 | H37: Roguelike weapon offers: a weapon swap is 40% of options (was 25%), and 40% of those are exotic (was 10%) (`WEAPON_OFFER_CHANCE`, `EXOTIC_SHARE` in `js/boons.js`). | Claude (H37) |
+| 2026-11-17 | H37: Roguelike boon pick: hovering or focusing a weapon card shows its full roll (stats, archetype, perks) before you pick it, with no comparison to your own gear (`tipHTML` side `boon` in `js/ui.js`). | Claude (H37) |

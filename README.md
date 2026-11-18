@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.4.3 "Hotfix" (H37)**: Crota's End spawns and caches stay inside the room walls, Roguelike weapon offers are more common and more often exotic, and weapon cards show their full roll before you pick one.
 - **v5.4.2 "Hotfix" (H36)**: Roguelike bosses gain health more slowly, and you get a boon pick after every wave instead of every three.
 - **v5.4.1 "Hotfix" (H35)**: Roguelike fixes: bosses have about 60% less health at wave 30, the starting kit is random legendary guns, and the Character screen is locked during a run.
 - **v5.4 "Boss Redesign" (U29)**: every boss has a new model: faction units grown into bosses, plus from-scratch designs for Aurix, Mindbender, the Fanatic and more. Hitboxes, stats and arenas do not change.
