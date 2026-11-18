@@ -7,6 +7,13 @@ export * from './colliders.js';
 const ray = new THREE.Raycaster();
 const _d = new THREE.Vector3();
 
+/** H32: distance along a ray to the nearest wall, prop or hill (static meshes and the terrain), or Infinity. The Strand grapple fires with it. */
+export function rayWorld(origin, dir, far) {
+  ray.set(origin, dir);
+  ray.far = far;
+  const hit = ray.intersectObjects(G.staticMeshes, false)[0];
+  return Math.min(hit ? hit.distance : Infinity, G.level?.groundAt || dir.y < -1e-4 ? rayGround(origin, dir, far) : Infinity);
+}
 export function hasLOS(a, b) {
   _d.subVectors(b, a);
   const dist = _d.length();

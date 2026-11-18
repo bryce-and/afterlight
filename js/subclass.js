@@ -21,7 +21,7 @@ export const GRENADES = {
   glacier: { name: 'Glacier Grenade', element: 'stasis', kind: 'glacier', cd: 22, desc: 'Raises a wall of Stasis crystals that freezes enemies near it. Shoot or strike a crystal to shatter it.' },
   duskfield: { name: 'Duskfield Grenade', element: 'stasis', kind: 'duskfield', cd: 20, desc: 'Creates a Stasis field for 6s that slows enemies inside, building up until they freeze.' },
   coldsnap: { name: 'Coldsnap Grenade', element: 'stasis', kind: 'coldsnap', cd: 20, desc: 'Sends a seeker along the ground that freezes the first enemy it reaches, then seeks one more.' },
-  grapple: { name: 'Grapple', element: 'strand', kind: 'grapple', cd: 14, desc: 'Fire a Strand line and pull yourself to where it lands. Your next powered melee within 3s is a Grapple Melee that suspends enemies around the target.' },
+  grapple: { name: 'Grapple', element: 'strand', kind: 'grapple', cd: 14, desc: 'Fire a Strand line and pull yourself to where it hits. If it finds nothing it hangs in the air as a pivot you swing from; jump to let go and keep your speed. Your next powered melee within 3s is a Grapple Melee that suspends enemies around the target.' },
   shackle: { name: 'Shackle Grenade', element: 'strand', kind: 'shackle', cd: 22, desc: 'Bursts into Strand threads that suspend every enemy nearby.' },
   threadling: { name: 'Threadling Grenade', element: 'strand', kind: 'threadling', cd: 20, desc: 'Bursts into three threadlings that hunt enemies and explode on contact.' },
   // U27 Prismatic: the grenade Transcendence swaps in for your own (js/prismatic.js). Not pickable; one per class.

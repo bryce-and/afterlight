@@ -20,7 +20,7 @@ import { sfx } from './audio.js';
 import { SUPER_TUNE, SUPER_POWER } from './combat.js';
 import { DARK_ASPECT_TUNE as AT, FRAGMENT_TUNE as FT } from './subclass.js';
 import { DARK_PERKS, DARK_EXO, weaponChill, sliceHit, canPerch, perchAdd } from './darkness-rules.js';
-import { hasLOS } from './physics.js';
+import { hasLOS, rayWorld } from './physics.js';
 import { groundAt, floorBelow } from './colliders.js';
 import { STASIS, STRAND, DARK_GRENADE, canFreeze, canSuspend, chill, freezeTime, suspendTime, shatters, shatterBlast, playerChill, breakFree, unravelTargets, darkWielder } from './darkness-rules.js';
 import * as ui from './ui.js';
@@ -28,6 +28,7 @@ import * as ui from './ui.js';
 const ST = ELEMENTS.stasis.hex, SD = ELEMENTS.strand.hex, ST_CORE = 0xe8f2ff, SD_CORE = 0xc8ffd8;
 const V = (a) => (a instanceof THREE.Vector3 ? a.clone() : new THREE.Vector3(a[0], a[1], a[2]));
 const _v = new THREE.Vector3();
+const GRAPPLE = { range: 38, speed: 26, reel: 7, minLen: 4, swingT: 3.2, maxSpeed: 30 }; // H32
 const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
 const glow = (c, k = 2.2, op = 1) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, flatShading: true, transparent: op < 1, opacity: op });
 
@@ -759,13 +760,7 @@ const methods = {
 
   // ---- per frame ----
   darkTick(dt) {
-    if (this.grapple) { // Grapple: pulled along the line to where it landed
-      const g = this.grapple;
-      g.t -= dt;
-      const d = g.to.clone().sub(this.pos);
-      if (d.length() < 1.5 || g.t <= 0) { this.grapple = null; this.vel.multiplyScalar(0.4); }
-      else { this.vel.copy(d.normalize().multiplyScalar(26)); this.onGround = false; if (Math.random() < 0.6) tracer(this.eye, g.to, SD, 0.02, 0.05); }
-    }
+    if (this.grapple) this.grappleTick(dt);
     if (this.asp.has('cryoclasm') && this.sprinting) {
       let hit = false;
       for (const c of [...objs.values()]) if (c.local && c.kind === 'crystal' && Math.hypot(c.pos.x - this.pos.x, c.pos.z - this.pos.z) < AT.cryoclasm.r) { breakObj(c); hit = true; }
@@ -774,6 +769,56 @@ const methods = {
     }
     if (this.status.has('banner')) this.healPct(AT.bannerofwar.heal * dt); // Banner of War: a slow heal
     if (this.darkLand && this.onGround) { const f = this.darkLand; this.darkLand = null; f(); }
+  },
+
+  // ---- H32: the Strand grapple, as in Destiny 2 ----
+  /** Fire the line along your aim. A wall, prop or hill within range is the anchor (you are pulled to it); otherwise the line runs its full
+   *  length and the end hangs in the air as a pivot you are reeled toward and can swing around. Jump lets go and keeps your speed. */
+  grappleShot(g) {
+    const fwd = this.getForward(new THREE.Vector3());
+    const d = rayWorld(this.eye, fwd, GRAPPLE.range);
+    const hit = d < GRAPPLE.range - 0.05;
+    const pt = this.eye.clone().addScaledVector(fwd, hit ? d : GRAPPLE.range);
+    this._grappleHit = hit; this._grappleFwd = fwd;
+    tracer(this.eye, pt, SD, 0.04, 0.25);
+    glowBurst(pt, SD, hit ? 8 : 12, 4, 0.06, 0.4);
+    this.darkGrenade(g, pt, null);
+    this._grappleHit = null; this._grappleFwd = null;
+  },
+  startGrapple(pt) {
+    const hit = this._grappleHit ?? true, fwd = this._grappleFwd;
+    const body = new THREE.Vector3(this.pos.x, this.pos.y + 1, this.pos.z);
+    const dist = pt.distanceTo(body);
+    if (hit) { // pulled to the surface, stopping short of it
+      const to = pt.clone(); if (fwd) to.addScaledVector(fwd, -0.7); to.y -= 0.6;
+      this.grapple = { mode: 'pull', to, t: dist / GRAPPLE.speed + 0.5, age: 0 };
+    } else {
+      this.grapple = { mode: 'pivot', anchor: pt.clone(), len: dist, t: GRAPPLE.swingT, age: 0 };
+    }
+  },
+  grappleTick(dt) {
+    const g = this.grapple;
+    g.t -= dt; g.age += dt;
+    const c = _v.set(this.pos.x, this.pos.y + 1, this.pos.z);
+    const target = g.to ?? g.anchor;
+    const n = target.clone().sub(c), dist = n.length();
+    if (dist > 1e-4) n.divideScalar(dist);
+    const release = G.input.pressed.Space && g.age > 0.15; // jump lets go
+    if (g.mode === 'pull') {
+      if (dist < 1.5 || g.t <= 0 || release) { this.grapple = null; this.vel.multiplyScalar(release ? 1 : 0.5); return; }
+      this.vel.copy(n).multiplyScalar(GRAPPLE.speed); this.onGround = false;
+    } else {
+      if (g.t <= 0 || release || (this.onGround && g.age > 0.3)) { this.grapple = null; return; } // you keep whatever speed you swung up
+      g.len = Math.max(GRAPPLE.minLen, g.len - GRAPPLE.reel * dt); // the rope reels in
+      if (dist > g.len) { // a taut rope: no motion away from the pivot, and a spring back to the rope's length
+        const away = -this.vel.dot(n);
+        if (away > 0) this.vel.addScaledVector(n, away);
+        this.vel.addScaledVector(n, Math.min(20, (dist - g.len) * 8));
+      }
+      const sp = this.vel.length(); if (sp > GRAPPLE.maxSpeed) this.vel.multiplyScalar(GRAPPLE.maxSpeed / sp);
+      this.onGround = false;
+    }
+    if (Math.random() < 0.7) tracer(this.eye, target, SD, 0.02, 0.05);
   },
 
   // ---- grenades ----
@@ -807,7 +852,7 @@ const methods = {
     } else if (id === 'coldsnap') {
       this.coldsnap(pt, tw ? 3 : 1);
     } else if (id === 'grapple') {
-      this.grapple = { to: pt.clone().setY(pt.y + 1.2), t: 0.9 };
+      this.startGrapple(pt);
       if (this.exo.has('cyrtarachne') && this.cls.subclassId === 'threadrunner') this.status.apply('wovenmail', { t: DARK_EXO.cyrtarachne.t, set: true }); // H26 Cyrtarachne's Facade
       this.status.apply('grapplemelee', { set: true });
       if (ms) dropTangle(pt);

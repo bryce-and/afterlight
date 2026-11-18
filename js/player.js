@@ -433,7 +433,7 @@ export class Player {
     if (this.status.has('tempered')) speed *= ASPECT_TUNE.tempered.speed; // Tempered Metal
     if (this.asp.has('prowl') && this.status.has('invisible')) speed *= ASPECT_TUNE.prowl.speed; // On the Prowl
     speed *= this.darkSpeed(); // U22: Chilled, Weavewalk, Cryoclasm, Darkness supers
-    const accel = this.onGround ? 14 : (JUMP_TUNE[this.cls.jump]?.air ?? 2.5);
+    const accel = this.onGround ? 14 : this.grapple ? 0.3 : (JUMP_TUNE[this.cls.jump]?.air ?? 2.5); // H32: on a grapple rope the air keeps your swing
     this.vel.x = damp(this.vel.x, wx * speed, accel, dt);
     this.vel.z = damp(this.vel.z, wz * speed, accel, dt);
     if (this.dash > 0) {
@@ -2386,6 +2386,7 @@ export class Player {
     this.empowerOthers('grenade');
     this.darkOnGrenade(); // U22: Thread of Ascent
     const el = g.element;
+    if (g.kind === 'grapple' && !g.transcend) { this.grappleShot(g); this.abilityAspects(); this.throwFist(0.32); sfx.throw(this.cls.element); return; } // H32: the grapple is a line, not a thrown grenade (darkness.js)
     const fwd = this.getForward(new THREE.Vector3());
     const start = this.eye.clone().addScaledVector(fwd, 0.6);
     spawnPlayerProjectile({
