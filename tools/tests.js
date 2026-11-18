@@ -4635,6 +4635,55 @@ test('U27 exotic class items: two distinct spirit perks, one-exotic rule, only a
   ok(RW.rollBlitzMenu(s).armor.some((a) => a.slot === 'classitem' && a.rarity === 'exotic'), 'always in the Blitz pick menu after unlock');
 });
 
+// ---------- H30: Edge of Action remote shield ----------
+test('H30 remote shield: an older shield expiring never nulls or writes through a newer one', async () => {
+  const { Player } = await import('../js/player.js');
+  const saveScene = G.scene, saveTick = G.tickers;
+  G.scene = new THREE.Scene(); G.tickers = [];
+  try {
+    const me = { remoteShield: null }, at = new THREE.Vector3(1, 0, 1);
+    Player.prototype.plantRemoteShield.call(me, at);
+    const first = me.remoteShield;
+    Player.prototype.plantRemoteShield.call(me, at); // a second shot replaces the first
+    const second = me.remoteShield;
+    ok(first !== second, 'second shield is a new object');
+    G.tickers[0].update(first.t + 1);                 // first expires: must not clear the newer one
+    ok(me.remoteShield === second, 'newer shield survives the older one expiring');
+    G.tickers[1].update(0.5);
+    ok(me.remoteShield === second && second.t < 10, 'newer shield keeps ticking');
+    me.remoteShield = null;                           // shield cleared elsewhere (death, mission end)
+    let threw = null;
+    try { G.tickers[1].update(0.5); } catch (e) { threw = e; }
+    ok(!threw, 'ticking after the shield was cleared does not throw: ' + (threw && threw.message));
+  } finally { G.scene = saveScene; G.tickers = saveTick; }
+});
+
+test('H30 Mars ramps: every tilted paving slab on a ramp rests on the terrain (no float)', async () => {
+  const { buildLevel } = await import('../js/world.js');
+  const mars = LOCATIONS.find((l) => l.id === 'mars'), bad = [];
+  const saveScene = G.scene;
+  for (const def of mars.missions) {
+    const lv = buildLevel(mars, def);
+    lv.scene.updateMatrixWorld(true);
+    const ramps = lv.terrain.features.filter((f) => f.type === 'ramp');
+    const onRamp = (x, z) => ramps.some((f) => { // inside a ramp's footprint (its length and width)
+      const dx = f.x1 - f.x0, dz = f.z1 - f.z0, len = Math.hypot(dx, dz), ux = dx / len, uz = dz / len, px = x - f.x0, pz = z - f.z0;
+      const a = px * ux + pz * uz, sd = Math.abs(-px * uz + pz * ux);
+      return a > -1 && a < len + 1 && sd < f.width / 2 + 1;
+    });
+    lv.scene.traverse((o) => {
+      if (!o.isMesh || o.geometry.type !== 'BoxGeometry' || o.parent !== lv.scene || o.scale.y >= 1 || o.scale.x < 5 || o.scale.z < 5) return;
+      if (!onRamp(o.position.x, o.position.z)) return;
+      for (const lx of [-0.5, 0, 0.5]) for (const lz of [-0.5, 0, 0.5]) {
+        const p = new THREE.Vector3(lx, -0.5, lz).applyMatrix4(o.matrixWorld), gap = p.y - lv.groundAt(p.x, p.z);
+        if (gap > 0.35) bad.push(`${def.id} slab at ${o.position.x.toFixed(1)},${o.position.z.toFixed(1)} floats ${gap.toFixed(2)} m`);
+      }
+    });
+  }
+  G.scene = saveScene;
+  eq(bad, [], bad.slice(0, 4).join(' | '));
+});
+
 // ---------- U29: boss redesign guards ----------
 // Every live boss builder keeps the old model's hit footprint: height, XZ extent, crit volume, mesh budget, muzzle and script hooks (baselines recorded from the pre-U29 models, tools/boss-baselines.json).
 test('U29 every boss builder keeps its baseline: height, footprint, crit region, mesh budget, muzzle and script hooks', async () => {

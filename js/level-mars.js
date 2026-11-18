@@ -485,8 +485,9 @@ export default {
         K.wall(off, cz - off, off, cz + off, h, { t, color: col });
       }
       K.door(0, cz + 30.8, 14, 12, 'x', { zone: 2, t: 5, color: STONE2, trim: HAZ });
-      vbox(K, 0, 2.2, -224, 13.4, 0.2, 16.4, PAVE, { rx: -0.2565 }); // paving on the ramp down from the gate
-      for (const sx of [-1, 1]) vbox(K, sx * 6.8, 2.5, -224, 0.3, 0.3, 16.4, HAZ, { glow: 1.1, rx: -0.2565 });
+      // H30: vbox heights are measured from the ground under the box, and the ramp is 2.1 m up at its midpoint, so these were written 2.1 m too high (floating)
+      vbox(K, 0, 0.1, -224, 13.4, 0.2, 16.4, PAVE, { rx: -0.2565 }); // paving on the ramp down from the gate
+      for (const sx of [-1, 1]) vbox(K, sx * 6.8, 0.4, -224, 0.3, 0.3, 16.4, HAZ, { glow: 1.1, rx: -0.2565 });
       for (const sx of [-1, 1]) {
         K.box(sx * 9, cz + 30.8, 2.4, 15, 5.4, STONE2);
         vbox(K, sx * 9, 15.5, cz + 30.8, 3, 1, 6, STONE, { rz: sx * 0.1 });
@@ -659,8 +660,9 @@ export default {
         K.box(sx * 11.5, z, 0.4, 7, 0.4, CAB3);
         vbox(K, sx * 11.5, 5, z + 0.25, 0.12, 4, 2, BANNER);
       }
-      vbox(K, 0, 2.85, -193, 17.4, 0.2, 26.6, CAB3, { rx: 0.2121 }); // a deck on the ramp: palace paving
-      for (const sx of [-1, 1]) vbox(K, sx * 8.9, 3.0, -193, 0.3, 0.3, 26.6, HAZ, { glow: 1.2, rx: 0.2121 });
+      // H30: measured from the ground under the box (2.8 m up at the ramp's midpoint), not absolute: these floated 2.8 m above the ramp
+      vbox(K, 0, 0.05, -193, 17.4, 0.2, 26.6, CAB3, { rx: 0.2121 }); // a deck on the ramp: palace paving
+      for (const sx of [-1, 1]) vbox(K, sx * 8.9, 0.2, -193, 0.3, 0.3, 26.6, HAZ, { glow: 1.2, rx: 0.2121 });
 
       // ---- command wings: a roofed Operations Hall (west) and a sealed Comms Centre (east) ----
       // west hall: open doorway on the courtyard side, an inner sealed bay behind a partition door
