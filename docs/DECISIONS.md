@@ -90,3 +90,4 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-17 | H37: Roguelike weapon offers: a weapon swap is 40% of options (was 25%), and 40% of those are exotic (was 10%) (`WEAPON_OFFER_CHANCE`, `EXOTIC_SHARE` in `js/boons.js`). | Claude (H37) |
 | 2026-11-17 | H37: Roguelike boon pick: hovering or focusing a weapon card shows its full roll (stats, archetype, perks) before you pick it, with no comparison to your own gear (`tipHTML` side `boon` in `js/ui.js`). | Claude (H37) |
 | 2026-11-17 | H38: Taking a weapon swap from the Roguelike boon pick refreshes the HUD weapon list at once: `showBoonMenu` in `js/game.js` calls `ui.renderWeaponRows`. | Claude (H38) |
+| 2026-11-18 | H39: Roguelike weapon offers: a weapon swap is 25% of options again (`WEAPON_OFFER_CHANCE` in `js/boons.js`; H37 raised it to 40% by mistake). The exotic share of weapon options stays at 40% (`EXOTIC_SHARE`, was 10% before H37). | Claude (H39) |

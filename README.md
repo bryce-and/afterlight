@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.4.5 "Hotfix" (H39)**: Roguelike weapon swaps are back to 25% of boon options, and exotics are still 40% of weapon options.
 - **v5.4.4 "Hotfix" (H38)**: a weapon swap taken from the Roguelike boon pick shows in the weapon list at once.
 - **v5.4.3 "Hotfix" (H37)**: Crota's End spawns and caches stay inside the room walls, Roguelike weapon offers are more common and more often exotic, and weapon cards show their full roll before you pick one.
 - **v5.4.2 "Hotfix" (H36)**: Roguelike bosses gain health more slowly, and you get a boon pick after every wave instead of every three.
