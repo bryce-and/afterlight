@@ -190,7 +190,6 @@ const OPTIC_LISTS = {
 const SCOPE_LISTS = { scout: ['simple', 'tactical', 'slim', 'amber'], sniper: ['long', 'fat', 'slim', 'amber'] };
 const IRON_LISTS = {
   shotgun: [['notch', GREEN], ['ghost', AMBER], ['ghost', GREEN], ['notch', AMBER]],
-  sidearm: [['ghost', GREEN], ['notch', WHITE], ['ghost', AMBER], ['notch', CYAN]],
   forerunner: [['notch', AMBER], ['ghost', WHITE]],
   glauncher: [['ghost', AMBER], ['notch', GREEN], ['ghost', CYAN]],
 };
@@ -576,7 +575,7 @@ function buildBaseGun(item, look) {
       for (let i = 0; i < 4; i++) B(0.034, 0.02, 0.006, 0, 0.012, -0.045 + i * 0.012, dark);
       B(0.032, 0.005, 0.1, 0, 0.032, 0.06, glow);
       T(0.008, 0.05, 0, 0.008, 0.172, steel, 6);
-      ironFit(k, item, dark, S, -0.04, 0.03, 0.14, 0.032);
+      floatDot(k, S, 0.14, [0xffd27a, 0x7dff9a, 0x5fd8ff, 0xff9a6a][frameIdx(item) % 4]); // H32: like the hand cannons, no iron sights: a glowing dot floating on the sight line, its color set by the frame
       return finish(g, { muzzleF: 0.2, muzzleY: 0.008, S, hip: [0.17, -0.18, -0.4], ads: 0.3, flash: fc });
     }
     case 'sword': {
