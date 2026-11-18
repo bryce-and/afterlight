@@ -485,7 +485,7 @@ function buildBaseGun(item, look) {
       return finish(g, { muzzleF: 0.73, S, hip: [0.22, -0.22, -0.52], ads: 0.09, flash: el.hex });
     }
     case 'rocket': {
-      S = 0.135;
+      S = 0.055; // H32: the sight rides on the left side of the tube, not on top; aiming slides the launcher right to line it up (ads.x below)
       T(0.075, 0.9, 0, 0, 0.12, body, 12);
       T(0.08, 0.08, 0, 0, 0.6, dark, 12, 0.092);
       T(0.088, 0.08, 0, 0, -0.35, dark, 12, 0.08);
@@ -495,8 +495,12 @@ function buildBaseGun(item, look) {
       B(0.1, 0.03, 0.2, 0, -0.085, -0.17, dark);
       B(0.03, 0.06, 0.12, -0.09, 0.0, 0.1, dark); B(0.032, 0.01, 0.1, -0.09, 0.015, 0.1, glow);
       B(0.16, 0.012, 0.03, 0, 0.0, 0.38, glow);
-      optic(k, item, dark, S, 0.05, 0.072);
-      return finish(g, { muzzleF: 0.65, S, hip: [0.25, -0.16, -0.48], ads: 0.3, flash: 0xffb060 });
+      const side = new THREE.Group(); side.position.x = -0.125; g.add(side);
+      B(0.1, 0.014, 0.07, -0.0625, 0.0, 0.05, dark); // bracket from the tube's left flank out to the sight
+      optic(kit(side), item, dark, S, 0.05, 0.0);
+      const out = finish(g, { muzzleF: 0.65, S, hip: [0.25, -0.16, -0.48], ads: 0.3, flash: 0xffb060 });
+      out.userData.ads.x = 0.125;
+      return out;
     }
     case 'mg': case 'xenophage': {
       S = 0.118;
