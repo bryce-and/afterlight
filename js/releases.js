@@ -5,6 +5,14 @@
 
 export const RELEASES = [
   {
+    version: '5.4.4', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'A weapon swap taken from the Roguelike boon pick shows up in the weapon list at once.',
+    notes: [
+      'Roguelike Horde and Endless: a weapon swap taken from the boon pick now updates the weapon list in the bottom right of the HUD right away (it kept showing the old gun)',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.4.3', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
     summary: 'Spawns and caches in Crota\'s End stay inside the room walls, Roguelike weapon offers are more common and more often exotic, and weapon cards show their full roll before you pick one.',
     notes: [

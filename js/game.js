@@ -1528,6 +1528,7 @@ export async function showBoonMenu(n) {
   if (G.mission !== M) return; // the run ended while the menu was open
   const o = offer[i] ?? offer[0];
   takeOption(P, o, items[offer.indexOf(o)]);
+  if (o.kind === 'weapon') ui.renderWeaponRows(); // H38: the bottom-right weapon list shows the new gun
   ui.feed(o.kind === 'boon' ? `Boon: ${BOON_BY_ID[o.id].name} x${M.boonRun.boons[o.id]}` : `Weapon: ${o.name} (${o.slot})`, '#c79bff');
   if (net.isHost) M.boonPicked?.add(net.myId); else sendBoonPick();
 }
