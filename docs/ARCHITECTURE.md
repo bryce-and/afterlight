@@ -231,7 +231,7 @@ The module map is in the README. These notes cover systems added during the over
 
 ## Roguelike runs (v5.1, U24, `js/boons.js`, `js/boon-run.js`, `js/deathcam.js`)
 - `js/boons.js` is pure rules with no rendering dependency, covered by tests in `tools/tests.js`: `BOONS` (25), `BOON_EVERY`, `rollOffers` (weapon swaps via `WEAPON_OFFER_CHANCE`), stacking (`addBoon`, `boonTotals`), `HORDE_SCALE` and `ENDLESS_SCALE` through `waveScale`, and the fair-spawn rules (`SPAWN_RULES`, `enemySpotOk`, `playerSpotOk`, `pickFairSpot`).
-- `js/boon-run.js` wires them in: `startBoonRun` and `endBoonRun` (run state lives on `mission.boonRun` and resets each run), `takeOption`, and the stat hooks (`applyBoonStats`, `outgoing`, `afterHit`, `incoming`, `onKillBoons`, `onGrenade`). `HORDE_KIT` is the rifle, shotgun and grenade launcher start.
+- `js/boon-run.js` wires them in: `startBoonRun` and `endBoonRun` (run state lives on `mission.boonRun` and resets each run), `takeOption`, and the stat hooks (`applyBoonStats`, `outgoing`, `afterHit`, `incoming`, `onKillBoons`, `onGrenade`). `HORDE_KIT` is the start kit: a random legendary primary, special and heavy (any archetype of each slot), since v5.4.1.
 - Roguelike is the `roguelike: true` flag on an activity in `data.js`: `horde_rogue` (Roguelike Horde) and `endless_rogue` (Roguelike Endless). Classic `horde` and `endless` have no flag and are unchanged.
 - Sealed boss rooms: `sealArena` in `js/game.js` runs when the activity is roguelike. Enemies appear inside the room and keep the fair-spawn distances.
 - The wave curve comes from `waveScale` in `game.js`: `ENDLESS_SCALE` for infinite waves, `HORDE_SCALE` otherwise.

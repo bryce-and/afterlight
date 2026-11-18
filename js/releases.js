@@ -5,6 +5,19 @@
 
 export const RELEASES = [
   {
+    version: '5.4.1', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Roguelike fixes: bosses have about 60% less health at wave 30, boons come every 3 waves, the starting kit is random legendary guns, and the Character screen is locked during a run.',
+    notes: [
+      'Roguelike Horde and Endless: boss health was scaled by the wave health curve twice. Bosses now use the boss curve alone, about 60% less boss health at wave 30',
+      'Roguelike boons come after wave 1 and every 3 waves after that (1, 4, 7 and so on), never after the last wave. They used to come every 5th wave',
+      'The Roguelike starting kit is a random legendary primary, special and heavy weapon, from any archetype of each slot, instead of a fixed rifle, shotgun and grenade launcher',
+      'The Character screen (I) is locked during a Roguelike run',
+      'Compressed Wave Frame and Trinary Vision bursts are placed above the terrain under each burst, so they no longer go through the floor on slopes',
+      'Broodweaver threadlings perched on you now go after enemies near you when your hit kills an enemy and nothing else is near the corpse',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.4', name: 'Boss Redesign', date: '2026-11-17', accent: '#ff5a4a', glyph: '☠',
     summary: 'Every boss has a new model: real faction units grown into proper bosses, plus new from-scratch designs for Aurix, Mindbender, the Fanatic and more.',
     notes: [
