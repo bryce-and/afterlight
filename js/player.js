@@ -2368,6 +2368,7 @@ export class Player {
   }
 
   useGrenade() {
+    if (this.grapple) { if (this.grapple.age > 0.15) this.grapple = null; return; } // H33: pressing the grenade again lets go of the grapple early (keeps your speed, like jumping off)
     if (this.status.has('fragout')) { this.throwFrag(); return; } // the frag stands in for your grenade until it is thrown
     if (this.cd.grenade > 0 && this.status.has('gunpowder')) { this.throwGunpowder(); return; }
     if (this.darkGrenadeUse()) return; // U22: Weavewalk

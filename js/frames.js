@@ -77,8 +77,8 @@ export const FRAMES = {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced blast radius and velocity.', stats: {} },
     rapid: { name: 'Rapid-Fire Frame', desc: 'Fires faster with a smaller blast and a deeper magazine.', stats: { rpm: 1.25, dmg: 0.8, mag: 1.25 }, handling: { projectile: { radius: 0.9 } } },
     wave: { name: 'Compressed Wave Frame', desc: 'Grenades fly flat and burst into a wave that rolls along the ground, hitting everything in its path.', stats: { dmg: 0.34 }, handling: { set: { wave: 5 }, projectile: { gravity: 0, speed: 1.3 } } },
-    lite: { name: 'Light Launcher Frame', desc: 'Special ammo. Small, fast grenades with a tighter blast. Single-shot: one grenade in the magazine.', slot: 'special', single: true, stats: { dmg: 0.22, rpm: 1.2, mag: 0.25 }, handling: { set: { reserve: 14, brick: 3 }, projectile: { radius: 0.6, speed: 1.15 } } },
-    double: { name: 'Double-Fire Frame', desc: 'Special ammo. Launches two grenades in a short spread with every shot.', slot: 'special', single: true, stats: { dmg: 0.125, rpm: 1.0, mag: 0.25 }, handling: { set: { grenades: 2, reserve: 14, brick: 3 }, projectile: { radius: 0.55 } } },
+    lite: { name: 'Light Launcher Frame', desc: 'Special ammo. Small, fast grenades with a tighter blast. Single-shot: one grenade in the magazine.', slot: 'special', single: true, stats: { dmg: 0.34, rpm: 1.2, mag: 0.25 }, handling: { set: { reserve: 14, brick: 3 }, projectile: { radius: 0.6, speed: 1.15 } } },
+    double: { name: 'Double-Fire Frame', desc: 'Special ammo. Launches two grenades in a short spread with every shot.', slot: 'special', single: true, stats: { dmg: 0.19, rpm: 1.0, mag: 0.25 }, handling: { set: { grenades: 2, reserve: 14, brick: 3 }, projectile: { radius: 0.55 } } },
   },
   sidearm: {
     adaptive: { name: 'Adaptive Frame', desc: 'Well-rounded: balanced damage and rate of fire.', stats: {} },
