@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { mat } from './world.js';
 import { PI, cone, ico, grow, horns, shoulderSpikes, cape, backSpines } from './boss-kit.js';
 import { hive } from './models-hive.js';
@@ -32,16 +33,26 @@ export const HIVE_BOSSES = {
     cape(k, t, 0.7, 1.5, shroud());
     bigBlade(k, 1.3, 0.14);
   }, 0.115),
+  // Crota (Bryce's reference, 2026-11-17): a spectral green-white body, a great fan of leaf-blade spikes over the head, huge spiked pauldrons,
+  // spiked forearms and knees, a long glowing blade.
   crota: (c) => grow(c, (k) => hive(k, 'boss'), 3.0, (k) => {
-    const t = k.torso;
-    for (const s of [-1, 1]) { // great antlers over the crown
-      k.B(0.06, 0.6, 0.06, s * 0.16, 1.4, -0.02, bone(), t, false, [0, 0, s * -0.22]);
-      for (let i = 0; i < 3; i++) cone(k, 0.04, 0.4 - i * 0.06, 4, bone(), s * (0.24 + i * 0.1), 1.55 + i * 0.16, -0.02, t, false, [0, 0, s * (-0.7 + i * 0.2)]);
+    const t = k.torso, glow = GLOW(), pale = mat(0xd8ffe8, { emissive: 0x6affb0, emissiveIntensity: 1.6 });
+    for (let i = -4; i <= 4; i++) cone(k, 0.09, 0.7 - Math.abs(i) * 0.07, 4, i % 2 ? pale : glow, i * 0.1, 1.25 + (4 - Math.abs(i)) * 0.03, -0.04, t, false, [-0.1, 0, -i * 0.2]); // the fan crown
+    for (const s of [-1, 1]) {
+      k.B(0.5, 0.2, 0.55, s * 0.55, 0.92, 0, pale, t, false, [0, 0, s * -0.4]);
+      for (let i = 0; i < 4; i++) cone(k, 0.07, 0.6 - i * 0.08, 4, glow, s * (0.5 + i * 0.07), 1.05 + i * 0.05, -0.1 + i * 0.07, t, false, [-0.2, 0, s * -(0.25 + i * 0.1)]);
     }
-    shoulderSpikes(k, t, 0.46, 0.84, 4, 0.55, chitin());
-    cape(k, t, 1.0, 1.7, shroud());
-    k.B(0.2, 0.34, 0.06, 0, 0.56, 0.22, GLOW(), t);
+    for (const hip of k.legs) for (let i = 0; i < 2; i++) cone(k, 0.05, 0.25, 4, glow, 0, -0.4, 0.15 - i * 0.08, hip, false, [PI / 2 + i * 0.5, 0, 0]); // knee spikes
+    cape(k, t, 1.0, 1.7, mat(0x14201a));
     bigBlade(k, 2.0, 0.22);
+    // a spectral wash over the whole body: tint a private copy of every material, shared per source so the parts still merge
+    const seen = new Map();
+    k.g.traverse((o) => {
+      if (!o.isMesh || o.material === glow || o.material === pale) return;
+      let m = seen.get(o.material);
+      if (!m) { m = o.material.clone(); m.color?.lerp(new THREE.Color(0x9dffc8), 0.65); if (m.emissive) { m.emissive = new THREE.Color(0x2aff8a); m.emissiveIntensity = 0.5; } seen.set(o.material, m); }
+      o.material = m;
+    });
   }, 0.38),
   wizard: (c) => grow(c, noHover((k) => hive(k, 'hv_wizard')), 2.2, (k) => {
     const t = k.torso;
