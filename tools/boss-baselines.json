@@ -12,6 +12,7 @@
   "critMinY": 2.05,
   "critMaxY": 3.75,
   "meshes": 64,
+  "drawn": 17,
   "muzzle": [
    0,
    3.2,
@@ -34,6 +35,7 @@
   "critMinY": 0.75,
   "critMaxY": 1.69,
   "meshes": 27,
+  "drawn": 6,
   "muzzle": [
    0,
    1.22,
@@ -56,6 +58,7 @@
   "critMinY": 1.585,
   "critMaxY": 2.607,
   "meshes": 42,
+  "drawn": 18,
   "muzzle": [
    0.42,
    2.121,
@@ -76,6 +79,7 @@
   "critMinY": 1.576,
   "critMaxY": 2.4,
   "meshes": 43,
+  "drawn": 15,
   "muzzle": [
    0.2,
    1.148,
@@ -96,6 +100,7 @@
   "critMinY": 1.56,
   "critMaxY": 1.884,
   "meshes": 41,
+  "drawn": 15,
   "muzzle": [
    0.18,
    1.183,
@@ -116,6 +121,7 @@
   "critMinY": 1.542,
   "critMaxY": 1.977,
   "meshes": 43,
+  "drawn": 18,
   "muzzle": [
    0.4,
    1.945,
@@ -136,6 +142,7 @@
   "critMinY": 1.485,
   "critMaxY": 2.397,
   "meshes": 46,
+  "drawn": 16,
   "muzzle": [
    0.16,
    1.088,
@@ -156,6 +163,7 @@
   "critMinY": 1.694,
   "critMaxY": 2.161,
   "meshes": 35,
+  "drawn": 15,
   "muzzle": [
    0.28,
    1.229,
@@ -176,6 +184,7 @@
   "critMinY": 1.694,
   "critMaxY": 2.292,
   "meshes": 41,
+  "drawn": 16,
   "muzzle": [
    0,
    1.488,
@@ -196,6 +205,7 @@
   "critMinY": 2.056,
   "critMaxY": 3.364,
   "meshes": 57,
+  "drawn": 19,
   "muzzle": [
    0,
    1.819,
@@ -216,6 +226,7 @@
   "critMinY": 1.685,
   "critMaxY": 2.395,
   "meshes": 45,
+  "drawn": 20,
   "muzzle": [
    0,
    1.429,
@@ -236,6 +247,7 @@
   "critMinY": 1.595,
   "critMaxY": 2.131,
   "meshes": 47,
+  "drawn": 19,
   "muzzle": [
    0,
    1.318,
@@ -256,6 +268,7 @@
   "critMinY": 0.955,
   "critMaxY": 1.545,
   "meshes": 26,
+  "drawn": 7,
   "muzzle": [
    0,
    1.25,
@@ -278,6 +291,7 @@
   "critMinY": 1.69,
   "critMaxY": 2.17,
   "meshes": 37,
+  "drawn": 20,
   "muzzle": [
    0.3,
    1.34,
@@ -298,6 +312,7 @@
   "critMinY": 1.69,
   "critMaxY": 2.29,
   "meshes": 39,
+  "drawn": 19,
   "muzzle": [
    0.34,
    1.32,
@@ -318,6 +333,7 @@
   "critMinY": 1.89,
   "critMaxY": 2.891,
   "meshes": 43,
+  "drawn": 22,
   "muzzle": [
    0.4,
    1.48,
@@ -338,6 +354,7 @@
   "critMinY": 1.809,
   "critMaxY": 2.479,
   "meshes": 39,
+  "drawn": 19,
   "muzzle": [
    0.36,
    1.261,
@@ -358,6 +375,7 @@
   "critMinY": 1.472,
   "critMaxY": 2.047,
   "meshes": 37,
+  "drawn": 30,
   "muzzle": [
    0,
    1.357,
@@ -378,6 +396,7 @@
   "critMinY": 1.306,
   "critMaxY": 1.894,
   "meshes": 23,
+  "drawn": 7,
   "muzzle": [
    0,
    1.6,
@@ -400,6 +419,7 @@
   "critMinY": 1.771,
   "critMaxY": 2.75,
   "meshes": 44,
+  "drawn": 18,
   "muzzle": [
    0.32,
    1.458,
@@ -420,6 +440,7 @@
   "critMinY": 1.716,
   "critMaxY": 2.966,
   "meshes": 46,
+  "drawn": 18,
   "muzzle": [
    0.88,
    1.545,
@@ -440,6 +461,7 @@
   "critMinY": 0.567,
   "critMaxY": 1.538,
   "meshes": 141,
+  "drawn": 24,
   "muzzle": [
    0,
    1.17,
@@ -460,6 +482,7 @@
   "critMinY": 1.98,
   "critMaxY": 2.67,
   "meshes": 78,
+  "drawn": 78,
   "muzzle": [
    0.825,
    1.8,
@@ -483,6 +506,7 @@
   "critMinY": 3.669,
   "critMaxY": 6.236,
   "meshes": 97,
+  "drawn": 25,
   "muzzle": [
    0,
    2.8,
@@ -503,6 +527,7 @@
   "critMinY": 3.035,
   "critMaxY": 4.346,
   "meshes": 82,
+  "drawn": 23,
   "muzzle": [
    0,
    2.32,
@@ -523,6 +548,7 @@
   "critMinY": 2.926,
   "critMaxY": 4.173,
   "meshes": 120,
+  "drawn": 36,
   "muzzle": [
    1.6,
    4.684,

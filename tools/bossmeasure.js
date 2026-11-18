@@ -7,7 +7,16 @@ import { LOCATIONS } from '../js/data.js';
 
 export const HOOKS = ['hover', 'head', 'visor', 'lens', 'gobletArm', 'goblet', 'onDeath', 'deathStep'];
 
+/** Meshes left after the runtime merge (enemy-merge.js): the draw-call proxy. */
+function mergedMeshes(name) {
+  const m = buildModel({ typeId: 'boss', bossModel: name, maxShield: 0 }, LOCATIONS[0].colors, 'legion');
+  let n = 0;
+  m.group.traverse((o) => { if (o.isMesh) n++; });
+  return n;
+}
+
 export function measureBoss(name) {
+  const drawn = mergedMeshes(name);
   const prev = globalThis.__noEnemyMerge;
   globalThis.__noEnemyMerge = true;
   let m;
@@ -31,7 +40,7 @@ export function measureBoss(name) {
     height: r(m.height), torso: !!m.torso,
     minX: r(all.min.x), maxX: r(all.max.x), minZ: r(all.min.z), maxZ: r(all.max.z), maxY: r(all.max.y),
     critVol: critMeshes ? r(csize.x * csize.y * csize.z) : 0, critMeshes, critMinY: critMeshes ? r(crit.min.y) : 0, critMaxY: critMeshes ? r(crit.max.y) : 0,
-    meshes, muzzle: [r(mw.x), r(mw.y), r(mw.z)],
+    meshes, drawn, muzzle: [r(mw.x), r(mw.y), r(mw.z)],
     hooks: HOOKS.filter((k) => !!m[k]),
   };
 }
