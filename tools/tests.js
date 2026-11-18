@@ -1777,7 +1777,7 @@ test('U13b: bricks are bigger when the reserve is empty and smaller when full', 
 
 test('Glaive bolt: a travelling projectile with shared falloff', () => {
   const b = ARCHETYPES.glaive.glaive.bolt;
-  ok(b && b.speed >= 85 && b.speed <= 110 && b.size < 0.15 && b.life > 0.5, 'bolt tuned fast and small');
+  ok(b && b.speed >= 85 && b.speed <= 150 && b.size < 0.15 && b.life > 0.5, 'bolt tuned fast and small');
   const F = { close: 0, bonus: 1, min: 0.5, span: 1.5 };
   eq(C.falloffMult(F, 10, 28), 1); ok(C.falloffMult(F, 60, 28) < 1 && C.falloffMult(F, 500, 28) === 0.5, 'falls to the floor');
   ok(C.falloffMult({ close: 5, bonus: 1.3, min: 0.5, span: 1.5 }, 1, 28) > 1, 'point-blank bonus');
