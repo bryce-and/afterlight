@@ -5,7 +5,7 @@ import { pickExotic, makeExotic, makeArmor, makeWeapon, rollItem, newId } from '
 import { tierOf, tierClears, anyBaseClear, campaignDone, armorBand, capRoll, CAMPAIGN_TIERS } from './campaign.js';
 import { blitzPools } from './blitz.js';
 import { XP, LIGHT_CAP } from './progression.js';
-import { addItem, addXp, playerPower, playerLevel, writeSave, ALL_MISSIONS, enforceSlotCap } from './save.js';
+import { addItem, addXp, playerPower, playerLevel, writeSave, ALL_MISSIONS, enforceSlotCap, prismaticUnlocked } from './save.js';
 
 /** What each unlock offers: `armor` and `weapons` exotics are shown, the player keeps exactly `keepArmor` and `keepWeapons`. */
 export const REWARD_MENUS = {
@@ -49,6 +49,7 @@ export function rollBlitzMenu(s, rnd = Math.random) {
   const armorPool = exoticArmorFor(s.classId, playerLevel(s));
   const armor = pools.armor.map((name) => { const a = makeArmor(armorPool.find((x) => x.name === name).slot, power, 4, null, s.classId, name, armorBand(s)); a.isNew = true; return a; });
   const weapons = pools.weapons.map((name) => makeExotic(name, power));
+  if (prismaticUnlocked(s)) { const ci = makeArmor('classitem', power, 4, null, s.classId, null, armorBand(s)); ci.isNew = true; armor.push(ci); } // U27: always an exotic class item option, once Prismatic is unlocked
   return { id: newId(), tier: 'blitz', armor, weapons, allFound: pools.allFound };
 }
 /** Rolls the Blitz menu and stores it in this Guardian's save until it is claimed. */

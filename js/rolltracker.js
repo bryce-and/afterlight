@@ -134,7 +134,7 @@ function detailHTML(e, q) {
 export function renderRollTracker(main) {
   const all = trackerEntries();
   const options = (vals, label, cur) => `<option value="">${label}</option>${vals.map(([v, n]) => `<option value="${esc(v)}"${cur === v ? ' selected' : ''}>${esc(n)}</option>`).join('')}`;
-  const elems = Object.values(ELEMENTS).map((x) => [x.id, x.name]);
+  const elems = Object.values(ELEMENTS).filter((x) => x.id !== 'prismatic').map((x) => [x.id, x.name]);
   const slots = ['primary', 'special', 'heavy'].map((s) => [s, SLOT_NAMES[s] || s]);
   const archIds = [...new Set(all.map((e) => e.arch))], dup = (a) => archIds.filter((b) => ARCHETYPES[b].name === ARCHETYPES[a].name).length > 1;
   const arches = archIds.map((a) => [a, ARCHETYPES[a].name + (!dup(a) ? '' : ARCHETYPES[a].exoticOnly ? ' (Exotic)' : ` (${SLOT_NAMES[ARCHETYPES[a].slot] || ARCHETYPES[a].slot})`)]).sort((a, b) => a[1].localeCompare(b[1])); // H23: two families can share a name (heavy and primary)

@@ -1,5 +1,6 @@
 // U20b Legend and Ultimate II screens: the full-screen unlock animations, the exotic reward menu, the Skip Campaign confirm.
 // Rules live in rewards.js; this file only draws and listens.
+import { spiritEntries } from './exotic-class-items.js';
 import { EXOTIC_ARMOR_PERKS } from './data.js';
 import { G } from './state.js';
 import { REWARD_MENUS, validateClaim, claimMenu, pendingMenus, skipCampaign, skipAvailableFor } from './rewards.js';
@@ -54,7 +55,8 @@ export function playUnlock(kind) {
 
 function menuCard(it) {
   const perk = it.kind === 'armor' ? EXOTIC_ARMOR_PERKS[it.name] : null;
-  const text = perk ? `${perk.name}: ${perk.desc}` : it.flavor || '';
+  const spirits = spiritEntries(it); // U27: an exotic class item carries two Spirit perks, Prismatic only
+  const text = spirits.length ? `${spirits.map((e) => `${e.title} (${e.name}): ${e.desc}`).join(' ')} Works only with the Prismatic subclass.` : perk ? `${perk.name}: ${perk.desc}` : it.flavor || '';
   return `<div class="rw-pick" data-id="${it.id}" role="button" tabindex="0">${itemCard(it)}<p class="rw-perk">${esc(text)}</p></div>`;
 }
 

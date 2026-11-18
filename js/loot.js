@@ -4,6 +4,10 @@ import { LIGHT_MAX } from './campaign.js';
 import { armorTotal, rollStats, blankMods } from './armor.js';
 import { namedFor, perkPoolFor, rollPerks, weaponStats, frameSlot, archesForSlot } from './frames.js';
 import { SETS, setForDrop, setPieceName } from './style.js';
+import { EXOTIC_CLASS_ITEMS, rollSpirits } from './exotic-class-items.js';
+
+/** U27: exotic class items drop only once Prismatic is unlocked (save.js keeps this switch in step with the save). */
+export const classItemExotics = { on: false };
 
 const ADJ = ['Ashen', 'Iron', 'Silent', 'Crimson', 'Hollow', 'Vigil', 'Dusk', 'Ember', 'Pale', 'Broken', 'Storm', 'Grave', 'Gilded', 'Wayward', 'Bitter', 'Sable', 'Lucent', 'Feral', 'Errant', 'Last'];
 const NOUN = ['Oath', 'Promise', 'Requiem', 'Verdict', 'Covenant', 'Lament', 'Sentinel', 'Herald', 'Reckoning', 'Psalm', 'Edict', 'Tide', 'Mercy', 'Vow', 'Witness', 'Ruin', 'Hymn', 'Answer', 'Warden', 'Dirge'];
@@ -74,13 +78,15 @@ export function makeArmor(slot, power, rIdx, dest = null, classId = null, exotic
   if (slot === 'classitem') classId = classId || pick(Object.keys(CLASSES)); // U27: a class item always belongs to one class
   const stats = rollStats(armorTotal(rar.id, band));
   let name, set = null;
-  if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = exoticName || pick(EXOTIC_ARMOR[classId][slot]); } // exotics exist for one class
+  if (rar.id === 'exotic' && slot === 'classitem') { name = EXOTIC_CLASS_ITEMS[classId]; } // U27: Essentialism, Stoicism, Solipsism; the two Spirit perks are rolled below
+  else if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = exoticName || pick(EXOTIC_ARMOR[classId][slot]); } // exotics exist for one class
   else if (rar.id === 'legendary') { set = setForDrop(dest); name = setPieceName(set, slot, classId); } // U23: dungeon sets name each class's pieces
   else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(nounsFor(slot, classId))}`;
   else name = `${pick(ADJ)} ${pick(nounsFor(slot, classId))}`;
   // Armor 2.0: no perks. Four sockets for mods (the first takes stat mods), filled by the player.
   const it = { id: newId(), kind: 'armor', slot, classId, rarity: rar.id, name, power: clampPower(power), stats, mods: blankMods(), isNew: true };
   if (set) it.set = set;
+  if (rar.id === 'exotic' && slot === 'classitem') it.spirits = rollSpirits(classId);
   return it;
 }
 
@@ -119,6 +125,7 @@ export function rollItem(power, rIdx, slot = null, dest = null, classId = null, 
     }
     classId = classId || pick(Object.keys(EXOTIC_ARMOR));
     const pool = exoticArmorFor(classId, level).filter((x) => !fixed || x.slot === slot);
+    if (classItemExotics.on && (!fixed || slot === 'classitem')) pool.push({ name: EXOTIC_CLASS_ITEMS[classId], slot: 'classitem' }); // U27: once Prismatic is unlocked
     if (!pool.length) return makeArmor(slot, power, 3, dest, classId, null, band); // U27: no exotic class items yet (Prismatic, B2): a legendary instead
     const name = pickExotic(pool.map((x) => x.name), found);
     return makeArmor(pool.find((x) => x.name === name).slot, power, rIdx, dest, classId, name, band);

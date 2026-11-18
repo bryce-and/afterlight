@@ -1,13 +1,13 @@
 import { SLOTS, SLOT_NAMES, WEAPON_SLOTS, ARMOR_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
-import { starterGear, dismantleValue, armoryGear, rollItem, makeArmor } from './loot.js';
+import { starterGear, dismantleValue, armoryGear, rollItem, makeArmor, classItemExotics } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { randInt } from './util.js';
 import { frameFor, weaponStats } from './frames.js';
 import { MODS, blankMods, migrateArmorStats } from './armor.js';
 import { newQuests, ensureQuests, actOpen } from './quests.js';
 import { setForLegacy, appearance, shaderFor, SHADERS } from './style.js';
-import { tierClears, capRoll, overloadOn, overloadUnlocked, armorBand } from './campaign.js';
+import { legendaryCleared, tierClears, capRoll, overloadOn, overloadUnlocked, armorBand } from './campaign.js';
 import { newDungeons } from './dungeon-rules.js';
 import { sanitizeKeybinds } from './keybinds.js';
 import { sanitizeMobile } from './mobile.js';
@@ -251,6 +251,7 @@ export function loadSave() {
     s.settings.mobile = sanitizeMobile(s.settings.mobile); // U26: additive, an old save gets the defaults (no reset)
     const refreshed = refreshWeapons(s);
     if (enforceGates(s) || refreshed) writeSave(s);
+    syncPrismatic(s); // U27: Prismatic may already be unlocked (the guaranteed exotic class item)
     return s;
   } catch (e) {
     console.error('Save file is corrupt; ignoring it.', e);
@@ -258,7 +259,22 @@ export function loadSave() {
   return null;
 }
 
+/**
+ * U27: keeps the exotic class item drop switch in step with the save, and gives the one guaranteed exotic class item the first time this
+ * Guardian sees Prismatic unlocked (s.prismGift is account-wide, keyed by class). Returns the item it gave, or null.
+ */
+export function syncPrismatic(s) {
+  classItemExotics.on = prismaticUnlocked(s);
+  if (!classItemExotics.on || s.prismGift?.[s.classId]) return null;
+  s.prismGift = { ...(s.prismGift || {}), [s.classId]: true };
+  const it = makeArmor('classitem', playerPower(s), 4, null, s.classId, null, armorBand(s));
+  addItem(s, it);
+  writeSave(s);
+  return it;
+}
+
 export function writeSave(s) {
+  classItemExotics.on = !!s.classId && prismaticUnlocked(s); // cheap; every drop checks this
   try { store.setItem(KEY, JSON.stringify(s)); } catch (e) { console.error('Failed to write save:', e); }
 }
 
@@ -296,7 +312,9 @@ export function addXp(s, n) {
   return { from, to };
 }
 
-export const isSubclassUnlocked = (s, classId, subId) => playerLevel(s) >= subclassLevel(classId, subId);
+/** U27: Prismatic opens with the Legendary campaign clear (account-wide, like Mission Blitz); the other subclasses open by level. */
+export const prismaticUnlocked = (s) => legendaryCleared(s);
+export const isSubclassUnlocked = (s, classId, subId) => (CLASSES[classId].subclasses[subId]?.prismatic ? prismaticUnlocked(s) : playerLevel(s) >= subclassLevel(classId, subId));
 
 /** 'claimed' | 'ready' | 'locked' | null (no item reward at that level). */
 export function rewardState(s, level) {
@@ -396,6 +414,7 @@ export function switchCharacter(s, classId) {
   s.postmaster = next.postmaster || []; // U16: so are the Postmaster and the quests
   s.quests = next.quests || newQuests();
   enforceGates(s);
+  syncPrismatic(s); // U27: this Guardian's guaranteed exotic class item, if Prismatic is already unlocked
   writeSave(s);
 }
 /** What the Guardian looks like: the equipped armor's looks and the class's shader (style.js). */

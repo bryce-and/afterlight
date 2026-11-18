@@ -336,6 +336,24 @@ kbd { font-family: var(--head); font-weight: 700; font-size: 11px; padding: 1px 
 #eplate.major .ep-hp { background: #ff9a2e; }
 .ep-shield { height: calc(4px * var(--ps)); margin-top: calc(2px * var(--ps)); }
 #super { margin-bottom: 10px; }
+/* U27: the Transcendence meters, drawn only while a Prismatic subclass is equipped */
+#prism { margin-top: 5px; }
+#prism.hidden { display: none; }
+#prism .pm-row { display: flex; gap: 8px; align-items: center; font-weight: 700; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.65); margin-bottom: 3px; }
+#prism .pm-name { flex: 1; }
+#prism .pm-bars { display: flex; gap: 4px; }
+#prism .pm-bar { flex: 1; height: 6px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2); }
+#prism .pm-bar i { display: block; height: 100%; width: 0; }
+#prism .pm-bar.light i { background: linear-gradient(90deg, #ffb347, #fff2a8); }
+#prism .pm-bar.dark i { background: linear-gradient(90deg, #4d88ff, #35e366); }
+#prism.ready .pm-name { color: #ffd6f6; }
+#prism.ready .pm-bar { border-color: #ff9be8; animation: superglow 1.4s ease-in-out infinite; }
+#prism.active .pm-bar.light i, #prism.active .pm-bar.dark i { background: linear-gradient(90deg, #ff9be8, #fff); }
+#prism.active .pm-name { color: #ff9be8; }
+/* the TRANSCEND tile on phones: only while the meters are full (or in the layout editor) */
+.tbtn.k-transcend { display: none; border-color: #ff9be8; color: #ffd6f6; }
+.tbtn.k-transcend.ready { display: flex; }
+#touch.editing .tbtn.k-transcend { display: flex; }
 .super-top { display: flex; gap: 8px; align-items: center; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
 .super-label { color: rgba(255,255,255,0.65); flex: 1; }
 .super-track { height: 8px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2); }
@@ -1288,3 +1306,5 @@ html.mobile #abilities .ab { min-width: 78px; min-height: 70px; }
 html.mobile #weapons .wrow { min-height: 62px; }
 html.mobile #objective { left: calc(76px + var(--sal)); }
 html.mobile #pause .ctl-grid, html.mobile #pause #p-controls { display: none; } /* keyboard cheat sheet is for desktop */
+.sp-lockhint { margin: 6px 2px 2px; font-size: 12px; color: #8b95a3; letter-spacing: .02em; }
+.nameplate.transcend { text-shadow: 0 0 8px #ff9be8, 0 0 14px #ff9be8; }

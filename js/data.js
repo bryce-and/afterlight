@@ -8,6 +8,8 @@ export const ELEMENTS = {
   void: { id: 'void', name: 'Void', color: '#b07cff', hex: 0xb07cff, symbol: '<path d="M32 4a28 28 0 1 0 0.1 0zm0 8a20 20 0 1 1-0.1 0z"/><path d="M32 18 46 42H18z"/>' },
   stasis: { id: 'stasis', name: 'Stasis', color: '#4d88ff', hex: 0x4d88ff, symbol: '<path d="M32 2 40 20 32 30 24 20zM32 62 24 44 32 34 40 44zM6 17l19 3 5 11-12-1zM58 47l-19-3-5-11 12 1zM6 47l11-15h12l-8 10zM58 17 47 32H35l8-10z"/>' },
   strand: { id: 'strand', name: 'Strand', color: '#35e366', hex: 0x35e366, symbol: '<path d="M32 4c10 8 10 20 0 28-10-8-10-20 0-28zm0 6c-4 6-4 12 0 16 4-4 4-10 0-16z"/><path d="M8 50c3-12 14-18 24-18-2 12-12 20-24 18zm6-4c8 0 13-4 15-10-6 1-12 4-15 10z"/><path d="M56 50c-12 2-22-6-24-18 10 0 21 6 24 18zm-6-4c-3-6-9-9-15-10 2 6 7 10 15 10z"/>' },
+  // U27: the Prismatic subclass's own colour (its abilities keep their elements; this is the subclass, the meters and the unlock card)
+  prismatic: { id: 'prismatic', name: 'Prismatic', color: '#ff9be8', hex: 0xff9be8, symbol: '<path d="M32 4 58 52H6z" fill-opacity="0.25"/><path d="M32 4 58 52H6zm0 14L17 44h30z"/><path d="M32 26v12"/>' },
 };
 // Energy elements a non-exotic weapon can roll (Kinetic is primary-only).
 export const ENERGY = ['solar', 'arc', 'void', 'stasis', 'strand'];
@@ -274,34 +276,35 @@ export const EXOTIC_RANDOM_WEAPONS = EXOTIC_WEAPONS.filter((e) => !e.mission && 
 /** Special-ammo weapon types re-slotted as Heavy hit harder and carry less ammo. */
 export const HEAVY_VERSION = { dmg: 1.7, reserve: 7, brick: 2 };
 // What each exotic armor piece does. Exotic armor belongs to one class, like Destiny 2.
+// U27: `spirit: true` marks the generic ones an exotic class item can roll (Prismatic only); perks tied to a subclass or a super Prismatic can't equip are left out.
 export const EXOTIC_ARMOR_PERKS = {
   // Titan
-  'An Insurmountable Skullfort': { id: 'skullfort', name: 'Cranial Spike', desc: 'Kills with your powered melee fully recharge it and restore your health.' },
-  Synthoceps: { id: 'synthoceps', name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
-  'Heart of Inmost Light': { id: 'heart', name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
-  Dunemarchers: { id: 'dunemarchers', name: 'Linear Actuators', desc: 'Sprinting builds static. Your next melee chains lightning into up to 3 enemies.' },
-  'Mask of the Quiet One': { id: 'quietone', name: 'Eye for an Eye', desc: 'Taking damage makes your abilities recharge 50% faster for 4s. Void ability kills heal you for 40% of your health.' },
+  'An Insurmountable Skullfort': { id: 'skullfort', spirit: true, name: 'Cranial Spike', desc: 'Kills with your powered melee fully recharge it and restore your health.' },
+  Synthoceps: { id: 'synthoceps', spirit: true, name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
+  'Heart of Inmost Light': { id: 'heart', spirit: true, name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
+  Dunemarchers: { id: 'dunemarchers', spirit: true, name: 'Linear Actuators', desc: 'Sprinting builds static. Your next melee chains lightning into up to 3 enemies.' },
+  'Mask of the Quiet One': { id: 'quietone', spirit: true, name: 'Eye for an Eye', desc: 'Taking damage makes your abilities recharge 50% faster for 4s. Void ability kills heal you for 40% of your health.' },
   'Ursa Furiosa': { id: 'ursa', name: 'Bear Mother', desc: 'Damage you block while guarding with Sentinel Shield returns super energy when the super ends (up to 50%).' },
-  'Hallowfire Heart': { id: 'hallowfire', name: 'Sunheart', desc: 'While your super is fully charged, your abilities recharge 60% faster.' },
-  Peacekeepers: { id: 'peacekeepers', name: 'Hip Holsters', desc: 'Submachine guns reload themselves while stowed, and you switch to them twice as fast.' },
+  'Hallowfire Heart': { id: 'hallowfire', spirit: true, name: 'Sunheart', desc: 'While your super is fully charged, your abilities recharge 60% faster.' },
+  Peacekeepers: { id: 'peacekeepers', spirit: true, name: 'Hip Holsters', desc: 'Submachine guns reload themselves while stowed, and you switch to them twice as fast.' },
   // Hunter
-  'Celestial Nighthawk': { id: 'nighthawk', name: 'Hawkeye Hack', desc: 'Golden Gun fires a single shot that deals 5x damage. A kill with it returns 30% super energy.' },
-  "Liar's Handshake": { id: 'liars', name: 'Cross Counter', desc: 'Powered melee hits grant Cross Counter for 5s: your next uncharged melee deals double damage and heals you for 40% of your health.' },
+  'Celestial Nighthawk': { id: 'nighthawk', spirit: true, name: 'Hawkeye Hack', desc: 'Golden Gun fires a single shot that deals 5x damage. A kill with it returns 30% super energy.' },
+  "Liar's Handshake": { id: 'liars', spirit: true, name: 'Cross Counter', desc: 'Powered melee hits grant Cross Counter for 5s: your next uncharged melee deals double damage and heals you for 40% of your health.' },
   'Raiden Flux': { id: 'raiden', name: 'Shocking Blows', desc: 'Each Arc Staff hit extends the super by 0.5s (up to 5s). Quick successive hits deal 10% more damage, stacking to 50%.' },
-  'St0mp-EE5': { id: 'stomp', name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your dodge recharges 30% faster.' },
-  'Graviton Forfeit': { id: 'graviton', name: 'Vanishing Shadow', desc: 'Invisibility lasts 50% longer. While invisible, your melee recharges twice as fast and you regenerate health.' },
-  "Young Ahamkara's Spine": { id: 'ahamkara', name: 'Wish-Dragon Teeth', desc: 'Grenade hits return 5% of your melee and class ability energy.' },
-  'Lucky Raspberry': { id: 'raspberry', name: 'Sparkling Personality', desc: 'Arc grenades chain lightning into 2 more enemies. An Arc grenade that catches an enemy refunds 30% of its cooldown.' },
-  'Orpheus Rig': { id: 'orpheus', name: 'Uncanny Arrows', desc: 'Every enemy caught by a Shadowshot tether returns 5% super energy when the super ends (up to 50%).' },
+  'St0mp-EE5': { id: 'stomp', spirit: true, name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your dodge recharges 30% faster.' },
+  'Graviton Forfeit': { id: 'graviton', spirit: true, name: 'Vanishing Shadow', desc: 'Invisibility lasts 50% longer. While invisible, your melee recharges twice as fast and you regenerate health.' },
+  "Young Ahamkara's Spine": { id: 'ahamkara', spirit: true, name: 'Wish-Dragon Teeth', desc: 'Grenade hits return 5% of your melee and class ability energy.' },
+  'Lucky Raspberry': { id: 'raspberry', spirit: true, name: 'Sparkling Personality', desc: 'Arc grenades chain lightning into 2 more enemies. An Arc grenade that catches an enemy refunds 30% of its cooldown.' },
+  'Orpheus Rig': { id: 'orpheus', spirit: true, name: 'Uncanny Arrows', desc: 'Every enemy caught by a Shadowshot tether returns 5% super energy when the super ends (up to 50%).' },
   // Warlock
-  "Nezarec's Sin": { id: 'nezarec', name: 'Abyssal Extractors', desc: 'Void ability kills make all of your abilities recharge twice as fast for 5s.' },
-  'Contraverse Hold': { id: 'contraverse', name: 'Chaos Accelerant', desc: 'Void grenades that catch enemies refund 30% of their cooldown. Take 20% less damage for 3s after throwing one.' },
-  'Starfire Protocol': { id: 'starfire', name: 'Fusion Harness', desc: 'Your grenade gains a second charge. Solar grenade kills return 20% grenade energy.' },
-  'Transversive Steps': { id: 'transversive', name: 'Strategic Relocation', desc: 'Sprint 15% faster. Sprinting for a moment reloads the weapon in your hands.' },
-  'Skull of Dire Ahamkara': { id: 'direahamkara', name: 'Dire Promise', desc: 'Nova Bomb kills return 5% super energy each (up to 40%) and make you take 30% less damage for 5s.' },
-  Sunbracers: { id: 'sunbracers', name: 'Helium Spirals', desc: 'Solar melee kills give you free Solar grenades for 5s.' },
-  "Stormdancer's Brace": { id: 'stormdancer', name: 'Eye of the Storm', desc: 'Stormtrance kills extend the super by 0.5s (up to 5s) and stack 10% more damage, up to 50%.' },
-  'Lunafaction Boots': { id: 'lunafaction', name: 'Lunafaction Rift', desc: 'Your rifts also reload the weapons of every Guardian standing inside them, fireteam included.' },
+  "Nezarec's Sin": { id: 'nezarec', spirit: true, name: 'Abyssal Extractors', desc: 'Void ability kills make all of your abilities recharge twice as fast for 5s.' },
+  'Contraverse Hold': { id: 'contraverse', spirit: true, name: 'Chaos Accelerant', desc: 'Void grenades that catch enemies refund 30% of their cooldown. Take 20% less damage for 3s after throwing one.' },
+  'Starfire Protocol': { id: 'starfire', spirit: true, name: 'Fusion Harness', desc: 'Your grenade gains a second charge. Solar grenade kills return 20% grenade energy.' },
+  'Transversive Steps': { id: 'transversive', spirit: true, name: 'Strategic Relocation', desc: 'Sprint 15% faster. Sprinting for a moment reloads the weapon in your hands.' },
+  'Skull of Dire Ahamkara': { id: 'direahamkara', spirit: true, name: 'Dire Promise', desc: 'Nova Bomb kills return 5% super energy each (up to 40%) and make you take 30% less damage for 5s.' },
+  Sunbracers: { id: 'sunbracers', spirit: true, name: 'Helium Spirals', desc: 'Solar melee kills give you free Solar grenades for 5s.' },
+  "Stormdancer's Brace": { id: 'stormdancer', spirit: true, name: 'Eye of the Storm', desc: 'Stormtrance kills extend the super by 0.5s (up to 5s) and stack 10% more damage, up to 50%.' },
+  'Lunafaction Boots': { id: 'lunafaction', spirit: true, name: 'Lunafaction Rift', desc: 'Your rifts also reload the weapons of every Guardian standing inside them, fireteam included.' },
   // H26 Darkness exotics: `sub` is the Darkness subclass the perk works with; they drop from that subclass's unlock level (exoticArmorFor)
   'Hoarfrost-Z': { id: 'hoarfrost', sub: 'behemoth', name: 'Glacial Fortification', desc: 'Behemoth: your barricade is a wall of Stasis crystals that freezes enemies beside it and shatters when shot.' },
   'Abeyant Leap': { id: 'abeyant', sub: 'berserker', name: 'Strand Shackles', desc: "Berserker: your class ability recharges 30% faster, and Drengr's Lash threads travel 50% farther." },
@@ -462,6 +465,44 @@ export const CLASSES = {
     },
   },
 };
+
+// ---------- U27 Prismatic ----------
+// A curated pick list per class: one super, melee, grenade and aspect per element (five of each). Every id already exists; the abilities
+// keep their own element. Class abilities and jumps: all of the class's own.
+export const PRISMATIC = {
+  stalker: {
+    supers: ['tether', 'revolver', 'stormsedge', 'silencesquall', 'silkstrike'],
+    melees: ['snare', 'knife', 'combo', 'withering', 'spike'],
+    grenades: ['axion', 'swarm', 'flux', 'duskfield', 'grapple'],
+    aspects: ['executioner', 'gunpowder', 'ascension', 'wintersshroud', 'threadedspecter'],
+  },
+  vanguard: {
+    supers: ['twilight', 'hammers', 'thundercrash', 'glacialquake', 'bladefury'],
+    melees: ['shieldthrow', 'hammerthrow', 'charge', 'shiver', 'frenzied'],
+    grenades: ['suppressor', 'solar', 'pulse', 'glacier', 'shackle'],
+    aspects: ['unbreakable', 'consecration', 'knockout', 'diamondlance', 'drengrslash'],
+  },
+  arcanist: {
+    supers: ['nova', 'songflame', 'stormtrance', 'winterswrath', 'needlestorm'],
+    melees: ['siphon', 'snap', 'chainl', 'penumbral', 'needle'],
+    grenades: ['vortex', 'healing', 'storm', 'coldsnap', 'threadling'],
+    aspects: ['feedvoid', 'hellion', 'surge', 'bleakwatcher', 'weaverscall'],
+  },
+};
+/** The Prismatic grenade Transcendence swaps in (js/prismatic.js), per class. */
+export const PRISMATIC_GRENADES = { vanguard: 'hailfire', stalker: 'electrified', arcanist: 'freezing' };
+// The subclass is built from the class's own abilities so the descriptions stay in one place. Its first super and melee are the defaults.
+const PRISM_BASE = { vanguard: 'sunbreaker', stalker: 'nightstalker', arcanist: 'voidwalker' };
+for (const [classId, c] of Object.entries(CLASSES)) {
+  const base = c.subclasses[PRISM_BASE[classId]], L = PRISMATIC[classId];
+  const find = (key, id) => Object.values(c.subclasses).map((sc) => sc.abilities[key]).find((x) => x.id === id);
+  c.subclasses.prismatic = {
+    name: 'Prismatic', element: 'prismatic', color: ELEMENTS.prismatic.color, prismatic: true,
+    tagline: 'Light and Darkness in one hand. Mix any element.',
+    defaults: { grenade: L.grenades[1], class: base.defaults.class, aspects: L.aspects.slice(0, 2) },
+    abilities: { melee: find('melee', L.melees[0]) || base.abilities.melee, super: find('super', L.supers[0]) || base.abilities.super },
+  };
+}
 
 /** Merged class + subclass data. Falls back to the class's first subclass. */
 export function classKit(classId, subId) {

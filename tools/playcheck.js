@@ -12,7 +12,7 @@ const mod = (name) => import(new URL(map[`./js/${name}.js`], document.baseURI).h
 const ZONE_CAP = { base: 150, legendary: 300, ultimate: 300 }; // simulated seconds per zone before the bot gives up on it
 const STALL = 6; // seconds without hurting the target before the bot steps toward it
 
-export async function playcheck(li, mi, { tier = 'base', loadout = 'meta', exotic = null } = {}) {
+export async function playcheck(li, mi, { tier = 'base', loadout = 'meta', exotic = null, cls = 'vanguard', sub = '', rot = 0 } = {}) {
   const [{ G }, S, g, L, PG, Ph, D, C] = await Promise.all([mod('state'), mod('save'), mod('game'), mod('loot'), mod('progression'), mod('physics'), mod('data'), mod('campaign')]);
   const errs = [];
   const onErr = (e) => errs.push(e.message || String(e.reason));
@@ -23,14 +23,21 @@ export async function playcheck(li, mi, { tier = 'base', loadout = 'meta', exoti
   try {
     const def = D.LOCATIONS[li].missions[mi];
     const light = C.tierPower(def.power, tier);
-    G.save = S.createSave('vanguard');
+    G.save = S.createSave(cls);
     G.save.progression.xp = PG.xpForLevel(30);
+    if (sub === 'prismatic') { // U27: Prismatic loadout (SUB=prismatic CLASS=stalker ROT=n): ultimateAll unlocks it, ROT rotates the curated aspects and melee/grenade/super picks
+      G.save.ultimateAll = true;
+      G.save.subclass = { [cls]: 'prismatic' };
+      const P0 = D.PRISMATIC[cls], r = (a, n) => a.map((_, i) => a[(i + n) % a.length]);
+      S.setLoadout(G.save, cls, 'prismatic', { super: r(P0.supers, rot)[0], melee: r(P0.melees, rot)[0], grenade: r(P0.grenades, rot)[0], aspects: r(P0.aspects, rot).slice(0, 2), fragments: ['balance', 'hope', 'dawn', 'purpose', 'courage'] });
+    } else if (sub) G.save.subclass = { [cls]: sub };
     let kit = 'starter kit';
     if (loadout === 'meta') {
       const items = [L.makeWeapon('primary', light, 3), L.makeWeapon('heavy', light, 3)];
       const ex = exotic ? L.makeExotic(exotic, light) : L.makeWeapon('special', light, 4);
       items.push(ex.slot === 'special' ? null : L.makeWeapon('special', light, 3), ex);
       for (const slot of ['helmet', 'arms', 'chest', 'legs']) items.push(L.makeArmor(slot, light, 3, null, G.save.classId));
+      if (sub === 'prismatic') items.push(L.makeArmor('classitem', light, 4, null, cls)); // an exotic class item with its two spirit perks
       for (const it of items.filter(Boolean)) { S.addItem(G.save, it); G.save.equipped[it.slot] = it.id; }
       kit = ['primary', 'special', 'heavy'].map((s) => S.getEquipped(G.save, s)).map((it) => `${it.name}${it.exotic ? ' (exotic)' : ''}`).join(', ');
     }
@@ -50,6 +57,7 @@ export async function playcheck(li, mi, { tier = 'base', loadout = 'meta', exoti
       if (dir.lengthSq() < 1) dir.set(0, 0, 1);
       P.pos.copy(c).addScaledVector(dir.normalize(), 20);
       P.pos.y = Ph.groundAt(P.pos.x, P.pos.z);
+      if (P.isPrism) { P.prism.light = P.prism.dark = 100; P.transcend(); P.cd.grenade = P.cd.melee = 0; P.useGrenade(); P.useMelee(); step(30); P.cd.grenade = P.cd.melee = 0; } // U27: exercise Transcendence, its grenade and the chord path each zone
       const d0 = deaths, t0 = taken, k0 = M.kills, hits = () => P.weapons.reduce((a, w) => a + (w.hitCount || 0), 0), h0 = hits();
       let f = 0, idle = 0, target = null, lastHp = 0, stalled = false;
       lastTarget = null;

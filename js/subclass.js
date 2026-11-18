@@ -4,7 +4,7 @@ import { ABILITY_CD } from './combat.js';
 // valid loadout. Pure data and functions (no DOM, no Three.js) so the tests can check them.
 // Melees and supers stay on each subclass in data.js. Behavior handlers live in player.js
 // and abilities.js; they read the ids defined here.
-import { CLASSES, classKit } from './data.js';
+import { CLASSES, classKit, PRISMATIC } from './data.js';
 
 // kind: the behavior handler in Player.detonateGrenade (Solar and Pulse share one).
 export const GRENADES = {
@@ -24,6 +24,10 @@ export const GRENADES = {
   grapple: { name: 'Grapple', element: 'strand', kind: 'grapple', cd: 14, desc: 'Fire a Strand line and pull yourself to where it lands. Your next powered melee within 3s is a Grapple Melee that suspends enemies around the target.' },
   shackle: { name: 'Shackle Grenade', element: 'strand', kind: 'shackle', cd: 22, desc: 'Bursts into Strand threads that suspend every enemy nearby.' },
   threadling: { name: 'Threadling Grenade', element: 'strand', kind: 'threadling', cd: 20, desc: 'Bursts into three threadlings that hunt enemies and explode on contact.' },
+  // U27 Prismatic: the grenade Transcendence swaps in for your own (js/prismatic.js). Not pickable; one per class.
+  hailfire: { name: 'Hailfire Spike', element: 'prismatic', kind: 'hailfire', cd: 18, transcend: true, desc: 'A Stasis spike that slows everything around it, then ignites the field in Solar fire.' },
+  electrified: { name: 'Electrified Snare', element: 'prismatic', kind: 'electrified', cd: 18, transcend: true, desc: 'A Strand snare that suspends the enemies it catches, then jolts lightning through them.' },
+  freezing: { name: 'Freezing Singularity', element: 'prismatic', kind: 'freezing', cd: 18, transcend: true, desc: 'A Void singularity that pulls enemies in and slows them, then implodes in Stasis.' },
 };
 
 export const CLASS_ABILITIES = {
@@ -235,6 +239,19 @@ export const FRAGMENTS = {
   rebirth: { element: 'strand', name: 'Thread of Rebirth', desc: 'Defeating a severed or unraveled enemy weaves a threadling that hunts the next one.' },
   isolation: { element: 'strand', name: 'Thread of Isolation', desc: 'Weapon kills sever every enemy within 4m.' }, // H23
   snaring: { element: 'strand', name: 'Thread of Snaring', desc: 'Precision weapon kills on a severed or unraveled enemy suspend every enemy within 4m.' }, // H23
+  // U27 Prismatic: Facets (effects in js/prismatic.js). They count for any element and work with the Transcendence meters.
+  balance: { element: 'prismatic', name: 'Facet of Balance', desc: 'Your Transcendence meters fill 25% faster.' },
+  courage: { element: 'prismatic', name: 'Facet of Courage', desc: 'Powered melee kills make you Radiant for 6s: +15% weapon damage.' },
+  devotion: { element: 'prismatic', name: 'Facet of Devotion', desc: 'Weapon kills grant 2s of Restoration.' },
+  sacrifice: { element: 'prismatic', name: 'Facet of Sacrifice', desc: 'Grenade and melee kills give you 3% super energy.' },
+  dawn: { element: 'prismatic', name: 'Facet of Dawn', desc: 'Transcendence lasts 3s longer.' },
+  protection: { element: 'prismatic', name: 'Facet of Protection', desc: 'Transcendence gives you an overshield.' },
+  purpose: { element: 'prismatic', name: 'Facet of Purpose', desc: 'Ability kills fill both Transcendence meters by 5%.' },
+  hope: { element: 'prismatic', name: 'Facet of Hope', desc: 'Kills extend Transcendence twice as far.' },
+  mending: { element: 'prismatic', name: 'Facet of Mending', desc: 'Activating Transcendence restores half your health.' },
+  justice: { element: 'prismatic', name: 'Facet of Justice', desc: 'Your weapons deal 5% more damage while Transcendent.' },
+  generosity: { element: 'prismatic', name: 'Facet of Generosity', desc: 'Activating Transcendence refunds 30% of your grenade and melee.' },
+  grace: { element: 'prismatic', name: 'Facet of Grace', desc: 'While Transcendent your class ability recharges 25% faster.' },
 };
 
 // Light Ascendant: the Destiny 2 Light supers each subclass was missing. The subclass's original super
@@ -293,20 +310,42 @@ export const ASPECT_SLOTS = 2;
 export const REGEN_CAP = 2;
 
 const subOf = (classId, subId) => CLASSES[classId]?.subclasses[subId];
+const lightSubs = (classId) => Object.entries(CLASSES[classId].subclasses).filter(([, sc]) => !sc.prismatic);
+/** U27: where a super comes from, whatever subclass it was written for: { sub, def, element }. Null when the class has no such super. */
+export function superSource(classId, id) {
+  for (const [sub, sc] of lightSubs(classId)) if (sc.abilities.super.id === id) return { sub, def: sc.abilities.super, element: sc.element };
+  const x = SUPERS[id];
+  if (x?.cls === classId) return { sub: x.sub, def: { id, ...x }, element: CLASSES[classId].subclasses[x.sub].element };
+  return null;
+}
+/** U27: a melee by id with the element of the subclass that owns it: { ...melee, sub, element }. */
+export function meleeDef(classId, id) {
+  for (const [sub, sc] of lightSubs(classId)) if (sc.abilities.melee.id === id) return { ...sc.abilities.melee, sub, element: sc.element };
+  return null;
+}
+/** U27: the element an ability acts in on a Prismatic kit (Transcendence and the cast wrapper in prismatic.js read this). */
+export const abilityElement = (classId, kind, id) => (kind === 'grenade' ? GRENADES[id]?.element : kind === 'melee' ? meleeDef(classId, id)?.element : kind === 'super' ? superSource(classId, id)?.element : null) || null;
 
+/** Grenades for a subclass: its element's, or the curated list on Prismatic. */
+export const grenadesForSub = (classId, subId) => subOf(classId, subId).prismatic ? [...PRISMATIC[classId].grenades] : grenadesFor(subOf(classId, subId).element);
+/** Melees pickable on a subclass: only Prismatic has a choice (U27). */
+export const meleesFor = (classId, subId) => subOf(classId, subId).prismatic ? [...PRISMATIC[classId].melees] : [];
+/** The element an aspect belongs to (its source subclass). */
+export const aspectElement = (classId, id) => CLASSES[classId].subclasses[ASPECTS[id]?.sub]?.element ?? null;
 export const grenadesFor = (element) => Object.keys(GRENADES).filter((id) => GRENADES[id].element === element);
 /** Class abilities for a class; one with a `sub` (Phoenix Dive) is only for that subclass. */
 export const classAbilitiesFor = (classId, subId) => Object.entries(CLASS_ABILITIES[classId] || {}).filter(([, c]) => !c.sub || c.sub === subId).map(([id]) => id);
-export const aspectsFor = (classId, subId) => Object.keys(ASPECTS).filter((id) => ASPECTS[id].cls === classId && ASPECTS[id].sub === subId);
+export const aspectsFor = (classId, subId) => subOf(classId, subId).prismatic ? [...PRISMATIC[classId].aspects] : Object.keys(ASPECTS).filter((id) => ASPECTS[id].cls === classId && ASPECTS[id].sub === subId);
 export const fragmentsFor = (element) => Object.keys(FRAGMENTS).filter((id) => FRAGMENTS[id].element === element);
 /** Super ids for a subclass: its original super first, then the Light Ascendant ones. */
-export const supersFor = (classId, subId) => [subOf(classId, subId).abilities.super.id, ...Object.keys(SUPERS).filter((id) => SUPERS[id].cls === classId && SUPERS[id].sub === subId)];
+export const supersFor = (classId, subId) => subOf(classId, subId).prismatic ? [...PRISMATIC[classId].supers] : [subOf(classId, subId).abilities.super.id, ...Object.keys(SUPERS).filter((id) => SUPERS[id].cls === classId && SUPERS[id].sub === subId)];
 /** Full super definition (the original lives on the subclass in data.js). */
 export function superDef(classId, subId, id) {
+  if (subOf(classId, subId).prismatic) return superSource(classId, id)?.def ?? null; // U27: any of the class's supers
   const orig = subOf(classId, subId).abilities.super;
   return id === orig.id ? orig : SUPERS[id] ? { id, ...SUPERS[id] } : null;
 }
-export const superLevel = (classId, subId, id) => Math.max(subOf(classId, subId)?.unlockLevel ?? 1, SUPERS[id]?.unlockLevel ?? 1);
+export const superLevel = (classId, subId, id) => subOf(classId, subId)?.prismatic ? 1 : Math.max(subOf(classId, subId)?.unlockLevel ?? 1, SUPERS[id]?.unlockLevel ?? 1);
 /** Jump ids a subclass can use. */
 export const jumpsFor = (classId, subId) => Object.keys(JUMPS[classId] || {}).filter((id) => !JUMPS[classId][id].sub || JUMPS[classId][id].sub === subId);
 
@@ -325,7 +364,9 @@ export const fragmentSlots = (aspects) => Math.min(FRAGMENT_CAP, aspects.reduce(
 /** What each subclass equips before the player changes anything (matches v1.2 behavior). */
 export function defaultLoadout(classId, subId) {
   const d = subOf(classId, subId).defaults;
-  return { super: subOf(classId, subId).abilities.super.id, jump: CLASSES[classId].jump, grenade: d.grenade, class: d.class, aspects: [...(d.aspects || [])], fragments: [] };
+  const lo = { super: subOf(classId, subId).abilities.super.id, jump: CLASSES[classId].jump, grenade: d.grenade, class: d.class, aspects: [...(d.aspects || [])], fragments: [] };
+  if (subOf(classId, subId).prismatic) lo.melee = subOf(classId, subId).abilities.melee.id; // U27: Prismatic is the only subclass where the melee is a pick
+  return lo;
 }
 
 /**
@@ -340,6 +381,15 @@ export function sanitizeLoadout(classId, subId, lo = {}, level = 1) {
   const out = { ...def };
   if (supersFor(classId, subId).includes(lo.super) && superLevel(classId, subId, lo.super) <= level) out.super = lo.super;
   if (jumpsFor(classId, subId).includes(lo.jump)) out.jump = lo.jump;
+  if (sc.prismatic) { // U27: the curated list, any element; every pick is open the moment Prismatic is (save.js gates the subclass)
+    const P = PRISMATIC[classId];
+    if (P.grenades.includes(lo.grenade)) out.grenade = lo.grenade;
+    if (P.melees.includes(lo.melee)) out.melee = lo.melee;
+    if (classAbilitiesFor(classId, subId).includes(lo.class)) out.class = lo.class;
+    if (Array.isArray(lo.aspects)) out.aspects = [...new Set(lo.aspects)].filter((id) => P.aspects.includes(id)).slice(0, ASPECT_SLOTS);
+    out.fragments = Array.isArray(lo.fragments) ? [...new Set(lo.fragments)].filter((id) => FRAGMENTS[id]?.element === 'prismatic').slice(0, fragmentSlots(out.aspects)) : [];
+    return out;
+  }
   if (GRENADES[lo.grenade]?.element === sc.element) out.grenade = lo.grenade;
   if (classAbilitiesFor(classId, subId).includes(lo.class)) out.class = lo.class;
   if (Array.isArray(lo.aspects)) {
@@ -386,7 +436,7 @@ export function resolveKit(classId, subId, lo, level) {
       ...kit.abilities,
       super: superDef(classId, kit.subclassId, L.super),
       grenade: { id: L.grenade, ...g, cd: Math.round(g.cd * cdm.grenade * ABILITY_CD.grenade) },
-      melee: { ...kit.abilities.melee, cd: kit.abilities.melee.cd * cdm.melee * ABILITY_CD.melee },
+      melee: { ...(L.melee ? meleeDef(classId, L.melee) : kit.abilities.melee), cd: (L.melee ? meleeDef(classId, L.melee) : kit.abilities.melee).cd * cdm.melee * ABILITY_CD.melee },
       class: { ...c, cd: Math.round(CLASS_ABILITIES[classId][L.class].cd * cdm.class * ABILITY_CD.class) },
     },
   };

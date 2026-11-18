@@ -33,6 +33,7 @@ import { buildRoster } from './pvp.js';
 import { closeBoonMenu } from './rewards-ui.js';
 import * as ui from './ui.js';
 import { keyName } from './keybinds.js';
+import { coopFlag } from './prismatic-rules.js';
 
 // Glue between the network layer and the game.
 //  - Host: runs enemies + mission; sends snapshots (15/s), enemy shots, kills.
@@ -304,7 +305,8 @@ function myState() {
   const wi = P.weapon.item;
   return {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, lk: P.lookCode,
-    x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0,
+    x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0, tr: coopFlag(P.cls, P.prism), // U27: 2 = Transcendent
+   
     // animation: sprinting, airborne, firing, and the gun in hand
     s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, mt: P.mount ? 1 : 0, mh: P.mount ? r2(P.mount.heading) : 0, gm: P.ghostOut || P.mount ? 1 : 0, rg: P.ragdoll ? 1 : 0, w: (P.superActive && !P.keepsGuns) || P.holdingAxe || P.holdingLance || P.ghostOut || P.mount ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
   };
@@ -406,7 +408,7 @@ export function remoteBarrierBlocks(p) {
 function removeAvatar(r) {
   setReviveGhost(r, false);
   if (r.sparrow) { r.sparrow.removeFromParent(); r.sparrow = null; }
-  if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; r.gunKey = undefined; r.prop = undefined; r.wasInv = false; }
+  if (r.avatar) { r.avatar.group.parent?.remove(r.avatar.group); r.avatar = null; r.gunKey = undefined; r.prop = undefined; r.wasInv = false; r.glow = null; }
   r.plate?.remove(); r.plate = null;
 }
 
@@ -474,6 +476,13 @@ function updateAvatars(dt) {
       // character materials are per-avatar; gun materials are shared, so hide the gun instead of fading it
       r.avatar.group.traverse((o) => { if (o.material && !o.userData.gunPart) { o.material.transparent = r.inv; o.material.opacity = r.inv ? 0.18 : 1; } });
       if (r.avatar.gun) r.avatar.gun.visible = !r.inv;
+    }
+    // U27: a Transcendent teammate glows
+    const tr = st.tr === 2 && !r.dead;
+    if (!!r.glow !== tr) {
+      if (tr) { r.glow = new THREE.PointLight(0xff9be8, 2.2, 7); r.glow.position.y = 1.1; r.avatar.group.add(r.glow); }
+      else { r.avatar.group.remove(r.glow); r.glow = null; }
+      r.plate?.classList.toggle('transcend', tr);
     }
     _p.set(r.pos.x, r.pos.y + (r.dead ? 1.85 : 2.35), r.pos.z).project(G.camera);
     if (r.plate) {

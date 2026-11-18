@@ -12,7 +12,7 @@
 <script>
 const q = new URLSearchParams(location.search);
 const LOC = q.get('loc'), MIS = (q.get('mi') || '0').split(',').map(Number);
-const OPT = { tier: q.get('tier') || 'base', loadout: q.get('loadout') || 'meta', exotic: q.get('exotic') || null };
+const OPT = { tier: q.get('tier') || 'base', loadout: q.get('loadout') || 'meta', exotic: q.get('exotic') || null, cls: q.get('cls') || 'vanguard', sub: q.get('sub') || '', rot: +(q.get('rot') || 0) };
 const f = document.getElementById('f');
 f.addEventListener('load', async () => {
   const out = document.getElementById('result');

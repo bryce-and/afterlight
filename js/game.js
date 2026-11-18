@@ -11,7 +11,7 @@ import { buildNav, NAV, floodReach, cellIndex, nearestWalkable } from './nav.js'
 import { updateNavDebug } from './navdebug.js';
 import { rollItem, dismantleValue } from './loot.js';
 import { rollShader, SHADERS } from './style.js';
-import { addItem, sendToPostmaster, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic, lowestSlot } from './save.js';
+import { addItem, sendToPostmaster, syncPrismatic, writeSave, playerPower, playerLevel, addXp, ALL_MISSIONS, noteExotic, lowestSlot } from './save.js';
 import { rollRarity, rewardAt, subclassesUnlockedAt, XP, capRarity, maxRarityIndex } from './progression.js';
 import { unlockEvents, tierExoticDue, rollTierExotic, queueBlitzMenu } from './rewards.js';
 import { BLITZ_TIER, runLabel, runMission, clearStep, failRun, recordRun, blitzLegendaries } from './blitz.js';
@@ -750,6 +750,8 @@ function openChest(auto = false, now = false) {
   const glimmer = 120 + M.g * 45;
   G.save.glimmer += glimmer;
   const opened = recordClear(G.save, M.def.id, M.tier || 'base');
+  const prismGift = syncPrismatic(G.save); // U27: the Legendary campaign clear unlocks Prismatic, and its first exotic class item
+  if (prismGift) setTimeout(() => { if (G.mission === M) { ui.centerMessage('Prismatic unlocked', `${prismGift.name} added to your inventory`, 3); sfx.engram(4); } }, 1200);
   M.unlocks = unlockEvents(G.save, opened); // U20b: the complete screen plays each unlock animation, then its reward menu
   M.rewardGlimmer = glimmer;
   M.firstClear = first;
@@ -848,6 +850,7 @@ export function dealDamage(e, amount, o = {}) {
   if (!o.raw && G.player?.surgeMult) dmg *= G.player.surgeMult(o); // Surge mods while armor charged
   if (!o.raw && G.player?.setMult) dmg *= G.player.setMult(o); // armor set bonuses
   if (!o.raw && G.player?.buildMult) dmg *= G.player.buildMult(o); // aspects and fragments
+  if (!o.raw && !o.remoteHit && G.player?.prismMult) { dmg *= G.player.prismMult(o); G.player.prismFill(o, dmg); } // U27: Transcendence damage, and your hit fills the meters
   if (!o.raw && e.isBoss && o.source === 'super') dmg *= 0.75;
   // subclass traits on this player's own grenade and melee hits (never on relayed hits or jolt chains)
   // (companions such as Arc Soul are not grenade or melee hits, so they don't carry traits or mod procs either)
@@ -1558,8 +1561,15 @@ function openActChest() {
   for (let i = 0; i < n; i++) {
     const lvl = playerLevel(G.save);
     let rIdx = Math.max(i === 0 ? 2 : 1, rollRarity(lvl, 2 + Math.floor(c.wave / 5)));
-    if (c.final && i === 0) rIdx = 4; // the end of Horde always pays out an exotic
-    if (M.act.waves === Infinity && c.wave > 30 && c.wave % 10 === 0 && i === 0) rIdx = 4; // Endless: an exotic every 10 waves past 30
+    // U27: the exotic payouts (end of Horde, Endless every 10 waves past 30, and the roguelike versions) are the Mission Blitz pick menu: any exotic
+    // you haven't found, plus an exotic class item once Prismatic is unlocked. It waits in your save and opens in Orbit (or when you finish).
+    const exoticDue = (c.final && i === 0) || (M.act.waves === Infinity && c.wave > 30 && c.wave % 10 === 0 && i === 0);
+    if (exoticDue && capRarity(4, lvl) === 4) {
+      const menu = queueBlitzMenu(G.save);
+      ui.feed(`Exotic reward ready: choose ${menu.armor.length + menu.weapons.length > 1 ? 'one' : 'it'} in Orbit`, '#f4c542');
+      continue;
+    }
+    if (exoticDue) rIdx = 4;
     rIdx = capRarity(rIdx, lvl); // never above what this level can use
     rewards.push(rollItem(capRoll(pp, randInt(1, 4)), rIdx, null, null, G.save.classId, G.save.exoticsFound, playerLevel(G.save), armorBand(G.save))); // U20a: past 200 an activity holds your Light
   }

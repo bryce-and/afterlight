@@ -57,6 +57,13 @@ export function campaignDone(s, tierId) {
   return MISSION_IDS.every((id) => c[id]);
 }
 
+/**
+ * U27: opens account-wide: any Guardian (the active one or a stored one) has fully cleared the Legendary campaign, or s.ultimateAll.
+ * Mission Blitz and the Prismatic subclass share this one rule.
+ */
+export const legendaryCleared = (s) => !!s.ultimateAll || campaignDone(s, 'legendary') || Object.values(s.chars || {}).some((c) => campaignDone(c, 'legendary'));
+export const PRISMATIC_LOCKED_HINT = 'Clear the Legendary campaign on any Guardian to unlock';
+
 /** Base is always open. Legendary opens on a base clear, Ultimate on a Legendary clear; an Ultimate clear on any Guardian opens both for all (s.ultimateAll). */
 export function tierUnlocked(s, tierId) {
   if (tierId === 'base') return true;

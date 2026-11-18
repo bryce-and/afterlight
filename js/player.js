@@ -20,6 +20,8 @@ import { imperialMethods } from './dungeon-perks.js';
 import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
 import { installDarkness } from './darkness.js';
+import { installPrismatic } from './prismatic.js';
+import { spiritPerks } from './exotic-class-items.js';
 import { DARK_EXO } from './darkness-rules.js';
 import { makeShieldDome, buildCharacter, SUPER_POSES, ghost as buildGhost } from './characters.js';
 import { DEATH_CAM, deathPhase, collapseK, newOrbit, orbitStep, orbitOffset, pushIn } from './deathcam.js';
@@ -138,6 +140,8 @@ export class Player {
     this.cdMax = { ...this.cdBase };
     // exotic armor effects (any class can wear any exotic)
     this.exo = new Set(ARMOR_SLOTS.map((sl) => getEquipped(save, sl)).filter((it) => it?.rarity === 'exotic').map((it) => EXOTIC_ARMOR_PERKS[it.name]?.id).filter(Boolean));
+    this.prismInit(); // U27: Transcendence state; wraps the casts when the subclass is Prismatic (prismatic.js)
+    if (this.isPrism) for (const id of spiritPerks(getEquipped(save, 'classitem'))) this.exo.add(id); // U27: an exotic class item's two Spirit perks, Prismatic only
     // armor charge and Orbs of Power
     this.armorCharge = 0; this.armorChargeT = 0; this.fonted = false;
     this.orbN = 0; this.superOrbs = 0; this.wKills = []; this.hKills = []; this.harmonicAt = 0; this.emergT = 0;
@@ -388,6 +392,7 @@ export class Player {
     if (updateGhost(this, dt, () => abandonMission())) return; // Tab, hold E for the Sparrow, hold O for orbit
     if (this.darkHeld(dt)) { this.updateRegen(dt); this.updateCamera(dt); this.updateViewmodel(dt); this.updateBody(dt); return; } // U22: frozen or suspended by enemy Darkness
     this.updateMovement(dt);
+    this.prismTick(dt); // U27: Transcendence clock, chord and meters (prismatic.js)
     this.darkTick(dt); // U22: grapple pull, Cryoclasm, Banner of War, Shatterdive and Ensnaring Slam landings
     if (!this.social && !this.ghostBusy && !this.mount) { this.updateCombat(dt); this.updateAbilities(dt); }
     this.updateRegen(dt);
@@ -1449,13 +1454,13 @@ export class Player {
     const back = makeShieldDome(hex, 0.2); back.rotation.y = Math.PI; dome.add(back);
     G.scene.add(dome);
     glowBurst(p, hex, 22, 6, 0.1, 0.6);
-    this.remoteShield = { pos: p, r: R.r, t: R.t };
+    const mine = this.remoteShield = { pos: p, r: R.r, t: R.t };
     let life = R.t;
     addTicker({ dispose() { G.scene.remove(dome); }, update: (dt) => {
-      life -= dt; this.remoteShield.t = life;
+      life -= dt; mine.t = life;
       const fade = Math.min(1, life / 1);
       dome.userData.fill.material.opacity = (0.2 + 0.04 * Math.sin(G.time * 5)) * fade; back.userData.fill.material.opacity = dome.userData.fill.material.opacity;
-      if (life <= 0) { this.remoteShield = null; return false; }
+      if (life <= 0) { if (this.remoteShield === mine) this.remoteShield = null; return false; } // a newer shield replaces this one; don't clear it
       return true;
     } });
   }
@@ -1651,6 +1656,7 @@ export class Player {
     this.modsOnKill(e, o, chain);
     this.traitOnKill(e, o);
     this.darkOnKill(e, o); // U22 Darkness aspects and fragments
+    this.prismOnKill(e, o); // U27: Transcendence extends, Prismatic Facets
     if (!chain) this.setsOnKill(o);
     if (this.exo.has('nighthawk') && o.source === 'super' && this.superActive?.type === 'revolver') this.hawkKill = true; // refund when the super ends
     if (this.exo.has('starfire') && !chain && o.source === 'ability' && G.time < this.grenadeWin && this.cls.abilities.grenade.element === 'solar') {
@@ -2105,6 +2111,7 @@ export class Player {
     amount = incoming(amount); // U24: Iron Skin
     if (this.status.has('contraverse')) amount *= 0.8; // Contraverse Hold
     amount *= this.darkResist(); // U22: Woven Mail, Weavewalk, Whisper of Chains
+    amount *= this.prismIncoming(from); // U27: Transcendence resistance (combatants only)
     const cw = this.weapon;
     if (cw?.has('conductor')) { if (this.status.has('conductor', cw.idx)) amount *= 0.75; this.status.apply('conductor', { scope: cw.idx, set: true }); }
     if (this.ap.plating) amount *= Math.max(0.6, 1 - 0.08 * this.ap.plating);
@@ -2271,7 +2278,7 @@ export class Player {
     const exo = (this.status.has('quietone') ? QUIET.regen : 1) * (hallow ? HALLOWFIRE.regen : 1);
     const grav = this.exo.has('graviton') && this.status.has('invisible') ? GRAVITON.melee : 1;
     for (const k of ['grenade', 'melee', 'class']) {
-      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.status.has('heart', k) ? 1.6 : 1) * nez * boost[k] * exo * (k === 'melee' ? grav : 1) * this.darkRegen(k)); // U22: Chilled, Banner of War, Weavewalk
+      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.status.has('heart', k) ? 1.6 : 1) * nez * boost[k] * exo * (k === 'melee' ? grav : 1) * this.darkRegen(k) * this.prismRegen(k)); // U22: Chilled, Banner; U27: Transcendent of War, Weavewalk
     }
     const IC = ASPECT_TUNE.icarus; // Icarus Dash: charges come back one at a time
     if (this.icarus.n < IC.charges && (this.icarus.t -= dt) <= 0) { this.icarus.n++; this.icarus.t = IC.cd; }
@@ -2427,6 +2434,7 @@ export class Player {
   }
 
   detonateGrenade(g, pt, hitEnemy = null) {
+    if (g.transcend) { this.prismGrenade(g, pt, hitEnemy); return; } // U27: the Prismatic grenades (prismatic.js)
     if (this.isDarkGrenade(g)) { this.darkGrenade(g, pt, hitEnemy); return; } // U22: Stasis and Strand grenades (darkness.js)
     pt.y = Math.max(pt.y, 0.3);
     onGrenade(this, pt.clone()); // U24: Scorched Earth
@@ -3683,6 +3691,7 @@ export class Player {
 }
 
 installDarkness(Player); // U22: Stasis and Strand behavior (darkness.js)
+installPrismatic(Player); // U27: Transcendence and the Prismatic subclass (prismatic.js)
 
 // U23: the dungeon's exclusive perks, its exotic and the Imperial set bonus (js/dungeon-perks.js)
 Object.assign(Player.prototype, imperialMethods);

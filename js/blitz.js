@@ -1,7 +1,7 @@
 // U28 Mission Blitz: five different campaign missions back to back on Legendary numbers, no revives, one run.
 // Pure rules (no DOM, no Three.js) so tools/tests.html can check them. See docs/DECISIONS.md (2026-11-16).
 import { EXOTIC_RANDOM_WEAPONS, exoticArmorFor, LOCATIONS } from './data.js';
-import { CAMPAIGN_TIERS, campaignDone } from './campaign.js';
+import { CAMPAIGN_TIERS, legendaryCleared } from './campaign.js';
 import { mulberry32 } from './util.js';
 
 export const BLITZ_LENGTH = 5;
@@ -17,9 +17,7 @@ export const BLITZ_TIER = { ...CAMPAIGN_TIERS.legendary, floor: false, lethal: t
 export const BLITZ_POOL = LOCATIONS.flatMap((l, li) => l.missions.map((m, mi) => ({ li, mi, id: m.id })));
 
 /** Opens account-wide: any Guardian (the active one or a stored one) has fully cleared the Legendary campaign, or s.ultimateAll. */
-export function blitzUnlocked(s) {
-  return !!s.ultimateAll || campaignDone(s, 'legendary') || Object.values(s.chars || {}).some((c) => campaignDone(c, 'legendary'));
-}
+export const blitzUnlocked = legendaryCleared; // U27: Prismatic shares this rule (campaign.js)
 export const BLITZ_LOCKED_HINT = 'Clear the Legendary campaign on any Guardian to unlock';
 
 /** This Guardian's Blitz record, created on first read (older saves have none): `best` is the most missions cleared in one run (5 is a clear). */

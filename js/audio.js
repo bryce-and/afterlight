@@ -214,6 +214,7 @@ export const ELEMENT_TINT = {
   stasis: [{ n: { dur: 0.12, freq: 7000, type: 'highpass', gain: 0.14, crunch: 2 } }, { n: { dur: 0.1, freq: 4200, type: 'bandpass', q: 5, gain: 0.08, delay: 0.03 } }],
   strand: [{ n: { dur: 0.25, freq: 1500, freqEnd: 700, type: 'bandpass', q: 5, gain: 0.12 } }],
 };
+ELEMENT_TINT.prismatic = [ELEMENT_TINT.solar[0], ELEMENT_TINT.stasis[0], ELEMENT_TINT.void[0]]; // U27: the subclass's own sound (its abilities use their own elements)
 const tint = (el) => ELEMENT_TINT[el] || [];
 
 // Casts, throws and impacts per element.

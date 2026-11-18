@@ -7,10 +7,11 @@ import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS
 import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, activeMods, energyCap, energyUsed, usesCharge } from './armor.js';
 import { openMods } from './mods-ui.js';
 import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
-import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
+import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, grenadesForSub, meleesFor, meleeDef, abilityElement, aspectElement, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
+import { spiritEntries } from './exotic-class-items.js';
 import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock, setOverload } from './save.js';
-import { CAMPAIGN_TIERS, tierOf, tierPower, tierEnemyLight, tierClears, selectedTier, unlockedTiers, overloadUnlocked, overloadOn, OVERLOAD_NAME, ULTIMATE_HINT } from './campaign.js';
+import { CAMPAIGN_TIERS, tierOf, tierPower, tierEnemyLight, tierClears, selectedTier, unlockedTiers, overloadUnlocked, overloadOn, OVERLOAD_NAME, ULTIMATE_HINT, PRISMATIC_LOCKED_HINT } from './campaign.js';
 import { skipAvailableFor } from './rewards.js';
 import { runUnlocks, openPendingMenus, openSkipConfirm, openRewardMenu } from './rewards-ui.js';
 import { LEVEL_CAP, levelInfo, rewardAt, subclassLevel, subclassesUnlockedAt, RARITY_GATE, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
@@ -1102,6 +1103,11 @@ export function tipHTML(it, side) { // U27: the Postmaster (tower-ui.js) shows t
       const set = SETS[it.set], n = setCounts(ARMOR_SLOTS.map((sl) => getEquipped(s, sl)).filter(Boolean))[it.set] || 0;
       body += `<div class="tt-set${n >= SET_PIECES ? ' on' : ''}"><span>${esc(set.name)} set  ·  ${set.dest}  ·  ${Math.min(n, 4)} / 4 equipped</span><b>${esc(set.bonus.name)}</b><em>${esc(set.bonus.desc)}${n >= SET_PIECES ? '' : ` Equip ${SET_PIECES} pieces of this set.`}</em></div>`;
     }
+    const spirits = spiritEntries(it); // U27: exotic class item: two Spirit perks, live only on a Prismatic subclass
+    if (spirits.length) {
+      body += `<div class="tt-perks">${spirits.map((e) => `<div class="tt-perk exo"><i></i><div><b>${esc(e.title)}</b><span>${esc(e.name)}: ${esc(e.desc)}</span></div></div>`).join('')}</div>`;
+      body += activeKit(s).prismatic ? '' : '<div class="tt-note warn">Inactive: requires Prismatic. On any other subclass this item gives stats only.</div>';
+    }
     const xp = it.rarity === 'exotic' && EXOTIC_ARMOR_PERKS[it.name];
     if (xp) body += `<div class="tt-perks"><div class="tt-perk exo"><i></i><div><b>${xp.name}</b><span>${xp.desc}</span></div></div></div>`;
     const lv = playerLevel(s), live = activeMods(it, lv);
@@ -1200,9 +1206,10 @@ function spEntry(kind, id, ctx) {
   const { cls, el, L } = ctx;
   if (kind === 'super') { const x = superDef(cls.id, cls.subclassId, id), lv = superLevel(cls.id, cls.subclassId, id); return { kind, id, name: x.name, desc: x.desc, meta: 'Super', color: el.color, locked: L < lv ? lv : 0 }; }
   if (kind === 'jump') { const j = JUMPS[cls.id][id]; return { kind, id, name: j.name, desc: j.desc, meta: j.sub ? `Jump  ·  ${cls.subclass} only` : 'Jump', color: '#e9eef5' }; }
-  if (kind === 'grenade') { const g = GRENADES[id]; return { kind, id, name: g.name, desc: g.desc, meta: `Grenade  ·  ${Math.round(g.cd * ABILITY_CD.grenade)}s cooldown`, color: el.color }; }
+  if (kind === 'grenade') { const g = GRENADES[id]; return { kind, id, name: g.name, desc: g.desc, meta: `Grenade  ·  ${Math.round(g.cd * ABILITY_CD.grenade)}s cooldown`, color: ELEMENTS[g.element]?.color ?? el.color }; }
   if (kind === 'class') { const c = CLASS_ABILITIES[cls.id][id]; return { kind, id, name: c.name, desc: c.desc, meta: `Class ability  ·  ${Math.round(c.cd * ABILITY_CD.class)}s cooldown`, color: '#e9eef5' }; }
-  if (kind === 'aspect') { const a = ASPECTS[id], lv = aspectLevel(id); return { kind, id, name: a.name, desc: a.desc, meta: `Aspect  ·  ${a.slots} fragment slot${a.slots > 1 ? 's' : ''}`, color: el.color, locked: L < lv ? lv : 0 }; }
+  if (kind === 'aspect') { const a = ASPECTS[id], lv = aspectLevel(id); return { kind, id, name: a.name, desc: a.desc, meta: `Aspect  ·  ${a.slots} fragment slot${a.slots > 1 ? 's' : ''}`, color: ELEMENTS[aspectElement(cls.id, id)]?.color ?? el.color, locked: L < lv ? lv : 0 }; }
+  if (kind === 'melee') { const m = meleeDef(cls.id, id); return { kind, id, name: m.name, desc: m.desc, meta: `Melee  ·  ${m.cd}s cooldown`, color: ELEMENTS[m.element].color }; }
   if (kind === 'fragment') { const f = FRAGMENTS[id], lv = fragmentLevel(id); return { kind, id, name: f.name, desc: f.desc, meta: `${ELEMENTS[f.element].name} fragment`, color: ELEMENTS[f.element].color, locked: L < lv ? lv : 0 }; }
   throw new Error(`spEntry: unknown kind ${kind}`);
 }
@@ -1224,8 +1231,9 @@ function openSubclass() {
     <div class="sp-head" style="--ec:${el.color}"><div><div class="eyebrow">${cls.className}  ·  ${el.name}</div><div class="sp-title">${cls.subclass}</div><div class="sp-tag">${cls.tagline}</div></div><button class="sp-x" id="sp-close" aria-label="Close">✕</button></div>
     <div class="sp-pick sp-pick-col">${Object.entries(subs).map(([id, sc]) => {
       const open = isSubclassUnlocked(s, s.classId, id);
-      return `<button class="sp-sub${id === cls.subclassId ? ' on' : ''}${open ? '' : ' locked'}" data-sub="${id}" style="--ec:${sc.color}" ${open ? '' : 'disabled'}><span class="sp-sub-ico">${subclassIcon(open ? sc.color : '#5b6470')}</span><b>${sc.name}</b><span>${open ? ELEMENTS[sc.element].name : `Unlocks at level ${subclassLevel(s.classId, id)}`}</span></button>`;
+      return `<button class="sp-sub${id === cls.subclassId ? ' on' : ''}${open ? '' : ' locked'}" data-sub="${id}" style="--ec:${sc.color}" ${open ? '' : 'disabled'}><span class="sp-sub-ico">${subclassIcon(open ? sc.color : '#5b6470')}</span><b>${sc.name}</b><span>${open ? ELEMENTS[sc.element].name : sc.prismatic ? 'Locked' : `Unlocks at level ${subclassLevel(s.classId, id)}`}</span></button>`;
     }).join('')}</div>
+    ${Object.entries(subs).some(([id, sc]) => sc.prismatic && !isSubclassUnlocked(s, s.classId, id)) ? `<div class="sp-lockhint">${esc(PRISMATIC_LOCKED_HINT)}</div>` : ''}
     <button class="btn primary sp-modify" id="sp-modify" style="--ec:${el.color}">Modify ${esc(cls.subclass)}</button>
     <details class="sp-controls"><summary>All controls</summary>${controlsList(liveBinds()).map(([k, v]) => `<div class="ctl"><kbd>${esc(k)}</kbd><span>${v}</span></div>`).join('')}</details>
     <div class="row-btns"><button class="btn" id="change-class">Change Class</button></div>`;
@@ -1271,12 +1279,14 @@ function openModify() {
   if (spSlot === 'melee') {
     // one melee per subclass for now: show it as the only (equipped) option
     optsTitle = 'Melee';
-    opts = `<button class="sp-opt on" data-opt="${fixed.melee.name}" data-kind="melee" aria-disabled="true">${fixed.melee.icon}<span>${esc(fixed.melee.name)}</span><em>Equipped</em></button><div class="spf-hint">${esc(cls.subclass)} has one melee for now.</div>`;
+    if (meleesFor(s.classId, cls.subclassId).length) {
+      opts = meleesFor(s.classId, cls.subclassId).map((id) => { const e = { ...spEntry('melee', id, ctx) }; e.icon = abilityIcon('melee', id, e.color); return `<button class="sp-opt${id === ab.melee.id ? ' on' : ''}" data-opt="${id}" data-kind="melee">${e.icon}<span>${esc(e.name)}</span></button>`; }).join('');
+    } else opts = `<button class="sp-opt on" data-opt="${fixed.melee.name}" data-kind="melee" aria-disabled="true">${fixed.melee.icon}<span>${esc(fixed.melee.name)}</span><em>Equipped</em></button><div class="spf-hint">${esc(cls.subclass)} has one melee for now.</div>`;
   } else if (spSlot) {
     const kind = ['super', 'jump', 'grenade', 'class'].includes(spSlot) ? spSlot : spSlot.startsWith('aspect') ? 'aspect' : 'fragment';
     optsTitle = { super: 'Super', jump: 'Jump', grenade: 'Grenade', class: 'Class Ability', aspect: 'Aspect', fragment: 'Fragment' }[kind];
     const frame = kind === 'fragment' ? 'fragment' : kind;
-    const ids = kind === 'super' ? supersFor(s.classId, cls.subclassId) : kind === 'jump' ? jumpsFor(s.classId, cls.subclassId) : kind === 'grenade' ? grenadesFor(cls.element) : kind === 'class' ? classAbilitiesFor(s.classId, cls.subclassId) : kind === 'aspect' ? aspectsFor(s.classId, cls.subclassId) : fragmentsFor(cls.element);
+    const ids = kind === 'super' ? supersFor(s.classId, cls.subclassId) : kind === 'jump' ? jumpsFor(s.classId, cls.subclassId) : kind === 'grenade' ? grenadesForSub(s.classId, cls.subclassId) : kind === 'class' ? classAbilitiesFor(s.classId, cls.subclassId) : kind === 'aspect' ? aspectsFor(s.classId, cls.subclassId) : fragmentsFor(cls.element);
     const current = entries[spSlot]?.id;
     const used = new Set(kind === 'aspect' ? lo.aspects : kind === 'fragment' ? lo.fragments : []);
     const removable = kind === 'aspect' || kind === 'fragment';
@@ -1334,7 +1344,13 @@ function openModify() {
   });
   $$('.sp-opt', f).forEach((b) => {
     const kind = b.dataset.kind, id = b.dataset.opt;
-    if (kind === 'melee') { b.addEventListener('mouseenter', () => show(fixed.melee)); b.addEventListener('click', () => sfx.denied()); return; }
+    if (kind === 'melee' && b.getAttribute('aria-disabled')) { b.addEventListener('mouseenter', () => show(fixed.melee)); b.addEventListener('click', () => sfx.denied()); return; }
+    if (kind === 'melee') {
+      const me = { ...spEntry('melee', id, ctx) }; me.icon = abilityIcon('melee', id, me.color);
+      b.addEventListener('mouseenter', () => show(me)); b.addEventListener('mouseleave', restore);
+      b.addEventListener('click', () => { setLoadout(s, s.classId, cls.subclassId, { melee: id }); sfx.engram(2); renderOrbit(); openModify(); });
+      return;
+    }
     const entry = id ? { ...spEntry(kind, id, ctx), icon: abilityIcon(kind, id, spEntry(kind, id, ctx).color) } : null;
     if (entry) { b.addEventListener('mouseenter', () => show(entry)); b.addEventListener('focus', () => show(entry)); b.addEventListener('mouseleave', restore); }
     b.addEventListener('click', () => {

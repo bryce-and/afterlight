@@ -95,12 +95,12 @@ test('reward track: an engram every 3 levels in the best rarity usable there, ex
   eq(by.common, undefined);
 });
 test('starter subclasses match the spec; the third unlocks at 10', () => {
-  const starters = (c) => Object.keys(CLASSES[c].subclasses).filter((id) => subclassLevel(c, id) === 1).sort();
+  const starters = (c) => Object.keys(CLASSES[c].subclasses).filter((id) => !CLASSES[c].subclasses[id].prismatic && subclassLevel(c, id) === 1).sort();
   eq(starters('vanguard'), ['striker', 'sunbreaker']); // Sunbreaker + Fists of Havoc
   eq(starters('arcanist'), ['dawnblade', 'voidwalker']); // Nova Bomb + Dawnblade
   eq(starters('stalker'), ['gunslinger', 'nightstalker']); // Golden Gun + Shadowshot
   eq(subclassesUnlockedAt(10).map((x) => x.subId).sort(), ['arcstrider', 'sentinel', 'stormcaller']);
-  for (const c of Object.keys(CLASSES)) eq(Object.keys(CLASSES[c].subclasses).length, 5, c); // U22: three Light plus Stasis and Strand
+  for (const c of Object.keys(CLASSES)) eq(Object.keys(CLASSES[c].subclasses).length, 6, c); // U27: plus Prismatic // U22: three Light plus Stasis and Strand
   eq(subclassesUnlockedAt(28).map((x) => x.subId).sort(), ['behemoth', 'berserker', 'broodweaver', 'revenant', 'shadebinder', 'threadrunner']);
 });
 test('rarity curve: no legendaries at 1, rare at 15, dominant at 40', () => {
@@ -316,7 +316,7 @@ test('damage numbers drift mostly sideways, on alternating sides', () => {
 });
 
 // ---------- subclasses: registry, loadouts, gating (Paths of Light) ----------
-const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasses).map((sid) => [c, sid]));
+const SUBS = Object.entries(CLASSES).flatMap(([c, k]) => Object.keys(k.subclasses).filter((sid) => !k.subclasses[sid].prismatic).map((sid) => [c, sid])); // U27: Prismatic is checked in its own tests
 const isDarkSub = (c, sid) => ['stasis', 'strand'].includes(CLASSES[c].subclasses[sid].element);
 const LIGHT_SUBS = SUBS.filter(([c, sid]) => !isDarkSub(c, sid)); // U22: the nine Light subclasses
 const DARK_SUBS = SUBS.filter(([c, sid]) => isDarkSub(c, sid));
@@ -632,9 +632,9 @@ test('save v3 upgrades through v4: weapons gain archetypes and fixed stats; perk
   eq(s.vault[0].frame, frameFor(s.vault[0]), 'vault too');
 });
 test('elements: six with distinct symbols; Stasis and Strand roll on weapons; U22: enemy shields can be Stasis or Strand', () => {
-  eq(Object.keys(ELEMENTS), ['kinetic', 'solar', 'arc', 'void', 'stasis', 'strand']);
-  eq(new Set(Object.values(ELEMENTS).map((e) => e.symbol)).size, 6);
-  eq(new Set(Object.values(ELEMENTS).map((e) => e.color)).size, 6);
+  eq(Object.keys(ELEMENTS), ['kinetic', 'solar', 'arc', 'void', 'stasis', 'strand', 'prismatic']); // U27: Prismatic is the subclass colour, never a weapon element
+  eq(new Set(Object.values(ELEMENTS).map((e) => e.symbol)).size, 7);
+  eq(new Set(Object.values(ELEMENTS).map((e) => e.color)).size, 7);
   ok(ENERGY.includes('stasis') && ENERGY.includes('strand'), 'energy pool');
   eq(SHIELD_ELEMENTS, ['solar', 'arc', 'void', 'stasis', 'strand']);
   const els = new Set();
@@ -4551,6 +4551,88 @@ test('U27 save v14 to v15: every Guardian gets an equipped class item at their L
   const c = s.chars.vanguard, ci2 = c.inventory.find((i) => i.id === c.equipped.classitem);
   ok(ci2 && ci2.classId === 'vanguard' && ci2.name.endsWith('Mark'), 'the other Guardian gets a Mark');
   ok(S.charPower(s, 'vanguard') >= old(other), `${S.charPower(s, 'vanguard')} >= ${old(other)}`);
+});
+
+// ---------- U27 Prismatic (B2) ----------
+import * as PR from '../js/prismatic-rules.js';
+import * as XC from '../js/exotic-class-items.js';
+import { PRISMATIC, PRISMATIC_GRENADES } from '../js/data.js';
+
+test('U27 Prismatic curated lists reference real supers, melees, grenades and aspects of the right class', () => {
+  for (const cid of Object.keys(CLASSES)) {
+    const P = PRISMATIC[cid];
+    for (const id of P.supers) ok(SC.superDef(cid, 'prismatic', id), `${cid} super ${id}`);
+    for (const id of P.melees) ok(SC.meleeDef(cid, id), `${cid} melee ${id}`);
+    for (const id of P.grenades) ok(SC.GRENADES[id] && !SC.GRENADES[id].transcend, `${cid} grenade ${id}`);
+    for (const id of P.aspects) ok(SC.ASPECTS[id]?.cls === cid, `${cid} aspect ${id}`);
+    eq([P.supers.length, P.melees.length, P.grenades.length, P.aspects.length], [5, 5, 5, 5]);
+    ok(SC.GRENADES[PRISMATIC_GRENADES[cid]]?.transcend, `${cid} Prismatic grenade`);
+  }
+  eq(SC.fragmentsFor('prismatic').length, 12, '12 Facets');
+});
+test('U27 Prismatic loadouts: mixed elements pass; off-list picks fall back; fragments are Facets only', () => {
+  const cid = 'stalker', P = PRISMATIC[cid];
+  const lo = SC.sanitizeLoadout(cid, 'prismatic', { super: P.supers[2], melee: P.melees[3], grenade: P.grenades[4], aspects: [P.aspects[0], P.aspects[3], 'feedvoid'], fragments: ['balance', 'whisper', 'courage'] }, 40);
+  eq([lo.super, lo.melee, lo.grenade], [P.supers[2], P.melees[3], P.grenades[4]], 'mixed-element picks kept');
+  eq(lo.aspects, [P.aspects[0], P.aspects[3]], 'a Void aspect that is not on the Stalker list is dropped');
+  ok(lo.fragments.every((f) => SC.FRAGMENTS[f].element === 'prismatic'), 'only Facets');
+  const bad = SC.sanitizeLoadout(cid, 'prismatic', { melee: 'shieldthrow', grenade: 'hailfire' }, 40);
+  ok(P.melees.includes(bad.melee) && P.grenades.includes(bad.grenade), 'other-class melee and the Transcendence grenade are refused');
+  eq(SC.sanitizeLoadout(cid, 'nightstalker', { melee: P.melees[1] }, 40).melee, undefined, 'melee is pickable on Prismatic only');
+});
+test('U27 Prismatic is locked until a Legendary campaign clear; its kit resolves with the chosen melee', () => {
+  fresh();
+  const s = S.createSave('arcanist'); S.addXp(s, xpForLevel(40));
+  eq(S.isSubclassUnlocked(s, 'arcanist', 'prismatic'), false);
+  clearTier(s, 'legendary');
+  eq(S.isSubclassUnlocked(s, 'arcanist', 'prismatic'), true);
+  const kit = SC.resolveKit('arcanist', 'prismatic', SC.sanitizeLoadout('arcanist', 'prismatic', { melee: 'penumbral' }, 40));
+  eq([kit.prismatic, kit.element, kit.abilities.melee.id], [true, 'prismatic', 'penumbral']);
+});
+test('U27 meters: Light from Solar/Arc/Void, Dark from Stasis/Strand, Kinetic at half; supers and Transcendence never fill', () => {
+  const m = PR.newTranscendence();
+  PR.fillMeters(m, 'solar', 1000); ok(m.light === 40 && m.dark === 0, 'solar -> light');
+  PR.fillMeters(m, 'stasis', 1000); ok(m.dark === 40, 'stasis -> dark');
+  PR.fillMeters(m, 'kinetic', 1000); ok(m.light === 60 && m.dark === 60, 'kinetic half to both');
+  PR.fillMeters(m, 'arc', 99999, 'super'); ok(m.light === 60, 'super damage never fills');
+  PR.fillMeters(m, 'void', 1000, 'weapon', 1.25); ok(Math.abs(m.light - 110 + 10) < 1e-9 || m.light === 100, 'capped at full');
+  ok(!PR.ready(m), 'dark not full yet');
+  PR.fillMeters(m, 'strand', 99999); ok(PR.ready(m));
+});
+test('U27 Transcendence: activate empties the meters, runs 10 s, kills add 1 s up to 20 s, Facets adjust, then ends', () => {
+  const m = PR.newTranscendence(); PR.fillBoth(m, 100);
+  const frag = new Set();
+  ok(PR.activate(m, frag) && m.active && m.t === 10 && m.light === 0 && m.dark === 0);
+  PR.fillMeters(m, 'solar', 1e6); eq(m.light, 0, 'nothing fills while Transcendent');
+  for (let i = 0; i < 30; i++) PR.extend(m, frag);
+  eq(m.t, 20, 'cap');
+  eq(PR.weaponMult(m, frag), 1.1); eq(PR.incomingMult(m, false), 0.8); eq(PR.incomingMult(m, true), 1, 'never against players'); eq(PR.regenMult(m, 'melee', frag), 1.5);
+  ok(!PR.tick(m, 19.9) && PR.tick(m, 0.2) && !m.active);
+  eq(PR.weaponMult(m, frag), 1);
+  const d = new Set(['dawn', 'hope']); PR.fillBoth(m, 100); PR.activate(m, d); eq(m.t, 13); PR.extend(m, d); eq(m.t, 15, 'Hope doubles kill time');
+  eq(PR.coopFlag({ prismatic: true }, m), 2); eq(PR.coopFlag({}, m), 0);
+});
+test('U27 transcend binds: X on keyboard, Z on the trackpad preset, no collisions', () => {
+  eq(KB.PRESETS.keyboard.binds.transcend, ['KeyX']); eq(KB.PRESETS.trackpad.binds.transcend, ['KeyZ']);
+  for (const preset of [KB.PRESETS.keyboard.binds, KB.PRESETS.trackpad.binds]) {
+    const seen = new Map();
+    for (const [a, keys] of Object.entries(preset)) for (const k of keys) { ok(!seen.has(k) || seen.get(k) === a, `${k}: ${seen.get(k)} vs ${a}`); seen.set(k, a); }
+  }
+});
+test('U27 exotic class items: two distinct spirit perks, one-exotic rule, only active on Prismatic, gift once', () => {
+  fresh();
+  for (const cid of Object.keys(XC.EXOTIC_CLASS_ITEMS)) {
+    const it = makeArmor('classitem', 60, 4, null, cid);
+    eq([it.rarity, it.name], ['exotic', XC.EXOTIC_CLASS_ITEMS[cid]]);
+    eq(it.spirits.length, 2); ok(it.spirits[0] !== it.spirits[1]);
+    ok(XC.spiritPerks(it).length === 2 && it.spirits.every((n) => DATA.EXOTIC_ARMOR_PERKS[n].spirit), 'spirit perks only');
+  }
+  const s = S.createSave('vanguard'); S.addXp(s, xpForLevel(40));
+  eq(S.syncPrismatic(s), null, 'locked: no gift'); ok(!RW.rollBlitzMenu(s).armor.some((a) => a.slot === 'classitem'), 'not offered before unlock');
+  clearTier(s, 'legendary');
+  const gift = S.syncPrismatic(s); ok(gift && gift.slot === 'classitem' && gift.rarity === 'exotic', 'one guaranteed at unlock');
+  eq(S.syncPrismatic(s), null, 'only once');
+  ok(RW.rollBlitzMenu(s).armor.some((a) => a.slot === 'classitem' && a.rarity === 'exotic'), 'always in the Blitz pick menu after unlock');
 });
 
 for (const t of tests) {

@@ -39,6 +39,7 @@ export const TOUCH_BUTTONS = [
   { id: 'jump', label: 'JUMP', kind: 'key', target: 'Space', x: 0.93, y: 0.84, s: 62 },
   { id: 'reload', label: 'RLD', kind: 'key', target: 'KeyR', x: 0.70, y: 0.56, s: 52 },
   { id: 'super', label: 'SUPER', kind: 'key', target: 'KeyF', x: 0.94, y: 0.34, s: 60 },
+  { id: 'transcend', label: 'TRANSCEND', kind: 'key', target: 'KeyZ', x: 0.94, y: 0.20, s: 64 }, // U27: shown only while Transcendence is ready
   { id: 'interact', label: 'USE', kind: 'key', target: 'KeyE', x: 0.62, y: 0.80, s: 56 },
   { id: 'pause', label: 'II', kind: 'ui', target: 'pause', x: 0.04, y: 0.10, s: 46 },
 ];

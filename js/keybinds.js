@@ -26,6 +26,7 @@ export const ACTIONS = [
   { id: 'charged', label: 'Charged melee ability', target: 'KeyV', group: 'Abilities' },
   { id: 'classAbility', label: 'Class ability', target: 'KeyC', group: 'Abilities' },
   { id: 'super', label: 'Super', target: 'KeyF', group: 'Abilities' },
+  { id: 'transcend', label: 'Transcendence (Prismatic)', target: 'KeyZ', group: 'Abilities' }, // U27: canonical KeyZ is unused by gameplay
   { id: 'interact', label: 'Interact / revive', target: 'KeyE', group: 'General' },
   { id: 'ghost', label: 'Ghost', target: 'Tab', group: 'General' },
   { id: 'orbit', label: 'Go to Orbit (Ghost, hold)', target: 'KeyO', group: 'General' },
@@ -49,7 +50,7 @@ const KEYBOARD = {
   forward: ['KeyW'], back: ['KeyS'], left: ['KeyA'], right: ['KeyD'], sprint: ['ShiftLeft'], jump: ['Space'],
   fire: ['Mouse0'], ads: ['Mouse2'], reload: ['KeyR'], weapon1: ['Digit1'], weapon2: ['Digit2'], weapon3: ['Digit3'],
   nextWeapon: ['WheelDown'], prevWeapon: ['WheelUp'],
-  grenade: ['KeyQ'], melee: ['KeyB'], charged: ['KeyV'], classAbility: ['KeyC'], super: ['KeyF'],
+  grenade: ['KeyQ'], melee: ['KeyB'], charged: ['KeyV'], classAbility: ['KeyC'], super: ['KeyF'], transcend: ['KeyX'],
   interact: ['KeyE'], ghost: ['Tab'], orbit: ['KeyO'], character: ['KeyI'],
 };
 // Magic Mouse / trackpad: one click is Fire. Aim works from a held X as well as a two-finger (secondary) click,
@@ -57,7 +58,7 @@ const KEYBOARD = {
 // switching keeps the swipe but behind the scroll guard, with T as a key for Next weapon.
 const TRACKPAD = {
   ...KEYBOARD,
-  ads: ['KeyX', 'Mouse2'], melee: ['KeyG'], nextWeapon: ['KeyT', 'WheelDown'],
+  ads: ['KeyX', 'Mouse2'], melee: ['KeyG'], nextWeapon: ['KeyT', 'WheelDown'], transcend: ['KeyZ'], // U27: X is Aim here
 };
 /** Built-in schemes. `guard` turns on the scroll guard (one weapon swap per swipe). */
 export const PRESETS = {

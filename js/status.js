@@ -15,6 +15,7 @@ export const STATUS = {
   lethal: { name: 'Lethal Current', group: 'general', glyph: 'ϟ', color: '#7fd8ff' },
   nezarec: { name: "Nezarec's Sin", group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   contraverse: { name: 'Contraverse Hold', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
+  transcendent: { name: 'Transcendent', group: 'general', glyph: '◈', color: '#ff9be8', t: 10 }, // U27 Prismatic
   heart: { name: 'Inmost Light', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   dunemarchers: { name: 'Static Charge', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity },
   nighthawk: { name: 'Celestial Nighthawk', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity },
