@@ -636,7 +636,8 @@ const methods = {
   releasePerched(hit = null) {
     if (!perchedCount() || G.time < perch.releaseAt) return;
     const T = STRAND.threadling;
-    const near = enemiesNear(hit ? hit.pos : this.pos, T.seekR, perch.list.length);
+    let near = enemiesNear(hit ? hit.pos : this.pos, T.seekR, perch.list.length);
+    if (!near.length && !(hit && hit.alive)) near = enemiesNear(this.pos, T.seekR, perch.list.length); // H35: a killing blow with nothing else near the corpse still sends them at what is near you
     const targets = hit && hit.alive ? [hit, ...near.filter((x) => x !== hit)] : near;
     if (!targets.length) return;
     perch.releaseAt = G.time + T.releaseGap;

@@ -3,7 +3,7 @@
 // Every boon is one data row. Taking a boon again stacks it: each effect value below is the amount ONE stack adds.
 import { mulberry32 } from './util.js';
 
-export const BOON_EVERY = 5;        // a boon choice after every 5th wave
+export const BOON_EVERY = 3;        // a boon choice after wave 1, then every 3rd wave (1, 4, 7, ...)
 export const BOON_OFFER_SIZE = 3;   // options per member
 export const BOON_PICK_SECONDS = 10; // the first option is taken on timeout
 export const WEAPON_OFFER_CHANCE = 0.25; // chance each option is a weapon swap instead of a buff
@@ -156,8 +156,8 @@ export function applyOption(run, option) {
   else throw new Error(`applyOption: unknown option kind ${option.kind}`);
   return option;
 }
-/** True when the wave just cleared earns a boon choice (every BOON_EVERY waves, but not after the last wave). */
-export const boonDue = (wave, totalWaves) => wave > 0 && wave % BOON_EVERY === 0 && wave < totalWaves;
+/** True when the wave just cleared earns a boon choice (wave 1, then every BOON_EVERY waves, but not after the last wave). */
+export const boonDue = (wave, totalWaves) => wave > 0 && (wave - 1) % BOON_EVERY === 0 && wave < totalWaves;
 
 /**
  * The host's wave-break timer for the pick. `picked`: Set of member ids who have picked. Counts down once per update.

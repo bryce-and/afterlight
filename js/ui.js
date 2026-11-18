@@ -1931,6 +1931,7 @@ export function showPause() {
 
 /** I from anywhere: Orbit opens the Character tab; a mission or patrol opens it over the paused game (co-op keeps running behind it). */
 export function toggleCharacter() {
+  if (!G.invOpen && G.mission?.act?.roguelike && G.state !== 'orbit') { centerMessage('Locked', 'No Character screen during a Roguelike run', 1.5); return; } // H35: it would hand back your own loadout
   if (G.invOpen) { if (!modsScreen && !lootScreenOpen()) resumeGame(); return; }
   if (G.state === 'orbit') {
     if (orbitTab === 'character' || modsScreen || lootScreenOpen()) return;

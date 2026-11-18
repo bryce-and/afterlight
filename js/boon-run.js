@@ -11,8 +11,8 @@ import {
 } from './boons.js';
 import { dealDamage, enemiesNear, explode } from './game.js';
 
-/** The kit every Horde run starts with, whatever the player owns: assault rifle, shotgun, grenade launcher (O1). */
-export const HORDE_KIT = [{ slot: 'primary', arch: 'auto' }, { slot: 'special', arch: 'shotgun' }, { slot: 'heavy', arch: 'glauncher' }];
+/** H35: the slots every Roguelike run starts with. The weapon in each slot is a random legendary (any archetype of that slot), whatever the player owns. */
+export const HORDE_KIT = [{ slot: 'primary' }, { slot: 'special' }, { slot: 'heavy' }];
 
 export const hordeRun = () => (G.mission?.act?.roguelike ? G.mission.boonRun || null : null);
 let cache = { run: null, picks: -1, t: {} };
@@ -32,7 +32,7 @@ export function startBoonRun(M, P, power) {
   M.boonState = { momentum: [], rushUntil: 0, saves: 0, savesUsed: 0, lastWave: 0 };
   cache = { run: null, picks: -1, t: {} };
   for (const k of HORDE_KIT) {
-    const item = makeItemWeapon(k.slot, power, 3, k.arch);
+    const item = makeItemWeapon(k.slot, power, 3);
     item.isNew = false;
     P.swapWeapon(P.weapons.findIndex((w) => w.item.slot === k.slot), item);
   }

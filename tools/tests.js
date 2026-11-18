@@ -4376,7 +4376,7 @@ test('U24 boons: auto-pick takes the first; the pick timer ends when all picked 
   const s0 = BN.pickState(['a', 'b'], new Set(['a']), 3); eq([s0.done, s0.timedOut], [false, []]); near(s0.remaining, 7, 1e-9);
   const s1 = BN.pickState(['a', 'b'], new Set(['a', 'b']), 1); eq(s1.done, true);
   const s2 = BN.pickState(['a', 'b'], new Set(['a']), 10); eq([s2.done, s2.timedOut], [true, ['b']]);
-  eq(BN.BOON_PICK_SECONDS, 10); eq(BN.BOON_EVERY, 5);
+  eq(BN.BOON_PICK_SECONDS, 10); eq(BN.BOON_EVERY, 3);
 });
 
 test('U24 boons: a weapon swap fills the slot, applyOption works, reset clears the run', () => {
@@ -4388,8 +4388,8 @@ test('U24 boons: a weapon swap fills the slot, applyOption works, reset clears t
   let threw = false; try { BN.applyOption(run, { kind: 'x' }); } catch { threw = true; } ok(threw);
 });
 
-test('U24 boons: a boon is due every 5 waves but not after the last', () => {
-  eq([4, 5, 10, 25, 30].map((w) => BN.boonDue(w, 30)), [false, true, true, true, false]);
+test('U24 boons: a boon is due after wave 1 and every 3 waves, but not after the last', () => {
+  eq([1, 2, 3, 4, 7, 10, 28, 29, 30].map((w) => BN.boonDue(w, 30)), [true, false, false, true, true, true, true, false, false]);
 });
 
 test('U24 horde scaling: wave 1 is 1x; values rise per wave, stay capped and bosses outgrow the rest', () => {
@@ -4443,7 +4443,7 @@ test('U24 roguelike endless: the curve never levels off past wave 30 (only the e
   eq(c.count, BN.ENDLESS_SCALE.countMax, 'count capped'); eq(BN.waveScale(1, BN.ENDLESS_SCALE), { count: 1, hp: 1, dmg: 1, bossHp: 1 });
   ok(BN.waveScale(30, BN.ENDLESS_SCALE).hp > BN.waveScale(30).hp, 'steeper than Horde');
   const acts = DATA.ACTIVITIES; ok(acts.find((x) => x.id === 'endless_rogue')?.roguelike, 'the mode exists'); ok(acts.find((x) => x.id === 'horde_rogue').roguelike && acts.find((x) => x.id === 'horde_rogue').waves === 30, 'Roguelike Horde exists'); ok(!acts.find((x) => x.id === 'horde').roguelike, 'classic Horde is unchanged'); ok(!acts.find((x) => x.id === 'endless').roguelike, 'plain Endless is unchanged');
-  eq([30, 35, 1001].map((w) => BN.boonDue(w, Infinity)), [true, true, false]);
+  eq([31, 34, 1000, 32].map((w) => BN.boonDue(w, Infinity)), [true, true, true, false]);
 });
 
 test('U26 mobile: detect honours ?mobile, ?mobile=0 and the touch default', () => {

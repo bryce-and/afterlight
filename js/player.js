@@ -54,6 +54,8 @@ const after = (sec, fn) => { let t = sec; addTicker({ update(dt) { t -= dt; if (
 const VOLATILE_CYCLE = ['arc', 'solar', 'void'];
 const CHARGE_BURST_GAP = 0.14; // seconds between the bolts of an Aggressive Frame linear fusion burst
 const WAVE_STEP = 1.5, WAVE_RADIUS = 2.4; // Compressed Wave Frame bursts
+/** H35: height of a wave burst at (x, z): above the terrain AND any box top, so a wave on a slope never rolls under the floor. */
+const waveY = (x, z, y) => Math.max(0.3, groundAt(x, z) + 0.3, restHeight(x, z, y, G.colliders.filter((c) => !c.pass)) + 0.3);
 
 function makeWeapon(item) {
   if (!item) throw new Error('Player: an equipped weapon is missing from the save.');
@@ -1102,18 +1104,16 @@ export class Player {
     if (enemy && enemy.alive) dealDamage(enemy, dmg * 0.3, { element: w.item.element, weapon: w, source: 'weapon' });
     if (w.A.wave && dir) {
       // Compressed Wave Frame: the blast rolls forward along the ground in a line of bursts
-      const at = p.clone().setY(Math.max(0.3, restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass)) + 0.3));
       for (let i = 0; i < w.A.wave; i++) {
-        const q = at.clone().addScaledVector(dir, i * WAVE_STEP);
+        const q = p.clone().addScaledVector(dir, i * WAVE_STEP); q.y = waveY(q.x, q.z, p.y);
         after(i * 0.07, () => explode(q, WAVE_RADIUS, dmg, wEl(w), { weapon: w, source: 'weapon', small: i % 2 === 1 }));
       }
     } else if (w.A.fan && dir) {
       // Trinary Vision: three waves roll out in a fan
-      const at = p.clone().setY(Math.max(0.3, restHeight(p.x, p.z, p.y, G.colliders.filter((c) => !c.pass)) + 0.3));
       explode(p, w.A.projectile.radius, dmg * 0.7, wEl(w), { weapon: w, source: 'weapon' });
       for (const ang of ARSENAL.fan) {
         const d = dir.clone().applyAxisAngle(_UP, ang);
-        for (let i = 1; i <= 4; i++) after(i * 0.07, () => explode(at.clone().addScaledVector(d, i * WAVE_STEP), WAVE_RADIUS * 0.8, dmg * 0.45, wEl(w), { weapon: w, source: 'weapon', small: true }));
+        for (let i = 1; i <= 4; i++) after(i * 0.07, () => { const q = p.clone().addScaledVector(d, i * WAVE_STEP); q.y = waveY(q.x, q.z, p.y); explode(q, WAVE_RADIUS * 0.8, dmg * 0.45, wEl(w), { weapon: w, source: 'weapon', small: true }); });
       }
     } else explode(p, w.A.projectile.radius, dmg, wEl(w), { weapon: w, source: 'weapon' });
     if (w.has('torment')) { // Witherhoard: Primeval's Torment. A direct hit sticks to the target; the pool lands where it dies. A miss pools where it lands.
