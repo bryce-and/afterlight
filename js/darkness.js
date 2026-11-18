@@ -28,7 +28,7 @@ import * as ui from './ui.js';
 const ST = ELEMENTS.stasis.hex, SD = ELEMENTS.strand.hex, ST_CORE = 0xe8f2ff, SD_CORE = 0xc8ffd8;
 const V = (a) => (a instanceof THREE.Vector3 ? a.clone() : new THREE.Vector3(a[0], a[1], a[2]));
 const _v = new THREE.Vector3();
-const GRAPPLE = { range: 38, speed: 26, reel: 7, minLen: 4, swingT: 3.2, maxSpeed: 30 }; // H32
+const GRAPPLE = { range: 38, speed: 26, accel: 70, reel: 14, minLen: 4, swingT: 3.2, maxSpeed: 32 }; // H32
 const superDmg = (n) => n * SUPER_POWER * (G.mission?.hpMult ?? 1);
 const glow = (c, k = 2.2, op = 1) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, flatShading: true, transparent: op < 1, opacity: op });
 
@@ -806,14 +806,18 @@ const methods = {
     const release = G.input.pressed.Space && g.age > 0.15; // jump lets go
     if (g.mode === 'pull') {
       if (dist < 1.5 || g.t <= 0 || release) { this.grapple = null; this.vel.multiplyScalar(release ? 1 : 0.5); return; }
+      if (g.age < 0.3 && this.onGround) { n.y = Math.max(n.y, 0.35); n.normalize(); } // lift off the floor so the pull does not drag you along it
       this.vel.copy(n).multiplyScalar(GRAPPLE.speed); this.onGround = false;
     } else {
-      if (g.t <= 0 || release || (this.onGround && g.age > 0.3)) { this.grapple = null; return; } // you keep whatever speed you swung up
+      if (g.t <= 0 || release || dist < 2.5 || (this.onGround && g.age > 1)) { this.grapple = null; return; } // arriving or letting go keeps whatever speed you built up
+      if (g.age < 0.1 && this.onGround) { this.vel.y = Math.max(this.vel.y, 8); this.onGround = false; } // launch off the floor
+      this.vel.addScaledVector(n, GRAPPLE.accel * dt); // a hard pull toward the pivot
+      const inward = this.vel.dot(n);
+      if (inward > GRAPPLE.speed) this.vel.addScaledVector(n, GRAPPLE.speed - inward);
       g.len = Math.max(GRAPPLE.minLen, g.len - GRAPPLE.reel * dt); // the rope reels in
-      if (dist > g.len) { // a taut rope: no motion away from the pivot, and a spring back to the rope's length
+      if (dist > g.len) { // a taut rope: no motion away from the pivot, so what is left of your speed swings you around it
         const away = -this.vel.dot(n);
         if (away > 0) this.vel.addScaledVector(n, away);
-        this.vel.addScaledVector(n, Math.min(20, (dist - g.len) * 8));
       }
       const sp = this.vel.length(); if (sp > GRAPPLE.maxSpeed) this.vel.multiplyScalar(GRAPPLE.maxSpeed / sp);
       this.onGround = false;

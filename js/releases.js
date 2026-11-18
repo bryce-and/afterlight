@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '5.3.2', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'The Strand grapple pulls hard and keeps your swing, and Khvostov 7G-02 is now a military black rifle.',
+    notes: [
+      'The Strand grapple now pulls hard: a midair pivot launches you off the floor and accelerates you toward it (up to 26 m/s) and you keep your swing; a surface hit lifts you off the floor so the pull does not drag you along it. Jump lets go and keeps your speed; arriving at the pivot ends it with your speed kept',
+      'Khvostov 7G-02 is now a military black rifle',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.3.1', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
     summary: 'Cyclops stay on the ground, the Taken Goblin and Emperor Calus have new models, guns and exotics have their own looks, the Strand grapple is reworked, and a few balance numbers change.',
     notes: [
