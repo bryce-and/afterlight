@@ -85,7 +85,7 @@ export const UNITS = {
   sc_stalker:   { faction: 'scorn', base: 'grunt', name: 'Scorn Stalker', hp: 95, skills: ['revive'], revive: { delay: [4, 6], hpFrac: 0.4 } },
   sc_raider:    { faction: 'scorn', base: 'grunt', name: 'Scorn Raider', hp: 110, range: 55, prefer: 26, burst: 1, burstGap: 0.2, fireCd: [2.4, 3.4], dmg: 12, projSpeed: 36, shotSize: 0.12, skills: ['snipe', 'blink', 'revive'], snipe: { charge: 1.6, dmg: 34, cd: [3.4, 5.0] }, blink: { cd: [7, 11], range: [7, 12], toward: false, onHit: true }, revive: { delay: [4, 6], hpFrac: 0.4 } }, // U18: the crossbow sniper
   sc_lurker:    { faction: 'scorn', base: 'grunt', name: 'Scorn Lurker', hp: 150, speed: 4.6, skills: ['frontGuard'], frontGuard: { mult: 0.35, box: { x: -0.6, y: 1.1, z: 0.5, w: 0.72, h: 0.72, d: 0.3 }, knock: null } }, // U18: box fits the round shield
-  sc_abomination: { faction: 'scorn', base: 'heavy', name: 'Scorn Abomination', hp: 1000, dmg: 14, burst: 2, burstGap: 0.2, fireCd: [2.2, 3.2], shotColor: 0x5fd3ff, skills: [], enrage: true },
+  sc_abomination: { faction: 'scorn', base: 'heavy', name: 'Scorn Abomination', hp: 1000, scale: 1.3, dmg: 14, burst: 2, burstGap: 0.2, fireCd: [2.2, 3.2], shotColor: 0x5fd3ff, skills: [], enrage: true },
   sc_chieftain: { faction: 'scorn', base: 'captain', name: 'Scorn Chieftain', hp: 340, shield: 160, shieldEl: 'solar', skills: ['totem'], totem: { cd: [14, 19], max: 2, life: 22 } },
   // U15: a story objective target (consoles, totems, emitters): a standing glowing pylon, takes the destination's colors, never moves or shoots
   obj_node:     { base: 'grunt', name: 'Objective Target', hp: 380, speed: 0, static: true, support: true, noDrops: true, objective: true, skills: [] },
