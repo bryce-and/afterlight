@@ -53,7 +53,7 @@ const MIGRATIONS = {
       if (it.kind !== 'armor') continue;
       it.stats = migrateArmorStats(it, OLD_ARMOR_PTS);
       it.mods = blankMods();
-      if (it.perk && MODS[it.perk]?.slot === it.slot) it.mods[1] = it.perk;
+      if (it.perk && (MODS[it.perk]?.slot === it.slot || MODS[it.perk]?.slot === 'classitem')) it.mods[1] = it.perk; // U27: Utility Kickstart moved to the class item; the v15 migration carries it there
       else if (it.perk) s.armorNote.dropped++;
       delete it.perk;
     }
@@ -127,6 +127,20 @@ function addClassItem(g, classId) {
   const rIdx = !chest ? 0 : chest.rarity !== 'exotic' ? rarityIndex(chest.rarity) : 3; // matches what the Guardian already wears; no chest (a bare save): common
   const it = makeArmor('classitem', power, rIdx, chest?.set || null, classId);
   it.isNew = false;
+  // U27: the class ability mods (Reaper, Utility Kickstart, Insulation, Bolstering Detonation) moved to the class item. The ones socketed in
+  // the armor being worn move onto it (nothing is lost); socketed elsewhere they are emptied (mods are unlocked by level, not consumed).
+  const moved = new Set(Object.keys(MODS).filter((id) => MODS[id].slot === 'classitem'));
+  const carry = [];
+  const wornIds = new Set(OLD.map((sl) => g.equipped[sl]));
+  for (const a of [...g.inventory, ...(g.vault || []), ...(g.postmaster || [])]) {
+    if (a.kind !== 'armor' || !a.mods) continue;
+    a.mods = a.mods.map((id, i) => {
+      if (i === 0 || !moved.has(id)) return id;
+      if (wornIds.has(a.id) && !carry.includes(id)) carry.push(id);
+      return null;
+    });
+  }
+  carry.slice(0, 3).forEach((id, i) => { it.mods[i + 1] = id; });
   g.inventory.push(it);
   g.equipped.classitem = it.id;
 }

@@ -716,7 +716,8 @@ test('rolled armor: six stats with the rarity total, four empty sockets, energy 
 });
 test('mods: counts per slot, costs 1 to 4, unlock levels 5 to 30, the eight former perks are starters', () => {
   eq(AR.statMods().length, 12);
-  eq(['helmet', 'arms', 'chest', 'legs'].map((s) => AR.modsForSlot(s).length), [10, 13, 12, 13]); // U9: Fonts of Discipline, Resilience, Mobility
+  eq(['helmet', 'arms', 'chest', 'legs', 'classitem'].map((s) => AR.modsForSlot(s).length), [10, 11, 12, 11, 4]); // U9: Fonts; U27: the class ability mods (Reaper, Utility Kickstart, Insulation, Bolstering Detonation) moved to the class item
+  eq(AR.modsForSlot('classitem').sort(), ['bolstering', 'insulation', 'kickstart', 'reaper']);
   eq(AR.MOD_IDS.length, 60);
   for (const id of AR.MOD_IDS) { const d = AR.MODS[id]; ok(d.cost >= 1 && d.cost <= 4, id); ok(d.unlock >= 5 && d.unlock <= 30, id); ok(d.name && d.desc, id); }
   eq(AR.MOD_IDS.filter((id) => AR.MODS[id].unlock === AR.MODS_LEVEL).length, 34, 'starter set');
@@ -4533,7 +4534,7 @@ test('U27 one exotic armor rule and trimExotics cover the class item', () => {
 test('U27 save v14 to v15: every Guardian gets an equipped class item at their Light, in the set of their chest; Light never drops', () => {
   const gear = (id, slot, power, extra = {}) => ({ id, kind: 'armor', slot, classId: 'stalker', rarity: 'legendary', name: id, power, stats: { mob: 5, res: 5, rec: 5, dis: 5, int: 5, str: 5 }, mods: AR.blankMods(), ...extra });
   const mk = (cls, powers) => {
-    const inv = [...['primary', 'special', 'heavy'].map((sl, i) => ({ id: `w${sl}`, kind: 'weapon', slot: sl, power: powers[i], rarity: 'common' })), ...['helmet', 'arms', 'chest', 'legs'].map((sl, i) => gear(`a${sl}`, sl, powers[3 + i], { classId: cls, set: 'titan' }))];
+    const inv = [...['primary', 'special', 'heavy'].map((sl, i) => ({ id: `w${sl}`, kind: 'weapon', slot: sl, power: powers[i], rarity: 'common' })), ...['helmet', 'arms', 'chest', 'legs'].map((sl, i) => gear(`a${sl}`, sl, powers[3 + i], { classId: cls, set: 'titan', mods: [null, sl === 'arms' ? 'reaper' : sl === 'legs' ? 'kickstart' : null, null, null] }))];
     return { inventory: inv, equipped: Object.fromEntries(inv.map((i) => [i.slot, i.id])) };
   };
   const main = mk('stalker', [70, 71, 72, 73, 74, 75, 76]), other = mk('vanguard', [50, 51, 52, 53, 54, 55, 56]);
@@ -4544,6 +4545,8 @@ test('U27 save v14 to v15: every Guardian gets an equipped class item at their L
   eq(s.version, 15);
   const ci = S.getEquipped(s, 'classitem');
   ok(ci && ci.slot === 'classitem' && ci.classId === 'stalker' && ci.set === 'titan' && ci.rarity === 'legendary', 'Hunter cloak in the chest set');
+  eq(S.getEquipped(s, 'classitem').mods.slice(1).filter(Boolean).sort(), ['kickstart', 'reaper'], 'worn Reaper (gauntlets) and Utility Kickstart (legs) moved onto the class item');
+  ok(!S.getEquipped(s, 'arms').mods.includes('reaper') && !S.getEquipped(s, 'legs').mods.includes('kickstart'), 'and left the old pieces');
   ok(S.playerPower(s) >= old(main), `Light ${S.playerPower(s)} kept (was ${old(main)}): ${SLOTS.map((sl) => sl + ':' + S.getEquipped(s, sl)?.power).join(' ')}`);
   const c = s.chars.vanguard, ci2 = c.inventory.find((i) => i.id === c.equipped.classitem);
   ok(ci2 && ci2.classId === 'vanguard' && ci2.name.endsWith('Mark'), 'the other Guardian gets a Mark');
