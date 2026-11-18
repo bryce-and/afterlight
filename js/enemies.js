@@ -945,7 +945,7 @@ export class Enemy {
       // dangerous: most of a Guardian's health and shield at the core, never a clean one-shot (tiers.js suicideCore)
       const total = (Pl.maxHealth ?? G.player.maxHealth) + (Pl.maxShield ?? G.player.maxShield ?? 0);
       const intake = Math.max(1, (G.mission.incomingMult ?? 1) * (Pl.splashMult ?? 1)); // damagePlayer scales by this afterwards; divide it out so the cap holds
-      const dmg = blastDamage(suicideCore(total, this.dmgMult), d) / intake;
+      const dmg = blastDamage(suicideCore(total, this.dmgMult), d) * Math.min(1, this.def.blastMul ?? 1) / intake; // H32: a def's blastMul below 1 weakens its blast (Imps); values above 1 stay unapplied so Screebs hit as before
       if (dmg <= 0) continue;
       if (Pl.remote) { damageRemote(Pl, dmg, this.pos); continue; }
       damagePlayer(dmg, this.pos, 'splash');

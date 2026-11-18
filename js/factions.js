@@ -99,7 +99,7 @@ export const UNITS = {
   vx_wyvern:    { faction: 'vex', base: 'rusher', name: 'Wyvern', hp: 640, shield: 320, shieldEl: 'void', speed: 6.4, meleeDmg: 38, scale: 1.35, fly: 1.2, skills: ['blink'], blink: { cd: [3, 5], range: [8, 13], toward: true } },
   vx_hydra:     { faction: 'vex', base: 'heavy', name: 'Hydra', hp: 820, noShield: true, speed: 2.2, prefer: 12, range: 28, burst: 1, dmg: 22, projSpeed: 20, splash: 2.5, fly: 0.9, skills: ['spinGuard', 'deathBlast'], spinGuard: { arc: 2.6, speed: 1.3, mult: 0.1 }, deathBlast: { radius: 5, dmg: 28 } },
   vx_cyclops:   { faction: 'vex', base: 'heavy', name: 'Cyclops', hp: 1100, noShield: true, stationary: true, lob: true, range: 46, prefer: 30, burst: 1, dmg: 30, fireCd: [3.2, 4.4], scale: 1.5, berserk: { below: 0.35, cdMul: 0.3 }, skills: [] },
-  vx_imp:       { faction: 'vex', base: 'suicide', name: 'Imp', hp: 14, speed: 8.5, scale: 0.7, fly: 0.8, blastMul: 0.6, noDrops: true },
+  vx_imp:       { faction: 'vex', base: 'suicide', name: 'Imp', hp: 14, speed: 8.5, scale: 0.7, fly: 0.8, blastMul: 0.25, noDrops: true },
   vx_imp_swarm: { faction: 'vex', base: 'grunt', name: 'Imp Swarm', hp: 55, speed: 4.6, burst: 2, dmg: 4, fly: 1.2, skills: ['deathSpawn'], deathSpawn: { type: 'vx_imp', n: 5 } },
   // ---- v2.9: Destiny 2 units the older factions were missing ----
   fl_shank:     { faction: 'scrappers', base: 'grunt', name: 'Shank', hp: 60, speed: 4.4, prefer: 12, range: 28, burst: 3, burstGap: 0.12, fireCd: [1.2, 1.9], dmg: 4, projSpeed: 24, shotSize: 0.1, shotColor: 0x62b4ff, scale: 0.9, fly: 1.5, skills: [] }, // v3.0.3: the ordinary Fallen drone, sent in groups (game.js spawnWave keeps them together)
