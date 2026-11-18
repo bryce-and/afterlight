@@ -5,8 +5,17 @@
 
 export const RELEASES = [
   {
+    version: '5.4.2', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Roguelike bosses gain health more slowly, and you get a boon pick after every wave instead of every three.',
+    notes: [
+      'Roguelike Horde and Endless: boss health grows more slowly. Horde bosses gain 2% per wave, capped at 1.6 times their base health (was 10% per wave, capped at 6 times). Endless bosses gain 3% per wave with no cap (was 12% per wave)',
+      'Roguelike boons come after every wave, never after the last one (was after wave 1, then every 3 waves)',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.4.1', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
-    summary: 'Roguelike fixes: bosses have about 60% less health at wave 30, boons come every 3 waves, the starting kit is random legendary guns, and the Character screen is locked during a run.',
+    summary: 'Roguelike fixes: bosses have about 60% less health at wave 30, the starting kit is random legendary guns, and the Character screen is locked during a run.',
     notes: [
       'Roguelike Horde and Endless: boss health was scaled by the wave health curve twice. Bosses now use the boss curve alone, about 60% less boss health at wave 30',
       'Roguelike boons come after wave 1 and every 3 waves after that (1, 4, 7 and so on), never after the last wave. They used to come every 5th wave',

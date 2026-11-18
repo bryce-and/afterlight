@@ -665,10 +665,10 @@ export const LOCATIONS = [
 export const ACTIVITIES = [
   { id: 'horde', name: 'Horde', waves: 30, chestEvery: 5, arenaEvery: 10, desc: 'Survive 30 waves. A cache every 5 waves, a new arena and its boss every 10, and a guaranteed exotic at the end.' },
   // U24: the roguelike run: boons, the Horde kit, a sealed arena. Classic Horde above is unchanged.
-  { id: 'horde_rogue', name: 'Roguelike Horde', roguelike: true, waves: 30, chestEvery: 5, arenaEvery: 10, desc: 'Survive 30 waves as a roguelike run. You start with a random legendary primary, special and heavy, and pick a boon after wave 1 and every 3 waves after. Boss rooms are sealed, and the arena moves every 10 waves. A cache every 5 waves and a guaranteed exotic at the end. Boons and weapon swaps last only for the run.' },
+  { id: 'horde_rogue', name: 'Roguelike Horde', roguelike: true, waves: 30, chestEvery: 5, arenaEvery: 10, desc: 'Survive 30 waves as a roguelike run. You start with a random legendary primary, special and heavy, and pick a boon after every wave. Boss rooms are sealed, and the arena moves every 10 waves. A cache every 5 waves and a guaranteed exotic at the end. Boons and weapon swaps last only for the run.' },
   { id: 'endless', name: 'Endless', waves: Infinity, chestEvery: 5, arenaEvery: 10, desc: 'The waves never stop and keep getting harder. A cache every 5 waves, a new arena every 10, and past wave 30 a guaranteed exotic every 10 waves. How long can you last?' },
   // U24: the roguelike run without an end: boons, the Horde kit, a sealed arena, and a curve that never stops rising
-  { id: 'endless_rogue', name: 'Roguelike Endless', roguelike: true, waves: Infinity, chestEvery: 5, arenaEvery: 10, desc: 'Horde with no end. You start with a random legendary primary, special and heavy, and pick a boon after wave 1 and every 3 waves after. Enemies keep getting denser and tougher, and bosses faster. A cache every 5 waves, a new sealed arena every 10, and past wave 30 a guaranteed exotic every 10 waves. Boons and weapon swaps last only for the run.' },
+  { id: 'endless_rogue', name: 'Roguelike Endless', roguelike: true, waves: Infinity, chestEvery: 5, arenaEvery: 10, desc: 'Horde with no end. You start with a random legendary primary, special and heavy, and pick a boon after every wave. Enemies keep getting denser and tougher, and bosses faster. A cache every 5 waves, a new sealed arena every 10, and past wave 30 a guaranteed exotic every 10 waves. Boons and weapon swaps last only for the run.' },
 ];
 
 export const CONTROLS = [

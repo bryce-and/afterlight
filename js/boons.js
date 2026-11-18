@@ -3,7 +3,7 @@
 // Every boon is one data row. Taking a boon again stacks it: each effect value below is the amount ONE stack adds.
 import { mulberry32 } from './util.js';
 
-export const BOON_EVERY = 3;        // a boon choice after wave 1, then every 3rd wave (1, 4, 7, ...)
+export const BOON_EVERY = 1;        // a boon choice after every wave (waves 1, 2, 3, ...)
 export const BOON_OFFER_SIZE = 3;   // options per member
 export const BOON_PICK_SECONDS = 10; // the first option is taken on timeout
 export const WEAPON_OFFER_CHANCE = 0.25; // chance each option is a weapon swap instead of a buff
@@ -156,7 +156,7 @@ export function applyOption(run, option) {
   else throw new Error(`applyOption: unknown option kind ${option.kind}`);
   return option;
 }
-/** True when the wave just cleared earns a boon choice (wave 1, then every BOON_EVERY waves, but not after the last wave). */
+/** True when the wave just cleared earns a boon choice (wave 1, then every BOON_EVERY waves: now every wave, but not after the last wave). */
 export const boonDue = (wave, totalWaves) => wave > 0 && (wave - 1) % BOON_EVERY === 0 && wave < totalWaves;
 
 /**
@@ -175,7 +175,7 @@ export const HORDE_SCALE = {
   countPerWave: 0.035, countMax: 2.2,
   hpPerWave: 0.06, hpMax: 4,
   dmgPerWave: 0.02, dmgMax: 1.6,
-  bossHpPerWave: 0.10, bossHpMax: 6,
+  bossHpPerWave: 0.02, bossHpMax: 1.6, // H35b: bosses use this curve alone (game.js divides out the normal hp curve)
 };
 /**
  * Roguelike Endless: the same start as Horde, but nothing levels off. Past wave 30 the slopes steepen, because boons stack without end
@@ -185,7 +185,7 @@ export const ENDLESS_SCALE = {
   countPerWave: 0.04, countMax: 3.5,
   hpPerWave: 0.07, hpMax: Infinity,
   dmgPerWave: 0.025, dmgMax: Infinity,
-  bossHpPerWave: 0.12, bossHpMax: Infinity,
+  bossHpPerWave: 0.03, bossHpMax: Infinity,
 };
 /** The multipliers for a wave (1-based): { count, hp, dmg, bossHp }. Wave 1 is exactly 1 for all four. */
 export function waveScale(wave, S = HORDE_SCALE) {
