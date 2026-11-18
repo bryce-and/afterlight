@@ -227,7 +227,9 @@ function ironFit(k, item, m, S, rearF, rearBase, frontF, frontBase) {
 
 // H32: every named gun keeps its own color scheme, so two autos in the inventory never look alike. The name's hash picks the hue
 // of the body, a second hue for the barrel and trim, and how bright and saturated both are.
+const GUN_OVERRIDES = { 'Khvostov 7G-02': { body: 0x15171a, mid: 0x2b2f33 } }; // military black rifle (Bryce)
 function gunScheme(item) {
+  if (GUN_OVERRIDES[item.name]) return GUN_OVERRIDES[item.name];
   const h = hashStr(String(item.name)), h2 = Math.imul(h ^ (h >>> 13), 2654435761) >>> 0;
   const hue = (h % 360) / 360, hue2 = (hue + 0.18 + (h2 % 55) / 100) % 1;
   const body = new THREE.Color().setHSL(hue, 0.5 + (h2 % 5) * 0.08, 0.2 + ((h >>> 9) % 4) * 0.05);
