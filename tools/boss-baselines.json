@@ -1,0 +1,537 @@
+{
+ "takenMind": {
+  "height": 5,
+  "torso": true,
+  "minX": -3.361,
+  "maxX": 3.15,
+  "minZ": -0.95,
+  "maxZ": 0.887,
+  "maxY": 5.788,
+  "critVol": 2.702,
+  "critMeshes": 1,
+  "critMinY": 2.05,
+  "critMaxY": 3.75,
+  "meshes": 64,
+  "muzzle": [
+   0,
+   3.2,
+   1.4
+  ],
+  "hooks": [
+   "hover"
+  ]
+ },
+ "servitor": {
+  "height": 2.1,
+  "torso": true,
+  "minX": -1.35,
+  "maxX": 1.35,
+  "minZ": -1.35,
+  "maxZ": 1.04,
+  "maxY": 2.302,
+  "critVol": 0.303,
+  "critMeshes": 2,
+  "critMinY": 0.75,
+  "critMaxY": 1.69,
+  "meshes": 27,
+  "muzzle": [
+   0,
+   1.22,
+   0.92
+  ],
+  "hooks": [
+   "hover"
+  ]
+ },
+ "archon": {
+  "height": 2.6,
+  "torso": true,
+  "minX": -0.624,
+  "maxX": 0.63,
+  "minZ": -0.577,
+  "maxZ": 0.64,
+  "maxY": 2.607,
+  "critVol": 0.16,
+  "critMeshes": 12,
+  "critMinY": 1.585,
+  "critMaxY": 2.607,
+  "meshes": 42,
+  "muzzle": [
+   0.42,
+   2.121,
+   0.558
+  ],
+  "hooks": []
+ },
+ "kell": {
+  "height": 2.3,
+  "torso": true,
+  "minX": -0.776,
+  "maxX": 0.776,
+  "minZ": -0.574,
+  "maxZ": 1.098,
+  "maxY": 2.4,
+  "critVol": 0.197,
+  "critMeshes": 12,
+  "critMinY": 1.576,
+  "critMaxY": 2.4,
+  "meshes": 43,
+  "muzzle": [
+   0.2,
+   1.148,
+   0.972
+  ],
+  "hooks": []
+ },
+ "baron": {
+  "height": 2.1,
+  "torso": true,
+  "minX": -0.326,
+  "maxX": 0.326,
+  "minZ": -0.515,
+  "maxZ": 0.747,
+  "maxY": 2.187,
+  "critVol": 0.031,
+  "critMeshes": 7,
+  "critMinY": 1.56,
+  "critMaxY": 1.884,
+  "meshes": 41,
+  "muzzle": [
+   0.18,
+   1.183,
+   0.763
+  ],
+  "hooks": []
+ },
+ "mindbender": {
+  "height": 2.2,
+  "torso": true,
+  "minX": -0.453,
+  "maxX": 0.6,
+  "minZ": -0.318,
+  "maxZ": 0.649,
+  "maxY": 2.183,
+  "critVol": 0.046,
+  "critMeshes": 8,
+  "critMinY": 1.542,
+  "critMaxY": 1.977,
+  "meshes": 43,
+  "muzzle": [
+   0.4,
+   1.945,
+   0.684
+  ],
+  "hooks": []
+ },
+ "fanatic": {
+  "height": 2.3,
+  "torso": true,
+  "minX": -0.527,
+  "maxX": 0.527,
+  "minZ": -0.328,
+  "maxZ": 0.775,
+  "maxY": 2.397,
+  "critVol": 0.325,
+  "critMeshes": 12,
+  "critMinY": 1.485,
+  "critMaxY": 2.397,
+  "meshes": 46,
+  "muzzle": [
+   0.16,
+   1.088,
+   0.787
+  ],
+  "hooks": []
+ },
+ "knight": {
+  "height": 2.2,
+  "torso": true,
+  "minX": -0.652,
+  "maxX": 0.652,
+  "minZ": -0.206,
+  "maxZ": 1.05,
+  "maxY": 2.161,
+  "critVol": 0.064,
+  "critMeshes": 7,
+  "critMinY": 1.694,
+  "critMaxY": 2.161,
+  "meshes": 35,
+  "muzzle": [
+   0.28,
+   1.229,
+   1.029
+  ],
+  "hooks": []
+ },
+ "swordbearer": {
+  "height": 2.3,
+  "torso": true,
+  "minX": -0.627,
+  "maxX": 0.627,
+  "minZ": -0.536,
+  "maxZ": 1.58,
+  "maxY": 2.775,
+  "critVol": 0.105,
+  "critMeshes": 5,
+  "critMinY": 1.694,
+  "critMaxY": 2.292,
+  "meshes": 41,
+  "muzzle": [
+   0,
+   1.488,
+   0.48
+  ],
+  "hooks": []
+ },
+ "crota": {
+  "height": 3,
+  "torso": true,
+  "minX": -0.975,
+  "maxX": 0.975,
+  "minZ": -0.893,
+  "maxZ": 2.283,
+  "maxY": 4.004,
+  "critVol": 0.345,
+  "critMeshes": 12,
+  "critMinY": 2.056,
+  "critMaxY": 3.364,
+  "meshes": 57,
+  "muzzle": [
+   0,
+   1.819,
+   0.552
+  ],
+  "hooks": []
+ },
+ "wizard": {
+  "height": 2.2,
+  "torso": true,
+  "minX": -0.495,
+  "maxX": 0.495,
+  "minZ": -0.522,
+  "maxZ": 0.726,
+  "maxY": 2.395,
+  "critVol": 0.176,
+  "critMeshes": 9,
+  "critMinY": 1.685,
+  "critMaxY": 2.395,
+  "meshes": 45,
+  "muzzle": [
+   0,
+   1.429,
+   0.527
+  ],
+  "hooks": []
+ },
+ "broodwizard": {
+  "height": 2.15,
+  "torso": true,
+  "minX": -0.676,
+  "maxX": 0.676,
+  "minZ": -0.67,
+  "maxZ": 0.743,
+  "maxY": 2.131,
+  "critVol": 0.126,
+  "critMeshes": 12,
+  "critMinY": 1.595,
+  "critMaxY": 2.131,
+  "meshes": 47,
+  "muzzle": [
+   0,
+   1.318,
+   0.646
+  ],
+  "hooks": []
+ },
+ "shrieker": {
+  "height": 2.6,
+  "torso": true,
+  "minX": -0.998,
+  "maxX": 0.998,
+  "minZ": -1.016,
+  "maxZ": 1.016,
+  "maxY": 2.8,
+  "critVol": 0.117,
+  "critMeshes": 2,
+  "critMinY": 0.955,
+  "critMaxY": 1.545,
+  "meshes": 26,
+  "muzzle": [
+   0,
+   1.25,
+   0.72
+  ],
+  "hooks": [
+   "hover"
+  ]
+ },
+ "valus": {
+  "height": 2.45,
+  "torso": true,
+  "minX": -1.077,
+  "maxX": 1.077,
+  "minZ": -0.69,
+  "maxZ": 1.125,
+  "maxY": 2.17,
+  "critVol": 0.097,
+  "critMeshes": 6,
+  "critMinY": 1.69,
+  "critMaxY": 2.17,
+  "meshes": 37,
+  "muzzle": [
+   0.3,
+   1.34,
+   1.155
+  ],
+  "hooks": []
+ },
+ "bracus": {
+  "height": 2.4,
+  "torso": true,
+  "minX": -0.98,
+  "maxX": 0.974,
+  "minZ": -0.44,
+  "maxZ": 0.885,
+  "maxY": 2.29,
+  "critVol": 0.195,
+  "critMeshes": 7,
+  "critMinY": 1.69,
+  "critMaxY": 2.29,
+  "meshes": 39,
+  "muzzle": [
+   0.34,
+   1.32,
+   0.915
+  ],
+  "hooks": []
+ },
+ "ghaul": {
+  "height": 2.9,
+  "torso": true,
+  "minX": -0.931,
+  "maxX": 0.931,
+  "minZ": -0.427,
+  "maxZ": 0.73,
+  "maxY": 2.891,
+  "critVol": 0.46,
+  "critMeshes": 11,
+  "critMinY": 1.89,
+  "critMaxY": 2.891,
+  "meshes": 43,
+  "muzzle": [
+   0.4,
+   1.48,
+   0.75
+  ],
+  "hooks": []
+ },
+ "takencaptain": {
+  "height": 2.4,
+  "torso": true,
+  "minX": -0.714,
+  "maxX": 0.714,
+  "minZ": -0.446,
+  "maxZ": 0.735,
+  "maxY": 2.479,
+  "critVol": 0.114,
+  "critMeshes": 7,
+  "critMinY": 1.809,
+  "critMaxY": 2.479,
+  "meshes": 39,
+  "muzzle": [
+   0.36,
+   1.261,
+   0.756
+  ],
+  "hooks": []
+ },
+ "psionflayer": {
+  "height": 2.2,
+  "torso": true,
+  "minX": -1.016,
+  "maxX": 1.016,
+  "minZ": -0.716,
+  "maxZ": 0.551,
+  "maxY": 2.047,
+  "critVol": 1.088,
+  "critMeshes": 6,
+  "critMinY": 1.472,
+  "critMaxY": 2.047,
+  "meshes": 37,
+  "muzzle": [
+   0,
+   1.357,
+   0.633
+  ],
+  "hooks": []
+ },
+ "vexmind": {
+  "height": 2.6,
+  "torso": true,
+  "minX": -1.27,
+  "maxX": 1.27,
+  "minZ": -0.47,
+  "maxZ": 0.37,
+  "maxY": 2.87,
+  "critVol": 0.084,
+  "critMeshes": 2,
+  "critMinY": 1.306,
+  "critMaxY": 1.894,
+  "meshes": 23,
+  "muzzle": [
+   0,
+   1.6,
+   0.4
+  ],
+  "hooks": [
+   "hover"
+  ]
+ },
+ "takenchampion": {
+  "height": 2.5,
+  "torso": true,
+  "minX": -0.54,
+  "maxX": 0.54,
+  "minZ": -0.395,
+  "maxZ": 1.442,
+  "maxY": 3.202,
+  "critVol": 0.4,
+  "critMeshes": 15,
+  "critMinY": 1.771,
+  "critMaxY": 2.75,
+  "meshes": 44,
+  "muzzle": [
+   0.32,
+   1.458,
+   0.935
+  ],
+  "hooks": []
+ },
+ "morgeth": {
+  "height": 3.4,
+  "torso": true,
+  "minX": -1.277,
+  "maxX": 1.277,
+  "minZ": -0.303,
+  "maxZ": 2.823,
+  "maxY": 3.817,
+  "critVol": 0.361,
+  "critMeshes": 7,
+  "critMinY": 1.716,
+  "critMaxY": 2.966,
+  "meshes": 46,
+  "muzzle": [
+   0.88,
+   1.545,
+   1.204
+  ],
+  "hooks": []
+ },
+ "veshra": {
+  "height": 1.6,
+  "torso": true,
+  "minX": -0.843,
+  "maxX": 0.843,
+  "minZ": -3.681,
+  "maxZ": 2.111,
+  "maxY": 1.538,
+  "critVol": 0.82,
+  "critMeshes": 46,
+  "critMinY": 0.567,
+  "critMaxY": 1.538,
+  "meshes": 141,
+  "muzzle": [
+   0,
+   1.17,
+   1.5
+  ],
+  "hooks": []
+ },
+ "calus": {
+  "height": 3.1,
+  "torso": true,
+  "minX": -1.113,
+  "maxX": 1.113,
+  "minZ": -0.473,
+  "maxZ": 1.8,
+  "maxY": 2.67,
+  "critVol": 0.149,
+  "critMeshes": 11,
+  "critMinY": 1.98,
+  "critMaxY": 2.67,
+  "meshes": 78,
+  "muzzle": [
+   0.825,
+   1.8,
+   1.85
+  ],
+  "hooks": [
+   "onDeath",
+   "deathStep"
+  ]
+ },
+ "anointedBather": {
+  "height": 4.6,
+  "torso": true,
+  "minX": -1.757,
+  "maxX": 1.757,
+  "minZ": -0.64,
+  "maxZ": 3.527,
+  "maxY": 6.236,
+  "critVol": 4.643,
+  "critMeshes": 18,
+  "critMinY": 3.669,
+  "critMaxY": 6.236,
+  "meshes": 97,
+  "muzzle": [
+   0,
+   2.8,
+   1.3
+  ],
+  "hooks": []
+ },
+ "huntmaster": {
+  "height": 4.3,
+  "torso": true,
+  "minX": -1.84,
+  "maxX": 1.78,
+  "minZ": -0.817,
+  "maxZ": 4.25,
+  "maxY": 4.502,
+  "critVol": 1.679,
+  "critMeshes": 10,
+  "critMinY": 3.035,
+  "critMaxY": 4.346,
+  "meshes": 82,
+  "muzzle": [
+   0,
+   2.32,
+   4.25
+  ],
+  "hooks": []
+ },
+ "emperorCalus": {
+  "height": 4.6,
+  "torso": true,
+  "minX": -2.294,
+  "maxX": 2.294,
+  "minZ": -1.285,
+  "maxZ": 1.924,
+  "maxY": 4.911,
+  "critVol": 2.94,
+  "critMeshes": 15,
+  "critMinY": 2.926,
+  "critMaxY": 4.173,
+  "meshes": 120,
+  "muzzle": [
+   1.6,
+   4.684,
+   1.339
+  ],
+  "hooks": [
+   "head",
+   "gobletArm",
+   "goblet"
+  ]
+ }
+}
