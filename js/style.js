@@ -25,6 +25,47 @@ export const LOOKS = {
   exotic: look(C(0x35313b, 0xf4c542, 0x1c1a20, 0x5a4520), { visor: 'wide', crest: 'crown', jaw: true }, { cuff: 'spiked', light: true }, { plate: 'emblem', shoulder: 'tall' }, { knee: 'guard', shin: 'stripe' }, { glowTrim: true }),
 };
 
+// H32: every exotic armor piece (and exotic class item) has its own look: its own palette and its own shapes. Keyed by item name; lookOf() returns `ex_<slug>`.
+const EXOTIC_ROWS = [
+  ["An Insurmountable Skullfort", 0x8a8f98, 0xc9c2a8, 0x2a2c30, 0x6a1a1a, "slit", "horns", 1, "layered", 0, "ridge", "big", "spike", "plated", 0],
+  ["Mask of the Quiet One", 0x2c3a4a, 0x7fd0ff, 0x151c24, 0x20405a, "eyes", null, 0, "plain", 1, "flat", "small", "plain", "stripe", 0],
+  ["Synthoceps", 0x59626e, 0xff8a2a, 0x24282e, 0x7a3a14, "T", "fin", 0, "layered", 1, "layered", "big", "guard", "plated", 0],
+  ["Ursa Furiosa", 0x6b5a44, 0xe8e0c8, 0x2e261c, 0x8a6a3a, "wide", "spikes", 1, "bracer", 0, "ridge", "tall", "pad", "plain", 0],
+  ["Heart of Inmost Light", 0x3a2f55, 0xb89cff, 0x1a1428, 0x4a2a7a, "round", "crown", 1, "layered", 1, "emblem", "big", "guard", "stripe", 1],
+  ["Hallowfire Heart", 0x7a2a1a, 0xffc04a, 0x2a120c, 0xb34a1a, "wide", "halo", 1, "spiked", 1, "emblem", "tall", "spike", "plated", 1],
+  ["Hoarfrost-Z", 0xb7d6ea, 0x5ac8ff, 0x2a3a48, 0x9ac0dc, "T", "fin", 0, "layered", 1, "vents", "big", "pad", "stripe", 1],
+  ["Dunemarchers", 0xb59a5e, 0x4a3a1e, 0x3a2f1c, 0x8a7440, "slit", "antenna", 0, "bracer", 0, "ridge", "small", "spike", "plated", 0],
+  ["Peacekeepers", 0x4a4f55, 0xd8d8d8, 0x1e2024, 0x303338, "wide", null, 0, "plain", 0, "flat", "small", "guard", "stripe", 0],
+  ["Abeyant Leap", 0x2a4a3a, 0x7dffb0, 0x14241c, 0x1c3a2c, "eyes", "fin", 1, "bracer", 1, "vents", "big", "pad", "plain", 1],
+  ["Celestial Nighthawk", 0xd2b25a, 0xfff0b0, 0x3a301a, 0x6a4a14, "round", "horns", 1, "bracer", 1, "emblem", "small", "pad", "stripe", 1],
+  ["Graviton Forfeit", 0x3a2a55, 0xff7ae0, 0x181024, 0x2a1a44, "wide", "antenna", 1, "plain", 1, "vents", "small", "plain", "plated", 1],
+  ["Cyrtarachne's Facade", 0x1c1a22, 0x9a5cff, 0xe0c12, 0x2a1a3a, "eyes", "spikes", 1, "spiked", 0, "layered", "small", "spike", "stripe", 0],
+  ["Liar's Handshake", 0x5a3a2a, 0xe0b060, 0x24180f, 0x7a4a24, "T", null, 0, "layered", 0, "flat", "small", "plain", "plain", 0],
+  ["Young Ahamkara's Spine", 0x6a1e2a, 0xff9a4a, 0x240c10, 0x8a2a30, "slit", "horns", 1, "spiked", 1, "ridge", "tall", "spike", "plated", 0],
+  ["Renewal Grasps", 0x3a6a48, 0xb8ff8a, 0x182a1e, 0x2a5a38, "round", "fin", 0, "layered", 1, "layered", "small", "pad", "stripe", 0],
+  ["Raiden Flux", 0x2a3f6a, 0x5ad8ff, 0x121c30, 0x1a2a5a, "wide", "antenna", 1, "bracer", 1, "vents", "small", "plain", "stripe", 1],
+  ["Lucky Raspberry", 0x8a2a5a, 0xffd0e8, 0x2a1020, 0xa03a6a, "T", "crown", 0, "plain", 1, "emblem", "small", "pad", "plain", 0],
+  ["St0mp-EE5", 0x8a6a2a, 0x3a3a3a, 0x2a2410, 0xb08a3a, "slit", null, 0, "layered", 0, "ridge", "big", "guard", "plated", 1],
+  ["Orpheus Rig", 0x4a2a6a, 0xffe08a, 0x1c1228, 0x3a1a5a, "eyes", "halo", 1, "bracer", 1, "flat", "small", "plain", "stripe", 1],
+  ["Nezarec's Sin", 0xe0e14, 0xc084ff, 0x8080c, 0x1a0a2a, "wide", "horns", 1, "layered", 1, "emblem", "tall", "guard", "plated", 1],
+  ["Skull of Dire Ahamkara", 0xcfc6b0, 0xff6a2a, 0x2a241c, 0x7a2a14, "round", "spikes", 0, "spiked", 0, "ridge", "big", "spike", "plated", 0],
+  ["Contraverse Hold", 0x3a5a6a, 0x7affd8, 0x16262e, 0x244a5a, "T", "fin", 1, "bracer", 1, "vents", "small", "pad", "stripe", 1],
+  ["Sunbracers", 0xd2a23a, 0xff5a1a, 0x3a2a10, 0xb2501a, "slit", null, 0, "spiked", 1, "flat", "small", "plain", "plain", 1],
+  ["Osmiomancy Gloves", 0x3a3a5a, 0xd8e0ff, 0x1a1a2c, 0x2a2a50, "eyes", "antenna", 0, "layered", 0, "layered", "small", "plain", "plated", 0],
+  ["Starfire Protocol", 0xe0e4ee, 0xffb02a, 0x303642, 0x6a5a8a, "wide", "crown", 1, "bracer", 1, "emblem", "big", "pad", "stripe", 1],
+  ["Stormdancer's Brace", 0x2a5a8a, 0xf0f08a, 0x122238, 0x1a4a7a, "T", "spikes", 1, "spiked", 1, "ridge", "tall", "spike", "stripe", 1],
+  ["Transversive Steps", 0x5a3a7a, 0x8affc0, 0x20143a, 0x4a2a6a, "slit", "halo", 0, "plain", 0, "flat", "small", "pad", "plated", 1],
+  ["Lunafaction Boots", 0x9aa4b8, 0xe8f0ff, 0x2c3240, 0x5a6a8a, "round", "horns", 0, "layered", 0, "vents", "big", "guard", "plain", 0],
+  ["Swarmers", 0x2a3a1a, 0xb8ff3a, 0x141c0c, 0x3a5a1a, "eyes", "spikes", 1, "spiked", 0, "ridge", "small", "spike", "stripe", 1],
+  ["Essentialism", 0x5a4a6a, 0xf8e0a0, 0x22202c, 0x6a4a8a, "round", "fin", 1, "layered", 1, "emblem", "big", "pad", "stripe", 1],
+  ["Stoicism", 0x6a5a3a, 0xffe060, 0x28221a, 0x8a6a2a, "wide", "crown", 1, "bracer", 1, "layered", "tall", "guard", "plated", 1],
+  ["Solipsism", 0x2a2a4a, 0xa8c8ff, 0x14142a, 0x242a5a, "eyes", "halo", 1, "plain", 1, "flat", "small", "plain", "stripe", 1],
+];
+export const exoticLookId = (name) => `ex_${String(name).toLowerCase().replace(/[^a-z0-9]+/g, '')}`;
+for (const [name, armor, trim, under, cloth, visor, crest, jaw, cuff, light, plate, shoulder, knee, shin, glow] of EXOTIC_ROWS) {
+  LOOKS[exoticLookId(name)] = look(C(armor, trim, under, cloth), { visor, crest, jaw: !!jaw }, { cuff, light: !!light }, { plate, shoulder }, { knee, shin }, { glowTrim: true, classitem: { form: glow ? 2 : 1 } });
+}
+
 // ---------- destination sets (legendary) ----------
 // One set per destination; ids match LOCATIONS. Legendary armor from a mission is that destination's set.
 const pieces = (n, helmet, arms, chest, legs) => ({ helmet: `${n} ${helmet}`, arms: `${n} ${arms}`, chest: `${n} ${chest}`, legs: `${n} ${legs}` });
@@ -116,7 +157,7 @@ export const SET_TUNE = { reload: 0.85, precHeal: 0.2, orbCharge: 1, regenDelay:
 export function lookOf(item) {
   if (!item) return 'g0';
   if (item.set && SETS[item.set]) return item.set;
-  if (item.rarity === 'exotic') return 'exotic';
+  if (item.rarity === 'exotic') return LOOKS[exoticLookId(item.name)] ? exoticLookId(item.name) : 'exotic';
   return { common: 'g0', uncommon: 'g1', rare: 'g2' }[item.rarity] || 'g2';
 }
 

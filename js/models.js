@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { ELEMENTS, EXOTIC_WEAPONS } from './data.js';
+import { FRAMES } from './frames.js';
+import { hashStr } from './util.js';
 import { mat } from './world.js';
 import { IMPERIAL_LOOK } from './dungeon-loot.js';
 import { CRUCIBLE_LOOK } from './crucible-loot.js';
@@ -55,12 +57,18 @@ function kit(g) {
 // ---------------------------------------------------------------------------
 // Sights
 // ---------------------------------------------------------------------------
-function ironSights(k, m, S, rearF, rearBase, frontF, frontBase, dot = 0x7dff9a) {
+function ironSights(k, m, S, rearF, rearBase, frontF, frontBase, dot = 0x7dff9a, style = 'notch') {
+  if (style === 'ghost') { // H32: a ring (aperture) rear sight; the front post tip sits in its centre, on the sight line
+    k.add(new THREE.TorusGeometry(0.011, 0.003, 4, 14), m, 0, S, rearF);
+    const gh = S - 0.014 - rearBase;
+    if (gh > 0) k.B(0.012, gh, 0.014, 0, rearBase + gh / 2, rearF, m);
+  } else {
   // rear notch: two ears whose tops sit on the sight line, with a 1.2cm gap
   k.B(0.012, 0.014, 0.012, -0.012, S - 0.007, rearF, m);
   k.B(0.012, 0.014, 0.012, 0.012, S - 0.007, rearF, m);
   const rh = S - 0.014 - rearBase;
   if (rh > 0) k.B(0.038, rh, 0.014, 0, rearBase + rh / 2, rearF, m);
+  }
   // front post: its tip (level with the ear tops) is the point of aim
   const fh = S - frontBase;
   k.B(0.007, fh, 0.007, 0, frontBase + fh / 2, frontF, m);
@@ -136,6 +144,52 @@ function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED, simple = false
   k.add(new THREE.PlaneGeometry(R * 0.6, t * 0.5), ink, 0, S, rf);
   k.add(new THREE.PlaneGeometry(t * 0.5, R * 0.6), ink, 0, S, rf);
   k.add(new THREE.CircleGeometry(0.0012, 10), retMat(color), 0, S, rf + 0.0005);
+}
+
+
+// ---------------------------------------------------------------------------
+// H32: sights by frame. Every gun of one archetype frame (all Rapid-Fire autos, all Precision scouts...) wears the same sight;
+// the frames of one family differ. Hand cannons, glaives and swords keep their own sights.
+// ---------------------------------------------------------------------------
+const GREEN = 0x7dff9a, AMBER = 0xff9a3c;
+function sightIdx(item) {
+  const i = Object.keys(FRAMES[item.arch] || {}).indexOf(item.frame);
+  return Math.max(0, i) + (hashStr(String(item.arch)) % 4);
+}
+/** Reflex and holo optics on the rail: holo, red dot, wide green dot, green holo, amber holo, a short scope. */
+function optic(k, item, m, S, f, y0, rDot = 0.02, col = RED) {
+  switch (sightIdx(item) % 6) {
+    case 0: return holo(k, m, S, f, y0, col);
+    case 1: return redDot(k, m, S, f, y0, rDot, 0.045, col);
+    case 2: return redDot(k, m, S, f, y0, rDot * 1.2, 0.06, GREEN);
+    case 3: return holo(k, m, S, f, y0, GREEN);
+    case 4: return scope(k, m, S, f - 0.05, f + 0.09, y0, 0.026, col, true);
+    default: return holo(k, m, S, f, y0, AMBER);
+  }
+}
+/** Scopes for the long guns (scout, sniper, linear): thin crosshair, duplex, a wide green duplex, a fat amber crosshair. */
+function scopeFit(k, item, m, S, rear, front, y0, r, col = RED) {
+  switch (sightIdx(item) % 4) {
+    case 0: return scope(k, m, S, rear, front, y0, r, col, item.arch === 'scout');
+    case 1: return scope(k, m, S, rear, front, y0, r, col, true);
+    case 2: return scope(k, m, S, rear, front - 0.02, y0, r * 1.18, GREEN);
+    default: return scope(k, m, S, rear, front, y0, r * 1.12, AMBER, true);
+  }
+}
+/** Iron sights: a notch or ring rear with a green, amber or white front dot. */
+function ironFit(k, item, m, S, rearF, rearBase, frontF, frontBase) {
+  const v = [['notch', GREEN], ['ghost', AMBER], ['ghost', GREEN], ['notch', AMBER], ['ghost', 0xffffff]][sightIdx(item) % 5];
+  return ironSights(k, m, S, rearF, rearBase, frontF, frontBase, v[1], v[0]);
+}
+
+// H32: every named gun keeps its own color scheme, so two autos in the inventory never look alike. The name's hash picks the hue
+// of the body, a second hue for the barrel and trim, and how bright and saturated both are.
+function gunScheme(item) {
+  const h = hashStr(String(item.name)), h2 = Math.imul(h ^ (h >>> 13), 2654435761) >>> 0;
+  const hue = (h % 360) / 360, hue2 = (hue + 0.18 + (h2 % 55) / 100) % 1;
+  const body = new THREE.Color().setHSL(hue, 0.5 + (h2 % 5) * 0.08, 0.2 + ((h >>> 9) % 4) * 0.05);
+  const mid = new THREE.Color().setHSL(hue2, 0.55 + ((h2 >>> 7) % 4) * 0.1, 0.42 + ((h2 >>> 11) % 3) * 0.08);
+  return { body: body.getHex(), mid: mid.getHex() };
 }
 
 // ---------------------------------------------------------------------------
@@ -248,8 +302,9 @@ function buildBaseGun(item, look) {
   const g = new THREE.Group();
   const k = kit(g);
   const { B, T, P } = k;
-  const body = mat(look?.body ?? BODY[item.rarity] ?? BODY.common);
-  const dark = mat(0x262a30), mid = mat(0x454b54), steel = mat(0x6a7078), gripM = mat(0x1d2024), wood = mat(0x5a3d2b);
+  const scheme = look ? null : gunScheme(item);
+  const body = mat(look?.body ?? scheme.body);
+  const dark = mat(0x262a30), mid = mat(scheme ? scheme.mid : 0x454b54), steel = mat(0x6a7078), gripM = mat(0x1d2024), wood = mat(0x5a3d2b);
   const el = ELEMENTS[item.element];
   const glow = mat(el.hex, { emissive: el.hex, emissiveIntensity: 1.4 });
   const fc = item.element === 'kinetic' ? 0xffd27a : el.hex;
@@ -267,7 +322,7 @@ function buildBaseGun(item, look) {
       P([[-0.13, 0.035], [-0.37, 0.03], [-0.39, -0.09], [-0.33, -0.1], [-0.13, -0.035]], 0.04, dark, 0, [[[-0.18, 0.012], [-0.31, 0.01], [-0.32, -0.06], [-0.21, -0.03]]]);
       B(0.022, 0.012, 0.04, 0.035, 0.028, -0.04, mid);
       B(0.066, 0.01, 0.2, 0, 0.02, 0.07, glow);
-      holo(k, dark, S, 0.06, 0.055);
+      optic(k, item, dark, S, 0.06, 0.055);
       return finish(g, { muzzleF: 0.69, muzzleY: 0.006, S, hip: [0.21, -0.22, -0.5], ads: 0.33, flash: fc });
     }
     case 'hand': {
@@ -298,7 +353,7 @@ function buildBaseGun(item, look) {
       grip(k, gripM, 0.03); triggerGuard(k, dark, steel, 0.055, -0.05);
       B(0.06, 0.12, 0.03, 0, -0.012, -0.235, gripM);
       B(0.07, 0.012, 0.16, 0, 0.0, -0.05, glow);
-      redDot(k, dark, S, 0.05, 0.062, 0.021);
+      optic(k, item, dark, S, 0.05, 0.062, 0.021);
       return finish(g, { muzzleF: 0.47, S, hip: [0.21, -0.21, -0.5], ads: 0.31, flash: fc, gripF: 0.03 });
     }
     case 'scout': {
@@ -310,7 +365,7 @@ function buildBaseGun(item, look) {
       grip(k, gripM); triggerGuard(k, dark, steel);
       P([[-0.12, 0.03], [-0.38, 0.025], [-0.4, -0.09], [-0.3, -0.1], [-0.12, -0.034]], 0.042, body, 0, [[[-0.16, 0.0], [-0.24, 0.0], [-0.24, -0.05], [-0.17, -0.04]]]);
       B(0.058, 0.008, 0.26, 0, 0.018, 0.12, glow);
-      scope(k, dark, S, 0.0, 0.13, 0.045, 0.028, RED, true);
+      scopeFit(k, item, dark, S, 0.0, 0.13, 0.045, 0.028);
       return finish(g, { muzzleF: 0.75, muzzleY: 0.008, S, hip: [0.21, -0.22, -0.5], ads: 0.17, flash: fc });
     }
     case 'smg': {
@@ -326,7 +381,7 @@ function buildBaseGun(item, look) {
       for (const s of [-1, 1]) B(0.008, 0.008, 0.22, s * 0.02, 0.01, -0.19, steel);
       B(0.05, 0.07, 0.012, 0, -0.02, -0.3, dark);
       B(0.059, 0.008, 0.14, 0, 0.016, 0.05, glow);
-      redDot(k, dark, S, 0.04, 0.052, 0.018);
+      optic(k, item, dark, S, 0.04, 0.052, 0.018);
       return finish(g, { muzzleF: 0.32, muzzleY: 0.004, S, hip: [0.2, -0.21, -0.47], ads: 0.28, flash: fc });
     }
     case 'shotgun': {
@@ -341,7 +396,7 @@ function buildBaseGun(item, look) {
       P([[-0.1, 0.03], [-0.38, 0.0], [-0.39, -0.1], [-0.33, -0.11], [-0.1, -0.035]], 0.045, wood);
       B(0.064, 0.01, 0.16, 0, 0.012, 0.04, glow);
       B(0.03, 0.02, 0.05, 0.035, 0.0, 0.08, mat(0x0b0c0e));
-      ironSights(k, dark, S, 0.0, 0.04, 0.57, 0.048, 0xff9a3c);
+      ironFit(k, item, dark, S, 0.0, 0.04, 0.57, 0.048);
       return finish(g, { muzzleF: 0.6, muzzleY: 0.022, S, hip: [0.21, -0.21, -0.5], ads: 0.32, flash: fc });
     }
     case 'sniper': {
@@ -357,7 +412,7 @@ function buildBaseGun(item, look) {
       P([[-0.12, 0.03], [-0.42, 0.035], [-0.44, -0.1], [-0.36, -0.11], [-0.24, -0.06], [-0.12, -0.035]], 0.046, body);
       B(0.04, 0.02, 0.12, 0, 0.045, -0.25, dark);
       B(0.06, 0.008, 0.24, 0, 0.016, 0.1, glow);
-      scope(k, dark, S, -0.03, 0.22, 0.043, 0.032);
+      scopeFit(k, item, dark, S, -0.03, 0.22, 0.043, 0.032);
       return finish(g, { muzzleF: 0.81, muzzleY: 0.008, S, hip: [0.21, -0.22, -0.5], ads: 0.1, flash: fc });
     }
     case 'fusion': {
@@ -370,7 +425,7 @@ function buildBaseGun(item, look) {
       grip(k, gripM); triggerGuard(k, dark, steel);
       B(0.05, 0.08, 0.18, 0, -0.01, -0.2, dark);
       rail(k, dark, mid, 0.06, -0.06, 0.18);
-      holo(k, dark, S, 0.04, 0.065, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
+      optic(k, item, dark, S, 0.04, 0.065, 0.02, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
       return finish(g, { muzzleF: 0.54, S, hip: [0.22, -0.22, -0.5], ads: 0.31, flash: el.hex });
     }
     case 'linear': {
@@ -383,7 +438,7 @@ function buildBaseGun(item, look) {
       grip(k, gripM); triggerGuard(k, dark, steel);
       P([[-0.12, 0.04], [-0.38, 0.03], [-0.4, -0.1], [-0.3, -0.1], [-0.12, -0.04]], 0.05, dark, 0, [[[-0.16, 0.01], [-0.27, 0.005], [-0.28, -0.06], [-0.18, -0.03]]]);
       rail(k, dark, mid, 0.055, -0.08, 0.2);
-      scope(k, dark, S, -0.02, 0.18, 0.06, 0.032, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
+      scopeFit(k, item, dark, S, -0.02, 0.18, 0.06, 0.032, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
       return finish(g, { muzzleF: 0.73, S, hip: [0.22, -0.22, -0.52], ads: 0.09, flash: el.hex });
     }
     case 'rocket': {
@@ -397,7 +452,7 @@ function buildBaseGun(item, look) {
       B(0.1, 0.03, 0.2, 0, -0.085, -0.17, dark);
       B(0.03, 0.06, 0.12, -0.09, 0.0, 0.1, dark); B(0.032, 0.01, 0.1, -0.09, 0.015, 0.1, glow);
       B(0.16, 0.012, 0.03, 0, 0.0, 0.38, glow);
-      holo(k, dark, S, 0.05, 0.072);
+      optic(k, item, dark, S, 0.05, 0.072);
       return finish(g, { muzzleF: 0.65, S, hip: [0.25, -0.16, -0.48], ads: 0.3, flash: 0xffb060 });
     }
     case 'mg': case 'xenophage': {
@@ -413,7 +468,7 @@ function buildBaseGun(item, look) {
       grip(k, gripM); triggerGuard(k, dark, steel);
       P([[-0.14, 0.045], [-0.4, 0.04], [-0.41, -0.09], [-0.14, -0.05]], 0.05, dark);
       B(0.084, 0.012, 0.2, 0, 0.03, 0.06, glow);
-      holo(k, dark, S, 0.05, 0.074);
+      optic(k, item, dark, S, 0.05, 0.074);
       return finish(g, { muzzleF: 0.7, muzzleY: 0.01, S, hip: [0.22, -0.22, -0.5], ads: 0.31, flash: fc });
     }
     case 'glauncher': {
@@ -434,7 +489,7 @@ function buildBaseGun(item, look) {
         g.add(bar);
         const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.09, 10).rotateX(Math.PI / 2), glow);
         shell.visible = false; g.add(shell);
-        ironSights(k, dark, S, -0.02, 0.05, 0.2, 0.05, 0xff9a3c);
+        ironFit(k, item, dark, S, -0.02, 0.05, 0.2, 0.05);
         const out = finish(g, { muzzleF: 0.54, muzzleY: 0.0, S, hip: [0.2, -0.19, -0.46], ads: 0.32, flash: fc });
         out.userData.barrel = bar; out.userData.shell = shell; out.userData.shellHome = new THREE.Vector3(0, 0.0, -0.1);
         return out;
@@ -449,7 +504,7 @@ function buildBaseGun(item, look) {
       for (const s of [-1, 1]) B(0.008, 0.008, 0.22, s * 0.022, 0.0, -0.2, steel);
       B(0.055, 0.08, 0.014, 0, -0.02, -0.31, dark);
       B(0.064, 0.01, 0.12, 0, 0.02, 0.02, glow);
-      ironSights(k, dark, S, -0.02, 0.045, 0.47, 0.054, 0xff9a3c);
+      ironFit(k, item, dark, S, -0.02, 0.045, 0.47, 0.054);
       return finish(g, { muzzleF: 0.5, muzzleY: 0.02, S, hip: [0.22, -0.2, -0.5], ads: 0.34, flash: fc });
     }
     case 'forerunner': { // the Forerunner: a long, heavy slab-sided Special sidearm with a shrouded barrel and a drum of frag
@@ -463,7 +518,7 @@ function buildBaseGun(item, look) {
       T(0.034, 0.012, 0, -0.045, 0.1, glow, 10);
       B(0.036, 0.005, 0.12, 0, 0.04, 0.06, glow);
       T(0.011, 0.03, 0, 0.008, 0.37, steel, 6);
-      ironSights(k, dark, S, -0.04, 0.036, 0.3, 0.036, 0xffd27a);
+      ironFit(k, item, dark, S, -0.04, 0.036, 0.3, 0.036);
       return finish(g, { muzzleF: 0.38, muzzleY: 0.008, S, hip: [0.17, -0.18, -0.42], ads: 0.3, flash: fc });
     }
     case 'sidearm': {
@@ -475,7 +530,7 @@ function buildBaseGun(item, look) {
       for (let i = 0; i < 4; i++) B(0.034, 0.02, 0.006, 0, 0.012, -0.045 + i * 0.012, dark);
       B(0.032, 0.005, 0.1, 0, 0.032, 0.06, glow);
       T(0.008, 0.05, 0, 0.008, 0.172, steel, 6);
-      ironSights(k, dark, S, -0.04, 0.03, 0.14, 0.032);
+      ironFit(k, item, dark, S, -0.04, 0.03, 0.14, 0.032);
       return finish(g, { muzzleF: 0.2, muzzleY: 0.008, S, hip: [0.17, -0.18, -0.4], ads: 0.3, flash: fc });
     }
     case 'sword': {
@@ -514,7 +569,7 @@ function buildBaseGun(item, look) {
       for (let i = 0; i < 3; i++) B(0.06, 0.006, 0.02, 0, 0.048, 0.0 + i * 0.05, dark);
       grip(k, gripM); triggerGuard(k, dark, steel);
       rail(k, dark, mid, 0.056, -0.06, 0.18);
-      holo(k, dark, S, 0.0, 0.056);
+      optic(k, item, dark, S, 0.0, 0.056);
       return finish(g, { muzzleF: 0.56, muzzleY: 0, S, hip: [0.2, -0.2, -0.5], ads: 0.36, flash: fc });
     }
     default:
@@ -671,12 +726,6 @@ function exoticParts(g, look) {
       case 'stripes': for (const x of [-1, 1]) B(0.006, 0.014, 0.32, x * 0.042, 0.0, 0.05, glow); break;
       case 'drum': add(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 12).rotateZ(Math.PI / 2), acc, 0, -0.12, 0.12); add(new THREE.TorusGeometry(0.06, 0.01, 4, 14).rotateY(Math.PI / 2), mat(0xc9a046, { emissive: 0x8a6a1e, emissiveIntensity: 0.6 }), 0, -0.12, 0.12); break;
       case 'fins': for (const x of [-1, 1]) B(0.006, 0.05, 0.22, x * 0.046, -0.01, mf - 0.22, glow, 0.15).rotation.z = x * 0.35; break;
-      case 'sun': // sun emblems on both sides of the frame, clear of the sights
-        for (const x of [-1, 1]) {
-          add(new THREE.TorusGeometry(0.03, 0.006, 4, 16).rotateY(Math.PI / 2), glow, x * 0.042, -0.005, mf * 0.45);
-          for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(new THREE.BoxGeometry(0.004, 0.006, 0.016), glow, x * 0.042, -0.005 + Math.sin(a) * 0.044, -mf * 0.45 + Math.cos(a) * 0.044).rotation.x = -a; }
-        }
-        break;
       case 'spikes':
         for (let i = 0; i < 7; i++) for (const x of [-1, 1]) add(new THREE.ConeGeometry(0.01, 0.06, 4), acc, x * 0.04, 0.02 - (i % 2) * 0.02, 0.0 + i * 0.045).rotation.z = -x * Math.PI / 2;
         for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(0.009, 0.05, 4).rotateX(Math.PI), glow, 0, -0.05, mf * 0.3 + i * 0.05);

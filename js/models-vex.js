@@ -286,7 +286,6 @@ const BUILD = {
   vx_cyclops(c) {
     // a pedestal turret: a ringed base and column holding a dark sphere with one huge red eye, petal plates around it, two long swept blades up
     const M = vm();
-    c.hover = true;
     const body = c.pivot(0, 1.3, 0);
     c.torso = body;
     ico(c, 0.7, 1, M.black, 0, 0, 0, body);
@@ -357,5 +356,11 @@ function imp(c, k) {
 
 
 
+/** The Taken Goblin: the Vex Goblin's exact frame (fan crown, long arms, Slap Rifle) re-skinned in a Taken palette (black plating, glowing orb for the eye and chest mind). */
+export function vexAsTaken(c, pal) {
+  const keep = _m;
+  _m = { ...vm(), bronze: pal.body, dbronze: pal.dark, black: pal.dark, milk: pal.glow, red: pal.glow };
+  try { BUILD.vx_goblin(c); } finally { _m = keep; }
+}
 export function vex(c, typeId) { (BUILD[typeId] || BUILD.vx_goblin)(c); }
 

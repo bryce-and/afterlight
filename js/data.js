@@ -230,7 +230,7 @@ export const EXOTIC_WEAPONS = [
   { name: 'SUROS Regime', arch: 'auto', element: 'kinetic', perks: ['regime', 'spinup'], look: { body: 0xe8e4da, accent: 0xff6a1a, parts: ['stripes'] }, flavor: 'Spin up. Never stop.' },
   { name: 'Sweet Business', arch: 'auto', element: 'kinetic', perks: ['payday', 'spinup', 'overflow'], mods: { mag: 3, spread: 1.3 }, look: { body: 0xc9a046, accent: 0x2a2d33, parts: ['drum'] }, flavor: 'Business is good.' },
   { name: 'Hard Light', arch: 'auto', element: 'arc', perks: ['volatile', 'pierce'], look: { body: 0xf2f2f2, accent: 0x5fd3ff, parts: ['fins'] }, flavor: 'Bounces off walls. Not off enemies.' },
-  { name: 'Sunshot', arch: 'hand', element: 'solar', perks: ['sunshot', 'explosive'], look: { body: 0xb33a1e, accent: 0xffc04a, parts: ['sun'] }, flavor: 'Every target becomes a small sun.' },
+  { name: 'Sunshot', arch: 'hand', element: 'solar', perks: ['sunshot', 'explosive'], look: { body: 0xb33a1e, accent: 0xffc04a, parts: [] }, flavor: 'Every target becomes a small sun.' },
   { name: 'Thorn', arch: 'hand', element: 'kinetic', perks: ['thorn'], look: { body: 0x2c3a24, accent: 0x6dff8e, parts: ['spikes'] }, flavor: 'To rend one\'s enemies is to see them not as equals.' },
   { name: 'Ace of Spades', arch: 'hand', element: 'kinetic', perks: ['memento', 'firefly'], mods: { rpm: 1.15, reload: 0.8, range: 1.25, spread: 0.75 }, look: { body: 0x1b1d22, accent: 0xffffff, parts: ['spade'] }, flavor: 'Always kept close.' },
   { name: 'Graviton Lance', arch: 'pulse', element: 'void', perks: ['voidheart'], mods: { burst: 2, burstDelay: 0.36, dmg: 1.5 }, look: { body: 0x16141c, accent: 0xb07cff, parts: ['orb'] }, flavor: 'A burst that folds space around the fallen.' },
@@ -261,7 +261,7 @@ export const EXOTIC_WEAPONS = [
   { name: 'Dead Messenger', arch: 'glauncher', element: 'void', slot: 'special', perks: ['trinary', 'fundamentals'], mods: { dmg: 0.18, rpm: 0.85, mag: 1, reserve: 10, brick: 3, fan: 3, projectile: { speed: 36, gravity: 9, radius: 2.6, size: 0.1 } }, look: { body: 0x23283a, accent: 0xb07cff, parts: ['skull'] }, flavor: 'Some news is better left undelivered.' },
   { name: 'Edge of Concurrence', arch: 'glaive', element: 'arc', perks: ['concurrence'], mods: { mag: 1.33 }, look: { body: 0xe8e4da, accent: 0x5fd3ff, parts: ['fins'] }, flavor: 'Many blades, one purpose.' },
   { name: 'Edge of Action', arch: 'glaive', element: 'void', perks: ['action'], mods: { dmg: 0.95 }, look: { body: 0x2c3a4a, accent: 0xb07cff, parts: ['coils'] }, flavor: 'The wall that walks.' },
-  { name: 'Edge of Intent', arch: 'glaive', element: 'solar', perks: ['intent'], mods: { mag: 0.83 }, look: { body: 0xd8b24a, accent: 0xff8b2b, parts: ['sun'] }, flavor: 'Wherever it points, light follows.' },
+  { name: 'Edge of Intent', arch: 'glaive', element: 'solar', perks: ['intent'], mods: { mag: 0.83 }, look: { body: 0xd8b24a, accent: 0xff8b2b, parts: ['stripes'] }, flavor: 'Wherever it points, light follows.' },
   { name: 'Coldheart', arch: 'trace', element: 'arc', perks: ['coldfusion', 'longestwinter'], mods: { dmg: 0.85 }, look: { body: 0xcfd6e0, accent: 0x5fd3ff, parts: ['stripes'] }, flavor: 'The cold gets in through the cracks.' },
   { name: 'Prometheus Lens', arch: 'trace', element: 'solar', perks: ['inferno', 'retraction'], mods: { dmg: 0.9 }, look: { body: 0xb8742a, accent: 0xffc04a, parts: ['coils'] }, flavor: 'Steal fire. Keep stealing.' },
   { name: 'Wavesplitter', arch: 'trace', element: 'void', perks: ['harmonic', 'supercharged'], mods: { dmg: 0.85 }, look: { body: 0x2a2236, accent: 0xb07cff, parts: ['fins'] }, flavor: 'Every wave breaks eventually.' },
@@ -655,7 +655,7 @@ export const LOCATIONS = [
     enemyNames: { grunt: 'Loyalist Legionary', rusher: 'War Beast', captain: 'Loyalist Centurion', heavy: 'Loyalist Colossus' },
     zoneNames: ['Docking Bay', 'The Pleasure Gardens', 'The Royal Pools', 'The Gauntlet', 'The Throne Room'],
     missions: [
-      { id: 'lev1', name: "The Emperor's Throne", power: 200, zones: 5, boss: { name: 'Emperor Calus', element: 'void', model: 'calus' }, desc: "Cross the docking bay, the Pleasure Gardens, the Royal Pools and the Gauntlet to the Emperor's throne. Calus is expecting you." },
+      { id: 'lev1', name: "The Emperor's Throne", power: 200, zones: 5, boss: { name: 'Emperor Calus', element: 'void', model: 'emperorCalus' }, desc: "Cross the docking bay, the Pleasure Gardens, the Royal Pools and the Gauntlet to the Emperor's throne. Calus is expecting you." },
     ],
   },
 ];

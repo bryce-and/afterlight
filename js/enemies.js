@@ -252,6 +252,7 @@ export class Enemy {
     this.colors = enemyColors(faction, M.loc, !!this.bossModel); // U17d: one look per faction on every destination
     this.shotColor = def.shotColor || FACTIONS[faction]?.shot || this.colors.eye;
     this.model = buildModel(this, this.colors, faction);
+    if (this.bossModel === 'emperorCalus') { this.scale = 0.8; this.radius = 1.4; } // H32: the campaign Calus wears the dungeon model (built 4.6 m, shown 3.7 m)
     this.height = this.model.height * this.scale;
     this.hitMeshes = this.model.hit;
     if (tuning().hitScale !== 1) widenHitMeshes(this.hitMeshes, tuning().hitScale); // U26: Mobile mode, bigger hit boxes (damage unchanged)

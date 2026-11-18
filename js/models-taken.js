@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mat } from './world.js';
+import { vexAsTaken } from './models-vex.js';
 
 // ---------------------------------------------------------------------------
 // TAKEN: Hive, Fallen and Cabal bent by the Darkness. Near-black silhouettes,
@@ -259,23 +260,9 @@ export function taken(c, t) {
       return;
     }
     case 'tk_goblin': {
-      // round black shell, one huge ringed orb, antenna whips, two long legs with white feet, one gun arm
-      legsBiped(c, 0.62, 0.17, 0.08, dark, accent, true, 0.9);
-      const torso = pivot(0, 0.98, 0);
-      c.torso = torso;
-      blob(c, torso, bodyMat, 0, 0, 0, 0.4, 1, 0.95, 1);
-      blob(c, torso, dark, 0, 0.14, -0.1, 0.4, 1.05, 0.7, 1.05, 0);
-      add(new THREE.TorusGeometry(0.2, 0.02, 4, 14), accent, 0, 0.02, 0.37, torso);
-      orb(c, torso, 0, 0.02, 0.37, 0.15);
-      for (const s of [-1, 1]) {
-        B(0.012, 0.5, 0.012, s * 0.18, 0.5, -0.12, accent, torso, false, [0.2, 0, s * -0.5]);
-        edge(c, torso, 0.012, 0.3, 0.012, s * 0.34, 0.1, 0.2, [0, 0, s * 0.5]);
-      }
-      B(0.2, 0.14, 0.2, 0, -0.34, 0.05, dark, torso);
-      c.arms.push(limb(c, torso, -0.4, -0.02, 0.4, 0.06, bodyMat, -0.3, 0.3, true), limb(c, torso, 0.4, -0.02, 0.4, 0.06, bodyMat, -1.2, -0.15, true));
-      gun(c, torso, 0.38, -0.15, 0.32, 0.3, 0.06);
-      wisps(c, torso, 0.28, 0.34, 1.0, 0.0, 7);
-      c.height = 1.5;
+      // H32: the Vex Goblin's own frame (tall thin body, fan crown, long arms, Slap Rifle) taken by the Darkness: black plating, an orb for the eye, blight wisps
+      vexAsTaken(c, { body: bodyMat, dark, glow: orbMat() });
+      wisps(c, c.torso, 0.84, 0.3, 1.0, 0, 7);
       return;
     }
     case 'tk_wizard': {
