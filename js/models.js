@@ -97,8 +97,8 @@ function redDot(k, m, S, f, y0, r = 0.02, len = 0.045, color = RED) {
   k.add(new THREE.CircleGeometry(0.0045, 12), retMat(color, 0.25), 0, S, f + len / 2 - 0.0025);
 }
 
-function holo(k, m, S, f, y0, color = RED) {
-  const w = 0.066, h = 0.046, d = 0.026;
+function holo(k, m, S, f, y0, color = RED, o = {}) {
+  const w = o.w ?? 0.066, h = o.h ?? 0.046, d = 0.026, style = o.style ?? 'ring';
   k.B(0.006, h + 0.006, d, -w / 2, S, f, m);
   k.B(0.006, h + 0.006, d, w / 2, S, f, m);
   k.B(w + 0.006, 0.006, d, 0, S + h / 2, f, m);
@@ -106,11 +106,32 @@ function holo(k, m, S, f, y0, color = RED) {
   const mh = S - h / 2 - 0.014 - y0;
   if (mh > 0) k.B(0.03, mh, 0.05, 0, y0 + mh / 2, f - 0.015, m);
   k.add(new THREE.PlaneGeometry(w, h), lensMat, 0, S, f + 0.004);
+  if (style === 'dot') { // a lone dot
+    k.add(new THREE.CircleGeometry(0.0016, 10), retMat(color), 0, S, f + 0.003);
+    k.add(new THREE.CircleGeometry(0.0042, 12), retMat(color, 0.25), 0, S, f + 0.0028);
+    return;
+  }
+  if (style === 'chevron') { // a chevron whose tip is the point of aim
+    for (const sgn of [-1, 1]) k.add(new THREE.PlaneGeometry(0.011, 0.0017), retMat(color), sgn * 0.0038, S - 0.0038, f + 0.003).rotation.z = sgn * 0.75;
+    k.add(new THREE.CircleGeometry(0.0012, 8), retMat(color), 0, S, f + 0.003);
+    return;
+  }
   k.add(new THREE.RingGeometry(0.0072, 0.0086, 28), retMat(color), 0, S, f + 0.003);
   k.add(new THREE.CircleGeometry(0.0013, 10), retMat(color), 0, S, f + 0.003);
   for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
     k.add(new THREE.PlaneGeometry(dx ? 0.003 : 0.0009, dy ? 0.003 : 0.0009), retMat(color), dx * 0.0115, S + dy * 0.0115, f + 0.003);
   }
+}
+
+/** H32: an open ring reflex: a thin round frame on a post, a dot in the middle. */
+function ringReflex(k, m, S, f, y0, color = RED, r = 0.026) {
+  k.add(new THREE.TorusGeometry(r, 0.0028, 4, 20), m, 0, S, f);
+  k.add(new THREE.TorusGeometry(r * 1.02, 0.0012, 4, 20), retMat(color, 0.5), 0, S, f + 0.002);
+  const mh = S - r - y0;
+  if (mh > 0) k.B(0.014, mh, 0.03, 0, y0 + mh / 2, f - 0.006, m);
+  k.B(0.04, 0.006, 0.05, 0, S - r - 0.003, f - 0.004, m);
+  k.add(new THREE.CircleGeometry(0.0015, 10), retMat(color), 0, S, f + 0.0015);
+  k.add(new THREE.CircleGeometry(0.004, 12), retMat(color, 0.25), 0, S, f + 0.001);
 }
 
 function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED, simple = false) {
@@ -151,34 +172,59 @@ function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED, simple = false
 // H32: sights by frame. Every gun of one archetype frame (all Rapid-Fire autos, all Precision scouts...) wears the same sight;
 // the frames of one family differ. Hand cannons, glaives and swords keep their own sights.
 // ---------------------------------------------------------------------------
-const GREEN = 0x7dff9a, AMBER = 0xff9a3c;
-function sightIdx(item) {
-  const i = Object.keys(FRAMES[item.arch] || {}).indexOf(item.frame);
-  return Math.max(0, i) + (hashStr(String(item.arch)) % 4);
-}
-/** Reflex and holo optics on the rail: holo, red dot, wide green dot, green holo, amber holo, a short scope. */
+const GREEN = 0x7dff9a, AMBER = 0xff9a3c, CYAN = 0x5fd8ff, WHITE = 0xffffff;
+/** The frame's place in its family's list (hand cannons, swords and glaives never ask). */
+function frameIdx(item) { return Math.max(0, Object.keys(FRAMES[item.arch] || {}).indexOf(item.frame)); }
+// Each family walks its own ordered list, so Rapid-Fire autos always share a sight, Precision autos wear another, and a pulse rifle never matches an auto.
+const OPTIC_LISTS = {
+  auto: ['holo', 'ring', 'micro', 'prism'],
+  pulse: ['dot', 'chevron', 'holoG', 'prism', 'ring', 'dotG'],
+  smg: ['micro', 'ring', 'chevron', 'holoA'],
+  fusion: ['chevron', 'holo', 'ring', 'dotG'],
+  rocket: ['prism', 'holoA'],
+  mg: ['holoG', 'ring', 'prism'],
+  xenophage: ['holoG', 'ring', 'prism'],
+  trace: ['holoA', 'chevron', 'ring'],
+  linear: ['ring', 'holoG', 'chevron', 'micro'],
+};
+const SCOPE_LISTS = { scout: ['simple', 'tactical', 'slim', 'amber'], sniper: ['long', 'fat', 'slim', 'amber'] };
+const IRON_LISTS = {
+  shotgun: [['notch', GREEN], ['ghost', AMBER], ['ghost', GREEN], ['notch', AMBER]],
+  sidearm: [['ghost', GREEN], ['notch', WHITE], ['ghost', AMBER], ['notch', CYAN]],
+  forerunner: [['notch', AMBER], ['ghost', WHITE]],
+  glauncher: [['ghost', AMBER], ['notch', GREEN], ['ghost', CYAN]],
+};
+const pick = (list, item) => list[frameIdx(item) % list.length];
+/** Reflex, holo, ring, micro and prism optics on the rail. A Linear Fusion Rifle's list has no scopes (low zoom). */
 function optic(k, item, m, S, f, y0, rDot = 0.02, col = RED) {
-  switch (sightIdx(item) % 6) {
-    case 0: return holo(k, m, S, f, y0, col);
-    case 1: return redDot(k, m, S, f, y0, rDot, 0.045, col);
-    case 2: return redDot(k, m, S, f, y0, rDot * 1.2, 0.06, GREEN);
-    case 3: return holo(k, m, S, f, y0, GREEN);
-    case 4: return item.arch === 'linear' ? holo(k, m, S, f, y0, AMBER) : scope(k, m, S, f - 0.05, f + 0.09, y0, 0.026, col, true);
-    default: return holo(k, m, S, f, y0, AMBER);
+  switch (pick(OPTIC_LISTS[item.arch] || OPTIC_LISTS.auto, item)) {
+    case 'holo': return holo(k, m, S, f, y0, col);
+    case 'holoG': return holo(k, m, S, f, y0, GREEN);
+    case 'holoA': return holo(k, m, S, f, y0, AMBER);
+    case 'chevron': return holo(k, m, S, f, y0, col === RED ? CYAN : col, { style: 'chevron', w: 0.058, h: 0.04 });
+    case 'micro': return holo(k, m, S, f, y0, col, { style: 'dot', w: 0.036, h: 0.028 });
+    case 'ring': return ringReflex(k, m, S, f, y0, col === RED ? GREEN : col);
+    case 'dot': return redDot(k, m, S, f, y0, rDot, 0.045, col);
+    case 'dotG': return redDot(k, m, S, f, y0, rDot * 1.2, 0.06, GREEN);
+    default: // prism: a short fat sight with a top post
+      scope(k, m, S, f - 0.04, f + 0.06, y0, 0.03, col, true);
+      return k.B(0.006, 0.016, 0.05, 0, S + 0.045, f + 0.01, m);
   }
 }
-/** Scopes for the long guns (scout, sniper, linear): thin crosshair, duplex, a wide green duplex, a fat amber crosshair. */
+/** Scopes for the long guns (scout, sniper): thin crosshair, duplex, wide, slim, short tactical, amber. */
 function scopeFit(k, item, m, S, rear, front, y0, r, col = RED) {
-  switch (sightIdx(item) % 4) {
-    case 0: return scope(k, m, S, rear, front, y0, r, col, item.arch === 'scout');
-    case 1: return scope(k, m, S, rear, front, y0, r, col, true);
-    case 2: return scope(k, m, S, rear, front - 0.02, y0, r * 1.18, GREEN);
-    default: return scope(k, m, S, rear, front, y0, r * 1.12, AMBER, true);
+  switch (pick(SCOPE_LISTS[item.arch] || SCOPE_LISTS.sniper, item)) {
+    case 'simple': return scope(k, m, S, rear, front, y0, r, col, true);
+    case 'tactical': return scope(k, m, S, rear + 0.02, front - 0.03, y0, r * 1.08, GREEN, true);
+    case 'slim': return scope(k, m, S, rear - 0.03, front + 0.05, y0, r * 0.78, col);
+    case 'fat': return scope(k, m, S, rear, front - 0.02, y0, r * 1.18, GREEN);
+    case 'amber': return scope(k, m, S, rear, front, y0, r * 1.12, AMBER, true);
+    default: return scope(k, m, S, rear, front, y0, r, col);
   }
 }
-/** Iron sights: a notch or ring rear with a green, amber or white front dot. */
+/** Iron sights: a notch or ring rear with a colored front dot. */
 function ironFit(k, item, m, S, rearF, rearBase, frontF, frontBase) {
-  const v = [['notch', GREEN], ['ghost', AMBER], ['ghost', GREEN], ['notch', AMBER], ['ghost', 0xffffff]][sightIdx(item) % 5];
+  const v = pick(IRON_LISTS[item.arch] || IRON_LISTS.shotgun, item);
   return ironSights(k, m, S, rearF, rearBase, frontF, frontBase, v[1], v[0]);
 }
 
