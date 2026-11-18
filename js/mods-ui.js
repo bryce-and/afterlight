@@ -2,7 +2,7 @@
 // middle, the six stats on the left, your four armor pieces with their sockets and energy on the right.
 // Hover an empty socket to see the mods it takes; click to socket one (click the socket to pin the list on touch).
 import { G } from './state.js';
-import { ARMOR_SLOTS, SLOT_NAMES, RARITIES, rarityIndex } from './data.js';
+import { ARMOR_SLOTS, slotName, RARITIES, rarityIndex } from './data.js';
 import { getEquipped, writeSave, playerLevel } from './save.js';
 import { armorIcon } from './icons.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
@@ -58,7 +58,7 @@ function socketHTML(it, i, L) {
       ${id ? modIcon(id) : emptySlotIcon(i === 0 ? 'aspect' : 'fragment')}
       <span class="ms-sock-l">${id ? esc(MODS[id].name) : i === 0 ? 'Stat' : 'Mod'}</span>${id ? `<span class="ms-cost">${MODS[id].cost}</span>` : ''}
     </button>
-    <div class="ms-pick ${i < 2 ? 'l' : 'r'}"><div class="ms-pick-in"><div class="ms-pick-h">${i === 0 ? 'Stat mods' : `${SLOT_NAMES[it.slot]} mods`}<span>${spent} / ${cap} energy</span></div>${clear}${opts}</div></div>
+    <div class="ms-pick ${i < 2 ? 'l' : 'r'}"><div class="ms-pick-in"><div class="ms-pick-h">${i === 0 ? 'Stat mods' : `${slotName(it.slot, it.classId)} mods`}<span>${spent} / ${cap} energy</span></div>${clear}${opts}</div></div>
   </div>`;
 }
 
@@ -67,7 +67,7 @@ function detailHTML(it, L) {
   const rar = RARITIES[rarityIndex(it.rarity)];
   const pips = Array.from({ length: cap }, (_, n) => `<i class="${n < spent ? 'on' : ''}"></i>`).join('');
   return `<div class="ms-detail" style="--rc:${rar.color}">
-    <div class="ms-d-name">${esc(it.name)}<small>${SLOT_NAMES[it.slot]}  ·  ${rar.name}</small></div>
+    <div class="ms-d-name">${esc(it.name)}<small>${slotName(it.slot, it.classId)}  ·  ${rar.name}</small></div>
     <div class="ms-energy"><span>Energy</span><div class="ms-pips">${pips}</div><b>${spent} / ${cap}</b></div>
     <div class="ms-sockets">${Array.from({ length: SOCKETS }, (_, i) => socketHTML(it, i, L)).join('')}</div>
     <div class="ms-hint">The first socket takes stat mods. Hover a socket to see the mods it takes.</div>
@@ -89,7 +89,7 @@ export function fillMods(el, onChange) {
     </div>
     <div class="ms-panel ms-right">
       <div class="ms-pieces">${items.map((it, n) => it ? `<button class="ms-piece r-${it.rarity}${it.slot === sel ? ' on' : ''}" data-slot="${it.slot}" style="--rc:${RARITIES[rarityIndex(it.rarity)].color}">
-        ${armorIcon(it)}<span>${SLOT_NAMES[it.slot]}</span><small>${energyUsed(it.mods)} / ${energyCap(it)}</small></button>` : `<div class="ms-piece empty"><span>${SLOT_NAMES[ARMOR_SLOTS[n]]}</span></div>`).join('')}</div>
+        ${armorIcon(it)}<span>${slotName(it.slot, it.classId)}</span><small>${energyUsed(it.mods)} / ${energyCap(it)}</small></button>` : `<div class="ms-piece empty"><span>${slotName(ARMOR_SLOTS[n], s.classId)}</span></div>`).join('')}</div>
       ${L < MODS_LEVEL ? `<div class="ms-hint">Mods unlock at level ${MODS_LEVEL}. Until then this screen shows your armor stats.</div>` : cur ? detailHTML(cur, L) : '<div class="ms-hint">Equip armor to socket mods.</div>'}
     </div>`;
   el.querySelectorAll('.ms-piece[data-slot]').forEach((b) => b.addEventListener('click', () => { sel = b.dataset.slot; pinned = null; sfx.ui(); fillMods(el, onChange); }));

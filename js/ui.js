@@ -3,7 +3,7 @@ import { DARK_ELEMENTS, DARK_UNLOCK } from './darkness-rules.js';
 import { G, lockPointer, unlockPointer } from './state.js';
 import { scrambleName } from './light.js';
 import { SPEAKERS, CHAPTERS, linesFor, lineDuration } from './story.js';
-import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS } from './data.js';
+import { LOCATIONS, CLASSES, RARITIES, ELEMENTS, ARCHETYPES, PERKS, EXOTIC_PERKS, SLOTS, WEAPON_SLOTS, ARMOR_SLOTS, SLOT_NAMES, AMMO, rarityIndex, classKit, ACTIVITIES, EXOTIC_ARMOR_PERKS, slotName } from './data.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt, STAT_KEYS, STATS, activeMods, energyCap, energyUsed, usesCharge } from './armor.js';
 import { openMods } from './mods-ui.js';
 import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, charPower, playedClasses, usableBy, subclassFor } from './save.js';
@@ -724,7 +724,7 @@ function wireFireteam(main) {
 
 function typeLine(it) {
   if (it.kind === 'weapon') return `${ARCHETYPES[it.arch].name}`;
-  return `${it.classId ? `${CLASSES[it.classId].name} ` : ''}${SLOT_NAMES[it.slot]}`;
+  return `${it.classId ? `${CLASSES[it.classId].name} ` : ''}${slotName(it.slot, it.classId)}`;
 }
 
 export function itemCard(it, { equipped = false, selected = false, compact = false } = {}) {
@@ -827,7 +827,7 @@ function renderCharScreen(main) {
   const slot = (sl) => {
     const it = getEquipped(s, sl);
     const hasNew = s.inventory.some((i) => i.slot === sl && i.isNew && usableBy(i, s.classId));
-    return `<div class="cs-slot" data-slot="${sl}"><div class="cs-label">${SLOT_NAMES[sl]}${hasNew ? '<i class="dot"></i>' : ''}</div>${it ? tileHTML(it, true) : '<div class="tile empty"></div>'}</div>`;
+    return `<div class="cs-slot" data-slot="${sl}"><div class="cs-label">${slotName(sl, s.classId)}${hasNew ? '<i class="dot"></i>' : ''}</div>${it ? tileHTML(it, true) : '<div class="tile empty"></div>'}</div>`;
   };
   main.innerHTML = `
     <div class="cs">
@@ -1012,7 +1012,7 @@ function openFly(sl, anchor) {
   else {
     const items = s.inventory.filter((i) => i.slot === sl && !isEquipped(s, i) && usableBy(i, s.classId))
       .sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
-    fly.innerHTML = `<div class="fly-head">${SLOT_NAMES[sl]}<span>${items.length}</span></div>
+    fly.innerHTML = `<div class="fly-head">${slotName(sl, s.classId)}<span>${items.length}</span></div>
       ${items.length ? `<div class="fly-grid">${items.map((it) => tileHTML(it)).join('')}</div>` : '<div class="fly-empty">Nothing else for this slot yet. Engrams drop from enemies and boss caches.</div>'}`;
   }
   fly.classList.remove('hidden');
@@ -1055,7 +1055,7 @@ function closeFly() {
   $$('.cs-slot').forEach((n) => n.classList.remove('open'));
 }
 
-function tipHTML(it, side) {
+export function tipHTML(it, side) { // U27: the Postmaster (tower-ui.js) shows this tooltip too (side 'postmaster')
   const s = G.save;
   const rar = RARITIES[rarityIndex(it.rarity)];
   const eq = getEquipped(s, it.slot);
@@ -1092,7 +1092,7 @@ function tipHTML(it, side) {
     if (it.flavor) body += `<div class="tt-flavor">${esc(it.flavor)}</div>`;
   } else {
     const st = it.stats, c = cmp ? cmp.stats : null;
-    body += `<div class="tt-top"><div class="tt-pow">${it.power}${cmp ? delta(it.power, cmp.power) : ''}</div><div class="tt-tags"><span>${SLOT_NAMES[it.slot]}</span></div></div><div class="tt-stats">`;
+    body += `<div class="tt-top"><div class="tt-pow">${it.power}${cmp ? delta(it.power, cmp.power) : ''}</div><div class="tt-tags"><span>${slotName(it.slot, it.classId)}</span></div></div><div class="tt-stats">`;
     for (const k of STAT_KEYS) {
       body += `<div class="tt-stat"><span>${STATS[k].name}</span><i><em style="width:${clamp((st[k] / 20) * 100, 3, 100)}%"></em></i><b>${st[k]}${c ? delta(st[k], c[k]) : ''}</b></div>`;
     }
@@ -1117,7 +1117,8 @@ function tipHTML(it, side) {
   if (!canUseRarity(it.rarity, playerLevel(s))) body += `<div class="tt-note warn">Requires level ${RARITY_GATE[it.rarity]}. ${LEVEL_TOO_LOW}</div>`;
   const inf = infuseInfo(s, it);
   const lockLine = `<span>Middle-click: ${it.locked ? 'Unlock' : 'Lock'}</span>`;
-  const foot = side === 'vault' ? `<div class="tt-foot"><span>Click: Move to character</span>${lockLine}</div>`
+  const foot = side === 'postmaster' ? `<div class="tt-foot"><span>Click: Take it</span></div>`
+    : side === 'vault' ? `<div class="tt-foot"><span>Click: Move to character</span>${lockLine}</div>`
     : side === 'char' ? `<div class="tt-foot"><span>Click: Move to vault</span>${lockLine}<span>${it.locked ? 'Locked: unlock to dismantle' : `Hold <kbd>F</kbd>: Dismantle (+⬡${dismantleValue(it)})`}</span><i class="tt-hold"><em></em></i></div>`
     : equipped
     ? `<div class="tt-foot">Equipped${lockLine}${inf.possible ? `<span>Shift+Click: Infuse to ◆${inf.target} (⬡${inf.cost})</span>` : ''}</div>`

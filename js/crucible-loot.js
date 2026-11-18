@@ -2,6 +2,7 @@
 // gunmetal and bronze look. None of it is in a random pool: the weapons are not in LEGENDARY_WEAPONS, the set is left out of
 // SET_IDS (style.js flag `crucible`). Only a finished Crucible match hands them out (js/crucible.js endMatch, one item per player).
 import { makeWeapon, makeArmor } from './loot.js';
+import { ARMOR_SLOTS } from './data.js';
 import { frameSlot } from './frames.js';
 
 /** Blackened gunmetal, Crucible crimson panels, worn bronze trim (models.js exoticParts draws `crucible`). */
@@ -30,7 +31,7 @@ export function makeCrucibleWeapon(power, rnd = Math.random, entry = null) {
 }
 /** A legendary Crucible armor piece for `classId` (a random slot when none is given). */
 export function makeCrucibleArmor(power, classId, rnd = Math.random, slot = null, band = 'base') {
-  return makeArmor(slot || pick(['helmet', 'arms', 'chest', 'legs'], rnd), power, 3, CRUCIBLE_SET, classId, null, band);
+  return makeArmor(slot || pick(ARMOR_SLOTS, rnd), power, 3, CRUCIBLE_SET, classId, null, band);
 }
 /** The one item a finished match pays: a weapon or a piece of armor, even odds. */
 export function makeCrucibleDrop(power, classId, rnd = Math.random, band = 'base') {

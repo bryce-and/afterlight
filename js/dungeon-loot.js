@@ -3,6 +3,7 @@
 // pool: legendaries are not in LEGENDARY_WEAPONS, the set is left out of SET_IDS, the shader out of SHADER_IDS, and the exotic
 // (data.js, `dungeon: 'shadow'`) out of EXOTIC_RANDOM_WEAPONS. Only js/dungeon.js hands them out.
 import { makeWeapon, makeArmor, makeExotic } from './loot.js';
+import { ARMOR_SLOTS } from './data.js';
 import { frameSlot } from './frames.js';
 
 /** Every weapon of the pool rolls the usual legendary perks plus one of these (PERKS in data.js, marked `exclusive`). */
@@ -44,7 +45,7 @@ export function makeDungeonWeapon(power, rnd = Math.random, entry = null) {
 }
 /** A legendary Imperial armor piece for `classId` (a random slot when none is given). */
 export function makeDungeonArmor(power, classId, rnd = Math.random, slot = null, band = 'base') {
-  return makeArmor(slot || pick(['helmet', 'arms', 'chest', 'legs'], rnd), power, 3, DUNGEON_SET, classId, null, band);
+  return makeArmor(slot || pick(ARMOR_SLOTS, rnd), power, 3, DUNGEON_SET, classId, null, band);
 }
 export function makeDungeonExotic(power) {
   const it = makeExotic(DUNGEON_EXOTIC, power);

@@ -93,7 +93,7 @@ let armorCtx = { classId: 'vanguard', element: 'solar', shader: null };
 /** Called when the class, subclass or shader changes (the character screen does it before drawing tiles). */
 export function setArmorIconContext(classId, element, shader) { armorCtx = { classId, element, shader }; }
 
-const ARMOR_VIEW = { helmet: 0.5, arms: 0.35, chest: 0.4, legs: 0.35 }; // turn toward the camera, radians
+const ARMOR_VIEW = { helmet: 0.5, arms: 0.35, chest: 0.4, legs: 0.35, classitem: 0.4 }; // turn toward the camera, radians
 
 /** An image URL of the armor piece (rendered and cached), for <img src>. */
 export function armorIconURL(item) {
@@ -103,9 +103,9 @@ export function armorIconURL(item) {
   const key = `armor|${classId}|${element}|${shader}|${item.slot}|${lk}`;
   if (cache.has(key)) return cache.get(key);
   if (!rr) init();
-  const ch = buildCharacter(classId, element, { helmet: lk, arms: lk, chest: lk, legs: lk, shader });
+  const ch = buildCharacter(classId, element, { helmet: lk, arms: lk, chest: lk, legs: lk, classitem: lk, shader });
   const g = ch.group;
-  g.rotation.y = ARMOR_VIEW[item.slot];
+  g.rotation.y = item.slot === 'classitem' && classId === 'stalker' ? Math.PI - 0.4 : ARMOR_VIEW[item.slot]; // a cloak is shown from behind
   g.traverse((o) => { if (o.isMesh) o.visible = o.userData.slot === item.slot; });
   scene.add(g);
   g.updateMatrixWorld(true);

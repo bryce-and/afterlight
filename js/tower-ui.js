@@ -1,18 +1,19 @@
 // U16 "The Last City": the Tower's three terminals (Postmaster, Exotic Kiosk, Quest Kiosk) and the Range readout.
 // They reuse the Collection screen's overlay and card styles (loot-ui.js, style.css).
 import { G } from './state.js';
-import { CLASSES, EXOTIC_WEAPONS, ARCHETYPES, EXOTIC_ARMOR_PERKS, EXOTIC_PERKS, RARITIES, exoticArmorFor, rarityIndex } from './data.js';
+import { CLASSES, EXOTIC_WEAPONS, ARCHETYPES, EXOTIC_ARMOR_PERKS, EXOTIC_PERKS, RARITIES, exoticArmorFor, rarityIndex, slotName } from './data.js';
 import { makeExotic, makeArmor } from './loot.js';
 import { armorBand } from './campaign.js';
 import { addItem, collectPostmaster, writeSave, playerPower, playerLevel, POSTMASTER_CAP, KIOSK_PRICE } from './save.js';
 import { questList, pickUpQuest, QUESTS } from './quests.js';
 import { overlay } from './loot-ui.js';
+import { tipHTML } from './ui.js';
 import { weaponIcon, armorIcon } from './icons.js';
 import { sfx } from './audio.js';
 import { esc } from './util.js';
 
 const art = (it) => (it.kind === 'weapon' ? `<img src="${weaponIcon(it)}" alt="" draggable="false">` : armorIcon(it));
-const typeOf = (it) => (it.kind === 'weapon' ? ARCHETYPES[it.arch].name : { helmet: 'Helmet', arms: 'Arms', chest: 'Chest', legs: 'Legs' }[it.slot]);
+const typeOf = (it) => (it.kind === 'weapon' ? ARCHETYPES[it.arch].name : ({ helmet: 'Helmet', arms: 'Arms', chest: 'Chest', legs: 'Legs' }[it.slot] || slotName(it.slot, it.classId)));
 const rc = (it) => RARITIES[rarityIndex(it.rarity)].color;
 
 /** Opens an overlay and frees the pointer. `done` runs once on close (the Tower re-locks the pointer). */
@@ -39,11 +40,38 @@ export function openPostmaster(done) {
         <div class="coll-foot"><button class="btn" id="pm-close">Back <kbd>Esc</kbd></button><span class="hint">${esc(msg) || 'Click an item to take it. A full Postmaster dismantles its oldest common gear; exotics are never lost.'}</span></div>
       </div>`;
     el.querySelector('#pm-close').addEventListener('click', () => { sfx.ui(); close(); });
-    el.querySelectorAll('.pm-card').forEach((b) => b.addEventListener('click', () => {
-      const e = collectPostmaster(s, b.dataset.id);
-      sfx.ui();
-      render(e || 'Collected.');
-    }));
+    // U27: hovering a card shows the inventory tooltip (stats, perks, mods, set, comparison with what you wear); press and hold does on phones
+    const tip = document.createElement('div');
+    tip.className = 'cs-tip pm-tip hidden';
+    el.appendChild(tip);
+    const show = (card) => {
+      const it = (s.postmaster || []).find((i) => i.id === card.dataset.id);
+      if (!it) return;
+      tip.innerHTML = tipHTML(it, 'postmaster');
+      tip.classList.remove('hidden');
+      const r = card.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+      let x = r.right + 12;
+      if (x + tw > window.innerWidth - 8) x = Math.max(8, r.left - tw - 12);
+      tip.style.left = `${x}px`;
+      tip.style.top = `${Math.min(Math.max(8, r.top), Math.max(8, window.innerHeight - th - 8))}px`;
+    };
+    const hide = () => tip.classList.add('hidden');
+    let holdT = 0, held = false;
+    el.querySelectorAll('.pm-card').forEach((b) => {
+      b.addEventListener('mouseenter', () => show(b));
+      b.addEventListener('mouseleave', hide);
+      b.addEventListener('focus', () => show(b));
+      b.addEventListener('blur', hide);
+      b.addEventListener('touchstart', () => { held = false; clearTimeout(holdT); holdT = setTimeout(() => { held = true; show(b); }, 450); }, { passive: true });
+      for (const ev of ['touchend', 'touchcancel']) b.addEventListener(ev, () => { clearTimeout(holdT); if (held) setTimeout(hide, 1800); }, { passive: true });
+      b.addEventListener('contextmenu', (e) => { if (held) e.preventDefault(); });
+      b.addEventListener('click', (e) => {
+        if (held) { held = false; e.preventDefault(); return; } // a press and hold only shows the tooltip
+        const msg = collectPostmaster(s, b.dataset.id);
+        sfx.ui();
+        render(msg || 'Collected.');
+      });
+    });
   };
   render();
 }

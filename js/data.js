@@ -25,7 +25,8 @@ export const rarityIndex = (id) => RARITIES.findIndex((r) => r.id === id);
 
 // ---------- Slots ----------
 export const WEAPON_SLOTS = ['primary', 'special', 'heavy'];
-export const ARMOR_SLOTS = ['helmet', 'arms', 'chest', 'legs'];
+// U27: the class item (Hunter cloak, Titan mark, Warlock bond) is the fifth armor piece. Every armor slot list goes through ARMOR_SLOTS.
+export const ARMOR_SLOTS = ['helmet', 'arms', 'chest', 'legs', 'classitem'];
 export const SLOTS = [...WEAPON_SLOTS, ...ARMOR_SLOTS];
 export const AMMO = {
   primary: { name: 'Primary', color: '#f2f4f7', hex: 0xf2f4f7 },
@@ -34,8 +35,12 @@ export const AMMO = {
 };
 export const SLOT_NAMES = {
   primary: 'Primary', special: 'Special', heavy: 'Heavy',
-  helmet: 'Helmet', arms: 'Gauntlets', chest: 'Chest Armor', legs: 'Leg Armor',
+  helmet: 'Helmet', arms: 'Gauntlets', chest: 'Chest Armor', legs: 'Leg Armor', classitem: 'Class Item',
 };
+/** U27: what the class item is called for each class. */
+export const CLASS_ITEM_NAMES = { vanguard: 'Mark', stalker: 'Cloak', arcanist: 'Bond' };
+/** A slot's display name; the class item is named for its class (Cloak, Mark, Bond). */
+export const slotName = (slot, classId) => (slot === 'classitem' && CLASS_ITEM_NAMES[classId]) || SLOT_NAMES[slot] || slot;
 
 // ---------- Weapon archetypes ----------
 // H3: Auto Rifles 600 to 650 RPM, Fusion Rifles 70 to 80, SMG range 20 to 15 m, Shotguns 23 to 22 damage

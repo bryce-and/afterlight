@@ -12,7 +12,8 @@ export const SET_PIECES = 3; // pieces of one set needed for its bonus (any 3 of
 //   arms.cuff: plain | layered | spiked | bracer      arms.light: glowing strip on the forearm
 //   chest.plate: flat | ridge | layered | vents | emblem    chest.shoulder: small | big | tall
 //   legs.knee: plain | pad | spike | guard            legs.shin: plain | plated | stripe
-const look = (colors, helmet, arms, chest, legs, extra = {}) => ({ colors, helmet, arms, chest, legs, ...extra });
+//   classitem.form: 0 | 1 | 2 (U27): the silhouette variant of the cloak, mark or bond; characters.js maps it per class
+const look = (colors, helmet, arms, chest, legs, extra = {}) => ({ colors, helmet, arms, chest, legs, classitem: { form: 0 }, ...extra });
 const C = (armor, trim, under, cloth) => ({ armor, trim, under, cloth });
 
 export const LOOKS = {
@@ -91,11 +92,22 @@ SETS.crucible = {
   bonus: { name: 'Battle Scars', desc: 'No bonus. This set is worn for its look.' },
   look: look(C(0x585c64, 0xb07a3a, 0x2a2d32, 0xa3222a), { visor: 'wide', crest: 'horns' }, { cuff: 'layered' }, { plate: 'crucible', shoulder: 'big' }, { knee: 'guard', shin: 'plated' }),
 };
+// U27: each family's class item silhouette (Hunter long / split / tattered cloak, Titan sash / tabard / banner mark, Warlock ring / orbit / band bond)
+const CLASSITEM_FORMS = { g0: 0, g1: 0, g2: 1, exotic: 2, earth: 0, moon: 1, mars: 2, titan: 1, tangled: 2, io: 1, dc: 0, leviathan: 2, imperial: 2, crucible: 1 };
+export const CLASSITEM_FORM_COUNT = 3;
+for (const [id, form] of Object.entries(CLASSITEM_FORMS)) if (LOOKS[id] || SETS[id]) (SETS[id]?.look || LOOKS[id]).classitem = { form };
 /** Destination sets: the ones a legendary drop or an old save can be given. Dungeon and Crucible sets are left out. */
 export const SET_IDS = Object.keys(SETS).filter((id) => !SETS[id].dungeon && !SETS[id].crucible);
 for (const id of Object.keys(SETS)) LOOKS[id] = SETS[id].look;
 /** The piece name for a set, slot and class (dungeon sets name each class's pieces). */
-export const setPieceName = (set, slot, classId) => SETS[set].classPieces?.[classId]?.[slot] ?? SETS[set].pieces[slot];
+export const setPieceName = (set, slot, classId) => {
+  if (slot === 'classitem') { // U27: "<set name> <Cloak|Mark|Bond>", from the helmet's name without its last word
+    const base = SETS[set].classPieces?.[classId]?.helmet ?? SETS[set].pieces.helmet;
+    return `${base.slice(0, base.lastIndexOf(' '))} ${CLASS_ITEM_PIECE[classId] || 'Mark'}`;
+  }
+  return SETS[set].classPieces?.[classId]?.[slot] ?? SETS[set].pieces[slot];
+};
+const CLASS_ITEM_PIECE = { vanguard: 'Mark', stalker: 'Cloak', arcanist: 'Bond' };
 
 /** Set bonus numbers (the Player reads these). */
 export const SET_TUNE = { reload: 0.85, precHeal: 0.2, orbCharge: 1, regenDelay: 0.75, outlawDmg: 1.15, outlawT: 6, superPassive: 1.1, classCd: 0.85, meleeCd: 0.85 };
@@ -158,14 +170,14 @@ export function shaderFor(shaders, classId) {
 }
 
 // ---------- appearance ----------
-// { helmet, arms, chest, legs: look id, shader: id | null }. Encoded for the network as "a,b,c,d|shader".
+// { helmet, arms, chest, legs, classitem: look id, shader: id | null }. Encoded for the network as "a,b,c,d,e|shader" (U27 added e; older peers read the first four).
 export function appearance(items, shader = null) {
   const by = Object.fromEntries(items.filter(Boolean).map((it) => [it.slot, it]));
-  return { helmet: lookOf(by.helmet), arms: lookOf(by.arms), chest: lookOf(by.chest), legs: lookOf(by.legs), shader: SHADERS[shader] ? shader : null };
+  return { helmet: lookOf(by.helmet), arms: lookOf(by.arms), chest: lookOf(by.chest), legs: lookOf(by.legs), classitem: lookOf(by.classitem), shader: SHADERS[shader] ? shader : null };
 }
-export const encodeAppearance = (a) => `${a.helmet},${a.arms},${a.chest},${a.legs}|${a.shader || ''}`;
+export const encodeAppearance = (a) => `${a.helmet},${a.arms},${a.chest},${a.legs},${a.classitem || 'g0'}|${a.shader || ''}`;
 export function decodeAppearance(str) {
   const [looks = '', sh = ''] = String(str || '').split('|');
-  const [helmet, arms, chest, legs] = looks.split(',').map((l) => (LOOKS[l] ? l : 'g0'));
-  return { helmet: helmet || 'g0', arms: arms || 'g0', chest: chest || 'g0', legs: legs || 'g0', shader: SHADERS[sh] ? sh : null };
+  const [helmet, arms, chest, legs, classitem] = looks.split(',').map((l) => (LOOKS[l] ? l : 'g0'));
+  return { helmet: helmet || 'g0', arms: arms || 'g0', chest: chest || 'g0', legs: legs || 'g0', classitem: classitem || 'g0', shader: SHADERS[sh] ? sh : null };
 }

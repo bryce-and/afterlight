@@ -1,6 +1,6 @@
-import { SLOTS, SLOT_NAMES, WEAPON_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
+import { SLOTS, SLOT_NAMES, WEAPON_SLOTS, ARMOR_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
-import { starterGear, dismantleValue, armoryGear, rollItem } from './loot.js';
+import { starterGear, dismantleValue, armoryGear, rollItem, makeArmor } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
 import { randInt } from './util.js';
 import { frameFor, weaponStats } from './frames.js';
@@ -17,7 +17,7 @@ const KEY = 'afterlight_save_v2';
 // to BACKUP_KEY once, then cleared. Only its settings carry over.
 const LEGACY_KEY = 'afterlight_save_v1';
 export const BACKUP_KEY = 'afterlight_backup_v1';
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 // Tests lower this to exercise the older migrations (production always resets below SAVE_VERSION).
 export const SAVE_RULES = { resetBelow: 9 };
 // The Ghost's Story (v2.6) starts everyone over for the new campaign: a save older than v9 is copied here once, only its settings carry over.
@@ -109,7 +109,27 @@ const MIGRATIONS = {
     s.dungeons = newDungeons();
     for (const c of Object.values(s.chars || {})) c.dungeons = c.dungeons || newDungeons();
   },
+  // Prismatic, class items (v5.3): every Guardian gets an equipped class item (Cloak, Mark or Bond) at the Light of the gear it wears, so nobody's Light drops.
+  14: (s) => {
+    addClassItem(s, s.classId);
+    for (const [classId, c] of Object.entries(s.chars || {})) addClassItem(c, classId);
+  },
 };
+
+/** v15 migration: gives one Guardian an equipped class item at their current average Power, in the set (and rarity) of their chest piece. */
+function addClassItem(g, classId) {
+  if (!g.inventory || !g.equipped || g.equipped.classitem) return;
+  const OLD = SLOTS.filter((sl) => sl !== 'classitem'); // the seven slots Light averaged over before v5.3
+  const worn = OLD.map((sl) => g.inventory.find((i) => i.id === g.equipped[sl])).filter(Boolean);
+  if (!worn.length) return;
+  const power = Math.floor(worn.reduce((n, it) => n + it.power, 0) / OLD.length); // the old average: an item at it keeps the new 8-slot average
+  const chest = g.inventory.find((i) => i.id === g.equipped.chest);
+  const rIdx = !chest ? 0 : chest.rarity !== 'exotic' ? rarityIndex(chest.rarity) : 3; // matches what the Guardian already wears; no chest (a bare save): common
+  const it = makeArmor('classitem', power, rIdx, chest?.set || null, classId);
+  it.isNew = false;
+  g.inventory.push(it);
+  g.equipped.classitem = it.id;
+}
 
 /** A Guardian's exotic-mission record: clears and best time in seconds (null = never cleared), per mission id. */
 export const newExoticMissions = () => ({ whisper: { clears: 0, bestTime: null } });
@@ -365,7 +385,7 @@ export function switchCharacter(s, classId) {
   writeSave(s);
 }
 /** What the Guardian looks like: the equipped armor's looks and the class's shader (style.js). */
-export const wornAppearance = (s) => appearance(['helmet', 'arms', 'chest', 'legs'].map((sl) => getEquipped(s, sl)), shaderFor(s.shaders, s.classId));
+export const wornAppearance = (s) => appearance(ARMOR_SLOTS.map((sl) => getEquipped(s, sl)), shaderFor(s.shaders, s.classId));
 
 /** Applies an owned shader to every armor piece of the current class (null = none). Returns an error or null. */
 export function applyShader(s, id) {
@@ -391,7 +411,7 @@ export function equipItem(s, id) {
   if (!usableBy(it, s.classId)) return `Only a ${CLASSES[it.classId].name} can wear ${it.name}.`;
   if (!canEquipLevel(s, it)) return LEVEL_TOO_LOW;
   if (it.rarity === 'exotic' && !overloadOn(s)) { // U20b: the Ultimate reward lifts the one-exotic limit
-    const slots = it.kind === 'weapon' ? ['primary', 'special', 'heavy'] : ['helmet', 'arms', 'chest', 'legs'];
+    const slots = it.kind === 'weapon' ? WEAPON_SLOTS : ARMOR_SLOTS;
     const other = slots.map((sl) => sl !== it.slot && getEquipped(s, sl)).find((x) => x && x.rarity === 'exotic');
     if (other) return other;
   }
@@ -414,7 +434,7 @@ export function enforceGates(s) {
   for (const slot of SLOTS) {
     const cur = getEquipped(s, slot);
     if (!cur || canEquipLevel(s, cur)) continue;
-    const kind = WEAPON_SLOTS.includes(slot) ? WEAPON_SLOTS : ['helmet', 'arms', 'chest', 'legs'];
+    const kind = WEAPON_SLOTS.includes(slot) ? WEAPON_SLOTS : ARMOR_SLOTS;
     const exoticElsewhere = !overloadOn(s) && kind.some((sl) => sl !== slot && getEquipped(s, sl)?.rarity === 'exotic');
     const options = s.inventory.filter((i) => i.slot === slot && usableBy(i, s.classId) && canEquipLevel(s, i) && !(exoticElsewhere && i.rarity === 'exotic'));
     options.sort((a, b) => b.power - a.power || rarityIndex(b.rarity) - rarityIndex(a.rarity));
@@ -442,7 +462,7 @@ export function setOverload(s, on) {
 /** Keeps one equipped exotic per kind: a second one in a slot is replaced by the best usable non-exotic there (a fresh common if none). */
 export function trimExotics(s) {
   let changed = 0;
-  for (const kind of [WEAPON_SLOTS, ['helmet', 'arms', 'chest', 'legs']]) {
+  for (const kind of [WEAPON_SLOTS, ARMOR_SLOTS]) {
     let kept = false;
     for (const slot of kind) {
       const cur = getEquipped(s, slot);

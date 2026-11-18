@@ -20,7 +20,7 @@ const CLASS_COLORS = {
   stalker: { armor: 0x5f574d, trim: 0x8a7a5e, under: 0x2b2a28, cloth: 0x3a2f27 },
   arcanist: { armor: 0x4b4458, trim: 0x9a8a62, under: 0x26232c, cloth: 0x2f2a3a },
 };
-export const DEFAULT_APPEARANCE = { helmet: 'g0', arms: 'g0', chest: 'g0', legs: 'g0', shader: null };
+export const DEFAULT_APPEARANCE = { helmet: 'g0', arms: 'g0', chest: 'g0', legs: 'g0', classitem: 'g0', shader: null };
 const shade = (hex, k) => new THREE.Color(hex).multiplyScalar(k).getHex();
 
 /** Materials for one armor slot: the look's colors (or the class's), recolored by the shader. */
@@ -165,9 +165,7 @@ function titan(root, k, S, accent) {
     k.box(0.04, 0.04, 0.3 * sc, s * 0.36, 0.73, 0, accent, b.torso, [0, 0, s * -0.25]);
     if (sv === 'tall') k.box(0.06, 0.2, 0.3, s * 0.52, 0.77, 0, Ch.armor, b.torso, [0, 0, s * -0.25]);
   }
-  // Titan Mark: a cloth sash at the waist front
-  k.box(0.18, 0.44, 0.02, 0.04, -0.2, 0.15, Ch.cloth, b.torso, [0.08, 0, 0.04]);
-  k.box(0.2, 0.05, 0.03, 0.04, 0.02, 0.15, Ch.dark, b.torso);
+  classItem('vanguard', k, b, root, S, accent); // the Mark (U27: built from the class item's look)
   // heavy gauntlets
   k.slot = 'arms';
   for (const a of b.arms) k.box(0.24, 0.13, 0.24, 0, -0.24, 0, S.arms.armor, a.userData.elbow);
@@ -177,6 +175,55 @@ function titan(root, k, S, accent) {
   k.box(0.3, 0.08, 0.1, 0, 0.04, 0.12, S.helmet.trim, b.head);
   k.slot = null;
   return b;
+}
+
+/**
+ * U27: the class item, built from its own look (S.classitem; style.js `classitem.form` 0..2 picks the silhouette).
+ * Hunter cloak: split / long / tattered. Titan mark: sash / tabard / banner. Warlock bond: ring / double band / orbit.
+ * An unequipped slot draws the plain default look (form 0). Meshes carry userData.slot 'classitem' (icons.js).
+ */
+function classItem(classId, k, b, root, S, accent) {
+  const Ci = S.classitem, form = Ci.v.classitem?.form ?? 0;
+  k.slot = 'classitem';
+  if (classId === 'stalker') {
+    // the cloak hangs from the shoulders; b.cloak sways in update()
+    const cloak = new THREE.Group();
+    cloak.position.set(0, 0.68, -0.17);
+    b.torso.add(cloak);
+    const panels = form === 1 ? [[0, 0.46, 1.2, 0]] // one long cloak
+      : form === 2 ? [[-0.17, 0.2, 0.75, 0.06], [0, 0.2, 1.0, 0], [0.17, 0.2, 0.6, -0.06]] // short, ragged, three panels
+        : [[-0.13, 0.25, 1.1, 0.04], [0.13, 0.25, 1.1, -0.04]]; // split down the middle (default)
+    for (const [x, w, len, tilt] of panels) {
+      const panel = k.box(w, len, 0.025, x, -len / 2, 0, Ci.cloth, cloak, [0.08, 0, tilt]);
+      k.box(w, 0.04, 0.03, x, -len + 0.02, 0.04, form === 2 ? Ci.trim : accent, cloak);
+      panel.userData.cloak = true;
+    }
+    if (form === 1) k.box(0.5, 0.05, 0.05, 0, 0.0, 0.03, Ci.trim, cloak); // a collar band across the top
+    b.cloak = cloak;
+  } else if (classId === 'vanguard') {
+    if (form === 1) { // tabard: a long cloth front and back
+      k.box(0.3, 0.72, 0.02, 0.0, -0.3, 0.16, Ci.cloth, b.torso, [0.05, 0, 0]);
+      k.box(0.3, 0.04, 0.03, 0.0, -0.66, 0.18, accent, b.torso);
+      k.box(0.3, 0.6, 0.02, 0.0, -0.22, -0.16, Ci.cloth, b.torso, [-0.05, 0, 0]);
+    } else if (form === 2) { // banner: a waist sash and a strap-hung banner at the hip
+      k.box(0.16, 0.34, 0.02, 0.04, -0.14, 0.15, Ci.cloth, b.torso, [0.08, 0, 0.04]);
+      k.box(0.06, 0.8, 0.02, 0.3, 0.3, 0.1, Ci.trim, b.torso, [0, 0, 0.5]); // diagonal strap
+      k.box(0.18, 0.5, 0.02, 0.36, -0.26, 0.1, Ci.cloth, b.torso, [0, 0, -0.04]);
+      k.box(0.18, 0.04, 0.03, 0.36, -0.52, 0.11, accent, b.torso);
+    } else { // sash (default)
+      k.box(0.18, 0.44, 0.02, 0.04, -0.2, 0.15, Ci.cloth, b.torso, [0.08, 0, 0.04]);
+      k.box(0.2, 0.05, 0.03, 0.04, 0.02, 0.15, Ci.dark, b.torso);
+    }
+  } else {
+    const elbow = b.arms[0].userData.elbow; // the bond sits on the left forearm
+    if (form === 1) { // two bands
+      for (const y of [-0.08, -0.2]) k.mesh(new THREE.TorusGeometry(0.11, 0.016, 4, 16), y === -0.08 ? accent : Ci.trim, 0, y, 0, elbow, [Math.PI / 2, 0, 0]);
+    } else if (form === 2) { // orbit: a ring with three beads circling it
+      k.mesh(new THREE.TorusGeometry(0.13, 0.012, 4, 16), Ci.trim, 0, -0.14, 0, elbow, [Math.PI / 2, 0, 0]);
+      for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; k.mesh(new THREE.OctahedronGeometry(0.03), accent, Math.cos(a) * 0.13, -0.14, Math.sin(a) * 0.13, elbow); }
+    } else k.mesh(new THREE.TorusGeometry(0.11, 0.018, 4, 16), accent, 0, -0.12, 0, elbow, [Math.PI / 2, 0, 0]); // ring (default)
+  }
+  k.slot = null;
 }
 
 function hunter(root, k, S, accent) {
@@ -191,21 +238,12 @@ function hunter(root, k, S, accent) {
   // a single shoulder pad on the left
   k.box(0.2 * sc, 0.1 * sc, 0.24 * sc, 0.3, 0.64, 0, Ch.trim, b.torso, [0, 0, -0.3]);
   if (sv === 'tall') k.box(0.16, 0.06, 0.2, 0.33, 0.72, 0, Ch.armor, b.torso, [0, 0, -0.3]);
-  // cloak hangs from the shoulders to the knees, split down the middle
-  const cloak = new THREE.Group();
-  cloak.position.set(0, 0.68, -0.17);
-  b.torso.add(cloak);
-  for (const s of [-1, 1]) {
-    const panel = k.box(0.25, 1.1, 0.025, s * 0.13, -0.55, 0, Ch.cloth, cloak, [0.08, 0, s * 0.04]);
-    k.box(0.25, 0.04, 0.03, s * 0.13, -1.08, 0.04, accent, cloak);
-    panel.userData.cloak = true;
-  }
+  classItem('stalker', k, b, root, S, accent); // the cloak (U27: built from the class item's look)
   // knife on the right thigh
   k.slot = 'legs';
   k.box(0.04, 0.22, 0.03, 0.2, 0.68, 0.06, S.legs.dark, root);
   k.box(0.03, 0.08, 0.02, 0.2, 0.83, 0.06, accent, root);
   k.slot = null;
-  b.cloak = cloak;
   return b;
 }
 
@@ -231,10 +269,7 @@ function warlock(root, k, S, accent) {
   const col = { small: [0.36, 0.2], big: [0.44, 0.24], tall: [0.36, 0.32] }[sv];
   k.box(col[0], col[1], 0.3, 0, 0.78 + (col[1] - 0.2) / 2, -0.02, Ch.armor, b.torso);
   helmet(k, b.head, S.helmet, accent, { w: 0.24, h: 0.27, d: 0.26, y: 0.15 }, 'crown');
-  // bond: glowing ring on the left forearm
-  k.slot = 'arms';
-  k.mesh(new THREE.TorusGeometry(0.11, 0.018, 4, 16), accent, 0, -0.12, 0, b.arms[0].userData.elbow, [Math.PI / 2, 0, 0]);
-  k.slot = null;
+  classItem('arcanist', k, b, root, S, accent); // the Bond (U27: built from the class item's look)
   b.robe = robe;
   return b;
 }
@@ -362,7 +397,7 @@ function crystalKama(s = 1, shards = 0, seed = 1) {
 export function buildCharacter(classId, elementId, look = DEFAULT_APPEARANCE) {
   const el = ELEMENTS[elementId];
   const a = { ...DEFAULT_APPEARANCE, ...(look || {}) };
-  const S = Object.fromEntries(['helmet', 'arms', 'chest', 'legs'].map((sl) => [sl, slotMats(a[sl], a.shader, classId, el)]));
+  const S = Object.fromEntries(['helmet', 'arms', 'chest', 'legs', 'classitem'].map((sl) => [sl, slotMats(a[sl], a.shader, classId, el)]));
   const group = new THREE.Group();
   const fig = new THREE.Group();
   group.add(fig);

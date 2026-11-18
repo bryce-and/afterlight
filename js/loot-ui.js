@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import {
   RARITIES, rarityIndex, ELEMENTS, ARCHETYPES, AMMO, PERKS, EXOTIC_PERKS, EXOTIC_WEAPONS, EXOTIC_ARMOR_PERKS, CLASSES,
-  PERK_COLUMNS, PERK_COLUMN_NAMES, perksByColumn, exoticArmorFor,
+  PERK_COLUMNS, PERK_COLUMN_NAMES, perksByColumn, exoticArmorFor, slotName,
 } from './data.js';
 import { RARITY_GATE, canUseRarity } from './progression.js';
 import { playerLevel } from './save.js';
@@ -161,7 +161,7 @@ export function openCollection() {
       const have = found.has(item.name);
       const art = item.kind === 'weapon' ? `<img src="${weaponIcon(item)}" alt="" draggable="false">` : armorIcon(item);
       const perk = item.kind === 'weapon' ? EXOTIC_PERKS[item.exotic] : EXOTIC_ARMOR_PERKS[item.name];
-      const type = item.kind === 'weapon' ? ARCHETYPES[item.arch].name : { helmet: 'Helmet', arms: 'Arms', chest: 'Chest', legs: 'Legs' }[item.slot];
+      const type = item.kind === 'weapon' ? ARCHETYPES[item.arch].name : ({ helmet: 'Helmet', arms: 'Arms', chest: 'Chest', legs: 'Legs' }[item.slot] || slotName(item.slot, item.classId));
       return `<button class="coll-card${have ? ' found' : ''}" data-name="${esc(item.name)}" title="${have ? esc(`${perk?.name}: ${perk?.desc}`) : 'Not found yet'}">
         <span class="coll-art">${art}</span>
         <span class="coll-n">${have ? esc(item.name) : 'Undiscovered'}<small>${type}</small></span></button>`;

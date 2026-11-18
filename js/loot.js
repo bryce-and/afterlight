@@ -1,4 +1,4 @@
-import { ARCHETYPES, RARITIES, EXOTIC_WEAPONS, EXOTIC_RANDOM_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
+import { ARCHETYPES, CLASSES, RARITIES, EXOTIC_WEAPONS, EXOTIC_RANDOM_WEAPONS, EXOTIC_ARMOR, exoticArmorFor, SLOTS, ARMOR_SLOTS, WEAPON_SLOTS, HEAVY_VERSION } from './data.js';
 import { pick } from './util.js';
 import { LIGHT_MAX } from './campaign.js';
 import { armorTotal, rollStats, blankMods } from './armor.js';
@@ -14,6 +14,10 @@ const ARMOR_NOUN = {
   chest: ['Plate', 'Vest', 'Cuirass', 'Robes', 'Harness'],
   legs: ['Greaves', 'Strides', 'Boots', 'Treads'],
 };
+// U27: class items are named for the class
+const CLASS_ITEM_NOUN = { stalker: ['Cloak', 'Mantle', 'Shroud'], vanguard: ['Mark', 'Sigil', 'Standard'], arcanist: ['Bond', 'Tether', 'Band'] };
+
+const nounsFor = (slot, classId) => (slot === 'classitem' ? CLASS_ITEM_NOUN[classId] : ARMOR_NOUN[slot]);
 
 export function newId() {
   return Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 9);
@@ -67,12 +71,13 @@ export function makeExotic(name, power) {
 /** `dest`: the destination the drop comes from (a location id); legendaries are that destination's set. `classId`: who can wear it. `exoticName`: a specific exotic. `band`: the stat band (campaign.js armorBand(save)) for legendary and exotic totals (U28). */
 export function makeArmor(slot, power, rIdx, dest = null, classId = null, exoticName = null, band = 'base') {
   const rar = RARITIES[rIdx];
+  if (slot === 'classitem') classId = classId || pick(Object.keys(CLASSES)); // U27: a class item always belongs to one class
   const stats = rollStats(armorTotal(rar.id, band));
   let name, set = null;
   if (rar.id === 'exotic') { classId = classId || pick(Object.keys(EXOTIC_ARMOR)); name = exoticName || pick(EXOTIC_ARMOR[classId][slot]); } // exotics exist for one class
   else if (rar.id === 'legendary') { set = setForDrop(dest); name = setPieceName(set, slot, classId); } // U23: dungeon sets name each class's pieces
-  else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(ARMOR_NOUN[slot])}`;
-  else name = `${pick(ADJ)} ${pick(ARMOR_NOUN[slot])}`;
+  else if (rIdx === 0) name = `${pick(MAKERS)} ${pick(nounsFor(slot, classId))}`;
+  else name = `${pick(ADJ)} ${pick(nounsFor(slot, classId))}`;
   // Armor 2.0: no perks. Four sockets for mods (the first takes stat mods), filled by the player.
   const it = { id: newId(), kind: 'armor', slot, classId, rarity: rar.id, name, power: clampPower(power), stats, mods: blankMods(), isNew: true };
   if (set) it.set = set;
@@ -114,6 +119,7 @@ export function rollItem(power, rIdx, slot = null, dest = null, classId = null, 
     }
     classId = classId || pick(Object.keys(EXOTIC_ARMOR));
     const pool = exoticArmorFor(classId, level).filter((x) => !fixed || x.slot === slot);
+    if (!pool.length) return makeArmor(slot, power, 3, dest, classId, null, band); // U27: no exotic class items yet (Prismatic, B2): a legendary instead
     const name = pickExotic(pool.map((x) => x.name), found);
     return makeArmor(pool.find((x) => x.name === name).slot, power, rIdx, dest, classId, name, band);
   }
@@ -125,7 +131,7 @@ export function starterGear(classId = null) {
   const p = makeWeapon('primary', 10, 0, 'auto');
   const s = makeWeapon('special', 8, 0, 'shotgun');
   const h = makeWeapon('heavy', 8, 0, 'rocket');
-  const armor = ['helmet', 'arms', 'chest', 'legs'].map((sl) => makeArmor(sl, 10, 0, null, classId));
+  const armor = ARMOR_SLOTS.map((sl) => makeArmor(sl, 10, 0, null, classId));
   return [p, s, h, ...armor].map((it) => ({ ...it, isNew: false }));
 }
 

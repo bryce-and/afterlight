@@ -2,7 +2,7 @@
 // tools/tests.html can check it. The overlay is js/devconsole.js. Deliberately absent from the Update Log.
 import { EXOTIC_WEAPONS, EXOTIC_ARMOR, ARCHETYPES, ARMOR_SLOTS, rarityIndex } from './data.js';
 import { LEGENDARY_WEAPONS, NAMED_WEAPONS, frameSlot } from './frames.js';
-import { SETS } from './style.js';
+import { SETS, setPieceName } from './style.js';
 import { makeWeapon, makeExotic, makeArmor } from './loot.js';
 import { LEVEL_CAP, xpForLevel } from './progression.js';
 import { playerPower, playerLevel, writeSave, UNLOCK } from './save.js';
@@ -24,7 +24,8 @@ export function giveCatalog() {
     for (const [slot, names] of Object.entries(slots)) for (const name of names) out.push({ name, kind: 'armor', rarity: 'exotic', slot, classId });
   }
   for (const [setId, set] of Object.entries(SETS)) for (const slot of ARMOR_SLOTS) {
-    if (set.classPieces) for (const [classId, p] of Object.entries(set.classPieces)) out.push({ name: p[slot], kind: 'armor', rarity: 'legendary', slot, setId, classId }); // U23: a dungeon set names each class's pieces
+    if (slot === 'classitem') for (const classId of Object.keys(EXOTIC_ARMOR)) out.push({ name: setPieceName(setId, slot, classId), kind: 'armor', rarity: 'legendary', slot, setId, classId }); // U27: one class item per class
+    else if (set.classPieces) for (const [classId, p] of Object.entries(set.classPieces)) out.push({ name: p[slot], kind: 'armor', rarity: 'legendary', slot, setId, classId }); // U23: a dungeon set names each class's pieces
     else out.push({ name: set.pieces[slot], kind: 'armor', rarity: 'legendary', slot, setId });
   }
   return out;

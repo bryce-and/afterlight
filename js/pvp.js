@@ -260,7 +260,7 @@ export function rollKit(rng = Math.random) {
   const cls = pick(AI_CLASS_IDS), el = pick(AI_ELEMENT_IDS);
   const sub = subclassFor(cls, el), su = BOT_SUPERS[cls][el];
   const looks = Object.keys(LOOKS), shader = rng() < 0.85 ? pick(SHADER_IDS) : null;
-  const look = { helmet: pick(looks), arms: pick(looks), chest: pick(looks), legs: pick(looks), shader };
+  const look = { helmet: pick(looks), arms: pick(looks), chest: pick(looks), legs: pick(looks), classitem: pick(looks), shader };
   return {
     cls, el, sc: sub?.id || null, scName: sub?.name || '',
     gr: pick(BOT_GRENADES[el]).id, ca: pick(BOT_CLASS[cls]).id, su: su.id,

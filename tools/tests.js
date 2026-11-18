@@ -1,6 +1,6 @@
 // Afterlight unit tests: pure logic only (progression, loot, save, data, releases, status effects, combat rules).
 // Open tools/tests.html on the running dev server. Uses an in-memory store, so the real save is never touched.
-import { SLOTS, WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor, exoticArmorLevel } from '../js/data.js';
+import { SLOTS, ARMOR_SLOTS, slotName, WEAPON_SLOTS as WEAPON_SLOTS_T, CLASSES, LOCATIONS, ARCHETYPES, EXOTIC_WEAPONS, RARITIES, ELEMENTS, EXOTIC_ARMOR, EXOTIC_ARMOR_PERKS, exoticArmorFor, exoticArmorLevel } from '../js/data.js';
 import { LEVEL_CAP, LIGHT_CAP, XP, xpToNext, xpForLevel, levelInfo, rewardAt, rarityWeights, rollRarity, subclassLevel, subclassesUnlockedAt, RARITY_CURVE } from '../js/progression.js';
 import { rollItem, exoticWeights, pickExotic, EXOTIC_REPEAT_WEIGHT } from '../js/loot.js';
 import * as S from '../js/save.js';
@@ -133,7 +133,7 @@ test('new save: current version, level 1, every slot equipped, one of each weapo
   const s = S.createSave('vanguard');
   eq(s.version, S.SAVE_VERSION);
   eq(S.playerLevel(s), 1);
-  for (const sl of ['primary', 'special', 'heavy', 'helmet', 'arms', 'chest', 'legs']) ok(S.getEquipped(s, sl), sl);
+  for (const sl of ['primary', 'special', 'heavy', 'helmet', 'arms', 'chest', 'legs', 'classitem']) ok(S.getEquipped(s, sl), sl); // U27: the class item is the eighth slot
   eq(new Set(s.inventory.filter((i) => i.kind === 'weapon').map((i) => i.arch)).size, Object.keys(ARCHETYPES).filter((id) => !ARCHETYPES[id].exoticOnly).length);
 });
 test('save round-trips through storage', () => {
@@ -379,9 +379,9 @@ test('save v2 upgrades to the current version: subclass choice kept, loadout def
   const v2 = { version: 2, classId: 'stalker', glimmer: 777, inventory: [{ id: 'a', slot: 'primary', power: 50 }], vault: [], equipped: { primary: 'a' }, cleared: { e1: true }, subclass: { stalker: 'nightstalker' }, progression: { xp: 0, claimed: [] }, settings: {} };
   const st = freshOld({ afterlight_save_v2: JSON.stringify(v2) });
   const s = S.loadSave();
-  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 14);
-  eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 1);
-  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, 14, 'written back');
+  eq(s.version, S.SAVE_VERSION); eq(S.SAVE_VERSION, 15);
+  eq(s.loadout, {}); eq(s.glimmer, 777); eq(s.subclass, { stalker: 'nightstalker' }); eq(s.cleared, { e1: true }); eq(s.inventory.length, 2, 'the item plus the class item v15 grants');
+  eq(JSON.parse(st.getItem('afterlight_save_v2')).version, S.SAVE_VERSION, 'written back');
   const k = S.activeKit(s);
   eq([k.subclassId, k.abilities.grenade.id, k.abilities.class.id, k.aspects], ['nightstalker', 'axion', 'marksman', ['vanishing', 'abyssal']]); // H3: Abyssal Edge joins the default
 });
@@ -837,9 +837,9 @@ test('looks: set, exotic, then plain by rarity; appearance round-trips over the 
   eq(ST.lookOf({ rarity: 'exotic' }), 'exotic');
   eq([ST.lookOf({ rarity: 'common' }), ST.lookOf({ rarity: 'uncommon' }), ST.lookOf({ rarity: 'rare' }), ST.lookOf(null)], ['g0', 'g1', 'g2', 'g0']);
   const a = ST.appearance([{ slot: 'helmet', rarity: 'exotic' }, { slot: 'chest', rarity: 'legendary', set: 'titan' }], 'calus');
-  eq(a, { helmet: 'exotic', arms: 'g0', chest: 'titan', legs: 'g0', shader: 'calus' });
+  eq(a, { helmet: 'exotic', arms: 'g0', chest: 'titan', legs: 'g0', classitem: 'g0', shader: 'calus' });
   eq(ST.decodeAppearance(ST.encodeAppearance(a)), a);
-  eq(ST.decodeAppearance('junk,moon|nope'), { helmet: 'g0', arms: 'moon', chest: 'g0', legs: 'g0', shader: null }, 'bad ids fall back');
+  eq(ST.decodeAppearance('junk,moon|nope'), { helmet: 'g0', arms: 'moon', chest: 'g0', legs: 'g0', classitem: 'g0', shader: null }, 'bad ids fall back');
 });
 test('shaders: 10, drop only if not owned, never duplicate, guaranteed drop ignores the chance', () => {
   eq(ST.SHADER_IDS.length, 10);
@@ -2863,7 +2863,7 @@ test('U20b save v11 upgrades to v12: tier clears kept for every Guardian, new fi
     chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true, e2: true }, tier: 'ultimate', tierCleared: { legendary: { e1: true, e2: true }, ultimate: { e1: true } }, postmaster: [], quests: Q.newQuests() } } };
   fresh({ afterlight_save_v2: JSON.stringify(v11) });
   const s = S.loadSave();
-  eq(s.version, 14); eq(s.tierCleared, { legendary: { e1: true }, ultimate: {} }); eq(s.tier, 'legendary'); eq(s.cleared, { e1: true });
+  eq(s.version, S.SAVE_VERSION); eq(s.tierCleared, { legendary: { e1: true }, ultimate: {} }); eq(s.tier, 'legendary'); eq(s.cleared, { e1: true });
   eq([s.pendingMenus, s.overload, s.skipped], [[], false, false]);
   eq(s.chars.vanguard.tierCleared, { legendary: { e1: true, e2: true }, ultimate: { e1: true } }); eq(s.chars.vanguard.cleared, { e1: true, e2: true });
   eq([s.chars.vanguard.pendingMenus, s.chars.vanguard.overload, s.chars.vanguard.skipped], [[], false, false]);
@@ -2898,7 +2898,7 @@ test('U20b save v11 to v12: extras past 9 per slot go to that Guardian\'s Postma
   eq(S.slotCount(s, 'primary'), 9); ok(S.getItem(s, 'eq') && S.getItem(s, 'a0'), 'equipped and locked kept');
   eq(s.postmaster.map((i) => i.id).sort(), ['a1', 'a2', 'a3', 'old'], 'the three weakest unlocked extras moved');
   const c = s.chars.vanguard;
-  eq(c.inventory.length, 10); ok(c.inventory.some((i) => i.id === 'h0'), 'equipped helmet kept'); eq(c.postmaster.map((i) => i.id), ['h1']);
+  eq(c.inventory.length, 11, '10 kept plus the class item v15 grants'); ok(c.inventory.some((i) => i.id === 'h0'), 'equipped helmet kept'); eq(c.postmaster.map((i) => i.id), ['h1']);
 });
 
 test('U20b Skip Campaign is offered only once some Guardian really cleared the base campaign, and only to uncleared Guardians', () => {
@@ -2937,8 +2937,8 @@ test('U20b Skip Campaign: base cleared, level raised, Legendary-only Light 200 s
     ok(S.canEquipLevel(s, it), 'usable at the new level');
   }
   eq(S.playerPower(s), 200);
-  eq(s.inventory.length, before + 7, 'only the 7 set pieces, no mission drops'); eq(s.glimmer, coins, 'no glimmer drop');
-  eq(res.gear.length, 7);
+  eq(s.inventory.length, before + 8, 'only the 8 set pieces (class item included), no mission drops'); eq(s.glimmer, coins, 'no glimmer drop');
+  eq(res.gear.length, 8);
   eq(RW.pendingMenus(s).length, 1); eq(RW.pendingMenus(s)[0].tier, 'legendary'); eq(RW.pendingMenus(s)[0].armor.length, 3);
   eq(RW.pendingMenus(s)[0].armor.every((a) => a.power === 200), true, 'menu rolled at Light 200');
   let threw = false; try { RW.skipCampaign(s); } catch { threw = true; }
@@ -3005,7 +3005,7 @@ test('U21 save v13: v12 migrates with everything kept, per Guardian exoticMissio
     chars: { vanguard: { inventory: [], equipped: {}, cleared: { e1: true }, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, pendingMenus: [], overload: false, skipped: false, postmaster: [], quests: Q.newQuests() } } };
   fresh({ afterlight_save_v2: JSON.stringify(v12) });
   const s = S.loadSave();
-  eq(S.SAVE_VERSION, 14); eq(s.version, 14);
+  eq(S.SAVE_VERSION, 15); eq(s.version, S.SAVE_VERSION);
   eq(s.exoticMissions, { whisper: { clears: 0, bestTime: null } }); eq(s.chars.vanguard.exoticMissions, { whisper: { clears: 0, bestTime: null } });
   eq([s.glimmer, s.cleared, s.exoticsFound, s.progression.xp], [9, { e1: true }, ['Thorn'], 5]);
   const n = S.createSave('stalker'); eq(n.exoticMissions, { whisper: { clears: 0, bestTime: null } });
@@ -3686,7 +3686,7 @@ test('U23 save v14: v13 migrates with everything kept, per Guardian dungeons add
     chars: { vanguard: { inventory: [], equipped: {}, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, pendingMenus: [], overload: false, skipped: false, postmaster: [], exoticMissions: { whisper: { clears: 0, bestTime: null } } } } };
   fresh({ afterlight_save_v2: JSON.stringify(v13) });
   const s = S.loadSave();
-  ok(s, 'loads'); eq(s.version, 14);
+  ok(s, 'loads'); eq(s.version, S.SAVE_VERSION);
   eq(s.dungeons, { shadow: { clears: 0, bestTime: null } }); eq(s.chars.vanguard.dungeons, { shadow: { clears: 0, bestTime: null } });
   eq(s.exoticMissions.whisper.clears, 2, 'the Whisper record is kept'); eq(s.cleared, { lev1: true });
   const n = S.createSave('stalker'); eq(n.dungeons, { shadow: { clears: 0, bestTime: null } });
@@ -4491,6 +4491,63 @@ test('U26 mobile: layout save and load round-trips; defaults stay on screen and 
   const ids = MOB.TOUCH_BUTTONS.map((b) => b.id); eq(new Set(ids).size, ids.length, 'unique ids');
   for (const need of ['fire', 'ads', 'jump', 'reload', 'super', 'interact', 'pause']) ok(ids.includes(need), `${need} button exists`);
   eq([MOB.mobileModeOn({ mode: null }, true), MOB.mobileModeOn({ mode: null }, false), MOB.mobileModeOn({ mode: false }, true), MOB.mobileModeOn({ mode: true }, false)], [true, false, false, true], 'Automatic follows the device, an explicit choice wins');
+});
+
+// ---------- U27 B1: class items ----------
+test('U27 class item: the fifth armor slot, named for the class, in every set with its own look; Light averages 8 slots', () => {
+  eq(ARMOR_SLOTS.at(-1), 'classitem'); eq(SLOTS.length, 8);
+  const names = { vanguard: 'Mark', stalker: 'Cloak', arcanist: 'Bond' };
+  for (const [c, n] of Object.entries(names)) {
+    eq(slotName('classitem', c), n);
+    const it = makeArmor('classitem', 50, 3, 'moon', c);
+    eq([it.slot, it.classId, it.set], ['classitem', c, 'moon']); ok(it.name.endsWith(n), it.name); eq(it.mods.length, 4);
+  }
+  ok(makeArmor('classitem', 50, 1).classId, 'a class item always belongs to a class');
+  const seen = new Set();
+  for (const id of Object.keys(ST.SETS)) for (const c of Object.keys(names)) {
+    const nm = ST.setPieceName(id, 'classitem', c); ok(nm && !seen.has(nm), `${id} ${c} ${nm}`); seen.add(nm);
+  }
+  for (const [id, L] of Object.entries(ST.LOOKS)) ok(L.classitem && L.classitem.form >= 0 && L.classitem.form < ST.CLASSITEM_FORM_COUNT, `${id} class item look`);
+  eq(new Set(Object.keys(ST.SETS).map((id) => ST.LOOKS[id].classitem.form)).size, ST.CLASSITEM_FORM_COUNT, 'every silhouette variant is used');
+  const s = S.createSave('stalker');
+  const start = S.getEquipped(s, 'classitem'); ok(start && start.classId === 'stalker' && start.rarity === 'common', 'a new Hunter starts with a common cloak');
+});
+test('U27 appearance: the class item look travels over the network; a five-field code from a new peer or a four-field one from an old peer both decode', () => {
+  const a = ST.appearance([{ slot: 'classitem', rarity: 'legendary', set: 'io' }], null);
+  eq(a.classitem, 'io'); eq(ST.encodeAppearance(a).split('|')[0].split(',').length, 5);
+  eq(ST.decodeAppearance(ST.encodeAppearance(a)), a);
+  eq(ST.decodeAppearance('moon,moon,moon,moon|').classitem, 'g0', 'an old peer sends four looks');
+  eq(ST.decodeAppearance('g0,g0,g0,g0,nope|').classitem, 'g0');
+});
+test('U27 one exotic armor rule and trimExotics cover the class item', () => {
+  fresh();
+  const s = S.createSave('vanguard'); S.addXp(s, xpForLevel(40));
+  const ex = (id, slot) => ({ ...makeArmor(slot, 60, 3, null, 'vanguard'), id, rarity: 'exotic', name: slot === 'helmet' ? 'An Insurmountable Skullfort' : 'Test Mark' }); // exotic class items arrive with Prismatic (B2)
+  const h = ex('xh', 'helmet'), c = ex('xc', 'classitem');
+  s.inventory.push(h, c);
+  eq(S.equipItem(s, 'xh'), null);
+  eq(S.equipItem(s, 'xc')?.id, 'xh', 'a second exotic armor piece, even the class item, is refused');
+  s.equipped.classitem = 'xc'; // force two exotics, then trim
+  eq(S.trimExotics(s), 1);
+});
+test('U27 save v14 to v15: every Guardian gets an equipped class item at their Light, in the set of their chest; Light never drops', () => {
+  const gear = (id, slot, power, extra = {}) => ({ id, kind: 'armor', slot, classId: 'stalker', rarity: 'legendary', name: id, power, stats: { mob: 5, res: 5, rec: 5, dis: 5, int: 5, str: 5 }, mods: AR.blankMods(), ...extra });
+  const mk = (cls, powers) => {
+    const inv = [...['primary', 'special', 'heavy'].map((sl, i) => ({ id: `w${sl}`, kind: 'weapon', slot: sl, power: powers[i], rarity: 'common' })), ...['helmet', 'arms', 'chest', 'legs'].map((sl, i) => gear(`a${sl}`, sl, powers[3 + i], { classId: cls, set: 'titan' }))];
+    return { inventory: inv, equipped: Object.fromEntries(inv.map((i) => [i.slot, i.id])) };
+  };
+  const main = mk('stalker', [70, 71, 72, 73, 74, 75, 76]), other = mk('vanguard', [50, 51, 52, 53, 54, 55, 56]);
+  const v14 = { version: 14, classId: 'stalker', glimmer: 5, progression: { xp: xpForLevel(40) }, ...main, vault: [], cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, chars: { vanguard: { ...other, cleared: {}, tier: 'base', tierCleared: { legendary: {}, ultimate: {} }, postmaster: [], quests: Q.newQuests() } } };
+  const old = (g) => Math.floor(g.inventory.reduce((n, i) => n + i.power, 0) / 7);
+  fresh({ afterlight_save_v2: JSON.stringify(v14) });
+  const s = S.loadSave();
+  eq(s.version, 15);
+  const ci = S.getEquipped(s, 'classitem');
+  ok(ci && ci.slot === 'classitem' && ci.classId === 'stalker' && ci.set === 'titan' && ci.rarity === 'legendary', 'Hunter cloak in the chest set');
+  ok(S.playerPower(s) >= old(main), `Light ${S.playerPower(s)} kept (was ${old(main)}): ${SLOTS.map((sl) => sl + ':' + S.getEquipped(s, sl)?.power).join(' ')}`);
+  const c = s.chars.vanguard, ci2 = c.inventory.find((i) => i.id === c.equipped.classitem);
+  ok(ci2 && ci2.classId === 'vanguard' && ci2.name.endsWith('Mark'), 'the other Guardian gets a Mark');
+  ok(S.charPower(s, 'vanguard') >= old(other), `${S.charPower(s, 'vanguard')} >= ${old(other)}`);
 });
 
 for (const t of tests) {
