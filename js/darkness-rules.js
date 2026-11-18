@@ -22,7 +22,7 @@ export const STRAND = {
   lift: 1.8,
   unravel: { t: 6, n: 2, r: 8, dmg: 34, gap: 0.35 },
   sever: { t: 6, mult: 0.6 },
-  tangle: { life: 10, r: 4.5, dmg: 240, suspend: 1 },
+  tangle: { life: 10, r: 9, dmg: 240, suspend: 1 },
   woven: { t: 6, cut: 0.55 },
   // H23: threadlings skitter along the ground (speed), leap at a target within leapR (leapT seconds in the air),
   // and burst. A Broodweaver's threadlings that find nothing perch on the caster (at most perchMax) and jump off

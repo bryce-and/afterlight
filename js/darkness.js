@@ -333,7 +333,7 @@ export function darkFx(kind, o, local) {
       if (c) removeObj(c);
       const p = V(o.p);
       if (o.kind === 'crystal') shatterFx(p.setY(p.y + 0.8), 1.2);
-      else { explosionFx(p.setY(p.y + 0.5), 2.2, SD); swirl(p, STRAND.tangle.r, SD, 0.6, true, 0.07, 2); }
+      else { explosionFx(p.setY(p.y + 0.5), 4.4, SD); swirl(p, STRAND.tangle.r, SD, 0.6, true, 0.07, 2); }
       return true;
     }
     case 'shatter': shatterFx(V(o.p), o.k || 1); return true;

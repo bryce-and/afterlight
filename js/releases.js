@@ -5,6 +5,17 @@
 
 export const RELEASES = [
   {
+    version: '5.3.3', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Wyverns walk on the ground, special Grenade Launchers hit harder, Strand tangles blow up wider, and you can end a grapple early.',
+    notes: [
+      'Wyverns no longer float. They walk along the ground',
+      'Special-ammo Grenade Launchers hit about 55% harder (Light Launcher damage x0.22 to x0.34, Double-Fire x0.125 to x0.19 per grenade)',
+      'Strand tangles explode in double the radius when shot or set off (4.5 m to 9 m)',
+      'Press the grenade button again during a Strand grapple to let go early. You keep your speed',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.3.2', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
     summary: 'The Strand grapple pulls hard and keeps your swing, and Khvostov 7G-02 is now a military black rifle.',
     notes: [
