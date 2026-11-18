@@ -180,7 +180,6 @@ const OPTIC_LISTS = {
   auto: ['holo', 'ring', 'micro', 'prism'],
   pulse: ['dot', 'chevron', 'holoG', 'prism', 'ring', 'dotG'],
   smg: ['micro', 'ring', 'chevron', 'holoA'],
-  fusion: ['chevron', 'holo', 'ring', 'dotG'],
   rocket: ['prism', 'holoA'],
   mg: ['holoG', 'ring', 'prism'],
   xenophage: ['holoG', 'ring', 'prism'],
@@ -189,7 +188,6 @@ const OPTIC_LISTS = {
 };
 const SCOPE_LISTS = { scout: ['simple', 'tactical', 'slim', 'amber'], sniper: ['long', 'fat', 'slim', 'amber'] };
 const IRON_LISTS = {
-  shotgun: [['notch', GREEN], ['ghost', AMBER], ['ghost', GREEN], ['notch', AMBER]],
   forerunner: [['notch', AMBER], ['ghost', WHITE]],
   glauncher: [['ghost', AMBER], ['notch', GREEN], ['ghost', CYAN]],
 };
@@ -223,7 +221,7 @@ function scopeFit(k, item, m, S, rear, front, y0, r, col = RED) {
 }
 /** Iron sights: a notch or ring rear with a colored front dot. */
 function ironFit(k, item, m, S, rearF, rearBase, frontF, frontBase) {
-  const v = pick(IRON_LISTS[item.arch] || IRON_LISTS.shotgun, item);
+  const v = pick(IRON_LISTS[item.arch] || IRON_LISTS.glauncher, item);
   return ironSights(k, m, S, rearF, rearBase, frontF, frontBase, v[1], v[0]);
 }
 
@@ -441,7 +439,7 @@ function buildBaseGun(item, look) {
       P([[-0.1, 0.03], [-0.38, 0.0], [-0.39, -0.1], [-0.33, -0.11], [-0.1, -0.035]], 0.045, wood);
       B(0.064, 0.01, 0.16, 0, 0.012, 0.04, glow);
       B(0.03, 0.02, 0.05, 0.035, 0.0, 0.08, mat(0x0b0c0e));
-      ironFit(k, item, dark, S, 0.0, 0.04, 0.57, 0.048);
+      floatDot(k, S, 0.3, [0xffd27a, 0x7dff9a, 0xff9a6a, 0x5fd8ff][frameIdx(item) % 4]); // H32: no iron sights, a floating dot like the hand cannons
       return finish(g, { muzzleF: 0.6, muzzleY: 0.022, S, hip: [0.21, -0.21, -0.5], ads: 0.32, flash: fc });
     }
     case 'sniper': {
@@ -470,7 +468,7 @@ function buildBaseGun(item, look) {
       grip(k, gripM); triggerGuard(k, dark, steel);
       B(0.05, 0.08, 0.18, 0, -0.01, -0.2, dark);
       rail(k, dark, mid, 0.06, -0.06, 0.18);
-      optic(k, item, dark, S, 0.04, 0.065, 0.02, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
+      floatDot(k, S, 0.2, el.hex === ELEMENTS.kinetic.hex ? 0xffd27a : el.hex); // H32: no optic, a floating dot in the weapon's element color
       return finish(g, { muzzleF: 0.54, S, hip: [0.22, -0.22, -0.5], ads: 0.31, flash: el.hex });
     }
     case 'linear': {
