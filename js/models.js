@@ -163,7 +163,7 @@ function optic(k, item, m, S, f, y0, rDot = 0.02, col = RED) {
     case 1: return redDot(k, m, S, f, y0, rDot, 0.045, col);
     case 2: return redDot(k, m, S, f, y0, rDot * 1.2, 0.06, GREEN);
     case 3: return holo(k, m, S, f, y0, GREEN);
-    case 4: return scope(k, m, S, f - 0.05, f + 0.09, y0, 0.026, col, true);
+    case 4: return item.arch === 'linear' ? holo(k, m, S, f, y0, AMBER) : scope(k, m, S, f - 0.05, f + 0.09, y0, 0.026, col, true);
     default: return holo(k, m, S, f, y0, AMBER);
   }
 }
@@ -438,7 +438,7 @@ function buildBaseGun(item, look) {
       grip(k, gripM); triggerGuard(k, dark, steel);
       P([[-0.12, 0.04], [-0.38, 0.03], [-0.4, -0.1], [-0.3, -0.1], [-0.12, -0.04]], 0.05, dark, 0, [[[-0.16, 0.01], [-0.27, 0.005], [-0.28, -0.06], [-0.18, -0.03]]]);
       rail(k, dark, mid, 0.055, -0.08, 0.2);
-      scopeFit(k, item, dark, S, -0.02, 0.18, 0.06, 0.032, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex);
+      optic(k, item, dark, S, 0.05, 0.06, 0.022, el.hex === ELEMENTS.kinetic.hex ? RED : el.hex); // H32: a Linear Fusion Rifle wears a low-zoom reflex or holo, not a sniper scope
       return finish(g, { muzzleF: 0.73, S, hip: [0.22, -0.22, -0.52], ads: 0.09, flash: el.hex });
     }
     case 'rocket': {
