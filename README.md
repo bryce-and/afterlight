@@ -16,7 +16,8 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
-- **v5.4.1 "Hotfix" (H35)**: Roguelike fixes: bosses have about 60% less health at wave 30, boons come every 3 waves, the starting kit is random legendary guns, and the Character screen is locked during a run.
+- **v5.4.2 "Hotfix" (H36)**: Roguelike bosses gain health more slowly, and you get a boon pick after every wave instead of every three.
+- **v5.4.1 "Hotfix" (H35)**: Roguelike fixes: bosses have about 60% less health at wave 30, the starting kit is random legendary guns, and the Character screen is locked during a run.
 - **v5.4 "Boss Redesign" (U29)**: every boss has a new model: faction units grown into bosses, plus from-scratch designs for Aurix, Mindbender, the Fanatic and more. Hitboxes, stats and arenas do not change.
 - **v5.3.3 "Hotfix" (H34)**: Wyverns walk on the ground, special-ammo Grenade Launchers hit harder, Strand tangles blow up wider, and the grenade button ends a Strand grapple early.
 - **v5.3.2 "Hotfix" (H33)**: the Strand grapple pulls hard (a midair pivot launches you off the floor and keeps your swing), and Khvostov 7G-02 is a military black rifle.
