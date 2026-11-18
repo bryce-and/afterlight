@@ -5,6 +5,21 @@
 
 export const RELEASES = [
   {
+    version: '5.4', name: 'Boss Redesign', date: '2026-11-17', accent: '#ff5a4a', glyph: '☠',
+    summary: 'Every boss has a new model: real faction units grown into proper bosses, plus new from-scratch designs for Aurix, Mindbender, the Fanatic and more.',
+    notes: [
+      'Every boss has a new model, built to look like a boss. Most are the faction\'s own units grown into something bigger and meaner: a Servitor that looks like a real Fallen Servitor, a Knight, Wizard, Phalanx, Ogre and more, each with horns, spikes, capes or crowns',
+      'Brand new from scratch: Aurix, Mindbender, the Fanatic (he now holds his glaive), the Psion Flayers and Protheon, the Vex Mind, with Mindbender and Fanatic following the reference art',
+      'The Taken bosses are now black and white, with void tendrils, horns and spines',
+      'Crota is bigger, spectral green and carries a huge sword',
+      'The Leviathan dungeon bosses (Emperor Calus, Vhorrak and Kathrax) keep their models',
+      'Hitboxes do not change: every boss keeps its size, stats, AI, arena and crit spot. A bigger head does not mean a bigger weak point',
+      'Also in this release: the Strand grapple pulls harder and keeps your swing, Khvostov 7G-02 is a military black rifle, Wyverns walk on the ground, special Grenade Launchers hit about 55% harder, Strand tangles blow up in double the radius, and the grenade button ends a grapple early',
+      'Save changes: none',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="brBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0a0c"/><stop offset="0.7" stop-color="#2a1014"/><stop offset="1" stop-color="#050203"/></linearGradient><radialGradient id="brGlow" cx="0.5" cy="0.4" r="0.5"><stop offset="0" stop-color="#ff5a4a" stop-opacity="0.55"/><stop offset="1" stop-color="#ff5a4a" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#brBg)"/><rect width="320" height="180" fill="url(#brGlow)"/><path d="M0 150 L50 138 L110 146 L170 134 L240 144 L320 136 L320 180 L0 180Z" fill="#0b0405"/><g fill="#0a0506" stroke="#ff5a4a" stroke-opacity="0.5" stroke-width="1.2"><path d="M160 40 L148 62 L136 56 L142 80 L120 74 L132 104 L118 150 L202 150 L188 104 L200 74 L178 80 L184 56 L172 62Z"/><path d="M146 44 L124 18 L136 46Z M174 44 L196 18 L184 46Z"/></g><circle cx="152" cy="60" r="3" fill="#ffd0c0"/><circle cx="168" cy="60" r="3" fill="#ffd0c0"/><path d="M150 66 L170 66 L160 76Z" fill="#ff5a4a" fill-opacity="0.6"/><g fill="none" stroke="#ff9a7a" stroke-opacity="0.5" stroke-width="1"><path d="M60 150 L72 100 L84 150"/><path d="M236 150 L248 96 L260 150"/></g></svg>',
+  },
+  {
     version: '5.3.3', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
     summary: 'Wyverns walk on the ground, special Grenade Launchers hit harder, Strand tangles blow up wider, and you can end a grapple early.',
     notes: [
