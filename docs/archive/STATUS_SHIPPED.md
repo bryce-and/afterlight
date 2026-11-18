@@ -198,3 +198,4 @@ Rows moved out of `docs/OVERHAUL_STATUS.md` once their status reached "Complete 
 | R51 | Exotic missions: timed, unique mechanics, exclusive exotic, first at player level 30 | U21 | Complete and published (v4.4) |
 | R54 | Darkness supers and abilities | U22 | Complete and published (v4.5) |
 | V29 | Stasis and Strand subclasses for all classes, each with a second, original super of the opposite type | U22 | Complete and published (v4.5) |
+| H32 | Hotfix: Cyclops on the ground at scale 1.1 to 1.5; Taken Goblin and Emperor Calus on their new models; every gun, sight and exotic armor piece has its own look; Strand grapple reworked as a line; Imp blasts, Scorn Abomination scale, glaive and Rocket-Assisted speed balance | Hotfix (v5.3.1) | Complete and published (v5.3.1) |

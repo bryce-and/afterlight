@@ -5,6 +5,23 @@
 
 export const RELEASES = [
   {
+    version: '5.3.1', name: 'Hotfix', date: '2026-11-17', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Cyclops stay on the ground, the Taken Goblin and Emperor Calus have new models, guns and exotics have their own looks, the Strand grapple is reworked, and a few balance numbers change.',
+    notes: [
+      'Cyclops no longer fly. They sit on the ground, stand still, and are larger (scale 1.1 to 1.5)',
+      'The Taken Goblin uses the Vex Goblin model (fan crown, long arms, Slap Rifle) in black Taken plating with an orb eye',
+      'The Leviathan campaign boss Emperor Calus uses the dungeon Calus model. There is no automaton reveal on death',
+      'Every exotic armor piece and exotic class item has its own look, with its own palette and shapes',
+      'Every gun has its own color scheme, taken from its name. Sights vary by weapon family and frame: new ring reflex, chevron and micro holos, prism sight, and slim and tactical scopes. Hand cannons, sidearms, shotguns and fusion rifles use the floating dot sight, Linear Fusion Rifles use low-zoom optics, and Rocket Launcher sights sit on the left of the tube. Glaives and swords keep their own',
+      'The Sunshot floating sun shape is gone (Edge of Intent shared it)',
+      'Imp suicide blasts do a quarter of the damage',
+      'Scorn Abomination is scaled down from 1.65 to 1.3',
+      'Glaive bolts are faster (speed 95 to 135). Rocket-Assisted rounds on pulse rifles and sidearms are faster too (80 to 115)',
+      'The Strand grapple is reworked like Destiny 2: it fires as an instant line out to 38 m. On a hit you are pulled to the surface. On a miss it hangs a midair pivot you are reeled toward and can swing from with momentum. Jump lets go and keeps your speed',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.3', name: 'Prismatic', date: '2026-11-17', accent: '#ff9be8', glyph: '◈',
     summary: 'A sixth subclass for every Guardian that mixes Light and Darkness, with Transcendence, a fifth armor slot for class items, and exotic class items.',
     notes: [

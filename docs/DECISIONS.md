@@ -76,3 +76,6 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-17 | U27 Prismatic (v5.3): class items count toward Light. | Bryce (U27) |
 | 2026-11-17 | U27 Prismatic (v5.3): Transcendence has its own button, X (Z in the trackpad preset, where X is Aim). | Bryce (U27) |
 | 2026-11-17 | U27 Prismatic (v5.3): exotic class items are guaranteed one at unlock plus exotic drops; always an option in the Mission Blitz and every Horde mode exotic pick menu; never offered before Prismatic is unlocked. | Bryce (U27) |
+| 2026-11-17 | H32: Bryce chose to make the boss model redesign (all 25 bosses in js/bosses.js) its own update with a Gate B proposal, not part of H32. | Bryce (H32) |
+| 2026-11-17 | H32: Each gun's color scheme is a hash of its item name. | Claude (H32) |
+| 2026-11-17 | H32: Gun sights are chosen per archetype and frame, from per-family lists. | Claude (H32) |
