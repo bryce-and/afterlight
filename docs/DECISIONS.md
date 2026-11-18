@@ -72,3 +72,7 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-17 | The melee tile fires the V ability, so plain punch (B) has no touch button. | Claude (U26) |
 | 2026-11-17 | Phone pixel ratio is capped at 2.0, with cheaper shadows on phones. | Claude (U26) |
 | 2026-11-17 | H31: On phones, Aim toggles by default (tap AIM to zoom in, tap again to zoom out). Players who already set this option keep their choice; the Aim button toggle setting turns it off to hold instead. | Bryce (H31) |
+| 2026-11-17 | U27 Prismatic (v5.3): Prismatic unlocks with the Legendary campaign clear (account-wide, same rule as Mission Blitz), not a Guardian level. | Bryce (U27) |
+| 2026-11-17 | U27 Prismatic (v5.3): class items count toward Light. | Bryce (U27) |
+| 2026-11-17 | U27 Prismatic (v5.3): Transcendence has its own button, X (Z in the trackpad preset, where X is Aim). | Bryce (U27) |
+| 2026-11-17 | U27 Prismatic (v5.3): exotic class items are guaranteed one at unlock plus exotic drops; always an option in the Mission Blitz and every Horde mode exotic pick menu; never offered before Prismatic is unlocked. | Bryce (U27) |

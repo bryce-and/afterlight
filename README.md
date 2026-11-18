@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.3 "Prismatic" (U27)**: a sixth subclass for every Guardian, mixing Light and Darkness, with Transcendence, a fifth armor slot for class items (Cloak, Mark, Bond), and exotic class items. Clear the Legendary campaign to unlock Prismatic.
 - **v5.2.1 "Hotfix" (H31)**: phone star map labels and tap targets line up with the planets again, phone aim toggles by default, and you can drag the Fire thumb to aim while shooting.
 - **v5.2 "Mobile" (U26)**: play on a phone, with touch controls, a phone HUD and menus, and Mobile mode (on by default on phones) with calmer enemy strafing and bigger enemy hit boxes. Desktop is unchanged.
 - **v5.1 "Roguelike Horde" (U24)**: two new roguelike modes, Roguelike Horde (30 waves) and Roguelike Endless. You start with a rifle, shotgun and grenade launcher, and every fifth wave lets each member pick one of three boons (25 boons, stacking; some offers are weapon swaps). Boons last only for the run. Classic Horde and Endless are unchanged. A death camera shows your body, then an orbitable Ghost, in every mode.
