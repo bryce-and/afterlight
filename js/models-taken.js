@@ -497,7 +497,7 @@ export function buildTakenMind(c = null) {
   const B = (w, h, d, x, y, z, m, parent = g, crit = false, r = null) => add(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent, crit, r);
   const pivot = c ? c.pivot : (x, y, z, parent = g) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
   const kit = c || { g, add, B, pivot };
-  const black = mat(0x07080c), plate = mat(0x15161c), bronze = mat(0x6e4c2a), brass = mat(0x8a6a3a);
+  const black = mat(0x07080c), plate = mat(0x15161c), bronze = mat(0x2a2c34), brass = mat(0x555966); // U29: Taken are black and white
   const white = orbMat();
   const red = mat(0xff3a2a, { emissive: 0xff2a1a, emissiveIntensity: 3.5 });
   const PI = Math.PI;
