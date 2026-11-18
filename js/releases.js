@@ -5,6 +5,16 @@
 
 export const RELEASES = [
   {
+    version: '5.4.6', name: 'Hotfix', date: '2026-11-18', accent: '#ff8a7a', glyph: '✚',
+    summary: 'The Mars ramps into the Sunken Plaza and up to the Dust Palace courtyard gate sit on the ground now, and the Edge of Action remote shield has regression tests.',
+    notes: [
+      'Mars, The Buried City: the boss-gate ramp into the Sunken Plaza floated 2 to 3 m above the ground; it now rests on the terrain and meets the plaza paving',
+      'Mars, Dust Palace: the palace ramp up to the courtyard gate floated above the ground; it now rests on the terrain and meets the courtyard paving',
+      'Edge of Action: the remote shield error fixed in v5.3 now has regression tests, so it stays fixed',
+      'Save changes: none',
+    ],
+  },
+  {
     version: '5.4.5', name: 'Hotfix', date: '2026-11-18', accent: '#ff8a7a', glyph: '✚',
     summary: 'Roguelike weapon swaps are back to 25% of boon options, and exotics are still 40% of weapon options.',
     notes: [
