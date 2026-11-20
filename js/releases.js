@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '5.6.3', name: 'Hotfix', date: '2026-11-20', accent: '#ff8a7a', glyph: '✚',
+    summary: 'You can now mark several items on the Character screen and dismantle them all at once for glimmer.',
+    notes: [
+      'Character screen: hover an item and press Shift+F to mark it. A red X shows on marked items; press Shift+F again to unmark',
+      'Hold F to dismantle every marked item at once. With nothing marked, holding F still dismantles the hovered item',
+      'Equipped and locked items cannot be marked. Exotics you mark on purpose are dismantled without a second confirm',
+    ],
+  },
+  {
     version: '5.6.2', name: 'Hotfix', date: '2026-11-20', accent: '#ff8a7a', glyph: '✚',
     summary: 'You can now dismantle items waiting at the Postmaster for glimmer.',
     notes: [
