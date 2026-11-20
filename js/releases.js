@@ -5,6 +5,14 @@
 
 export const RELEASES = [
   {
+    version: '5.6.2', name: 'Hotfix', date: '2026-11-20', accent: '#ff8a7a', glyph: '✚',
+    summary: 'You can now dismantle items waiting at the Postmaster for glimmer.',
+    notes: [
+      'Postmaster: dismantle items waiting there for glimmer. Use the Dismantle button at the bottom and click items to scrap them, or hold Shift and click',
+      'Exotics ask you to confirm before they are dismantled. Locked items are kept',
+    ],
+  },
+  {
     version: '5.6.1', name: 'Hotfix', date: '2026-11-20', accent: '#ff8a7a', glyph: '✚',
     summary: 'Every boon orb now has a weapon swap, boss kills leave a gold orb of exotic boons, and boons start smaller and add up as you stack them.',
     notes: [
