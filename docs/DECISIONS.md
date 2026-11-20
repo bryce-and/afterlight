@@ -105,3 +105,4 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-20 | U31: Fusion rifles use normal sights; linear fusion zoom is 1.5 with less shake. | Claude (U31) |
 | 2026-11-20 | U31: Phoenix Rite gets a grace period. The root cause is not confirmed. | Claude (U31) |
 | 2026-11-20 | H30b: The weapon swap is a 4th guaranteed card on boon orbs. Boss orb ids end in 99. Scaled boon values were chosen by feel, not tuned with play data. Co-op and stasis with boss orbs are untested. | Claude (H30b) |
+| 2026-11-20 | H30c: Postmaster dismantle uses a toggle button plus Shift+click, the same glimmer value as inventory dismantle, refuses locked items, and asks to confirm exotics. The H30b unit tests were appended after the test runner and never ran; they now sit above it, and 472 of 472 pass (H30b boon rules verified). | Claude (H30c) |
