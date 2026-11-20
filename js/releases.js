@@ -5,6 +5,21 @@
 
 export const RELEASES = [
   {
+    version: '5.5', name: 'Boon Drops', date: '2026-11-20', accent: '#c79bff', glyph: '◆',
+    summary: 'Roguelike kills leave boon orbs you open with E, co-op gets personal orbs, and eleven new boons bring the total to 36.',
+    notes: [
+      'Roguelike Horde and Endless: clearing a wave no longer gives a boon. Kills leave boon orbs on the ground, 2 to 5 every round, and elites and bosses are likelier to leave more',
+      'Walk up to an orb and press E to open it and pick one of three boons. Solo, the game pauses while you choose. Esc closes the pick and the orb stays',
+      'Orbs stay on the ground until you pick them up or the run ends',
+      'Co-op: each player gets their own orbs from the host\'s kills. The player opening an orb is in stasis (cannot be hurt or targeted, 12 second limit, the orb stays) while the world keeps running. A reopened orb shows the same three choices',
+      'Eleven new boons, 36 in total: Marksman, Opening Shot, Exposed Nerve, Vitality, Bulwark, Quick Recovery, Overcharge, Cooldown Rebate, Siphon, Beacon (+1 orb a round, up to +3), and Multishot',
+      'Multishot: +50% bullets per shot, at least +1 extra. The extra bullets deal half damage. 4 stacks max, normal bullet guns only',
+      'Roguelike runs hand out more boons: about 3 orbs a wave, roughly 95 over 30 waves (about 30 before)',
+      'Save changes: none',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bdBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#140c22"/><stop offset="0.7" stop-color="#1d1233"/><stop offset="1" stop-color="#06040c"/></linearGradient><radialGradient id="bdGlow" cx="0.5" cy="0.55" r="0.5"><stop offset="0" stop-color="#c79bff" stop-opacity="0.6"/><stop offset="1" stop-color="#c79bff" stop-opacity="0"/></radialGradient><linearGradient id="bdBeam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c79bff" stop-opacity="0"/><stop offset="1" stop-color="#c79bff" stop-opacity="0.5"/></linearGradient></defs><rect width="320" height="180" fill="url(#bdBg)"/><ellipse cx="160" cy="110" rx="120" ry="60" fill="url(#bdGlow)"/><rect x="146" y="0" width="28" height="130" fill="url(#bdBeam)"/><polygon points="160,76 182,108 160,140 138,108" fill="#e6d2ff" stroke="#ffffff" stroke-width="1.5"/><polygon points="160,88 172,108 160,128 148,108" fill="#c79bff"/><ellipse cx="160" cy="148" rx="46" ry="8" fill="none" stroke="#c79bff" stroke-opacity="0.7" stroke-width="1.4"/><path d="M0 156 L60 146 L120 154 L200 144 L260 152 L320 146 L320 180 L0 180Z" fill="#07050c"/><g fill="#c79bff" opacity="0.8"><circle cx="70" cy="60" r="1.6"/><circle cx="256" cy="48" r="1.3"/><circle cx="96" cy="118" r="1.2"/><circle cx="236" cy="104" r="1.5"/></g></svg>',
+  },
+  {
     version: '5.4.6', name: 'Hotfix', date: '2026-11-18', accent: '#ff8a7a', glyph: '✚',
     summary: 'The Mars ramps into the Sunken Plaza and up to the Dust Palace courtyard gate sit on the ground now, and the Edge of Action remote shield has regression tests.',
     notes: [
