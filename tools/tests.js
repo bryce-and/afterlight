@@ -4835,22 +4835,6 @@ test('U31: Crucible supers one-shot in the core, ticks stay small, Well is soft'
   ok(PV.abilityDamage('super', 500, { kind: 'goldenGun' }).dmg === 140, 'Golden Gun keeps its own row');
 });
 
-for (const t of tests) {
-  const row = document.createElement('div');
-  try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }
-  catch (e) { fail++; row.className = 'fail'; row.textContent = `FAIL  ${t.name}: ${e.message}`; console.error(t.name, e); }
-  out.appendChild(row);
-}
-
-
-
-
-const sum = document.getElementById('summary');
-sum.textContent = `${pass} passed, ${fail} failed`;
-sum.className = fail ? 'fail' : 'pass';
-window.TEST_RESULTS = { pass, fail };
-
-
 test('H30b offers: single-use and capped boons leave the pool, boss orbs are exotic, orb ids', () => {
   for (const id of ['static_rounds', 'devouring_rounds', 'threadneedle_rounds']) eq(BN.boonMax(id), 1, `${id} is single use`);
   eq(BN.boonMax('multishot'), 4); eq(BN.boonMax('beacon'), 3); eq(BN.boonMax('marksman'), Infinity, 'plain stacking boons are unlimited');
@@ -4879,3 +4863,28 @@ test('H30b scale-back: starting values are smaller, stacks still add linearly', 
   const r3 = BN.newBoonRun(); BN.addBoon(r3, 'worldbreaker'); BN.addBoon(r3, 'worldbreaker');
   near(BN.damageMult(BN.boonTotals(r3), { boss: true }), 1 + 2 * (0.15 + 0.20), 1e-9, 'exotic boons stack too');
 });
+
+test('H30c Postmaster dismantle: pays glimmer, removes the item, refuses locked and unknown', () => {
+  const s = S.createSave('vanguard'); s.postmaster = []; s.glimmer = 0;
+  const it = rollItem(10, 3); s.postmaster.push(it);
+  const lk = rollItem(10, 3); lk.locked = true; s.postmaster.push(lk);
+  eq(S.dismantlePostmasterItem(s, lk.id), -1, 'a locked item is refused'); eq(s.postmaster.length, 2);
+  const v = S.dismantlePostmasterItem(s, it.id); ok(v > 0 && s.glimmer === v, 'glimmer paid'); eq(s.postmaster.length, 1);
+  let threw = false; try { S.dismantlePostmasterItem(s, 'nope'); } catch { threw = true; } ok(threw, 'unknown id throws');
+});
+
+for (const t of tests) {
+  const row = document.createElement('div');
+  try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }
+  catch (e) { fail++; row.className = 'fail'; row.textContent = `FAIL  ${t.name}: ${e.message}`; console.error(t.name, e); }
+  out.appendChild(row);
+}
+
+
+
+
+const sum = document.getElementById('summary');
+sum.textContent = `${pass} passed, ${fail} failed`;
+sum.className = fail ? 'fail' : 'pass';
+window.TEST_RESULTS = { pass, fail };
+

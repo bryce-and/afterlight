@@ -4,7 +4,7 @@ import { G } from './state.js';
 import { CLASSES, EXOTIC_WEAPONS, ARCHETYPES, EXOTIC_ARMOR_PERKS, EXOTIC_PERKS, RARITIES, exoticArmorFor, rarityIndex, slotName } from './data.js';
 import { makeExotic, makeArmor } from './loot.js';
 import { armorBand } from './campaign.js';
-import { addItem, collectPostmaster, writeSave, playerPower, playerLevel, POSTMASTER_CAP, KIOSK_PRICE } from './save.js';
+import { addItem, collectPostmaster, dismantlePostmasterItem, writeSave, playerPower, playerLevel, POSTMASTER_CAP, KIOSK_PRICE } from './save.js';
 import { questList, pickUpQuest, QUESTS } from './quests.js';
 import { overlay } from './loot-ui.js';
 import { tipHTML } from './ui.js';
@@ -29,6 +29,7 @@ function panel(cls, done) {
 export function openPostmaster(done) {
   const { el, close } = panel('postmaster', done);
   const s = G.save;
+  let scrap = false; // H30c: dismantle mode (the Dismantle button, or hold Shift and click)
   const render = (msg = '') => {
     const list = s.postmaster || [];
     el.innerHTML = `
@@ -37,9 +38,10 @@ export function openPostmaster(done) {
           <div class="coll-count">${list.length} / ${POSTMASTER_CAP} held</div></div>
         <div class="coll-grid">${list.length ? list.map((it) => `<button class="coll-card found pm-card" data-id="${it.id}" style="border-color:${rc(it)}">
           <span class="coll-art">${art(it)}</span><span class="coll-n" style="color:${rc(it)}">${esc(it.name)}<small>${typeOf(it)}  ·  ◆ ${it.power}</small></span></button>`).join('') : '<p class="desc">Nothing is waiting for you.</p>'}</div>
-        <div class="coll-foot"><button class="btn" id="pm-close">Back <kbd>Esc</kbd></button><span class="hint">${esc(msg) || 'Click an item to take it. A full Postmaster dismantles its oldest common gear; exotics are never lost.'}</span></div>
+        <div class="coll-foot"><button class="btn" id="pm-close">Back <kbd>Esc</kbd></button><button class="btn${scrap ? ' primary' : ''}" id="pm-scrap" title="Click items to dismantle them for glimmer (or hold Shift and click)">Dismantle: ${scrap ? 'ON' : 'off'}</button><span class="hint">${esc(msg) || (scrap ? 'Dismantle mode: click an item to scrap it for glimmer. Locked items are kept.' : 'Click an item to take it. Use Dismantle (or Shift+click) to scrap items for glimmer. A full Postmaster dismantles its oldest common gear; exotics are never lost.')}</span></div>
       </div>`;
     el.querySelector('#pm-close').addEventListener('click', () => { sfx.ui(); close(); });
+    el.querySelector('#pm-scrap').addEventListener('click', () => { sfx.ui(); scrap = !scrap; render(); });
     // U27: hovering a card shows the inventory tooltip (stats, perks, mods, set, comparison with what you wear); press and hold does on phones
     const tip = document.createElement('div');
     tip.className = 'cs-tip pm-tip hidden';
@@ -67,6 +69,14 @@ export function openPostmaster(done) {
       b.addEventListener('contextmenu', (e) => { if (held) e.preventDefault(); });
       b.addEventListener('click', (e) => {
         if (held) { held = false; e.preventDefault(); return; } // a press and hold only shows the tooltip
+        if (scrap || e.shiftKey) { // H30c: scrap it for glimmer
+          const it = (s.postmaster || []).find((i) => i.id === b.dataset.id);
+          if (it?.rarity === 'exotic' && !confirm(`Dismantle ${it.name}? This cannot be undone.`)) return;
+          const v = dismantlePostmasterItem(s, b.dataset.id);
+          sfx.ui();
+          render(v < 0 ? `${it.name} is locked. Unlock it first.` : `Dismantled ${it.name}  ·  +${v} glimmer`);
+          return;
+        }
         const msg = collectPostmaster(s, b.dataset.id);
         sfx.ui();
         render(msg || 'Collected.');

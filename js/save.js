@@ -560,6 +560,18 @@ export function dismantleItem(s, id) {
   return v;
 }
 
+/** H30c: dismantles an item waiting at the Postmaster for glimmer. A locked item is refused (returns -1); an unknown id throws. Returns the glimmer gained. */
+export function dismantlePostmasterItem(s, id) {
+  const it = (s.postmaster || []).find((i) => i.id === id);
+  if (!it) throw new Error(`dismantlePostmasterItem: no Postmaster item ${id}`);
+  if (it.locked) return -1;
+  s.postmaster = s.postmaster.filter((i) => i !== it);
+  const v = dismantleValue(it);
+  s.glimmer += v;
+  writeSave(s);
+  return v;
+}
+
 /** H27: the equipped slot with the lowest Light (ties pick at random with `r`). A mission cache's first item drops for it. */
 export function lowestSlot(s, r = Math.random) {
   const low = Math.min(...SLOTS.map((sl) => getEquipped(s, sl)?.power ?? 0));
