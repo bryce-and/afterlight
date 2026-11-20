@@ -17,6 +17,7 @@ import { MODS_LEVEL, MODS_TUNE, ORB, CHARGE, STAT_KEYS, STAT_CAP, CLASS_STAT, CO
 import { fxTracer, requestLife, DOWN_TIME, sendHit, sendFx, allPlayers } from './coop.js';
 import { deathOutcome, blightChance, BLIGHT } from './exotic-rules.js';
 import { imperialMethods } from './dungeon-perks.js';
+import { exoArmorMethods } from './exotic-armor-u31.js';
 import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
 import { installDarkness } from './darkness.js';
@@ -873,7 +874,7 @@ export class Player {
     } else if (A.glaive?.bolt) {
       this.glaiveBolt(w, applySpread(fwd.clone(), spread), eye, el);
     } else {
-      const base = A.pellets || 1, multi = shots(base), pellets = multi.total; // U30 Multishot: bullets past the base deal half damage with a little spread
+      const base = A.pellets || 1, multi = shots(base, w.item.slot), pellets = multi.total; // U30 Multishot: bullets past the base deal half damage with a little spread
       const assist = w.has('quarrel') || w.has('concurrence'); // tracking bolts
       for (let i = 0; i < pellets; i++) {
         const extraShot = i >= base;
@@ -1661,12 +1662,9 @@ export class Player {
     this.darkOnKill(e, o); // U22 Darkness aspects and fragments
     this.prismOnKill(e, o); // U27: Transcendence extends, Prismatic Facets
     if (!chain) this.setsOnKill(o);
+    this.exoKill(e, o, chain); // U31 exotic armor
     if (this.exo.has('nighthawk') && o.source === 'super' && this.superActive?.type === 'revolver') this.hawkKill = true; // refund when the super ends
-    if (this.exo.has('starfire') && !chain && o.source === 'ability' && G.time < this.grenadeWin && this.cls.abilities.grenade.element === 'solar') {
-      this.cd.grenade = Math.max(0, this.cd.grenade - this.cdMax.grenade * STARFIRE.refund);
-    }
     if (o.source === 'ability' || o.source === 'melee') {
-      if (this.exo.has('nezarec') && o.element === 'void') this.status.apply('nezarec', { t: 5 }); // Void ability kills
       if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.healPct(1); this.status.apply('skullfort', { set: true }); }
       if (this.exo.has('quietone') && o.element === 'void') this.healPct(QUIET.heal); // Mask of the Quiet One
       if (this.exo.has('sunbracers') && o.element === 'solar' && this.meleeT > 0) this.status.apply('sunbracers', { t: SUNBRACERS.t, set: true });
@@ -1782,10 +1780,7 @@ export class Player {
   traitHitOpts(e, o) {
     // Liar's Handshake: a powered melee hit grants Cross Counter (not the uncharged melee that spends it)
     if (this.exo.has('liars') && !this.inBasicMelee && G.time < this.meleeWin) this.status.apply('crosscounter', { t: LIARS.t, set: true });
-    if (this.exo.has('ahamkara') && o.source === 'ability' && G.time < this.grenadeWin && this.meleeT <= 0 && G.time - this.ahamAt >= AHAMKARA.gap) {
-      this.ahamAt = G.time; // Young Ahamkara's Spine
-      for (const k of ['melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * AHAMKARA.refund);
-    }
+    this.exoHit(o, e); // U31 exotic armor (Young Ahamkara's Spine, Precious Scars, Karnstein Armlets)
     const A = this.asp;
     if (!A.size) return null;
     const melee = o.source === 'melee' || this.inBasicMelee || G.time < this.meleeWin; // grenade hits fall outside the melee window
@@ -2112,6 +2107,7 @@ export class Player {
     if (this.dash > 0) amount *= 0.5;
     if (this.status.has('juggernaut')) amount *= 0.5; // Juggernaut: frontal shield while sprinting
     amount = incoming(amount); // U24: Iron Skin
+    amount = this.exoIncoming(amount, from); // U31 exotic armor
     if (this.status.has('contraverse')) amount *= 0.8; // Contraverse Hold
     amount *= this.darkResist(); // U22: Woven Mail, Weavewalk, Whisper of Chains
     amount *= this.prismIncoming(from); // U27: Transcendence resistance (combatants only)
@@ -2273,15 +2269,15 @@ export class Player {
       for (const w of this.weapons) { w.ammo = w.mag; if (w.reserve !== Infinity) w.reserve = w.maxReserve; if (w.A.glaive) w.energy = 100; }
     }
     const song = this.keepsGuns ? SONG.abilityRegen : 1;
-    const nez = this.status.has('nezarec') ? 2 : 1; // Nezarec's Sin
+    const nez = 1; // U31: Nezarec's Sin no longer speeds recharge
     const boost = this.buildRegen();
     // v1.7 exotics, outside REGEN_CAP like the others: Mask of the Quiet One, Hallowfire Heart, Graviton Forfeit (melee)
     const hallow = this.exo.has('hallowfire') && !this.superActive && this.superCharge >= 100;
     if (hallow) this.status.apply('hallowfire', { set: true }); else this.status.remove('hallowfire');
-    const exo = (this.status.has('quietone') ? QUIET.regen : 1) * (hallow ? HALLOWFIRE.regen : 1);
+    const exo = 1; // U31: Mask of the Quiet One and Hallowfire Heart no longer speed recharge
     const grav = this.exo.has('graviton') && this.status.has('invisible') ? GRAVITON.melee : 1;
     for (const k of ['grenade', 'melee', 'class']) {
-      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * (this.status.has('heart', k) ? 1.6 : 1) * nez * boost[k] * exo * (k === 'melee' ? grav : 1) * this.darkRegen(k) * this.prismRegen(k)); // U22: Chilled, Banner; U27: Transcendent of War, Weavewalk
+      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * nez * boost[k] * exo * (k === 'melee' ? grav : 1) * this.darkRegen(k) * this.prismRegen(k)); // U22: Chilled, Banner; U27: Transcendent of War, Weavewalk
     }
     const IC = ASPECT_TUNE.icarus; // Icarus Dash: charges come back one at a time
     if (this.icarus.n < IC.charges && (this.icarus.t -= dt) <= 0) { this.icarus.n++; this.icarus.t = IC.cd; }
@@ -2326,6 +2322,7 @@ export class Player {
   /** Per-frame exotic armor effects. */
   updateExoticArmor(dt) {
     const x = this.exo;
+    this.exoTick(dt); // U31
     if ((x.has('starfire') || this.osmioCharge()) && this.gBank < 1) { // H26: Osmiomancy Gloves bank a second Coldsnap the same way
       // the stored second charge recharges once the first one is full
       if (this.cd.grenade <= 0) { this.gBankT += dt; if (this.gBankT >= this.cdMax.grenade) { this.gBank = 1; this.gBankT = 0; } }
@@ -2366,8 +2363,7 @@ export class Player {
 
   /** Heart of Inmost Light: using one ability empowers the other two. */
   empowerOthers(used) {
-    if (!this.exo.has('heart')) return;
-    for (const k of ['grenade', 'melee', 'class']) if (k !== used) this.status.apply('heart', { scope: k, t: 8, set: true });
+    // U31: Heart of Inmost Light now charges a Light nova (exotic-armor-u31.js exoUse); it no longer empowers the other abilities
   }
 
   useGrenade() {
@@ -2387,7 +2383,7 @@ export class Player {
     this.grenadeWin = G.time + 3; this.grenadePending = true; this.grenadeOrbUsed = false; // grenade mods: hits and kills in the next 3s
     const g = this.cls.abilities.grenade;
     if (this.exo.has('contraverse') && g.element === 'void') this.status.apply('contraverse', { t: 3, set: true }); // Void grenades only
-    this.empowerOthers('grenade');
+    this.empowerOthers('grenade'); this.exoUse('grenade');
     this.darkOnGrenade(); // U22: Thread of Ascent
     const el = g.element;
     if (g.kind === 'grapple' && !g.transcend) { this.grappleShot(g); this.abilityAspects(); this.throwFist(0.32); sfx.throw(this.cls.element); return; } // H32: the grapple is a line, not a thrown grenade (darkness.js)
@@ -2443,10 +2439,9 @@ export class Player {
     if (this.isDarkGrenade(g)) { this.darkGrenade(g, pt, hitEnemy); return; } // U22: Stasis and Strand grenades (darkness.js)
     pt.y = Math.max(pt.y, 0.3);
     onGrenade(this, pt.clone()); // U24: Scorched Earth
-    if (this.exo.has('contraverse') && g.element === 'void' && enemiesNear(pt, 6).length) this.cd.grenade *= 0.7; // refund 30% (Void grenades)
+    this.exoGrenade(g, pt); // U31: Contraverse Hold, Phoenix Cradle
     if (this.exo.has('raspberry') && g.element === 'arc') {
-      // Lucky Raspberry: Arc grenades chain further and refund energy when they catch someone
-      if (enemiesNear(pt, 6).length) this.cd.grenade *= 1 - RASPBERRY.refund;
+      // Lucky Raspberry: Arc grenades chain lightning into more enemies (U31: the cooldown refund is gone)
       this.jolt(pt.clone(), RASPBERRY.chains, 120);
     }
     const id = g.kind, el = g.element;
@@ -2571,7 +2566,7 @@ export class Player {
     this.cd.melee = this.cdMax.melee;
     this.meleeT = 1.2;
     this.meleeWin = G.time + 1.5; this.meleePending = true; this.meleeOrbUsed = false; // melee mods
-    this.empowerOthers('melee');
+    this.empowerOthers('melee'); this.exoUse('melee');
     this.abilityAspects();
     this.discharge();
     sfx.melee(this.cls.element);
@@ -2891,7 +2886,7 @@ export class Player {
     const id = this.cls.abilities.class.id;
     this.cd.class = this.cdMax.class;
     this.classWin = G.time + 2; this.classOrbUsed = false; // Reaper
-    this.empowerOthers('class');
+    this.empowerOthers('class'); this.exoUse('class');
     sfx.ability(this.cls.element);
     this.abilityAspects();
     if (id === 'barricade' || id === 'rally') {
@@ -3699,7 +3694,7 @@ installDarkness(Player); // U22: Stasis and Strand behavior (darkness.js)
 installPrismatic(Player); // U27: Transcendence and the Prismatic subclass (prismatic.js)
 
 // U23: the dungeon's exclusive perks, its exotic and the Imperial set bonus (js/dungeon-perks.js)
-Object.assign(Player.prototype, imperialMethods);
+Object.assign(Player.prototype, imperialMethods, exoArmorMethods); // U31: exotic armor hooks (exotic-armor-u31.js)
 
 /** U24: while a fall's body is still dropping, the camera keeps watching it; otherwise it looks at the orbit target. */
 function fellBodyTarget(D, P, fallback) {

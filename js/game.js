@@ -1655,7 +1655,7 @@ function exoticArmorMult(o) {
     const melee = o.source === 'melee' || (o.source === 'ability' && P.meleeT > 0) || (o.source === 'super' && MELEE_SUPERS.has(S?.type));
     if (melee && enemiesNear(P.pos, 12).length >= 3) m *= 2; // Synthoceps: surrounded
   }
-  if (P.exo.has('heart') && o.source === 'ability' && (P.status.has('heart', 'grenade') || P.status.has('heart', 'melee'))) m *= 1.3; // Heart of Inmost Light
+  m *= P.exoOutgoing(o); // U31: Mechaneer's Tricksleeves
   return m;
 }
 

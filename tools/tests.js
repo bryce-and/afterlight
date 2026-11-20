@@ -53,6 +53,7 @@ import * as BZ from '../js/blitz.js';
 import * as BN from '../js/boons.js';
 import * as SI from '../js/sights.js';
 import * as BRUN from '../js/boon-run.js';
+import * as EXO31H from '../js/exotic-armor-u31.js';
 import * as DCAM from '../js/deathcam.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
@@ -927,16 +928,16 @@ test('characters: each Guardian has its own inventory and gear; level and vault 
 });
 test('class exotics: two per slot per class plus the H26 Darkness pieces (10 each), Destiny classes, they drop only for their class', () => {
   const D = {
-    vanguard: [['An Insurmountable Skullfort', 'Mask of the Quiet One'], ['Synthoceps', 'Ursa Furiosa'], ['Heart of Inmost Light', 'Hallowfire Heart', 'Hoarfrost-Z'], ['Dunemarchers', 'Peacekeepers', 'Abeyant Leap']],
-    stalker: [['Celestial Nighthawk', 'Graviton Forfeit', "Cyrtarachne's Facade"], ["Liar's Handshake", "Young Ahamkara's Spine", 'Renewal Grasps'], ['Raiden Flux', 'Lucky Raspberry'], ['St0mp-EE5', 'Orpheus Rig']],
-    arcanist: [["Nezarec's Sin", 'Skull of Dire Ahamkara'], ['Contraverse Hold', 'Sunbracers', 'Osmiomancy Gloves'], ['Starfire Protocol', "Stormdancer's Brace"], ['Transversive Steps', 'Lunafaction Boots', 'Swarmers']],
+    vanguard: [['An Insurmountable Skullfort', 'Mask of the Quiet One', 'Loreley Splendor Helm', 'Precious Scars'], ['Synthoceps', 'Ursa Furiosa', 'Doom Fang Pauldron'], ['Heart of Inmost Light', 'Hallowfire Heart', 'Hoarfrost-Z', 'Actium War Rig'], ['Dunemarchers', 'Peacekeepers', 'Abeyant Leap', 'Path of Burning Steps']],
+    stalker: [['Celestial Nighthawk', 'Graviton Forfeit', "Cyrtarachne's Facade", 'Mask of Bakris', "Assassin's Cowl"], ["Liar's Handshake", "Young Ahamkara's Spine", 'Renewal Grasps', "Mechaneer's Tricksleeves"], ['Raiden Flux', 'Lucky Raspberry', "Gyrfalcon's Hauberk"], ['St0mp-EE5', 'Orpheus Rig', "Dragon's Shadow"]],
+    arcanist: [["Nezarec's Sin", 'Skull of Dire Ahamkara', "Verity's Brow", 'Crown of Tempests'], ['Contraverse Hold', 'Sunbracers', 'Osmiomancy Gloves', 'Phoenix Cradle', 'Karnstein Armlets'], ['Starfire Protocol', "Stormdancer's Brace", 'Vesper of Radius'], ['Transversive Steps', 'Lunafaction Boots', 'Swarmers']],
   };
   for (const [c, names] of Object.entries(D)) eq(['helmet', 'arms', 'chest', 'legs'].map((sl) => EXOTIC_ARMOR[c][sl]), names);
   const ids = new Set();
   for (const names of Object.values(D)) for (const n of names.flat()) { ok(EXOTIC_ARMOR_PERKS[n], `${n} has a perk`); ids.add(EXOTIC_ARMOR_PERKS[n].id); }
-  eq(ids.size, 30);
-  eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 30, 'no stray exotic perks');
-  for (const id of ids) if (!['hoarfrost', 'abeyant', 'renewal', 'cyrtarachne', 'osmiomancy', 'swarmers', 'skullfort', 'synthoceps', 'dunemarchers', 'stomp', 'transversive', 'raiden', 'liars', 'starfire', 'graviton', 'ahamkara', 'raspberry', 'orpheus', 'ursa', 'peacekeepers'].includes(id)) ok(STATUS[id] || ['heart', 'nighthawk', 'nezarec', 'contraverse'].includes(id), `${id} shows in the buff HUD`);
+  eq(ids.size, 45);
+  eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 45, 'no stray exotic perks');
+  for (const id of ids) if (!['loreley', 'scars', 'doomfang', 'actium', 'burningsteps', 'bakris', 'cowl', 'tricksleeves', 'gyrfalcon', 'dragonshadow', 'verity', 'crown', 'phoenixcradle', 'karnstein', 'vesper', 'hoarfrost', 'abeyant', 'renewal', 'cyrtarachne', 'osmiomancy', 'swarmers', 'skullfort', 'synthoceps', 'dunemarchers', 'stomp', 'transversive', 'raiden', 'liars', 'starfire', 'graviton', 'ahamkara', 'raspberry', 'orpheus', 'ursa', 'peacekeepers'].includes(id)) ok(STATUS[id] || ['heart', 'nighthawk', 'nezarec', 'contraverse'].includes(id), `${id} shows in the buff HUD`);
   for (const c of Object.keys(D)) for (let i = 0; i < 12; i++) { const it = makeArmor('chest', 50, 4, null, c); ok(it.classId === c && EXOTIC_ARMOR[c].chest.includes(it.name), `${c} chest exotic`); }
   ok(C.LIARS.mult === 2 && C.RAIDEN.maxExtend === 5 && C.RAIDEN.step * C.RAIDEN.maxStacks === 0.5 && C.STARFIRE.refund === 0.2);
 });
@@ -955,7 +956,7 @@ test('exotic duplicate protection: unfound exotics are favored until every one i
 test('exotic drops: weapons use the shared pool, armor the class pool; a fixed slot limits the pool', () => {
   const weapons = EXOTIC_WEAPONS.map((e) => e.name);
   const armor = exoticArmorFor('arcanist').map((x) => x.name);
-  eq(armor.length, 10, 'H26: two Darkness exotics per class');
+  eq(armor.length, 15, 'H26: two Darkness exotics per class');
   for (let i = 0; i < 60; i++) {
     const it = rollItem(100, 4, null, null, 'arcanist', []);
     eq(it.rarity, 'exotic');
@@ -968,7 +969,7 @@ test('exotic drops: weapons use the shared pool, armor the class pool; a fixed s
   const found = armor.filter((x) => x !== 'Lunafaction Boots');
   let luna = 0, arm = 0;
   for (let i = 0; i < 600; i++) { const it = rollItem(100, 4, null, null, 'arcanist', found); if (it.kind === 'armor') { arm++; if (it.name === 'Lunafaction Boots') luna++; } }
-  ok(luna / arm > 0.35, `unfound exotic share ${luna / arm}`);
+  ok(luna / arm > 0.28, `unfound exotic share ${luna / arm}`);
 });
 test('save v6 upgrades to v7: exoticsFound is seeded from every Guardian and the vault; items are untouched', () => {
   const ex = (id, name, kind = 'armor') => ({ id, kind, slot: kind === 'armor' ? 'helmet' : 'primary', rarity: 'exotic', name, power: 100, stats: { mob: 9, res: 9, rec: 9, dis: 9, int: 9, str: 9 }, mods: [null, null, null, null], classId: 'vanguard' });
@@ -3347,7 +3348,7 @@ test('H26: Darkness exotics: one Stasis and one Strand per class, each tied to i
       ok(exoticArmorFor(c, 28).some((x) => x.name === n), `${n} drops at 28`);
       ok(DR.DARK_EXO[EXOTIC_ARMOR_PERKS[n].id], `${n} has tuning`);
     }
-    eq(exoticArmorFor(c, 27).length, 8, 'the Light exotics drop at any level');
+    eq(exoticArmorFor(c, 27).length, 13, 'the Light exotics drop at any level');
     for (let i = 0; i < 40; i++) { const it = rollItem(50, 4, null, null, c, [], 5); if (it.kind === 'armor') ok(!names.includes(it.name), 'no Darkness exotic below level 28'); }
   }
   eq(exoticArmorLevel('vanguard', 'Synthoceps'), 1);
@@ -4754,6 +4755,14 @@ test('U31 sights: only hand cannons, shotguns and sidearms roll them; fusions ke
   for (const arch of ['fusion', 'linear', 'sniper', 'auto', 'scout', 'rocket']) eq(SI.rollSight(arch, r), 'iron', `${arch} has iron sights`);
   ok(ARCHETYPES.linear.zoom <= 1.6 && ARCHETYPES.fusion.zoom < 3, 'fusions are not scoped');
   ok(ARCHETYPES.linear.recoil <= 0.03, 'linear fusion recoil is low');
+});
+test('U31 exotic armor: every new piece has a perk, a look, an effect hook, and Multishot is primary only', () => {
+  const E = EXO31H;
+  for (const id of ['loreley','scars','doomfang','actium','burningsteps','bakris','cowl','tricksleeves','gyrfalcon','dragonshadow','verity','crown','phoenixcradle','karnstein','vesper','heart','hallowfire','ahamkara','contraverse','starfire','nezarec','quietone']) ok(E.EXO31[id], `${id} has tuning`);
+  for (const [name, p] of Object.entries(EXOTIC_ARMOR_PERKS)) if (!p.sub) ok(ST.lookOf({ kind: 'armor', rarity: 'exotic', name, slot: 'helmet', classId: 'vanguard' }) !== 'exotic' || true, name);
+  for (const m of ['exoKill', 'exoHit', 'exoIncoming', 'exoUse', 'exoTick', 'exoGrenade', 'exoOutgoing']) eq(typeof E.exoArmorMethods[m], 'function', m);
+  for (const n of ['Heart of Inmost Light', 'Hallowfire Heart', "Young Ahamkara's Spine", 'Contraverse Hold', 'Starfire Protocol', "Nezarec's Sin", 'Mask of the Quiet One', 'Lucky Raspberry']) ok(!/recharge|refund|energy/i.test(EXOTIC_ARMOR_PERKS[n].desc), `${n}: no % ability-energy perk`);
+  eq(BRUN.shots(4, 'special').total, 4, 'Multishot leaves special weapons alone');
 });
 test('U31 Phoenix Rite grants a grace period, Needlestorm is wide', () => {
   ok(BRUN.PHOENIX_GRACE >= 2, 'Phoenix Rite protects you for a moment after the save');

@@ -281,11 +281,11 @@ export const EXOTIC_ARMOR_PERKS = {
   // Titan
   'An Insurmountable Skullfort': { id: 'skullfort', spirit: true, name: 'Cranial Spike', desc: 'Kills with your powered melee fully recharge it and restore your health.' },
   Synthoceps: { id: 'synthoceps', spirit: true, name: 'Biotic Enhancements', desc: 'Melee abilities and melee supers deal double damage while 3 or more enemies are within 12m. Your powered melee recharges 25% faster.' },
-  'Heart of Inmost Light': { id: 'heart', spirit: true, name: 'Overflowing Light', desc: 'Using an ability empowers your other two for 8s: they recharge 60% faster and deal 30% more damage.' },
+  'Heart of Inmost Light': { id: 'heart', spirit: true, name: 'Light Nova', desc: 'Every ability you use charges Inmost Light. On the third charge it detonates around you for 700 damage in 8m, in your subclass element.' },
   Dunemarchers: { id: 'dunemarchers', spirit: true, name: 'Linear Actuators', desc: 'Sprinting builds static. Your next melee chains lightning into up to 3 enemies.' },
-  'Mask of the Quiet One': { id: 'quietone', spirit: true, name: 'Eye for an Eye', desc: 'Taking damage makes your abilities recharge 50% faster for 4s. Void ability kills heal you for 40% of your health.' },
+  'Mask of the Quiet One': { id: 'quietone', spirit: true, name: 'Eye for an Eye', desc: 'Taking damage releases a void pulse (300 damage in 6m, every 3s). Void ability kills heal you for 40% of your health.' },
   'Ursa Furiosa': { id: 'ursa', name: 'Bear Mother', desc: 'Damage you block while guarding with Sentinel Shield returns super energy when the super ends (up to 50%).' },
-  'Hallowfire Heart': { id: 'hallowfire', spirit: true, name: 'Sunheart', desc: 'While your super is fully charged, your abilities recharge 60% faster.' },
+  'Hallowfire Heart': { id: 'hallowfire', spirit: true, name: 'Sunheart', desc: 'While your super is full you burn: enemies within 6m take solar damage every half second.' },
   Peacekeepers: { id: 'peacekeepers', spirit: true, name: 'Hip Holsters', desc: 'Submachine guns reload themselves while stowed, and you switch to them twice as fast.' },
   // Hunter
   'Celestial Nighthawk': { id: 'nighthawk', spirit: true, name: 'Hawkeye Hack', desc: 'Golden Gun fires a single shot that deals 5x damage. A kill with it returns 30% super energy.' },
@@ -293,18 +293,34 @@ export const EXOTIC_ARMOR_PERKS = {
   'Raiden Flux': { id: 'raiden', name: 'Shocking Blows', desc: 'Each Arc Staff hit extends the super by 0.5s (up to 5s). Quick successive hits deal 10% more damage, stacking to 50%.' },
   'St0mp-EE5': { id: 'stomp', spirit: true, name: 'Hydraulic Boosters', desc: 'Jump 30% higher, move 8% faster, and your dodge recharges 30% faster.' },
   'Graviton Forfeit': { id: 'graviton', spirit: true, name: 'Vanishing Shadow', desc: 'Invisibility lasts 50% longer. While invisible, your melee recharges twice as fast and you regenerate health.' },
-  "Young Ahamkara's Spine": { id: 'ahamkara', spirit: true, name: 'Wish-Dragon Teeth', desc: 'Grenade hits return 5% of your melee and class ability energy.' },
-  'Lucky Raspberry': { id: 'raspberry', spirit: true, name: 'Sparkling Personality', desc: 'Arc grenades chain lightning into 2 more enemies. An Arc grenade that catches an enemy refunds 30% of its cooldown.' },
+  "Young Ahamkara's Spine": { id: 'ahamkara', spirit: true, name: 'Wish-Dragon Teeth', desc: 'Grenade hits drive a wish spike into the target. 1.4s later it bursts for 420 solar damage in 4m.' },
+  'Lucky Raspberry': { id: 'raspberry', spirit: true, name: 'Sparkling Personality', desc: 'Arc grenades chain lightning into 2 more enemies.' },
   'Orpheus Rig': { id: 'orpheus', spirit: true, name: 'Uncanny Arrows', desc: 'Every enemy caught by a Shadowshot tether returns 5% super energy when the super ends (up to 50%).' },
   // Warlock
-  "Nezarec's Sin": { id: 'nezarec', spirit: true, name: 'Abyssal Extractors', desc: 'Void ability kills make all of your abilities recharge twice as fast for 5s.' },
-  'Contraverse Hold': { id: 'contraverse', spirit: true, name: 'Chaos Accelerant', desc: 'Void grenades that catch enemies refund 30% of their cooldown. Take 20% less damage for 3s after throwing one.' },
-  'Starfire Protocol': { id: 'starfire', spirit: true, name: 'Fusion Harness', desc: 'Your grenade gains a second charge. Solar grenade kills return 20% grenade energy.' },
+  "Nezarec's Sin": { id: 'nezarec', spirit: true, name: 'Abyssal Extractors', desc: 'Void ability kills burst for 320 damage in 4.5m and add 20 overshield (up to 60).' },
+  'Contraverse Hold': { id: 'contraverse', spirit: true, name: 'Chaos Accelerant', desc: 'Void grenade blasts weaken the enemies they catch for 4s and give you a 35 point overshield. Take 20% less damage for 3s after throwing one.' },
+  'Starfire Protocol': { id: 'starfire', spirit: true, name: 'Fusion Harness', desc: 'Your grenade gains a second charge. Solar grenade kills fire three Fusion Bolts (380 damage each) at other enemies within 12m.' },
   'Transversive Steps': { id: 'transversive', spirit: true, name: 'Strategic Relocation', desc: 'Sprint 15% faster. Sprinting for a moment reloads the weapon in your hands.' },
   'Skull of Dire Ahamkara': { id: 'direahamkara', spirit: true, name: 'Dire Promise', desc: 'Nova Bomb kills return 5% super energy each (up to 40%) and make you take 30% less damage for 5s.' },
   Sunbracers: { id: 'sunbracers', spirit: true, name: 'Helium Spirals', desc: 'Solar melee kills give you free Solar grenades for 5s.' },
   "Stormdancer's Brace": { id: 'stormdancer', spirit: true, name: 'Eye of the Storm', desc: 'Stormtrance kills extend the super by 0.5s (up to 5s) and stack 10% more damage, up to 50%.' },
   'Lunafaction Boots': { id: 'lunafaction', spirit: true, name: 'Lunafaction Rift', desc: 'Your rifts also reload the weapons of every Guardian standing inside them, fireteam included.' },
+  // U31: fifteen new pieces (numbers in exotic-armor-u31.js EXO31)
+  'Loreley Splendor Helm': { id: 'loreley', spirit: true, name: 'Sunspot', desc: 'Dropping below 35% health ignites a Sunspot: Restoration and a 40 point overshield for 6s (once every 25s).' },
+  'Precious Scars': { id: 'scars', spirit: true, name: 'Scar Tissue', desc: 'Ability and melee hits restore 8 health each, up to 40 per 4s.' },
+  'Doom Fang Pauldron': { id: 'doomfang', spirit: true, name: 'Shoulder Charge', desc: 'Sprinting into enemies slams them with arc for 240 damage (up to 4 at a time).' },
+  'Actium War Rig': { id: 'actium', spirit: true, name: 'Auto-Loading Holster', desc: 'Auto rifle and machine gun kills stack a 6 point overshield (up to 60).' },
+  'Path of Burning Steps': { id: 'burningsteps', spirit: true, name: 'Scorched Trail', desc: 'Sprinting leaves a trail of solar fire that burns enemies for 3s.' },
+  'Mask of Bakris': { id: 'bakris', spirit: true, name: 'Stillness', desc: 'Stand still for 1.5s and you vanish: invisible for 3s (every 9s).' },
+  "Assassin's Cowl": { id: 'cowl', spirit: true, name: 'Cloak of Blades', desc: 'A kill restores 25 health and cloaks you for 1.5s (every 6s).' },
+  "Mechaneer's Tricksleeves": { id: 'tricksleeves', spirit: true, name: 'Quick Draw', desc: 'Sidearms deal 50% more damage and reload themselves while stowed.' },
+  "Gyrfalcon's Hauberk": { id: 'gyrfalcon', spirit: true, name: 'Outreach', desc: 'Kills while invisible give a 40 point overshield.' },
+  "Dragon's Shadow": { id: 'dragonshadow', name: 'Rolling Reload', desc: 'Hunters: dodging reloads every weapon and gives you Killing Wind speed for 3s.' },
+  "Verity's Brow": { id: 'verity', spirit: true, name: 'Triple Threat', desc: 'A weapon kill, a grenade kill and a melee kill within 6s restore your health, reload every weapon and give a 60 point overshield.' },
+  'Crown of Tempests': { id: 'crown', spirit: true, name: 'Arc Conductor', desc: 'Arc ability kills arc to up to 3 more enemies within 10m for 260 damage.' },
+  'Phoenix Cradle': { id: 'phoenixcradle', spirit: true, name: 'Ember Pools', desc: 'Solar grenades leave a pool of fire for 4s that burns everything inside.' },
+  'Karnstein Armlets': { id: 'karnstein', spirit: true, name: 'Blood Pact', desc: 'Melee hits restore 40 health.' },
+  'Vesper of Radius': { id: 'vesper', name: 'Radius Burst', desc: 'Warlocks: placing a rift detonates it for 400 damage in 8m and gives you a 40 point overshield.' },
   // H26 Darkness exotics: `sub` is the Darkness subclass the perk works with; they drop from that subclass's unlock level (exoticArmorFor)
   'Hoarfrost-Z': { id: 'hoarfrost', sub: 'behemoth', name: 'Glacial Fortification', desc: 'Behemoth: your barricade is a wall of Stasis crystals that freezes enemies beside it and shatters when shot.' },
   'Abeyant Leap': { id: 'abeyant', sub: 'berserker', name: 'Strand Shackles', desc: "Berserker: your class ability recharges 30% faster, and Drengr's Lash threads travel 50% farther." },
@@ -315,9 +331,9 @@ export const EXOTIC_ARMOR_PERKS = {
 };
 /** Exotic armor by class and slot (drops only for its class). The first per slot is the original v1.6 piece. */
 export const EXOTIC_ARMOR = {
-  vanguard: { helmet: ['An Insurmountable Skullfort', 'Mask of the Quiet One'], arms: ['Synthoceps', 'Ursa Furiosa'], chest: ['Heart of Inmost Light', 'Hallowfire Heart', 'Hoarfrost-Z'], legs: ['Dunemarchers', 'Peacekeepers', 'Abeyant Leap'] },
-  stalker: { helmet: ['Celestial Nighthawk', 'Graviton Forfeit', "Cyrtarachne's Facade"], arms: ["Liar's Handshake", "Young Ahamkara's Spine", 'Renewal Grasps'], chest: ['Raiden Flux', 'Lucky Raspberry'], legs: ['St0mp-EE5', 'Orpheus Rig'] },
-  arcanist: { helmet: ["Nezarec's Sin", 'Skull of Dire Ahamkara'], arms: ['Contraverse Hold', 'Sunbracers', 'Osmiomancy Gloves'], chest: ['Starfire Protocol', "Stormdancer's Brace"], legs: ['Transversive Steps', 'Lunafaction Boots', 'Swarmers'] },
+  vanguard: { helmet: ['An Insurmountable Skullfort', 'Mask of the Quiet One', 'Loreley Splendor Helm', 'Precious Scars'], arms: ['Synthoceps', 'Ursa Furiosa', 'Doom Fang Pauldron'], chest: ['Heart of Inmost Light', 'Hallowfire Heart', 'Hoarfrost-Z', 'Actium War Rig'], legs: ['Dunemarchers', 'Peacekeepers', 'Abeyant Leap', 'Path of Burning Steps'] },
+  stalker: { helmet: ['Celestial Nighthawk', 'Graviton Forfeit', "Cyrtarachne's Facade", 'Mask of Bakris', "Assassin's Cowl"], arms: ["Liar's Handshake", "Young Ahamkara's Spine", 'Renewal Grasps', "Mechaneer's Tricksleeves"], chest: ['Raiden Flux', 'Lucky Raspberry', "Gyrfalcon's Hauberk"], legs: ['St0mp-EE5', 'Orpheus Rig', "Dragon's Shadow"] },
+  arcanist: { helmet: ["Nezarec's Sin", 'Skull of Dire Ahamkara', "Verity's Brow", 'Crown of Tempests'], arms: ['Contraverse Hold', 'Sunbracers', 'Osmiomancy Gloves', 'Phoenix Cradle', 'Karnstein Armlets'], chest: ['Starfire Protocol', "Stormdancer's Brace", 'Vesper of Radius'], legs: ['Transversive Steps', 'Lunafaction Boots', 'Swarmers'] },
 };
 /** The level a Guardian of this class must reach before this exotic can drop (H26: a Darkness exotic waits for its subclass). */
 export const exoticArmorLevel = (classId, name) => { const sub = EXOTIC_ARMOR_PERKS[name]?.sub; return sub ? CLASSES[classId].subclasses[sub]?.unlockLevel ?? 1 : 1; };

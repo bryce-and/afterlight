@@ -190,7 +190,7 @@ export function onGrenade(P, pt) {
 /** Iron Skin: returns the reduced amount. */
 export const incoming = (amount) => (on() ? amount * damageTakenMult(bt(), G.player?.shield > 0) : amount);
 /** Multishot: { total, extra, dmg } for a gun that fires `base` bullets (no boon: { total: base, extra: 0 }). */
-export const shots = (base) => (on() ? { ...shotCount(bt(), base), dmg: MULTISHOT_EXTRA_DMG } : { total: base, extra: 0, dmg: 1 });
+export const shots = (base, slot = 'primary') => (on() && slot === 'primary' ? { ...shotCount(bt(), base), dmg: MULTISHOT_EXTRA_DMG } : { total: base, extra: 0, dmg: 1 }); // U31: Multishot only works on primary-ammo weapons
 /** Beacon: extra boon orbs this round. */
 export const beaconDrops = () => (on() ? extraDrops(bt()) : 0);
 export const PHOENIX_GRACE = 2.5; // seconds of invulnerability after Phoenix Rite saves you

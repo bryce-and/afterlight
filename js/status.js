@@ -24,6 +24,7 @@ export const STATUS = {
   direahamkara: { name: 'Dire Promise', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   sunbracers: { name: 'Helium Spirals', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   stormdancer: { name: "Stormdancer's Brace", group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity, maxStacks: 5 },
+  lightcharge: { name: 'Inmost Light', group: 'general', glyph: '◆', color: '#f4c542', exotic: true, t: Infinity, maxStacks: 3 },
   lunafaction: { name: 'Lunafaction Rift', group: 'general', glyph: '◆', color: '#f4c542', exotic: true },
   // U21 Exotic Missions: standing in a Vex conduit's light (the Whisper). Eyes show and phase blocks turn solid while it lasts; Taken blights drain it.
   // U23 The Emperor's Shadow: Favor (the chalice), and the exclusive perks (dungeon-perks.js)

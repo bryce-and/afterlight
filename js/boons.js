@@ -50,7 +50,7 @@ export const BOONS = [
   { id: 'overcharge', name: 'Overcharge', desc: 'Kills add 3% to your super', fx: { killSuper: 3 } },
   { id: 'cooldown_rebate', name: 'Cooldown Rebate', desc: 'Kills cut grenade, melee and class cooldowns by a further 4%', fx: { killCd: 0.04 } },
   { id: 'siphon', name: 'Siphon', desc: 'Kills restore 6% of your maximum shield', fx: { killShield: 0.06 } },
-  { id: 'multishot', name: 'Multishot', desc: 'Guns fire 50% more bullets per shot (at least +1). Extra bullets deal half damage', fx: { multishot: 1 } },
+  { id: 'multishot', name: 'Multishot', desc: 'Primary weapons fire 50% more bullets per shot (at least +1). Extra bullets deal half damage', fx: { multishot: 1 } },
   { id: 'beacon', name: 'Beacon', desc: '+1 boon orb every round (up to +3)', fx: { dropExtra: 1 } },
   { id: 'adrenaline_rush', name: 'Adrenaline Rush', desc: 'Kills give +20% move speed for 3 s', fx: { rushSpeed: 0.20 } },
 ];
