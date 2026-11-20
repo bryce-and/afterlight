@@ -5,6 +5,23 @@
 
 export const RELEASES = [
   {
+    version: '5.6', name: 'Exotic Arsenal', date: '2026-11-20', accent: '#ffd24a', glyph: '✦',
+    summary: 'Fifteen new exotic armor pieces, red dot sights, 24 new weapons and 30 new perks, a full loot reshuffle, one-shot supers in the Crucible and boon drops that scale with the wave.',
+    notes: [
+      'Exotic armor: 15 new pieces, five per class, each a build-changer. The exotics that only gave a percent of ability recharge (Heart of Inmost Light, Hallowfire Heart, Nezarec\'s Sin, Contraverse Hold, Starfire Protocol and others) keep the percent but it is now much bigger',
+      'Sights: shotguns, sidearms and hand cannons roll a Red Dot, Holo Ring or Micro Reflex, shown on inspect and drawn in the aim view. Fusion rifles get normal sights back. Linear fusions zoom less and no longer shake while you aim',
+      'Arbalest is now a special weapon with retuned damage. Lord of Wolves special ammo bricks give far more ammo, in proportion to its five-shot burst. Dead Messenger holds 1 round in the magazine, as it should',
+      '24 new legendary weapons and 30 new perks, weighted to Stasis and Strand (freeze and shatter, slow stacks, suspend, unravel, tangle and threadling synergies)',
+      'Loot reshuffle: every perk is spread across more weapon families, and each weapon\'s perk pool is rebuilt for its archetype so shotguns, sidearms, hand cannons and snipers feel distinct. Rolled weapons you already own keep their perks',
+      'Crucible: most supers one-shot a Guardian caught in the blast core, and the outer edge still kills a mid build. Sustained supers keep tick damage, Well of Radiance stays support-only. PvE super damage is unchanged. Needlestorm\'s area is bigger',
+      'Boon drops are now a percentage of kills that rises with the wave, so later waves with more enemies drop more orbs',
+      'Boons: Phoenix Rite fixed, Multishot now affects primary-ammo weapons only, and seven new gun-changing rounds boons (cryo, burning, toxic, arc and more). Dev command: /give <boon> [count] adds boons for the current mission only',
+      'Riven\'s brood: Veshra has her original Ahamkara model back. Golden Gun now kicks like a hand cannon',
+      'Save changes: none. Weapons you own keep their perks; Arbalest moves to the special slot on load',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="eaBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1406"/><stop offset="0.7" stop-color="#2a1d08"/><stop offset="1" stop-color="#080602"/></linearGradient><radialGradient id="eaGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd24a" stop-opacity="0.55"/><stop offset="1" stop-color="#ffd24a" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#eaBg)"/><ellipse cx="160" cy="92" rx="130" ry="70" fill="url(#eaGlow)"/><circle cx="160" cy="90" r="42" fill="none" stroke="#ffd24a" stroke-width="2"/><circle cx="160" cy="90" r="26" fill="none" stroke="#ffe9a0" stroke-opacity="0.7" stroke-width="1.2"/><circle cx="160" cy="90" r="5" fill="#ff4a3a"/><circle cx="160" cy="90" r="2" fill="#fff"/><path d="M160 36 L160 58 M160 122 L160 144 M106 90 L128 90 M192 90 L214 90" stroke="#ffd24a" stroke-width="2" fill="none"/><polygon points="160,150 168,162 160,174 152,162" fill="#ffe9a0" stroke="#fff" stroke-width="1"/><path d="M0 160 L70 152 L130 158 L200 150 L270 157 L320 151 L320 180 L0 180Z" fill="#070502"/><g fill="#ffd24a" opacity="0.8"><circle cx="62" cy="48" r="1.6"/><circle cx="262" cy="40" r="1.3"/><circle cx="84" cy="128" r="1.2"/><circle cx="246" cy="118" r="1.5"/></g></svg>',
+  },
+  {
     version: '5.5', name: 'Boon Drops', date: '2026-11-20', accent: '#c79bff', glyph: '◆',
     summary: 'Roguelike kills leave boon orbs you open with E, co-op gets personal orbs, and eleven new boons bring the total to 36.',
     notes: [

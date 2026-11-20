@@ -96,3 +96,11 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-20 | U30: Boon orbs persist on the ground until picked up or the run ends. | Claude (U30) |
 | 2026-11-20 | U30: Roguelike drops are 2 to 5 boon orbs a round, with no rarity tiers. Elites and bosses are likelier to leave more. | Claude (U30) |
 | 2026-11-20 | U30: Extra Multishot bullets deal half damage. | Claude (U30) |
+| 2026-11-20 | U31: The % recharge exotics keep their percent and raise it. | Claude (U31) |
+| 2026-11-20 | U31: Boon drops are a percentage that rises with the wave, replacing the fixed 2 to 5 orbs a round. | Claude (U31) |
+| 2026-11-20 | U31: Crucible burst supers one-shot in the 75% core, edge hits use the 0.85 pool (`superDamage` in `js/pvp.js`). Well of Radiance (`superSoft`) is exempt and bot supers are unchanged. | Claude (U31) |
+| 2026-11-20 | U31: Multishot extra bullets apply to primary weapons only. | Claude (U31) |
+| 2026-11-20 | U31: Dead Messenger uses `mag: 0.25`, because numeric `mods` multiply the archetype stat (`STAT_KEYS`). | Claude (U31) |
+| 2026-11-20 | U31: Arbalest moves to the special slot with `mods` damage 0.62. | Claude (U31) |
+| 2026-11-20 | U31: Fusion rifles use normal sights; linear fusion zoom is 1.5 with less shake. | Claude (U31) |
+| 2026-11-20 | U31: Phoenix Rite gets a grace period. The root cause is not confirmed. | Claude (U31) |

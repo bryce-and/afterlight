@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.6 "Exotic Arsenal" (U31)**: 15 new exotic armor pieces, the % recharge exotics hit harder, Red Dot, Holo Ring and Micro Reflex sights on shotguns, sidearms and hand cannons, 24 new legendaries and 30 new perks, Crucible burst supers one-shot in their blast core, and boon drops that rise with the wave.
 - **v5.5 "Boon Drops" (U30)**: Roguelike kills leave boon orbs you open with E to pick one of three boons (solo pauses, co-op gives each player their own orbs), and eleven new boons bring the total to 36.
 - **v5.4.6 "Hotfix" (H30)**: the Mars ramps into the Sunken Plaza and up to the Dust Palace courtyard gate sit on the ground now, and the Edge of Action remote shield has regression tests.
 - **v5.4.5 "Hotfix" (H39)**: Roguelike weapon swaps are back to 25% of boon options, and exotics are still 40% of weapon options.
