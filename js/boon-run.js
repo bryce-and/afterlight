@@ -6,7 +6,7 @@ import { makeWeapon as makeItemWeapon, makeExotic } from './loot.js';
 import { lightning, sparks } from './effects.js';
 import { ELEMENTS, EXOTIC_RANDOM_WEAPONS, ARCHETYPES } from './data.js';
 import {
-  newBoonRun, resetBoonRun, boonTotals, damageMult, damageTakenMult, reloadTimeMult, magMult, shieldMult, speedMult, jumpMult,
+  newBoonRun, resetBoonRun, boonTotals, damageMult, damageTakenMult, reloadTimeMult, magMult, shieldMult, speedMult, jumpMult, extraDrops,
   chargeMult, specialDropMult, frostSlow, BOON_CONST, BOONS, BOON_BY_ID, applyOption, rollOffer,
 } from './boons.js';
 import { dealDamage, enemiesNear, explode } from './game.js';
@@ -85,6 +85,11 @@ export function applyBoonStats(P) {
   if (!on()) return;
   const t = bt();
   P.maxShield = Math.round(P.maxShield * shieldMult(t));
+  P.hpBase ??= P.maxHealth; // Vitality: scale from the Guardian's own base, and give the new health when it grows
+  const hp = Math.round(P.hpBase * (1 + (t.hpMax || 0)));
+  if (hp > P.maxHealth) P.health += hp - P.maxHealth;
+  P.maxHealth = hp; P.health = Math.min(P.health, hp);
+  if (t.regen) { P.regenRate *= 1 + t.regen; P.regenDelay /= 1 + t.regen; }
   P.speed *= speedMult(t);
   P.jumpV *= jumpMult(t);
   P.superRate *= chargeMult(t, 'super');
@@ -114,7 +119,7 @@ export function outgoing(P, e) {
   const t = bt();
   return damageMult(t, {
     boss: !!e.isBoss, elite: !!(e.isBoss ? false : e.tier === 'major' || e.cls === 'heavy'),
-    targetFrac: e.maxHp ? e.hp / e.maxHp : null, selfFrac: P.maxHealth ? P.health / P.maxHealth : null, momentumStacks: momentumStacks(),
+    shieldDown: P.maxShield > 0 && P.shield <= 0, targetFrac: e.maxHp ? e.hp / e.maxHp : null, selfFrac: P.maxHealth ? P.health / P.maxHealth : null, momentumStacks: momentumStacks(),
   });
 }
 /** After a weapon hit lands: Frostbite slow, Arc Conductor chain (precision), Ricochet. `dmg` is the hit's final damage. */
@@ -143,6 +148,9 @@ export function onKillBoons(P, e, o) {
   if (!on()) return;
   const t = bt(), S = G.mission.boonState;
   if (t.killHeal) P.healPct(Math.min(1, t.killHeal));
+  if (t.killShield) P.shield = Math.min(P.maxShield, P.shield + P.maxShield * t.killShield);
+  if (t.killSuper && !P.superActive) P.superCharge = Math.min(100, P.superCharge + t.killSuper);
+  if (t.killCd) for (const k of ['grenade', 'melee', 'class']) P.cd[k] = Math.max(0, P.cd[k] - P.cdMax[k] * Math.min(0.5, t.killCd));
   if (t.momentum) S.momentum.push(G.time + BOON_CONST.momentumSecs);
   if (t.rushSpeed) S.rushUntil = G.time + BOON_CONST.rushSecs;
   if (t.gravePct) {
@@ -180,7 +188,9 @@ export function onGrenade(P, pt) {
 
 // ---- damage taken ----
 /** Iron Skin: returns the reduced amount. */
-export const incoming = (amount) => (on() ? amount * damageTakenMult(bt()) : amount);
+export const incoming = (amount) => (on() ? amount * damageTakenMult(bt(), G.player?.shield > 0) : amount);
+/** Beacon: extra boon orbs this round. */
+export const beaconDrops = () => (on() ? extraDrops(bt()) : 0);
 /** Phoenix Rite: true when a killing blow was absorbed (the Guardian is left at 1 health). Saves refill each wave. */
 export function phoenixSave(P) {
   if (!on()) return false;

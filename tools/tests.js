@@ -4315,9 +4315,9 @@ const near = (a, b, tol = 1e-9, msg = '') => { if (Math.abs(a - b) > tol) throw 
 const seeded = (seed) => { let a = seed; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
 const WPOOL = [{ slot: 'kinetic', name: 'Legend A', exotic: false }, { slot: 'energy', name: 'Legend B', exotic: false }, { slot: 'heavy', name: 'Exo C', exotic: true }];
 
-test('U24 boons: 25 data rows, unique ids, each with an effect', () => {
-  eq(BN.BOONS.length, 25);
-  eq(new Set(BN.BOONS.map((b) => b.id)).size, 25, 'unique ids');
+test('U24 boons: 35 data rows (U30: ten more), unique ids, each with an effect', () => {
+  eq(BN.BOONS.length, 35);
+  eq(new Set(BN.BOONS.map((b) => b.id)).size, 35, 'unique ids');
   for (const b of BN.BOONS) { ok(b.name && b.desc, b.id); ok(Object.keys(b.fx).length > 0, `${b.id} has fx`); }
 });
 

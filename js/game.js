@@ -49,7 +49,7 @@ import { keyName } from './keybinds.js';
 import { freeScene } from './gpu-free.js';
 import { updateCrucible, cleanupCrucible, pvpDealDamage, pvpDamagePlayer, pvpExplodeHit } from './crucible.js';
 import { dropMult } from './boon-run.js';
-import { startBoonRun, endBoonRun, takeOption, weaponPool, itemForOption, newWave } from './boon-run.js';
+import { startBoonRun, endBoonRun, takeOption, weaponPool, itemForOption, newWave, beaconDrops } from './boon-run.js';
 import { BOON_BY_ID, HORDE_SCALE, ENDLESS_SCALE, waveScale, newDropPlan, shouldDropBoon, DROP_ELITE_WEIGHT, offerSeed, rollOrbOffer, ORB_IDLE_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
 import { openBoonMenu, closeBoonMenu } from './rewards-ui.js';
 
@@ -1423,7 +1423,7 @@ function startWave() {
     newWave(); // Phoenix Rite saves refill
   }
   z.waves = activityWave(n);
-  if (M.act.roguelike) M.dropPlan = newDropPlan(z.waves.reduce((a, w) => a + w.length, 0)); // U30: 2 to 5 boon orbs this round
+  if (M.act.roguelike) M.dropPlan = newDropPlan(z.waves.reduce((a, w) => a + w.length, 0), Math.random, beaconDrops()); // U30: 2 to 5 boon orbs this round
   z.waveIdx = 0;
   z.enemies = [];
   spawnWave(z, 0);

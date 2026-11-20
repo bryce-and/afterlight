@@ -40,6 +40,17 @@ export const BOONS = [
   { id: 'frostbite_rounds', name: 'Frostbite Rounds', desc: 'Hits slow enemies by 15% for 2 s', fx: { frost: 0.15 } },
   { id: 'grave_robber', name: 'Grave Robber', desc: 'Kills refill 5% of the magazine from reserves', fx: { gravePct: 0.05 } },
   { id: 'duelist', name: 'Duelist', desc: '+15% damage to elites and minibosses', fx: { eliteDmg: 0.15 } },
+  // U30: ten more boons (every effect below is read in boon-run.js or damageMult)
+  { id: 'marksman', name: 'Marksman', desc: '+8% damage to everything', fx: { dmg: 0.08 } },
+  { id: 'opening_shot', name: 'Opening Shot', desc: '+25% damage to enemies at full health', fx: { opener: 0.25 } },
+  { id: 'exposed_nerve', name: 'Exposed Nerve', desc: '+20% damage while your shield is down', fx: { exposed: 0.20 } },
+  { id: 'vitality', name: 'Vitality', desc: '+20% maximum health', fx: { hpMax: 0.20 } },
+  { id: 'bulwark', name: 'Bulwark', desc: 'Take 15% less damage while your shield is up', fx: { shieldGuard: 0.15 } },
+  { id: 'quick_recovery', name: 'Quick Recovery', desc: 'Health and shield recharge 30% faster and start sooner', fx: { regen: 0.30 } },
+  { id: 'overcharge', name: 'Overcharge', desc: 'Kills add 3% to your super', fx: { killSuper: 3 } },
+  { id: 'cooldown_rebate', name: 'Cooldown Rebate', desc: 'Kills cut grenade, melee and class cooldowns by a further 4%', fx: { killCd: 0.04 } },
+  { id: 'siphon', name: 'Siphon', desc: 'Kills restore 6% of your maximum shield', fx: { killShield: 0.06 } },
+  { id: 'beacon', name: 'Beacon', desc: '+1 boon orb every round (up to +3)', fx: { dropExtra: 1 } },
   { id: 'adrenaline_rush', name: 'Adrenaline Rush', desc: 'Kills give +20% move speed for 3 s', fx: { rushSpeed: 0.20 } },
 ];
 export const BOON_BY_ID = Object.fromEntries(BOONS.map((b) => [b.id, b]));
@@ -95,13 +106,15 @@ const g = (t, k) => t[k] || 0;
 /** The multiplier each charge runs at: 1 with no boon, 2 with one, 3 with two. */
 export const chargeMult = (t, kind) => 1 + g(t, `${kind}Rate`);
 /** Damage taken multiplier: 1 with no boon; 10% per stack as a share (1 / (1 + 0.1n)), so it falls forever but never reaches 0. */
-export const damageTakenMult = (t) => Math.max(BOON_CONST.toughnessFloor, 1 / (1 + g(t, 'toughness')));
+export const damageTakenMult = (t, shieldUp = false) => Math.max(BOON_CONST.toughnessFloor, 1 / (1 + g(t, 'toughness') + (shieldUp ? g(t, 'shieldGuard') : 0)));
 /** Reload time multiplier: 20% faster per stack as a rate, never below the floor. */
 export const reloadTimeMult = (t) => Math.max(BOON_CONST.reloadFloor, 1 / (1 + g(t, 'reload')));
 export const magMult = (t) => 1 + g(t, 'mag');
 export const shieldMult = (t) => 1 + g(t, 'shieldMax');
 export const speedMult = (t) => 1 + g(t, 'speed');
 export const jumpMult = (t) => 1 + g(t, 'jump');
+/** Extra boon orbs a round from Beacon (+1 a stack, never more than +3). */
+export const extraDrops = (t) => Math.min(3, Math.round(g(t, 'dropExtra')));
 export const specialDropMult = (t) => 1 + g(t, 'specialDrop');
 /** Frostbite: the slow fraction one hit applies, never above frostMax. 0 when the boon is not held. */
 export const frostSlow = (t) => Math.min(BOON_CONST.frostMax, g(t, 'frost'));
@@ -112,6 +125,9 @@ export const frostSlow = (t) => Math.min(BOON_CONST.frostMax, g(t, 'frost'));
  */
 export function damageMult(t, ctx = {}) {
   let bonus = 0;
+  bonus += g(t, 'dmg');
+  if (ctx.targetFrac != null && ctx.targetFrac >= 0.99) bonus += g(t, 'opener');
+  if (ctx.shieldDown) bonus += g(t, 'exposed');
   if (ctx.boss) bonus += g(t, 'bossDmg');
   if (ctx.elite) bonus += g(t, 'eliteDmg');
   if (ctx.targetFrac != null && ctx.targetFrac < BOON_CONST.executeBelow) bonus += g(t, 'execute');
@@ -171,7 +187,7 @@ export function rollDropBudget(enemyCount, rnd = Math.random) {
   return Math.min(DROPS_MAX, DROPS_MIN + Math.floor(roll * (DROPS_MAX - DROPS_MIN + 1)));
 }
 /** A round's drop plan: `left` orbs still to drop over `remaining` expected kills. */
-export const newDropPlan = (enemyCount, rnd = Math.random) => ({ left: rollDropBudget(enemyCount, rnd), remaining: Math.max(1, enemyCount), seq: 0 });
+export const newDropPlan = (enemyCount, rnd = Math.random, extra = 0) => ({ left: rollDropBudget(enemyCount, rnd) + extra, remaining: Math.max(1, enemyCount), seq: 0 });
 /**
  * Called once per kill by whoever decides (solo, or the host). Returns true if this kill drops an orb. Spreads the budget over the
  * round's kills, leans toward elites, and always drops once the kills left only just cover the orbs left (so a round never ends short).
