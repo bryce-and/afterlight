@@ -185,7 +185,7 @@ export function openSkipConfirm(s, classId, onCancel) {
  * so one click takes it. `offer`: [{ kind: 'boon', id } | { kind: 'weapon', slot, name, exotic }]; `held`: { id: stacks }; `items`: weapon items by
  * option index (for the card). Counts down `seconds`; at 0 the first option is taken. Resolves with the index taken.
  */
-export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10, current = {} }) {
+export function openBoonMenu({ wave, boss = false, offer, held = {}, items = [], seconds = 10, current = {} }) {
   return new Promise((resolve) => {
     menuEl?.remove();
     const el = document.createElement('div');
@@ -203,8 +203,8 @@ export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10,
     };
     el.innerHTML = `
       <div class="rw-wrap">
-        <div class="rw-eyebrow">Wave ${wave}  ·  Boon orb</div>
-        <h1 class="rw-title">Choose a boon</h1>
+        <div class="rw-eyebrow">Wave ${wave}  ·  ${boss ? 'Boss orb' : 'Boon orb'}</div>
+        <h1 class="rw-title">${boss ? 'Choose an exotic boon' : 'Choose a boon, or swap a weapon'}</h1>
         <p class="rw-sub">Boons last until this run ends. Esc closes it and the orb stays. <span id="bn-left"></span></p>
         <div class="bn-bar"${seconds > 0 ? '' : ' style="display:none"'}><i id="bn-fill"></i></div>
         <div class="rw-grid bn-grid">${offer.map(card).join('')}</div>
@@ -265,7 +265,7 @@ export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10,
     };
     const onKey = (e) => {
       if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(-1); return; }
-      const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code); if (i >= 0 && i < offer.length) { e.preventDefault(); e.stopPropagation(); choose(i); }
+      const i = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code); if (i >= 0 && i < offer.length) { e.preventDefault(); e.stopPropagation(); choose(i); }
     };
     addEventListener('keydown', onKey, true);
     el.querySelectorAll('.bn-card').forEach((c) => {

@@ -50,7 +50,7 @@ import { freeScene } from './gpu-free.js';
 import { updateCrucible, cleanupCrucible, pvpDealDamage, pvpDamagePlayer, pvpExplodeHit } from './crucible.js';
 import { dropMult } from './boon-run.js';
 import { startBoonRun, endBoonRun, takeOption, weaponPool, itemForOption, newWave, beaconDrops } from './boon-run.js';
-import { BOON_BY_ID, HORDE_SCALE, ENDLESS_SCALE, waveScale, newDropPlan, shouldDropBoon, DROP_ELITE_WEIGHT, offerSeed, rollOrbOffer, ORB_IDLE_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
+import { BOON_BY_ID, HORDE_SCALE, ENDLESS_SCALE, waveScale, newDropPlan, shouldDropBoon, DROP_ELITE_WEIGHT, offerSeed, rollOrbOffer, isBossOrb, BOSS_ORB_SLOT, ORB_IDLE_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
 import { openBoonMenu, closeBoonMenu } from './rewards-ui.js';
 
 const _c = new THREE.Vector3();
@@ -1384,6 +1384,11 @@ function loadArena(i, first = false) {
   const P = G.player;
   P.spawn(start);
   P.yaw = Math.atan2(start.x - arena.center.x, start.z - arena.center.z); // face the arena
+  (M.orbs || []).forEach((o, k) => { // H30b: orbs persist until opened, so unopened ones follow you into the next arena (a boss kill moves you on at once)
+    const a = (k + 1) * 1.1;
+    o.pos.set(start.x + Math.cos(a) * 3.5, 0, start.z + Math.sin(a) * 3.5); o.pos.y = groundAt(o.pos.x, o.pos.z);
+    o.group.position.copy(o.pos); G.scene.add(o.group);
+  });
   if (!first) ui.setMissionHeader();
 }
 
@@ -1508,7 +1513,8 @@ function activityWaveCleared() {
 function boonDropFor(e) {
   const M = G.mission;
   if (!M?.act?.roguelike || !M.dropPlan || M.remote || e.noDrops) return 0;
-  const w = e.isBoss ? DROP_ELITE_WEIGHT * 2 : e.tier && e.tier !== 'minor' ? DROP_ELITE_WEIGHT : 1;
+  if (e.isBoss) return M.wave * 100 + BOSS_ORB_SLOT; // H30b: a boss kill always leaves a boss orb (three exotic boons and an exotic weapon)
+  const w = e.tier && e.tier !== 'minor' ? DROP_ELITE_WEIGHT : 1;
   return shouldDropBoon(M.dropPlan, w) ? M.wave * 100 + M.dropPlan.seq : 0;
 }
 const orbGeo = new THREE.OctahedronGeometry(0.34, 0);
@@ -1518,17 +1524,20 @@ export function spawnBoonOrb(at, id) {
   if (!M?.act?.roguelike) return;
   M.orbs ||= [];
   if (M.orbs.some((o) => o.id === id)) return;
-  const col = 0xc79bff, g = new THREE.Group();
+  const boss = isBossOrb(id), col = boss ? 0xffb347 : 0xc79bff, g = new THREE.Group();
   const core = new THREE.Mesh(orbGeo, mat(col, { emissive: col, emissiveIntensity: 1.8 }));
-  core.position.y = 0.9;
+  core.position.y = 0.9; if (boss) core.scale.setScalar(1.6);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 24, 8, 1, true), basicMat(col, true));
   beam.position.y = 12; beam.material = beam.material.clone(); beam.material.opacity = 0.2;
   g.add(core, beam);
-  const pos = at.clone(); pos.y = groundAt(pos.x, pos.z);
+  const pos = at.clone();
+  const rm = hordeRoom(); // an orb left where a kill got knocked outside the sealed room would be out of reach, so keep it inside
+  if (rm) { pos.x = clamp(pos.x, rm.minX + 2, rm.maxX - 2); pos.z = clamp(pos.z, rm.minZ + 2, rm.maxZ - 2); }
+  pos.y = groundAt(pos.x, pos.z);
   g.position.copy(pos);
   G.scene.add(g);
   M.orbs.push({ id, group: g, core, pos, wave: M.wave });
-  ui.feed('A boon orb dropped. Find it and open it.', '#c79bff');
+  ui.feed(boss ? 'A boss orb dropped: exotic boons.' : 'A boon orb dropped. Find it and open it.', boss ? '#ffb347' : '#c79bff');
 }
 export function clearBoonOrbs(M = G.mission) { for (const o of M?.orbs || []) G.scene.remove(o.group); if (M) M.orbs = []; }
 
@@ -1542,7 +1551,7 @@ function updateBoonOrbs(dt) {
     if (!P.dead && !M.boonMenuOpen && !P.stasis && P.pos.distanceTo(o.pos) < 3 && (!near || P.pos.distanceTo(o.pos) < P.pos.distanceTo(near.pos))) near = o;
   }
   if (M.boonMenuOpen) return;
-  if (near) { ui.prompt(`[${keyName('interact')}]  Open Boon`); M.orbPrompt = true; if (G.input.pressed.KeyE) openBoonOrb(near); }
+  if (near) { ui.prompt(`[${keyName('interact')}]  Open ${isBossOrb(near.id) ? 'Boss Boon' : 'Boon'}`); M.orbPrompt = true; if (G.input.pressed.KeyE) openBoonOrb(near); }
   else if (M.orbPrompt) { M.orbPrompt = false; ui.prompt(null); }
 }
 
@@ -1554,14 +1563,14 @@ export async function openBoonOrb(orb) {
   const coop = !!M.coop;
   const power = M.def.power, pool = weaponPool(power);
   const idx = Math.max(0, allPlayers().indexOf(P));
-  const offer = rollOrbOffer(offerSeed(M.wave, orb.id, idx), pool.map(({ slot, name, exotic }) => ({ slot, name, exotic })));
+  const boss = isBossOrb(orb.id), offer = rollOrbOffer(offerSeed(M.wave, orb.id, idx), pool.map(({ slot, name, exotic }) => ({ slot, name, exotic })), { held: M.boonRun.boons, boss });
   const items = offer.map((o) => (o.kind === 'weapon' ? itemForOption(o, power, pool) : null));
   const current = Object.fromEntries(P.weapons.map((w) => [w.item.slot, w.item.name]));
   ui.prompt(null);
   const pausedHere = !coop && G.state === 'playing';
   if (pausedHere) G.state = 'paused'; // solo: the world freezes while you choose
   if (coop) P.stasis = true; // co-op: the world keeps running, so you cannot be hurt or targeted while you choose
-  const i = await openBoonMenu({ wave: M.wave, offer, held: M.boonRun.boons, items, seconds: coop ? ORB_IDLE_SECONDS : 0, current });
+  const i = await openBoonMenu({ wave: M.wave, boss, offer, held: M.boonRun.boons, items, seconds: coop ? ORB_IDLE_SECONDS : 0, current });
   if (pausedHere && G.state === 'paused') G.state = 'playing';
   P.stasis = false;
   M.boonMenuOpen = false;

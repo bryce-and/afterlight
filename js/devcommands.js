@@ -70,23 +70,27 @@ const ruleKey = (t) => Object.keys(RULE_NAMES).find((k) => k === t.toLowerCase()
  */
 export const COMMANDS = {
   give: {
-    usage: '/give <weapon, armor or boon name> [count]   (a boon lasts for the current mission: /give multishot 20)',
-    options: () => [...new Set([...giveCatalog().map((c) => c.name), ...BOONS.map((b) => b.id)])],
+    usage: '/give <weapon or armor name>',
+    options: () => [...new Set(giveCatalog().map((c) => c.name))],
     run(args, ctx) {
-      // U31: /give <boon> [count] adds boon stacks to the mission you are in
-      const cm = args.trim().match(/^(.*?)(?:\s+(\d+))?$/), bName = cm[1], count = cm[2] ? Math.min(99, Math.max(1, parseInt(cm[2], 10))) : 1;
-      const b = findBoon(bName);
-      const g = findGive(args);
-      if (b.boon && (!g.entry || bName.trim().toLowerCase() === b.boon.id || bName.trim().toLowerCase() === b.boon.name.toLowerCase())) {
-        if (!ctx.giveBoon) return { ok: false, msg: 'Boons are not available here.' };
-        try { const total = ctx.giveBoon(b.boon.id, count); return { ok: true, msg: `Gave ${count} x ${b.boon.name} (now x${total}) for this mission.` }; } catch (err) { return { ok: false, msg: err.message }; }
-      }
-      if (b.error && !g.entry) return { ok: false, msg: b.error };
-      const r = g;
+      const r = findGive(args);
       if (r.error) return { ok: false, msg: r.error };
       const item = buildGiven(r.entry, Math.max(1, playerPower(ctx.save)), ctx.save.classId, armorBand(ctx.save));
       ctx.grant(item);
       return { ok: true, msg: `Gave ${item.name} (${item.rarity}${item.kind === 'armor' && r.entry.classId ? `, ${r.entry.classId} only` : ''}).` };
+    },
+  },
+  // H30b: /effect <boon> [x] replaces boons in /give. Adds x stacks (default 1) to the run you are in.
+  effect: {
+    usage: '/effect <boon name> [x]   (adds x stacks for this mission, e.g. /effect multishot 3)',
+    options: () => BOONS.map((b) => b.id),
+    run(args, ctx) {
+      const cm = args.trim().match(/^(.*?)(?:\s+(\d+))?$/), count = cm[2] ? Math.min(99, Math.max(1, parseInt(cm[2], 10))) : 1;
+      if (!cm[1].trim()) return { ok: false, msg: 'Usage: /effect <boon name> [x]' };
+      const b = findBoon(cm[1]);
+      if (!b.boon) return { ok: false, msg: b.error || `No boon named "${cm[1].trim()}".` };
+      if (!ctx.giveBoon) return { ok: false, msg: 'Boons are not available here.' };
+      try { const total = ctx.giveBoon(b.boon.id, count); return { ok: true, msg: `Added ${count} x ${b.boon.name} (now x${total}) for this mission.` }; } catch (err) { return { ok: false, msg: err.message }; }
     },
   },
   gamerule: {

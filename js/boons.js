@@ -7,7 +7,6 @@ export const BOON_EVERY = 1;        // a boon choice after every wave (waves 1, 
 export const BOON_OFFER_SIZE = 3;   // options per member
 export const BOON_PICK_SECONDS = 10; // (pre-U30 wave pick timer; pickState still uses it)
 export const ORB_IDLE_SECONDS = 12;  // U30 co-op: an open orb menu closes (the orb stays) after this long, so a stalled opener is not stuck in stasis
-export const WEAPON_OFFER_CHANCE = 0.25; // chance each option is a weapon swap instead of a buff (H39: back to 0.25 after H37 raised it)
 export const EXOTIC_SHARE = 0.4;         // chance a weapon option is an exotic (H37: was 0.1)
 
 /**
@@ -16,53 +15,63 @@ export const EXOTIC_SHARE = 0.4;         // chance a weapon option is an exotic 
  *  flag     : a yes/no effect, any stack turns it on (the `n` is still counted for strength where noted)
  */
 export const BOONS = [
-  { id: 'grenadiers_haste', name: "Grenadier's Haste", desc: 'Grenade charges twice as fast', fx: { grenadeRate: 1 } },
-  { id: 'bladefury', name: 'Bladefury', desc: 'Melee charges twice as fast', fx: { meleeRate: 1 } },
-  { id: 'lightbringer', name: 'Lightbringer', desc: 'Super charges twice as fast', fx: { superRate: 1 } },
-  { id: 'second_wind', name: 'Second Wind', desc: 'Class ability charges twice as fast', fx: { classRate: 1 } },
+  { id: 'grenadiers_haste', name: "Grenadier's Haste", desc: 'Grenade charges 60% faster', fx: { grenadeRate: 0.6 } },
+  { id: 'bladefury', name: 'Bladefury', desc: 'Melee charges 60% faster', fx: { meleeRate: 0.6 } },
+  { id: 'lightbringer', name: 'Lightbringer', desc: 'Super charges 60% faster', fx: { superRate: 0.6 } },
+  { id: 'second_wind', name: 'Second Wind', desc: 'Class ability charges 60% faster', fx: { classRate: 0.6 } },
   { id: 'heavy_harvest', name: 'Heavy Harvest', desc: 'Grenade kills grant heavy ammo', fx: { grenadeHeavy: 1 } },
-  { id: 'fleetfoot', name: 'Fleetfoot', desc: 'Sprint faster and jump higher', fx: { speed: 0.15, jump: 0.15 } },
-  { id: 'giantslayer', name: 'Giantslayer', desc: '+10% damage to bosses', fx: { bossDmg: 0.10 } },
+  { id: 'fleetfoot', name: 'Fleetfoot', desc: 'Sprint 8% faster and jump 8% higher', fx: { speed: 0.08, jump: 0.08 } },
+  { id: 'giantslayer', name: 'Giantslayer', desc: '+7% damage to bosses', fx: { bossDmg: 0.07 } },
   { id: 'crown_detonation', name: 'Crown Detonation', desc: 'Precision kills make the corpse explode', fx: { crownBlast: 1 } },
-  { id: 'bloodletter', name: 'Bloodletter', desc: 'Kills restore 10% health', fx: { killHeal: 0.10 } },
-  { id: 'iron_skin', name: 'Iron Skin', desc: 'Take 10% less damage', fx: { toughness: 0.10 } },
-  { id: 'shieldwall', name: 'Shieldwall', desc: '+25% maximum shield', fx: { shieldMax: 0.25 } },
-  { id: 'quickhands', name: 'Quickhands', desc: 'Reload 20% faster', fx: { reload: 0.20 } },
-  { id: 'deep_pockets', name: 'Deep Pockets', desc: '+25% magazine size', fx: { mag: 0.25 } },
-  { id: 'scavenger', name: 'Scavenger', desc: 'Enemies drop special ammo more often', fx: { specialDrop: 0.5 } },
+  { id: 'bloodletter', name: 'Bloodletter', desc: 'Kills restore 5% health', fx: { killHeal: 0.05 } },
+  { id: 'iron_skin', name: 'Iron Skin', desc: 'Take about 7% less damage', fx: { toughness: 0.08 } },
+  { id: 'shieldwall', name: 'Shieldwall', desc: '+15% maximum shield', fx: { shieldMax: 0.15 } },
+  { id: 'quickhands', name: 'Quickhands', desc: 'Reload 12% faster', fx: { reload: 0.12 } },
+  { id: 'deep_pockets', name: 'Deep Pockets', desc: '+15% magazine size', fx: { mag: 0.15 } },
+  { id: 'scavenger', name: 'Scavenger', desc: 'Enemies drop special ammo 30% more often', fx: { specialDrop: 0.3 } },
   { id: 'arc_conductor', name: 'Arc Conductor', desc: 'Precision hits chain lightning to the nearest enemy', fx: { arcChain: 1 } },
   { id: 'scorched_earth', name: 'Scorched Earth', desc: 'Grenades leave burning ground', fx: { scorch: 1 } },
-  { id: 'momentum', name: 'Momentum', desc: 'Each kill gives +2% damage for 5 s, stacking to 10', fx: { momentum: 0.02 } },
-  { id: 'last_stand', name: 'Last Stand', desc: '+30% damage while below 30% health', fx: { lastStand: 0.30 } },
-  { id: 'phoenix_rite', name: 'Phoenix Rite', desc: 'Once per wave, survive a killing blow at 1 health', fx: { phoenix: 1 } },
-  { id: 'ricochet_rounds', name: 'Ricochet Rounds', desc: 'Bullets bounce to a second enemy for 30% damage', fx: { ricochet: 1 } },
-  { id: 'executioner', name: 'Executioner', desc: '+20% damage to enemies below 30% health', fx: { execute: 0.20 } },
-  { id: 'frostbite_rounds', name: 'Frostbite Rounds', desc: 'Hits slow enemies by 15% for 2 s', fx: { frost: 0.15 } },
-  { id: 'grave_robber', name: 'Grave Robber', desc: 'Kills refill 5% of the magazine from reserves', fx: { gravePct: 0.05 } },
-  { id: 'duelist', name: 'Duelist', desc: '+15% damage to elites and minibosses', fx: { eliteDmg: 0.15 } },
+  { id: 'momentum', name: 'Momentum', desc: 'Each kill gives +1% damage for 5 s, stacking to 10', fx: { momentum: 0.01 } },
+  { id: 'last_stand', name: 'Last Stand', desc: '+20% damage while below 30% health', fx: { lastStand: 0.20 } },
+    { id: 'ricochet_rounds', name: 'Ricochet Rounds', desc: 'Bullets bounce to a second enemy for 30% damage', fx: { ricochet: 1 } },
+  { id: 'executioner', name: 'Executioner', desc: '+12% damage to enemies below 30% health', fx: { execute: 0.12 } },
+  { id: 'frostbite_rounds', name: 'Frostbite Rounds', desc: 'Hits slow enemies by 10% for 2 s', fx: { frost: 0.10 } },
+  { id: 'grave_robber', name: 'Grave Robber', desc: 'Kills refill 3% of the magazine from reserves (at least 1 round)', fx: { gravePct: 0.03 } },
+  { id: 'duelist', name: 'Duelist', desc: '+10% damage to elites and minibosses', fx: { eliteDmg: 0.10 } },
   // U30: ten more boons (every effect below is read in boon-run.js or damageMult)
-  { id: 'marksman', name: 'Marksman', desc: '+8% damage to everything', fx: { dmg: 0.08 } },
-  { id: 'opening_shot', name: 'Opening Shot', desc: '+25% damage to enemies at full health', fx: { opener: 0.25 } },
-  { id: 'exposed_nerve', name: 'Exposed Nerve', desc: '+20% damage while your shield is down', fx: { exposed: 0.20 } },
-  { id: 'vitality', name: 'Vitality', desc: '+20% maximum health', fx: { hpMax: 0.20 } },
-  { id: 'bulwark', name: 'Bulwark', desc: 'Take 15% less damage while your shield is up', fx: { shieldGuard: 0.15 } },
-  { id: 'quick_recovery', name: 'Quick Recovery', desc: 'Health and shield recharge 30% faster and start sooner', fx: { regen: 0.30 } },
-  { id: 'overcharge', name: 'Overcharge', desc: 'Kills add 3% to your super', fx: { killSuper: 3 } },
-  { id: 'cooldown_rebate', name: 'Cooldown Rebate', desc: 'Kills cut grenade, melee and class cooldowns by a further 4%', fx: { killCd: 0.04 } },
-  { id: 'siphon', name: 'Siphon', desc: 'Kills restore 6% of your maximum shield', fx: { killShield: 0.06 } },
-  { id: 'multishot', name: 'Multishot', desc: 'Primary weapons fire 50% more bullets per shot (at least +1). Extra bullets deal half damage', fx: { multishot: 1 } },
-  { id: 'beacon', name: 'Beacon', desc: '+1 boon orb every round (up to +3)', fx: { dropExtra: 1 } },
+  { id: 'marksman', name: 'Marksman', desc: '+5% damage to everything', fx: { dmg: 0.05 } },
+  { id: 'opening_shot', name: 'Opening Shot', desc: '+15% damage to enemies at full health', fx: { opener: 0.15 } },
+  { id: 'exposed_nerve', name: 'Exposed Nerve', desc: '+12% damage while your shield is down', fx: { exposed: 0.12 } },
+  { id: 'vitality', name: 'Vitality', desc: '+12% maximum health', fx: { hpMax: 0.12 } },
+  { id: 'bulwark', name: 'Bulwark', desc: 'Take about 9% less damage while your shield is up', fx: { shieldGuard: 0.10 } },
+  { id: 'quick_recovery', name: 'Quick Recovery', desc: 'Health and shield recharge 20% faster and start sooner', fx: { regen: 0.20 } },
+  { id: 'overcharge', name: 'Overcharge', desc: 'Kills add 1% to your super', fx: { killSuper: 1 } },
+  { id: 'cooldown_rebate', name: 'Cooldown Rebate', desc: 'Kills cut grenade, melee and class cooldowns by a further 2%', fx: { killCd: 0.02 } },
+  { id: 'siphon', name: 'Siphon', desc: 'Kills restore 3% of your maximum shield', fx: { killShield: 0.03 } },
+  { id: 'multishot', name: 'Multishot', desc: 'Primary weapons fire 50% more bullets per shot (at least +1). Extra bullets deal half damage', fx: { multishot: 1 }, max: 4 },
+  { id: 'beacon', name: 'Beacon', desc: '+1 boon orb every round (up to +3)', fx: { dropExtra: 1 }, max: 3 },
   // U31: elemental rounds (read in boon-run.js roundsDeal, afterHit and roundsTick)
   { id: 'cryo_rounds', name: 'Cryo Rounds', desc: 'Hits build slow on enemies; four stacks freeze them', fx: { cryo: 1 } },
-  { id: 'burning_rounds', name: 'Burning Rounds', desc: 'Hits set enemies burning for 3 s (20% of the hit per second)', fx: { burnDot: 0.20 } },
-  { id: 'toxic_rounds', name: 'Toxic Rounds', desc: 'Hits poison enemies for 5 s (12% of the hit per second, stacking)', fx: { toxic: 0.12 } },
-  { id: 'static_rounds', name: 'Static Rounds', desc: 'Hits jolt enemies: the next hit on a jolted enemy arcs lightning to its neighbors', fx: { staticJolt: 1 } },
-  { id: 'devouring_rounds', name: 'Devouring Rounds', desc: 'Every 3rd hit weakens the target: it takes 30% more damage for 3 s', fx: { voidWeaken: 1 } },
-  { id: 'threadneedle_rounds', name: 'Threadneedle Rounds', desc: 'Precision hits unravel the target', fx: { unravelCrit: 1 } },
+  { id: 'burning_rounds', name: 'Burning Rounds', desc: 'Hits set enemies burning for 3 s (12% of the hit per second)', fx: { burnDot: 0.12 } },
+  { id: 'toxic_rounds', name: 'Toxic Rounds', desc: 'Hits poison enemies for 5 s (8% of the hit per second, stacking)', fx: { toxic: 0.08 } },
+  { id: 'static_rounds', name: 'Static Rounds', desc: 'Hits jolt enemies: the next hit on a jolted enemy arcs lightning to its neighbors', fx: { staticJolt: 1 }, max: 1 },
+  { id: 'devouring_rounds', name: 'Devouring Rounds', desc: 'Every 3rd hit weakens the target: it takes 30% more damage for 3 s', fx: { voidWeaken: 1 }, max: 1 },
+  { id: 'threadneedle_rounds', name: 'Threadneedle Rounds', desc: 'Precision hits unravel the target', fx: { unravelCrit: 1 }, max: 1 },
   { id: 'blast_rounds', name: 'Blast Rounds', desc: 'Every 6th hit detonates for 50% of its damage in 3 m', fx: { blastRounds: 1 } },
-  { id: 'adrenaline_rush', name: 'Adrenaline Rush', desc: 'Kills give +20% move speed for 3 s', fx: { rushSpeed: 0.20 } },
+  { id: 'adrenaline_rush', name: 'Adrenaline Rush', desc: 'Kills give +10% move speed for 3 s', fx: { rushSpeed: 0.10 } },
+  // H30b: exotic boons. Never in a normal orb; a boss kill always leaves a boss orb that offers three of them. Each stacks up to `max`.
+  { id: 'phoenix_rite', name: 'Phoenix Rite', desc: 'Once per wave, survive a killing blow at 1 health', fx: { phoenix: 1 }, exotic: true, max: 3 },
+  { id: 'heart_of_the_storm', name: 'Heart of the Storm', desc: 'Kills arc lightning to 2 nearby enemies for half the dead enemy\'s health', fx: { stormKill: 2 }, exotic: true, max: 3 },
+  { id: 'undying_will', name: 'Undying Will', desc: '+30% maximum health, faster recovery and kills restore 4% health', fx: { hpMax: 0.30, regen: 0.30, killHeal: 0.04 }, exotic: true, max: 3 },
+  { id: 'eternity_engine', name: 'Eternity Engine', desc: 'Grenade, melee, class and super all charge 50% faster', fx: { grenadeRate: 0.5, meleeRate: 0.5, classRate: 0.5, superRate: 0.5 }, exotic: true, max: 3 },
+  { id: 'worldbreaker', name: 'Worldbreaker', desc: '+15% damage to everything and +20% to bosses, elites and the nearly dead', fx: { dmg: 0.15, bossDmg: 0.20, eliteDmg: 0.20, execute: 0.20 }, exotic: true, max: 3 },
+  { id: 'aegis_of_ages', name: 'Aegis of Ages', desc: '+40% maximum shield, and take about 12% less damage with your shield up', fx: { shieldMax: 0.40, shieldGuard: 0.14 }, exotic: true, max: 3 },
 ];
 export const BOON_BY_ID = Object.fromEntries(BOONS.map((b) => [b.id, b]));
+/** How many stacks of a boon can be held (a `max` on the row; 1 means single use, otherwise unlimited). */
+export const boonMax = (id) => BOON_BY_ID[id]?.max ?? Infinity;
+/** Can another stack of this boon still do something? Single-use and capped boons drop out of offers once held to their max. */
+export const boonOpen = (run, id) => (run?.boons?.[id] || 0) < boonMax(id);
 const norm = (t) => String(t).toLowerCase().replace(/[^a-z0-9]/g, '');
 /** U31 /give: a boon by id or name. Exact first, then a unique prefix, then a unique substring. Returns { boon } or { error } (error is null when nothing matched). */
 export function findBoon(text) {
@@ -168,32 +177,29 @@ export function damageMult(t, ctx = {}) {
 
 // ---------- the offer ----------
 /**
- * Rolls one member's offer: BOON_OFFER_SIZE different options, each a buff `{ kind: 'boon', id }` or, with WEAPON_OFFER_CHANCE,
- * a weapon swap `{ kind: 'weapon', slot, name, exotic }` drawn from `weaponPool` ([{ slot, name, exotic }]). Buffs never repeat in one
- * offer (a held boon may be offered again, that is how stacking works). With an empty pool every option is a buff.
+ * H30b: one orb's offer: BOON_OFFER_SIZE different buffs, then ONE weapon swap, so every orb carries a swap (when `weaponPool` has anything).
+ * Buffs are drawn from the normal pool (not exotic), and a boon already held to its `max` stacks is left out. A `boss` orb (left by a boss kill)
+ * draws its buffs from the exotic pool instead, falls back to normal boons if too few exotics are open, and its swap is always an exotic weapon when one exists.
+ * `held`: the run's boon stacks. The weapon is the last card, so the timeout pick (the first option) never swaps a weapon unasked.
  */
-export function rollOffer(rnd = Math.random, weaponPool = [], size = BOON_OFFER_SIZE) {
-  const out = [], ids = new Set(), names = new Set();
-  const buffs = [...BOONS], pool = [...weaponPool];
-  while (out.length < size) {
-    if (pool.length && rnd() < WEAPON_OFFER_CHANCE) {
-      // exotics are still rarer than legendaries (EXOTIC_SHARE of weapon options)
-      const exo = pool.filter((w) => w.exotic), leg = pool.filter((w) => !w.exotic);
-      const from = exo.length && (!leg.length || rnd() < EXOTIC_SHARE) ? exo : leg.length ? leg : exo;
-      const w = from[Math.floor(rnd() * from.length)];
-      if (!names.has(w.name)) { names.add(w.name); out.push({ kind: 'weapon', slot: w.slot, name: w.name, exotic: !!w.exotic }); }
-      pool.splice(pool.indexOf(w), 1);
-      continue;
-    }
-    if (!buffs.length) break;
-    const b = buffs.splice(Math.floor(rnd() * buffs.length), 1)[0];
-    if (!ids.has(b.id)) { ids.add(b.id); out.push({ kind: 'boon', id: b.id }); }
+export function rollOffer(rnd = Math.random, weaponPool = [], size = BOON_OFFER_SIZE, { held = {}, boss = false } = {}) {
+  const open = (b) => (held[b.id] || 0) < boonMax(b.id);
+  const take = (arr, n) => { const a = [...arr], r = []; while (a.length && r.length < n) r.push(a.splice(Math.floor(rnd() * a.length), 1)[0]); return r; };
+  const exo = BOONS.filter((b) => b.exotic && open(b)), norm = BOONS.filter((b) => !b.exotic && open(b));
+  const picked = boss ? take(exo, size) : [];
+  if (picked.length < size) picked.push(...take(norm, size - picked.length));
+  const out = picked.map((b) => ({ kind: 'boon', id: b.id }));
+  if (weaponPool.length) {
+    const ex = weaponPool.filter((w) => w.exotic), leg = weaponPool.filter((w) => !w.exotic);
+    const from = ex.length && (boss || !leg.length || rnd() < EXOTIC_SHARE) ? ex : leg.length ? leg : ex;
+    const w = from[Math.floor(rnd() * from.length)];
+    out.push({ kind: 'weapon', slot: w.slot, name: w.name, exotic: !!w.exotic });
   }
-  return out.sort((a, b) => (a.kind === 'boon' ? 0 : 1) - (b.kind === 'boon' ? 0 : 1)); // buffs first: the timeout pick (the first option) never swaps a weapon unasked
+  return out;
 }
 /** Each member rolls separately, so teammates get different offers. `members`: array of ids; returns { id: offer }. */
-export function rollOffers(members, rnd = Math.random, weaponPool = []) {
-  return Object.fromEntries(members.map((m) => [m, rollOffer(rnd, weaponPool)]));
+export function rollOffers(members, rnd = Math.random, weaponPool = [], opts = {}) {
+  return Object.fromEntries(members.map((m) => [m, rollOffer(rnd, weaponPool, BOON_OFFER_SIZE, opts)]));
 }
 /** Which option is taken on timeout: the first. */
 export const autoPick = (offer) => { if (!offer?.length) throw new Error('autoPick: empty offer'); return 0; };
@@ -235,7 +241,10 @@ export function shouldDropBoon(plan, weight = 1, rnd = Math.random) {
 /** The offer for one orb is seeded from the drop id and the player's slot, so a reopened or reconnected orb shows the same three choices. */
 export const offerSeed = (wave, dropId, playerIdx) => ((wave * 7919 + dropId * 104729 + playerIdx * 1299709 + 0x9e3779b9) >>> 0);
 /** Same as rollOffer but from the drop's seed. */
-export const rollOrbOffer = (seed, weaponPool = []) => rollOffer(mulberry32(seed), weaponPool);
+export const rollOrbOffer = (seed, weaponPool = [], opts = {}) => rollOffer(mulberry32(seed), weaponPool, BOON_OFFER_SIZE, opts);
+/** H30b: a boss kill's orb id ends in 99 (regular orbs count up from 1, never past 33). */
+export const BOSS_ORB_SLOT = 99;
+export const isBossOrb = (id) => id % 100 === BOSS_ORB_SLOT;
 
 /**
  * The host's wave-break timer for the pick. `picked`: Set of member ids who have picked. Counts down once per update.

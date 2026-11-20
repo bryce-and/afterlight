@@ -152,6 +152,13 @@ export function onKillBoons(P, e, o) {
   if (t.killShield) P.shield = Math.min(P.maxShield, P.shield + P.maxShield * t.killShield);
   if (t.killSuper && !P.superActive) P.superCharge = Math.min(100, P.superCharge + t.killSuper);
   if (t.killCd) for (const k of ['grenade', 'melee', 'class']) P.cd[k] = Math.max(0, P.cd[k] - P.cdMax[k] * Math.min(0.5, t.killCd));
+  if (t.stormKill) {
+    const from = e.center(new THREE.Vector3());
+    for (const x of enemiesNear(e.pos, 10, Math.min(6, Math.round(t.stormKill)), e)) {
+      x.center(_c); lightning(from, _c, ELEMENTS.arc.hex, 0.03);
+      dealDamage(x, (e.maxHp || 100) * 0.5, { element: 'arc', source: 'perk', pos: _c.clone() });
+    }
+  }
   if (t.momentum) S.momentum.push(G.time + BOON_CONST.momentumSecs);
   if (t.rushSpeed) S.rushUntil = G.time + BOON_CONST.rushSecs;
   if (t.gravePct) {
@@ -216,7 +223,7 @@ export function roundsTick() {
     if (!d.burn && !d.toxic) dots.delete(e);
   }
 }
-/** U31 /give: add n stacks of a boon to the current mission's run (starting one if the mission has none). */
+/** H30b /effect: add n stacks of a boon to the current mission's run (starting one if the mission has none). */
 export function devGiveBoon(P, id, n = 1) {
   const M = G.mission;
   if (!M) throw new Error('Start a mission first: boons last for the mission or level you are in.');

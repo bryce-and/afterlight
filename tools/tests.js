@@ -4321,17 +4321,17 @@ const near = (a, b, tol = 1e-9, msg = '') => { if (Math.abs(a - b) > tol) throw 
 const seeded = (seed) => { let a = seed; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
 const WPOOL = [{ slot: 'kinetic', name: 'Legend A', exotic: false }, { slot: 'energy', name: 'Legend B', exotic: false }, { slot: 'heavy', name: 'Exo C', exotic: true }];
 
-test('U24 boons: 43 data rows (U30: eleven more, U31: seven rounds), unique ids, each with an effect', () => {
-  eq(BN.BOONS.length, 43);
-  eq(new Set(BN.BOONS.map((b) => b.id)).size, 43, 'unique ids');
+test('U24 boons: 48 data rows (H30b: six exotic), unique ids, each with an effect', () => {
+  eq(BN.BOONS.length, 48);
+  eq(new Set(BN.BOONS.map((b) => b.id)).size, 48, 'unique ids');
   for (const b of BN.BOONS) { ok(b.name && b.desc, b.id); ok(Object.keys(b.fx).length > 0, `${b.id} has fx`); }
 });
 
 test('U24 boons: stacking adds the same amount again (two Bladefury = triple melee charge)', () => {
   const run = BN.newBoonRun();
   eq(BN.chargeMult(BN.boonTotals(run), 'melee'), 1, 'no boon = 1x');
-  BN.addBoon(run, 'bladefury'); eq(BN.chargeMult(BN.boonTotals(run), 'melee'), 2);
-  eq(BN.addBoon(run, 'bladefury'), 2, 'stack count'); eq(BN.chargeMult(BN.boonTotals(run), 'melee'), 3);
+  BN.addBoon(run, 'bladefury'); near(BN.chargeMult(BN.boonTotals(run), 'melee'), 1.6, 1e-9);
+  eq(BN.addBoon(run, 'bladefury'), 2, 'stack count'); near(BN.chargeMult(BN.boonTotals(run), 'melee'), 2.2, 1e-9, 'H30b: 60% per stack, still adding');
   eq(BN.boonTotals(run).phoenix || 0, 0);
   BN.addBoon(run, 'phoenix_rite'); BN.addBoon(run, 'phoenix_rite'); eq(BN.boonTotals(run).phoenix, 2, 'two saves per wave');
   eq(BN.totalBoons(run), 4);
@@ -4355,25 +4355,27 @@ test('U24 boons: damage bonuses add (boss, elite, execute, last stand, momentum)
   const t = BN.boonTotals(run);
   eq(BN.damageMult({}, { boss: true }), 1, 'no boons = 1');
   near(BN.damageMult(t, {}), 1, 1e-9);
-  near(BN.damageMult(t, { boss: true }), 1.10, 1e-9);
-  near(BN.damageMult(t, { elite: true }), 1.15, 1e-9);
-  near(BN.damageMult(t, { targetFrac: 0.2 }), 1.20, 1e-9); near(BN.damageMult(t, { targetFrac: 0.5 }), 1, 1e-9);
-  near(BN.damageMult(t, { selfFrac: 0.2 }), 1.30, 1e-9);
-  near(BN.damageMult(t, { momentumStacks: 5 }), 1.10, 1e-9); near(BN.damageMult(t, { momentumStacks: 50 }), 1.20, 1e-9, 'momentum caps at 10 stacks');
+  near(BN.damageMult(t, { boss: true }), 1.07, 1e-9);
+  near(BN.damageMult(t, { elite: true }), 1.10, 1e-9);
+  near(BN.damageMult(t, { targetFrac: 0.2 }), 1.12, 1e-9); near(BN.damageMult(t, { targetFrac: 0.5 }), 1, 1e-9);
+  near(BN.damageMult(t, { selfFrac: 0.2 }), 1.20, 1e-9);
+  near(BN.damageMult(t, { momentumStacks: 5 }), 1.05, 1e-9); near(BN.damageMult(t, { momentumStacks: 50 }), 1.10, 1e-9, 'momentum caps at 10 stacks');
 });
 
 test('U24 boons: offers roll per member, are distinct, and are reproducible from the rng', () => {
   const a = BN.rollOffer(seeded(5)); eq(a.length, 3); eq(new Set(a.map((o) => o.id)).size, 3, 'distinct buffs'); ok(a.every((o) => o.kind === 'boon'), 'no pool = all buffs');
+  ok(a.every((o) => !BN.BOON_BY_ID[o.id].exotic), 'a normal orb never offers an exotic boon');
   eq(BN.rollOffer(seeded(5)), a, 'same rng, same offer');
   const o = BN.rollOffers(['a', 'b', 'c'], seeded(9)); eq(Object.keys(o), ['a', 'b', 'c']);
   ok(JSON.stringify(o.a) !== JSON.stringify(o.b) || JSON.stringify(o.b) !== JSON.stringify(o.c), 'members differ');
   let weapons = 0, exo = 0;
   for (let i = 1; i <= 400; i++) {
-    const off = BN.rollOffer(seeded(i), WPOOL); eq(off.length, 3);
+    const off = BN.rollOffer(seeded(i), WPOOL); eq(off.length, 4, 'H30b: three boons and one weapon swap');
+    eq(off.filter((x) => x.kind === 'weapon').length, 1, 'exactly one weapon swap every orb'); eq(off[3].kind, 'weapon', 'the weapon is the last card');
     for (const x of off) if (x.kind === 'weapon') { weapons++; if (x.exotic) exo++; ok(WPOOL.some((w) => w.name === x.name && w.slot === x.slot), 'from the pool'); }
-    eq(new Set(off.map((x) => x.kind === 'boon' ? x.id : x.name)).size, 3, 'no repeats within an offer');
+    eq(new Set(off.map((x) => x.kind === 'boon' ? x.id : x.name)).size, 4, 'no repeats within an offer');
   }
-  ok(weapons > 40, 'weapon offers appear'); ok(exo < weapons, 'exotics rarer than legendaries');
+  eq(weapons, 400, 'a weapon swap in every offer'); ok(weapons > 40, 'weapon offers appear'); ok(exo < weapons, 'exotics rarer than legendaries');
 });
 
 test('U24 boons: auto-pick takes the first; the pick timer ends when all picked or time is up', () => {
@@ -4790,16 +4792,16 @@ test('U31 weapons and perks: thirty new perks sit in columns, element perks only
   eq(me.perkMult(has('hipfire'), foe([]), false), 1, 'Hip Fire Grip does nothing while aiming');
   const f = foe([]); f.hp = 20; eq(me.perkMult(has('finishing'), f, false), 1.4, 'Finisher on a weak enemy');
 });
-test('U31 /give boons: names, counts, and the elemental rounds boons', () => {
+test('U31 /effect boons (was /give): names, counts, and the elemental rounds boons', () => {
   eq(BN.findBoon('multishot').boon.id, 'multishot'); eq(BN.findBoon('Cryo Rounds').boon.id, 'cryo_rounds'); eq(BN.findBoon('cryo').boon.id, 'cryo_rounds');
   ok(BN.findBoon('rounds').error, 'an ambiguous boon name asks which one'); eq(BN.findBoon('zzzz').error, null);
   const calls = []; const ctx = { save: {}, grant() {}, giveBoon: (id, n) => { calls.push([id, n]); return n; } };
-  const r = runCmd31('/give multishot 20', ctx); ok(r.ok, r.msg); eq(calls[0], ['multishot', 20]);
-  runCmd31('/give burning_rounds', ctx); eq(calls[1], ['burning_rounds', 1]);
-  runCmd31('/give toxic 500', ctx); eq(calls[2], ['toxic_rounds', 99], 'the count is capped at 99');
-  ok(comp31('/give cryo').some((l) => l.includes('cryo_rounds')), 'Tab completes boon ids');
+  const r = runCmd31('/effect multishot 20', ctx); ok(r.ok, r.msg); eq(calls[0], ['multishot', 20]);
+  runCmd31('/effect burning_rounds', ctx); eq(calls[1], ['burning_rounds', 1]);
+  runCmd31('/effect toxic 500', ctx); eq(calls[2], ['toxic_rounds', 99], 'the count is capped at 99');
+  ok(comp31('/effect cryo').some((l) => l.includes('cryo_rounds')), 'Tab completes boon ids');
   for (const id of ['cryo_rounds', 'burning_rounds', 'toxic_rounds', 'static_rounds', 'devouring_rounds', 'threadneedle_rounds', 'blast_rounds']) ok(BN.BOON_BY_ID[id], id);
-  const t = BN.boonTotals({ boons: { cryo_rounds: 2, burning_rounds: 1 } }); eq([t.cryo, t.burnDot], [2, 0.2]);
+  const t = BN.boonTotals({ boons: { cryo_rounds: 2, burning_rounds: 1 } }); eq([t.cryo, t.burnDot], [2, 0.12]);
 });
 test('U31 loot reshuffle: every perk lands in several pools, families lean toward their perks, pools stay stable', () => {
   const all = [...LEGENDARY_WEAPONS.map((l) => ({ ...l, rarity: 'legendary' })), ...NAMED_WEAPONS];
@@ -4848,3 +4850,32 @@ sum.textContent = `${pass} passed, ${fail} failed`;
 sum.className = fail ? 'fail' : 'pass';
 window.TEST_RESULTS = { pass, fail };
 
+
+test('H30b offers: single-use and capped boons leave the pool, boss orbs are exotic, orb ids', () => {
+  for (const id of ['static_rounds', 'devouring_rounds', 'threadneedle_rounds']) eq(BN.boonMax(id), 1, `${id} is single use`);
+  eq(BN.boonMax('multishot'), 4); eq(BN.boonMax('beacon'), 3); eq(BN.boonMax('marksman'), Infinity, 'plain stacking boons are unlimited');
+  const held = { static_rounds: 1, multishot: 4, marksman: 9 };
+  eq(BN.boonOpen({ boons: held }, 'static_rounds'), false); eq(BN.boonOpen({ boons: held }, 'multishot'), false); eq(BN.boonOpen({ boons: held }, 'marksman'), true);
+  for (let i = 1; i <= 300; i++) {
+    const ids = BN.rollOffer(seeded(i), WPOOL, 3, { held }).filter((o) => o.kind === 'boon').map((o) => o.id);
+    ok(!ids.includes('static_rounds') && !ids.includes('multishot'), 'a maxed boon is never offered again');
+  }
+  const exoIds = BN.BOONS.filter((b) => b.exotic).map((b) => b.id); ok(exoIds.length >= 6 && exoIds.includes('phoenix_rite'), 'phoenix rite is exotic');
+  for (let i = 1; i <= 200; i++) {
+    const off = BN.rollOrbOffer(i * 31, WPOOL, { boss: true });
+    eq(off.filter((o) => o.kind === 'boon').length, 3); ok(off.filter((o) => o.kind === 'boon').every((o) => BN.BOON_BY_ID[o.id].exotic), 'a boss orb offers exotic boons');
+    ok(off[3].kind === 'weapon' && off[3].exotic, 'and an exotic weapon swap');
+  }
+  const all = Object.fromEntries(exoIds.map((id) => [id, 3]));
+  ok(BN.rollOrbOffer(7, [], { boss: true, held: all }).every((o) => !BN.BOON_BY_ID[o.id].exotic), 'with every exotic maxed, a boss orb falls back to normal boons');
+  ok(BN.isBossOrb(1299) && !BN.isBossOrb(1233) && !BN.isBossOrb(101), 'boss orb ids end in 99');
+});
+
+test('H30b scale-back: starting values are smaller, stacks still add linearly', () => {
+  const run = BN.newBoonRun();
+  BN.addBoon(run, 'overcharge'); eq(BN.boonTotals(run).killSuper, 1, 'one Overcharge = 1% super per kill');
+  BN.addBoon(run, 'overcharge'); eq(BN.boonTotals(run).killSuper, 2, 'two = 2%');
+  const r2 = BN.newBoonRun(); for (let i = 0; i < 4; i++) BN.addBoon(r2, 'lightbringer'); near(BN.chargeMult(BN.boonTotals(r2), 'super'), 3.4, 1e-9, 'four stacks, 60% each');
+  const r3 = BN.newBoonRun(); BN.addBoon(r3, 'worldbreaker'); BN.addBoon(r3, 'worldbreaker');
+  near(BN.damageMult(BN.boonTotals(r3), { boss: true }), 1 + 2 * (0.15 + 0.20), 1e-9, 'exotic boons stack too');
+});
