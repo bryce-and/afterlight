@@ -33,6 +33,7 @@ import { sightFor } from './sights.js';
 import { weaponHandling, recoilProfileFor, recoilKick, recoilQueue, recoilStep, newRecoilState } from './frames.js';
 import { brickScale } from './tiers.js';
 import { DEV } from './devcommands.js';
+import { HEART, NEZAREC, CONTRAVERSE } from './combat.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops, falloffMult } from './combat.js';
 import { applyBoonStats, reloadMult, moveMult, outgoing, afterHit, onKillBoons, incoming, phoenixSave, onGrenade, shots } from './boon-run.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
@@ -1663,8 +1664,12 @@ export class Player {
     this.prismOnKill(e, o); // U27: Transcendence extends, Prismatic Facets
     if (!chain) this.setsOnKill(o);
     this.exoKill(e, o, chain); // U31 exotic armor
+    if (this.exo.has('starfire') && !chain && o.source === 'ability' && G.time < this.grenadeWin && this.cls.abilities.grenade.element === 'solar') {
+      this.cd.grenade = Math.max(0, this.cd.grenade - this.cdMax.grenade * STARFIRE.refund);
+    }
     if (this.exo.has('nighthawk') && o.source === 'super' && this.superActive?.type === 'revolver') this.hawkKill = true; // refund when the super ends
     if (o.source === 'ability' || o.source === 'melee') {
+      if (this.exo.has('nezarec') && o.element === 'void') this.status.apply('nezarec', { t: 5 }); // Void ability kills
       if (this.exo.has('skullfort') && this.meleeT > 0) { this.cd.melee = 0; this.healPct(1); this.status.apply('skullfort', { set: true }); }
       if (this.exo.has('quietone') && o.element === 'void') this.healPct(QUIET.heal); // Mask of the Quiet One
       if (this.exo.has('sunbracers') && o.element === 'solar' && this.meleeT > 0) this.status.apply('sunbracers', { t: SUNBRACERS.t, set: true });
@@ -1780,7 +1785,11 @@ export class Player {
   traitHitOpts(e, o) {
     // Liar's Handshake: a powered melee hit grants Cross Counter (not the uncharged melee that spends it)
     if (this.exo.has('liars') && !this.inBasicMelee && G.time < this.meleeWin) this.status.apply('crosscounter', { t: LIARS.t, set: true });
-    this.exoHit(o, e); // U31 exotic armor (Young Ahamkara's Spine, Precious Scars, Karnstein Armlets)
+    if (this.exo.has('ahamkara') && o.source === 'ability' && G.time < this.grenadeWin && this.meleeT <= 0 && G.time - this.ahamAt >= AHAMKARA.gap) {
+      this.ahamAt = G.time; // Young Ahamkara's Spine
+      for (const k of ['melee', 'class']) this.cd[k] = Math.max(0, this.cd[k] - this.cdMax[k] * AHAMKARA.refund);
+    }
+    this.exoHit(o, e); // U31 exotic armor (Precious Scars, Karnstein Armlets)
     const A = this.asp;
     if (!A.size) return null;
     const melee = o.source === 'melee' || this.inBasicMelee || G.time < this.meleeWin; // grenade hits fall outside the melee window
@@ -2269,15 +2278,15 @@ export class Player {
       for (const w of this.weapons) { w.ammo = w.mag; if (w.reserve !== Infinity) w.reserve = w.maxReserve; if (w.A.glaive) w.energy = 100; }
     }
     const song = this.keepsGuns ? SONG.abilityRegen : 1;
-    const nez = 1; // U31: Nezarec's Sin no longer speeds recharge
+    const nez = this.status.has('nezarec') ? NEZAREC.regen : 1; // Nezarec's Sin
     const boost = this.buildRegen();
     // v1.7 exotics, outside REGEN_CAP like the others: Mask of the Quiet One, Hallowfire Heart, Graviton Forfeit (melee)
     const hallow = this.exo.has('hallowfire') && !this.superActive && this.superCharge >= 100;
     if (hallow) this.status.apply('hallowfire', { set: true }); else this.status.remove('hallowfire');
-    const exo = 1; // U31: Mask of the Quiet One and Hallowfire Heart no longer speed recharge
+    const exo = (this.status.has('quietone') ? QUIET.regen : 1) * (hallow ? HALLOWFIRE.regen : 1);
     const grav = this.exo.has('graviton') && this.status.has('invisible') ? GRAVITON.melee : 1;
     for (const k of ['grenade', 'melee', 'class']) {
-      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * nez * boost[k] * exo * (k === 'melee' ? grav : 1) * this.darkRegen(k) * this.prismRegen(k)); // U22: Chilled, Banner; U27: Transcendent of War, Weavewalk
+      this.cd[k] = Math.max(0, this.cd[k] - dt * (k === 'class' ? 1 : song) * nez * (this.status.has('heart', k) ? HEART.regen : 1) * boost[k] * exo * (k === 'melee' ? grav : 1) * this.darkRegen(k) * this.prismRegen(k)); // U22: Chilled, Banner; U27: Transcendent of War, Weavewalk
     }
     const IC = ASPECT_TUNE.icarus; // Icarus Dash: charges come back one at a time
     if (this.icarus.n < IC.charges && (this.icarus.t -= dt) <= 0) { this.icarus.n++; this.icarus.t = IC.cd; }
@@ -2363,7 +2372,8 @@ export class Player {
 
   /** Heart of Inmost Light: using one ability empowers the other two. */
   empowerOthers(used) {
-    // U31: Heart of Inmost Light now charges a Light nova (exotic-armor-u31.js exoUse); it no longer empowers the other abilities
+    if (!this.exo.has('heart')) return;
+    for (const k of ['grenade', 'melee', 'class']) if (k !== used) this.status.apply('heart', { scope: k, t: 8, set: true });
   }
 
   useGrenade() {
@@ -2439,8 +2449,10 @@ export class Player {
     if (this.isDarkGrenade(g)) { this.darkGrenade(g, pt, hitEnemy); return; } // U22: Stasis and Strand grenades (darkness.js)
     pt.y = Math.max(pt.y, 0.3);
     onGrenade(this, pt.clone()); // U24: Scorched Earth
-    this.exoGrenade(g, pt); // U31: Contraverse Hold, Phoenix Cradle
+    if (this.exo.has('contraverse') && g.element === 'void' && enemiesNear(pt, 6).length) this.cd.grenade *= 1 - CONTRAVERSE.refund; // refund (Void grenades)
+    this.exoGrenade(g, pt); // U31: Phoenix Cradle
     if (this.exo.has('raspberry') && g.element === 'arc') {
+      if (enemiesNear(pt, 6).length) this.cd.grenade *= 1 - RASPBERRY.refund;
       // Lucky Raspberry: Arc grenades chain lightning into more enemies (U31: the cooldown refund is gone)
       this.jolt(pt.clone(), RASPBERRY.chains, 120);
     }

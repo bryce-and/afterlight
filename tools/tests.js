@@ -939,7 +939,7 @@ test('class exotics: two per slot per class plus the H26 Darkness pieces (10 eac
   eq(Object.keys(EXOTIC_ARMOR_PERKS).length, 45, 'no stray exotic perks');
   for (const id of ids) if (!['loreley', 'scars', 'doomfang', 'actium', 'burningsteps', 'bakris', 'cowl', 'tricksleeves', 'gyrfalcon', 'dragonshadow', 'verity', 'crown', 'phoenixcradle', 'karnstein', 'vesper', 'hoarfrost', 'abeyant', 'renewal', 'cyrtarachne', 'osmiomancy', 'swarmers', 'skullfort', 'synthoceps', 'dunemarchers', 'stomp', 'transversive', 'raiden', 'liars', 'starfire', 'graviton', 'ahamkara', 'raspberry', 'orpheus', 'ursa', 'peacekeepers'].includes(id)) ok(STATUS[id] || ['heart', 'nighthawk', 'nezarec', 'contraverse'].includes(id), `${id} shows in the buff HUD`);
   for (const c of Object.keys(D)) for (let i = 0; i < 12; i++) { const it = makeArmor('chest', 50, 4, null, c); ok(it.classId === c && EXOTIC_ARMOR[c].chest.includes(it.name), `${c} chest exotic`); }
-  ok(C.LIARS.mult === 2 && C.RAIDEN.maxExtend === 5 && C.RAIDEN.step * C.RAIDEN.maxStacks === 0.5 && C.STARFIRE.refund === 0.2);
+  ok(C.LIARS.mult === 2 && C.RAIDEN.maxExtend === 5 && C.RAIDEN.step * C.RAIDEN.maxStacks === 0.5 && C.STARFIRE.refund === 0.5);
 });
 
 test('exotic duplicate protection: unfound exotics are favored until every one is found', () => {
@@ -4758,10 +4758,10 @@ test('U31 sights: only hand cannons, shotguns and sidearms roll them; fusions ke
 });
 test('U31 exotic armor: every new piece has a perk, a look, an effect hook, and Multishot is primary only', () => {
   const E = EXO31H;
-  for (const id of ['loreley','scars','doomfang','actium','burningsteps','bakris','cowl','tricksleeves','gyrfalcon','dragonshadow','verity','crown','phoenixcradle','karnstein','vesper','heart','hallowfire','ahamkara','contraverse','starfire','nezarec','quietone']) ok(E.EXO31[id], `${id} has tuning`);
+  for (const id of ['loreley','scars','doomfang','actium','burningsteps','bakris','cowl','tricksleeves','gyrfalcon','dragonshadow','verity','crown','phoenixcradle','karnstein','vesper']) ok(E.EXO31[id], `${id} has tuning`);
   for (const [name, p] of Object.entries(EXOTIC_ARMOR_PERKS)) if (!p.sub) ok(ST.lookOf({ kind: 'armor', rarity: 'exotic', name, slot: 'helmet', classId: 'vanguard' }) !== 'exotic' || true, name);
   for (const m of ['exoKill', 'exoHit', 'exoIncoming', 'exoUse', 'exoTick', 'exoGrenade', 'exoOutgoing']) eq(typeof E.exoArmorMethods[m], 'function', m);
-  for (const n of ['Heart of Inmost Light', 'Hallowfire Heart', "Young Ahamkara's Spine", 'Contraverse Hold', 'Starfire Protocol', "Nezarec's Sin", 'Mask of the Quiet One', 'Lucky Raspberry']) ok(!/recharge|refund|energy/i.test(EXOTIC_ARMOR_PERKS[n].desc), `${n}: no % ability-energy perk`);
+  ok(C.HALLOWFIRE.regen >= 2.5 && C.QUIET.regen >= 2.5 && C.HEART.regen >= 2.5 && C.NEZAREC.regen >= 3 && C.STARFIRE.refund >= 0.5 && C.AHAMKARA.refund >= 0.15 && C.RASPBERRY.refund >= 0.6 && C.CONTRAVERSE.refund >= 0.6, 'the percentage exotics are stronger');
   eq(BRUN.shots(4, 'special').total, 4, 'Multishot leaves special weapons alone');
 });
 test('U31 Phoenix Rite grants a grace period, Needlestorm is wide', () => {

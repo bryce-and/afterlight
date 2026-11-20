@@ -23,9 +23,9 @@ export const NOVA_FIELD = { life: 6, radius: 6, tick: 0.5, dmg: 50, weaken: 1, s
 /** Class exotics added in v1.6. */
 export const LIARS = { t: 5, mult: 2, heal: 0.4 }; // Liar's Handshake: Cross Counter
 export const RAIDEN = { extend: 0.5, maxExtend: 5, window: 1, step: 0.1, maxStacks: 5 }; // Raiden Flux
-export const STARFIRE = { refund: 0.2 }; // Starfire Protocol: Solar grenade kills
+export const STARFIRE = { refund: 0.5 }; // Starfire Protocol: Solar grenade kills
 /** Class exotics added in v1.7. */
-export const QUIET = { t: 4, regen: 1.5, heal: 0.4 }; // Mask of the Quiet One
+export const QUIET = { t: 4, regen: 2.5, heal: 0.4 }; // Mask of the Quiet One
 export const URSA = { perDmg: 0.25, max: 50 }; // Ursa Furiosa: super % per point of blocked damage
 // Damage taken while each super is active. H3: every roaming super takes 70% less (ROAM_ARMOR).
 // U9: burst supers hover the caster while casting and take 85% less (BURST_ARMOR); Well and Ward slam down first.
@@ -53,10 +53,13 @@ export function barrierStops(px, py, pz, yaw, p) {
 /** U9: a Warlock rift takes the caster's subclass element (older replays without one keep the v1.8 colors). */
 export const riftElement = (el, kind) => el || (kind === 'empower' ? 'arc' : 'void');
 export const SENTINEL_GUARD = { cut: 0.95, blind: 3 }; // Sentinel Shield guard (hold right-click): share of incoming damage blocked (85% before v1.8.1)
-export const HALLOWFIRE = { regen: 1.6 }; // Hallowfire Heart
+export const HALLOWFIRE = { regen: 2.5 };
+export const HEART = { regen: 2.5, dmg: 1.5 }; // Heart of Inmost Light (U31: stronger)
+export const NEZAREC = { regen: 3 }; // Nezarec's Sin: ability recharge multiplier for 5s (U31: was 2)
+export const CONTRAVERSE = { refund: 0.6 }; // Contraverse Hold: share of the grenade cooldown refunded (U31: was 0.3) // Hallowfire Heart
 export const GRAVITON = { dur: 1.5, melee: 2, heal: 0.15 }; // Graviton Forfeit (heal per second)
-export const AHAMKARA = { refund: 0.05, gap: 0.2 }; // Young Ahamkara's Spine (per grenade hit, at most once per gap)
-export const RASPBERRY = { chains: 2, refund: 0.3 }; // Lucky Raspberry
+export const AHAMKARA = { refund: 0.15, gap: 0.2 }; // Young Ahamkara's Spine (per grenade hit, at most once per gap)
+export const RASPBERRY = { chains: 2, refund: 0.6 }; // Lucky Raspberry
 export const ORPHEUS = { perEnemy: 5, max: 50 }; // Orpheus Rig
 export const DIRE = { perKill: 5, max: 40, t: 5, cut: 0.7 }; // Skull of Dire Ahamkara
 export const SUNBRACERS = { t: 5, gap: 0.8 }; // Sunbracers: free grenades, at most one per gap

@@ -22,7 +22,7 @@ import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
-import { ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, CACHE_LIGHT, ENGRAM_LIGHT, engramLight } from './combat.js';
+import { HEART, ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, CACHE_LIGHT, ENGRAM_LIGHT, engramLight } from './combat.js';
 import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from './tiers.js';
 import { WEAKEN_MULT } from './status.js';
 import { effectiveLight, lightGap, lightMults, scrambleName } from './light.js';
@@ -1655,6 +1655,7 @@ function exoticArmorMult(o) {
     const melee = o.source === 'melee' || (o.source === 'ability' && P.meleeT > 0) || (o.source === 'super' && MELEE_SUPERS.has(S?.type));
     if (melee && enemiesNear(P.pos, 12).length >= 3) m *= 2; // Synthoceps: surrounded
   }
+  if (P.exo.has('heart') && o.source === 'ability' && (P.status.has('heart', 'grenade') || P.status.has('heart', 'melee'))) m *= HEART.dmg; // Heart of Inmost Light
   m *= P.exoOutgoing(o); // U31: Mechaneer's Tricksleeves
   return m;
 }
