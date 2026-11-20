@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G } from './state.js';
-import { CLASSES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF } from './data.js';
+import { CLASSES, WEAPON_SLOTS, ARMOR_SLOTS, ELEMENTS, EXOTIC_ARMOR_PERKS, DEFAULT_FALLOFF, ARCHETYPES } from './data.js';
 import { clamp, lerp, damp } from './util.js';
 import { moveBody, hasLOS, pointInColliders, rayGround, groundAt, floorBelow } from './physics.js';
 import { buildGunModel, buildSuperModel } from './models.js';
@@ -3093,7 +3093,10 @@ export class Player {
         prev = c;
       }
       castFx('chain', { pts, el: 'solar', beam: true, w: 0.12 });
-      this.kick = 1; this.pitch += 0.05; flash.visible = true;
+      // U31: Golden Gun kicks like a hand cannon: up and to the right over a few frames, then eases back (the hand cannon profile, a heavier shot)
+      const hp = recoilProfileFor(ARCHETYPES.hand), hk = recoilKick(hp, ARCHETYPES.hand.recoil * 1.5);
+      this.recoilProf = hp; recoilQueue(this.recoilSt, hp, hk);
+      this.kick = 1; this.shake = Math.max(this.shake, (hp.shake || 0) * 1.5); flash.visible = true;
       flashLight(this.eye, ELEMENTS.solar.hex, 40, 12, 0.15);
       ui.screenFlash('#ffb547', 0.15);
       this.fovKick = Math.max(this.fovKick, 4);

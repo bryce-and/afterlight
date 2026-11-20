@@ -55,6 +55,7 @@ import * as SI from '../js/sights.js';
 import * as BRUN from '../js/boon-run.js';
 import * as EXO31H from '../js/exotic-armor-u31.js';
 import * as WP31 from '../js/weapon-perks-u31.js';
+import * as FR31 from '../js/frames.js';
 import { runCommand as runCmd31, completions as comp31 } from '../js/devcommands.js';
 import * as DCAM from '../js/deathcam.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
@@ -4809,6 +4810,10 @@ test('U31 loot reshuffle: every perk lands in several pools, families lean towar
   const share = (arch, perk) => { const ws = all.filter((w) => w.arch === arch); return ws.filter((w) => Object.values(perkPoolFor(w)).flat().includes(perk)).length / ws.length; };
   ok(share('shotgun', 'closer') > share('auto', 'closer') && share('sniper', 'longshot') > share('auto', 'longshot'), `shotguns lean Closer (${share('shotgun', 'closer').toFixed(2)} vs ${share('auto', 'closer').toFixed(2)}) and snipers lean Long Shot (${share('sniper', 'longshot').toFixed(2)} vs ${share('auto', 'longshot').toFixed(2)})`);
   eq(perkPoolFor(all[3]), perkPoolFor(all[3]), 'stable');
+});
+test('U31 Golden Gun uses the hand cannon recoil profile', () => {
+  const prof = FR31.recoilProfileFor(ARCHETYPES.hand); ok(prof && prof.riseTime > 0, 'the hand cannon has a recoil profile');
+  const k = FR31.recoilKick(prof, ARCHETYPES.hand.recoil * 1.5, () => 0.5); ok(k.pitch > 0 && k.yaw < 0, 'kicks up and to the right');
 });
 test('U31 Phoenix Rite grants a grace period, Needlestorm is wide', () => {
   ok(BRUN.PHOENIX_GRACE >= 2, 'Phoenix Rite protects you for a moment after the save');
