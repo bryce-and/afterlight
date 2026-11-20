@@ -5,6 +5,7 @@ import { armorTotal, rollStats, blankMods } from './armor.js';
 import { namedFor, perkPoolFor, rollPerks, weaponStats, frameSlot, archesForSlot } from './frames.js';
 import { SETS, setForDrop, setPieceName } from './style.js';
 import { EXOTIC_CLASS_ITEMS, rollSpirits } from './exotic-class-items.js';
+import { rollSight } from './sights.js';
 
 /** U27: exotic class items drop only once Prismatic is unlocked (save.js keeps this switch in step with the save). */
 export const classItemExotics = { on: false };
@@ -59,6 +60,7 @@ export function makeWeapon(slot, power, rIdx, archOverride, exoticName = null, n
     perks = rollPerks(perkPoolFor(named), rar.id);
   }
   const item = { id: newId(), kind: 'weapon', slot: tpl?.slot || slot, arch, frame, element, rarity: rar.id, name, power: clampPower(power), stats: null, perks, exotic, flavor, isNew: true };
+  const sight = rollSight(arch); if (sight !== 'iron') item.sight = sight; // U31: red dot, holo or reflex on hand cannons, shotguns and sidearms
   if (tpl) { item.exoticPerks = [...tpl.perks]; item.mods = mods; }
   item.stats = weaponStats(item); // includes the heavy-slot damage bonus
   if (item.slot === 'heavy' && A.slot !== 'heavy' && frameSlot(arch, frame) === A.slot) heavyVersion(item);

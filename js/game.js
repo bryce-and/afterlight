@@ -1423,7 +1423,7 @@ function startWave() {
     newWave(); // Phoenix Rite saves refill
   }
   z.waves = activityWave(n);
-  if (M.act.roguelike) M.dropPlan = newDropPlan(z.waves.reduce((a, w) => a + w.length, 0), Math.random, beaconDrops()); // U30: 2 to 5 boon orbs this round
+  if (M.act.roguelike) M.dropPlan = newDropPlan(z.waves.reduce((a, w) => a + w.length, 0), Math.random, beaconDrops(), n); // U31: a share of the round's enemies drop orbs, a larger share each wave
   z.waveIdx = 0;
   z.enemies = [];
   spawnWave(z, 0);

@@ -107,7 +107,7 @@ export const SUPER_TUNE = {
   silencesquall: { silenceR: 6, silence: 700, shatter: 1300, squallR: 4, squall: 40, life: 8, speed: 5 },
   cradle: { r: 10, dmg: 2000, delay: 1.4 },
   absolutezero: { r: 12, dmg: 600, shatter: 1600, delay: 1.0 },
-  needlestorm: { r: 7, dmg: 1500, threadlings: 4 },
+  needlestorm: { r: 11, dmg: 1500, threadlings: 4 },
 };
 
 // ---------- weapon damage ----------

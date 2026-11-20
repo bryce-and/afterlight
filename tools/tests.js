@@ -51,6 +51,8 @@ import * as CA from '../js/campaign.js';
 import * as RW from '../js/rewards.js';
 import * as BZ from '../js/blitz.js';
 import * as BN from '../js/boons.js';
+import * as SI from '../js/sights.js';
+import * as BRUN from '../js/boon-run.js';
 import * as DCAM from '../js/deathcam.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
@@ -4400,12 +4402,15 @@ test('U30 Multishot: +50% bullets per stack (at least +1), capped, and none with
   eq(BN.shotCount(BN.boonTotals(run), 1), { total: 5, extra: 4 }, 'four stacks at most');
 });
 
-test('U30 boon drops: a round budget is 2 to 5, a plan drops exactly that many, elites lean first, offers are seeded', () => {
+test('U30/U31 boon drops: the budget is a share of the round that grows with the wave, a plan drops exactly that many, elites lean first, offers are seeded', () => {
   const r = mulberry32(7);
-  for (const count of [3, 8, 14, 40, 90]) for (let i = 0; i < 200; i++) { const n = BN.rollDropBudget(count, r); ok(n >= 2 && n <= 5, `budget ${n} for ${count} enemies`); }
-  const seen = new Set(); for (let i = 0; i < 400; i++) seen.add(BN.rollDropBudget(40, r)); eq([...seen].sort(), [2, 3, 4, 5], 'every size from 2 to 5 occurs');
+  ok(BN.dropRate(1) < BN.dropRate(10) && BN.dropRate(10) < BN.dropRate(25), 'the drop share rises with the wave');
+  eq(BN.dropRate(500), BN.DROP_RATE.max, 'the share is capped');
+  for (const count of [3, 8, 14, 40, 90]) for (const wave of [1, 10, 30]) for (let i = 0; i < 100; i++) { const n = BN.rollDropBudget(count, r, wave), want = count * BN.dropRate(wave); ok(n >= BN.DROPS_MIN && n <= Math.max(BN.DROPS_MIN, Math.ceil(want)), `budget ${n} for ${count} enemies on wave ${wave}`); }
+  const avg = (wave) => { let t = 0; for (let i = 0; i < 400; i++) t += BN.rollDropBudget(80, r, wave); return t / 400; };
+  ok(avg(20) > avg(1) * 1.8, 'wave 20 drops far more orbs than wave 1 for the same enemy count');
   for (const count of [2, 5, 20, 60]) for (let t = 0; t < 100; t++) {
-    const plan = BN.newDropPlan(count, r), want = plan.left; let got = 0; const ids = [];
+    const plan = BN.newDropPlan(count, r, 0, 1 + (t % 30)), want = plan.left; let got = 0; const ids = [];
     for (let k = 0; k < count; k++) if (BN.shouldDropBoon(plan, k % 4 === 0 ? BN.DROP_ELITE_WEIGHT : 1, r)) { got++; ids.push(plan.seq); }
     eq(got, Math.min(want, count), `a round of ${count} kills drops its ${want} orbs`); eq(ids, ids.map((_, i) => i + 1), 'orb ids count up from 1');
     ok(!BN.shouldDropBoon(plan, 1, r) || plan.left >= 0, 'never past the budget');
@@ -4733,6 +4738,26 @@ test('U29 every boss builder keeps its baseline: height, footprint, crit region,
     if (my < 0 || my > n.maxY || mx < n.minX || mx > n.maxX || mz < n.minZ || mz > n.maxZ + 1.6) bad.push(`${k}: muzzle ${n.muzzle} outside the model`);
   }
   eq(bad, [], bad.join(' | '));
+});
+
+test('U31 exotic fixes: Dead Messenger 1 in the mag, Arbalest special, Lord of Wolves ammo scales with its bursts', () => {
+  const dm = makeExotic('Dead Messenger', 100); eq(dm.stats.mag, 1, 'Dead Messenger holds one grenade');
+  const ar = makeExotic('Arbalest', 100); eq(ar.slot, 'special', 'Arbalest is a special weapon');
+  ok(ar.stats.dmg < ARCHETYPES.linear.dmg * 0.9 && ar.stats.dmg > 200, `Arbalest special damage ${ar.stats.dmg}`);
+  const low = makeExotic('Lord of Wolves', 100), A = weaponHandling(low);
+  ok(A.brick >= A.burst * 3, `a Lord of Wolves brick (${A.brick}) covers at least three ${A.burst}-round bursts`);
+  ok(A.reserve >= A.brick * 4, 'reserve holds several bricks');
+});
+test('U31 sights: only hand cannons, shotguns and sidearms roll them; fusions keep iron sights; linear fusion is calmer', () => {
+  const r = mulberry32(3);
+  for (const arch of ['hand', 'shotgun', 'sidearm']) { const seen = new Set(); for (let i = 0; i < 200; i++) seen.add(SI.rollSight(arch, r)); ok(seen.has('reddot') && seen.has('iron'), `${arch} rolls a red dot and iron sights`); for (const id of seen) ok(SI.SIGHTS[id], `known sight ${id}`); }
+  for (const arch of ['fusion', 'linear', 'sniper', 'auto', 'scout', 'rocket']) eq(SI.rollSight(arch, r), 'iron', `${arch} has iron sights`);
+  ok(ARCHETYPES.linear.zoom <= 1.6 && ARCHETYPES.fusion.zoom < 3, 'fusions are not scoped');
+  ok(ARCHETYPES.linear.recoil <= 0.03, 'linear fusion recoil is low');
+});
+test('U31 Phoenix Rite grants a grace period, Needlestorm is wide', () => {
+  ok(BRUN.PHOENIX_GRACE >= 2, 'Phoenix Rite protects you for a moment after the save');
+  ok(C.SUPER_TUNE.needlestorm.r >= 11, 'Needlestorm radius');
 });
 
 for (const t of tests) {

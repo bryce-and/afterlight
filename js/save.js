@@ -1,4 +1,4 @@
-import { SLOTS, SLOT_NAMES, WEAPON_SLOTS, ARMOR_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, rarityIndex } from './data.js';
+import { SLOTS, SLOT_NAMES, WEAPON_SLOTS, ARMOR_SLOTS, LOCATIONS, RARITIES, CLASSES, EXOTIC_ARMOR, ARCHETYPES, HEAVY_VERSION, EXOTIC_WEAPONS, rarityIndex } from './data.js';
 import { resolveKit, sanitizeLoadout } from './subclass.js';
 import { starterGear, dismantleValue, armoryGear, rollItem, makeArmor, classItemExotics } from './loot.js';
 import { levelInfo, rewardAt, subclassLevel, convertXp, canUseRarity, LEVEL_TOO_LOW } from './progression.js';
@@ -208,6 +208,18 @@ export function refreshWeapons(s) {
     if (it.name === 'Xenophage' && it.arch === 'mg') { // H7: Xenophage is its own Heavy family that fires solar bolts
       Object.assign(it, { arch: 'xenophage', mods: {}, reserve: ARCHETYPES.xenophage.reserve, brick: ARCHETYPES.xenophage.brick });
       n++;
+    }
+    if (it.rarity === 'exotic') { // U31: ammo (and Arbalest's slot) of owned exotics follow the data
+      const tpl = EXOTIC_WEAPONS.find((e) => e.name === it.name && e.arch === it.arch);
+      if (tpl) {
+        it.mods ||= {};
+        for (const k of ['reserve', 'brick']) if (tpl.mods?.[k] != null && it.mods[k] !== tpl.mods[k]) { it.mods[k] = tpl.mods[k]; n++; }
+        if (it.name === 'Arbalest' && it.slot === 'heavy' && tpl.slot === 'special') { // moves to Special unless it is the equipped Heavy with no spare
+          const wasEq = s.equipped?.heavy === it.id;
+          const spare = wasEq ? (s.inventory || []).find((x) => x.kind === 'weapon' && x.slot === 'heavy' && x.id !== it.id) : true;
+          if (spare) { if (wasEq) s.equipped.heavy = spare.id; it.slot = 'special'; it.reserve = tpl.mods.reserve; it.brick = tpl.mods.brick; n++; }
+        }
+      }
     }
     const st = weaponStats(it);
     let changed = JSON.stringify(st) !== JSON.stringify(it.stats);

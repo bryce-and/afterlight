@@ -409,7 +409,8 @@ export function weaponStats(item) {
   if (fr) Object.assign(f, fr.stats);
   if (item.rarity === 'exotic') {
     const tpl = EXOTIC_WEAPONS.find((e) => e.name === item.name);
-    for (const [k, v] of Object.entries(tpl?.mods || {})) if (STAT_KEYS.includes(k)) f[k] *= v;
+    const legacySlot = tpl?.slot && item.slot !== tpl.slot; // U31: an Arbalest still in the Heavy slot (old save, no spare Heavy) keeps its old damage
+    for (const [k, v] of Object.entries(tpl?.mods || {})) if (STAT_KEYS.includes(k) && !(legacySlot && k === 'dmg')) f[k] *= v;
   }
   const stats = {
     dmg: +(A.dmg * rar.mult * f.dmg).toFixed(1),

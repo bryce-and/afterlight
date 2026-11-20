@@ -28,6 +28,7 @@ import { DEATH_CAM, deathPhase, collapseK, newOrbit, orbitStep, orbitOffset, pus
 import * as ui from './ui.js';
 import { StatusSet } from './status.js';
 import { regenMult, HAMMER_FUSE, SUPERS, JUMP_TUNE, ASPECT_TUNE, FRAGMENT_TUNE } from './subclass.js';
+import { sightFor } from './sights.js';
 import { weaponHandling, recoilProfileFor, recoilKick, recoilQueue, recoilStep, newRecoilState } from './frames.js';
 import { brickScale } from './tiers.js';
 import { DEV } from './devcommands.js';
@@ -61,13 +62,14 @@ function makeWeapon(item) {
   if (!item) throw new Error('Player: an equipped weapon is missing from the save.');
   // the weapon's archetype (frame) and exotic overrides shape its handling (burst size, pellets, charge...)
   const A = weaponHandling(item);
+  const sight = sightFor(item); A.zoom *= sight.zoom; // U31: sights change zoom and ADS speed (adsSpeed)
   const perks = new Set([...(item.perks || []), ...(item.exoticPerks || [item.exotic])].filter(Boolean));
   // Swords have no magazine: one pool of ammo (45 to 60 by frame) that pickups refill
   const mag = A.sword ? Math.round((A.sword.pool ?? 50) * (perks.has('deepreserve') ? 1.2 : 1)) : Math.max(1, Math.round(item.stats.mag * (perks.has('extmag') ? 1.3 : 1)));
   const primary = item.slot === 'primary';
   const reserveBase = item.reserve ?? A.reserve, brick = item.brick ?? A.brick;
   return {
-    item, A, s: item.stats, has: (p) => perks.has(p), mag, ammo: mag,
+    item, A, s: item.stats, has: (p) => perks.has(p), mag, ammo: mag, sight: sight.ret, adsSpeed: sight.ads,
     reserve: primary ? Infinity : A.sword ? 0 : Math.round(reserveBase * 0.7), maxReserve: primary ? Infinity : A.sword ? 0 : Math.round(reserveBase * 1.5), brick,
     fireCd: 0, reloading: false, reloadT: 0, reloadMax: 1, burstLeft: 0, charge: 0, queued: 0, bloom: 0,
     energy: A.glaive ? 60 : 0, beamT: 0, revStacks: 0, hitCount: 0, precHits: 0, honed: 0, el: null, voltWin: 0, voltArm: false, reconT: 0, killclipWindow: 0, killclipArm: false, model: null,
@@ -581,7 +583,7 @@ export class Player {
       else { if (w.revved) w.revHold = 1.2; w.revT = 0; w.revved = false; }
     }
     this.updateGlaiveShield(dt);
-    this.adsT = damp(this.adsT, wantAds ? 1 : 0, (w.has('snapshot') ? 28 : 14) * (1 + MODS_TUNE.targetAim * (this.ap[TARGET_MOD[w.idx]] || 0)), dt);
+    this.adsT = damp(this.adsT, wantAds ? 1 : 0, (w.has('snapshot') ? 28 : 14) * (w.adsSpeed || 1) * (1 + MODS_TUNE.targetAim * (this.ap[TARGET_MOD[w.idx]] || 0)), dt);
     if (w.has('reconstruction') && !w.reloading && w.ammo < w.mag && w.reserve > 0 && G.time - this.lastFire > 4) {
       w.reconT += dt;
       if (w.reconT >= 0.25) { w.reconT = 0; w.ammo++; if (w.reserve !== Infinity) w.reserve--; }
@@ -2085,7 +2087,7 @@ export class Player {
 
   takeDamage(amount, from) {
     const M = G.mission;
-    if (this.dead || this.stasis || M.phase === 'done' || M.phase === 'loot' || M.chest?.final) return; // the activity is complete: no more damage; U30: stasis while a boon menu is open in co-op
+    if (this.dead || this.stasis || G.time < (this.phoenixT || 0) || M.phase === 'done' || M.phase === 'loot' || M.chest?.final) return; // the activity is complete: no more damage; U30: stasis while a boon menu is open in co-op
     if (DEV.invulnerable) return; // dev console: /gamerule Invulnerable
     if (this.exo.has('quietone')) this.status.apply('quietone', { t: QUIET.t, set: true }); // Mask of the Quiet One
     if (this.superActive?.guard) {

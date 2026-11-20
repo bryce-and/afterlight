@@ -193,13 +193,15 @@ export const incoming = (amount) => (on() ? amount * damageTakenMult(bt(), G.pla
 export const shots = (base) => (on() ? { ...shotCount(bt(), base), dmg: MULTISHOT_EXTRA_DMG } : { total: base, extra: 0, dmg: 1 });
 /** Beacon: extra boon orbs this round. */
 export const beaconDrops = () => (on() ? extraDrops(bt()) : 0);
+export const PHOENIX_GRACE = 2.5; // seconds of invulnerability after Phoenix Rite saves you
 /** Phoenix Rite: true when a killing blow was absorbed (the Guardian is left at 1 health). Saves refill each wave. */
 export function phoenixSave(P) {
   if (!on()) return false;
-  const S = G.mission.boonState, saves = Math.round(bt().phoenix || 0);
-  if (S.savesUsed >= saves) return false;
+  const S = G.mission?.boonState, saves = Math.round(bt().phoenix || 0);
+  if (!S || S.savesUsed >= saves) return false;
   S.savesUsed++;
   P.health = 1;
+  P.phoenixT = G.time + PHOENIX_GRACE; // U31: a moment of safety, so the rest of the volley that landed the killing blow cannot finish you
   sparks(P.pos.clone().setY(1), 0xffb347, 40, 8, 0.1, 0.8);
   return true;
 }

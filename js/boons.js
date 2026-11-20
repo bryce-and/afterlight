@@ -186,16 +186,19 @@ export function applyOption(run, option) {
 export const boonDue = () => false;
 
 // ---------- U30 boon drops: orbs left by kills (Risk of Rain style) ----------
-export const DROPS_MIN = 2, DROPS_MAX = 5;
+export const DROPS_MIN = 2, DROPS_MAX = 30;
+/** U31: a round drops a share of its enemies as orbs. The share starts at 6% and gains 0.5% a wave, capped at 18%, so later waves (more enemies) drop more. */
+export const DROP_RATE = { base: 0.06, perWave: 0.005, max: 0.18 };
+export const dropRate = (wave = 1) => Math.min(DROP_RATE.max, DROP_RATE.base + DROP_RATE.perWave * Math.max(0, wave - 1));
 export const DROP_ELITE_WEIGHT = 2.5; // an elite, major or boss kill is this much likelier to drop the orb than a grunt
-/** How many orbs one round drops: DROPS_MIN to DROPS_MAX, leaning higher when the round has more enemies. `rnd` 0..1. */
-export function rollDropBudget(enemyCount, rnd = Math.random) {
-  const lean = Math.min(1, Math.max(0, (enemyCount - 12) / 60)); // 0 for a small round, 1 for a big one
-  const roll = Math.min(1, rnd() * 0.75 + lean * 0.25 + 0.0001);
-  return Math.min(DROPS_MAX, DROPS_MIN + Math.floor(roll * (DROPS_MAX - DROPS_MIN + 1)));
+/** How many orbs one round drops: enemyCount x dropRate(wave), rounded up or down by chance (`rnd` 0..1), at least DROPS_MIN. */
+export function rollDropBudget(enemyCount, rnd = Math.random, wave = 1) {
+  const want = Math.max(0, enemyCount) * dropRate(wave), base = Math.floor(want);
+  const n = base + (rnd() < want - base ? 1 : 0);
+  return Math.min(DROPS_MAX, Math.max(DROPS_MIN, n));
 }
 /** A round's drop plan: `left` orbs still to drop over `remaining` expected kills. */
-export const newDropPlan = (enemyCount, rnd = Math.random, extra = 0) => ({ left: rollDropBudget(enemyCount, rnd) + extra, remaining: Math.max(1, enemyCount), seq: 0 });
+export const newDropPlan = (enemyCount, rnd = Math.random, extra = 0, wave = 1) => ({ left: rollDropBudget(enemyCount, rnd, wave) + extra, remaining: Math.max(1, enemyCount), seq: 0 });
 /**
  * Called once per kill by whoever decides (solo, or the host). Returns true if this kill drops an orb. Spreads the budget over the
  * round's kills, leans toward elites, and always drops once the kills left only just cover the orbs left (so a round never ends short).
