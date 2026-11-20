@@ -15,6 +15,7 @@ import { SCORN_BOSSES } from './bosses-scorn.js';
 import { HIVE_BOSSES } from './bosses-hive.js';
 import { CABAL_BOSSES } from './bosses-cabal.js';
 import { TAKEN_BOSSES } from './bosses-taken.js';
+import { veshraClassic } from './boss-veshra.js';
 import { VEX_BOSSES } from './bosses-vex.js';
 
 
@@ -54,6 +55,7 @@ export const BOSS_MODELS = {
   ...HIVE_BOSSES,
   ...CABAL_BOSSES,
   ...TAKEN_BOSSES,
+  veshra: veshraClassic, // U31: her original Ahamkara model, over the U29 Taken-wizard rebuild
   ...VEX_BOSSES,
   // -------------------------------------------------------------------------
   // CABAL
