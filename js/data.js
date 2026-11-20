@@ -117,6 +117,37 @@ export const PERKS = {
   headstone: { name: 'Headstone', desc: 'Precision kills raise a Stasis crystal where the target fell.' },
   hatchling: { name: 'Hatchling', desc: 'Precision kills weave a threadling that hunts the next enemy.' },
   slice: { name: 'Slice', desc: 'Three hits on one enemy within 1.5s sever it: it deals less damage.' },
+  // U31: thirty new perks (tuning in js/weapon-perks-u31.js PK31). Stasis and Strand perks roll only on weapons of their element (PERK_ELEMENT).
+  lastround: { name: 'Final Round', desc: 'The last round in the magazine deals +50% damage.' },
+  ambush: { name: 'Ambush', desc: 'The first hit on each enemy deals +30% damage.' },
+  closer: { name: 'Closer', desc: '+25% damage to enemies within 10m.' },
+  longshot: { name: 'Long Shot', desc: '+25% damage to enemies beyond 30m.' },
+  focusfire: { name: 'Focus Fire', desc: 'Consecutive hits on one enemy stack +4% damage each (x5). Resets after 2s.' },
+  finishing: { name: 'Finisher', desc: '+40% damage to enemies below 30% health.' },
+  hipfire: { name: 'Hip Fire Grip', desc: '+20% damage while not aiming down sights.' },
+  anchored: { name: 'Anchored', desc: '+25% damage after standing still for 1s.' },
+  echochamber: { name: 'Echo Chamber', desc: 'Three kills within 4s grant +30% damage for 6s.' },
+  hotstart: { name: 'Hot Start', desc: 'Reloading grants +15% damage for 5s.' },
+  ammoreturn: { name: 'Ammo Return', desc: 'Precision kills return a round to the magazine.' },
+  healer: { name: 'Field Medic', desc: 'Each hit restores 2 health.' },
+  shieldrounds: { name: 'Bastion Rounds', desc: 'Kills grant a 15 point overshield (up to 60).' },
+  tenderize: { name: 'Tenderize', desc: 'Every 6th hit weakens the target for 4s.' },
+  permafrost: { name: 'Permafrost', desc: 'Slowed or frozen targets take +20% damage from this weapon.' },
+  winterbite: { name: "Winter's Bite", desc: 'Every 5th hit freezes the target outright.' },
+  frostburst: { name: 'Frost Burst', desc: 'Kills on slowed or frozen enemies chill everything within 5m.' },
+  crystalline: { name: 'Crystalline Rounds', desc: 'Kills on slowed or frozen enemies raise a Stasis crystal.' },
+  coldreload: { name: 'Cold Reload', desc: 'Kills on frozen enemies reload the magazine.' },
+  glacialguard: { name: 'Glacial Guard', desc: 'Kills on frozen enemies grant a 25 point overshield.' },
+  coldfront: { name: 'Cold Front', desc: 'Precision hits send out a chill that slows enemies within 4m of the target.' },
+  brittle: { name: 'Brittle Aim', desc: 'Precision hits on slowed enemies add two more slow stacks.' },
+  unravelrounds: { name: 'Unraveling Rounds', desc: 'Precision hits unravel the target.' },
+  tangle: { name: 'Tangle', desc: 'Every 4th hit suspends the target.' },
+  weaver: { name: "Weaver's Call", desc: 'Kills weave a threadling that hunts the next enemy.' },
+  severing: { name: 'Severing Rounds', desc: 'Hits on unraveled enemies sever them.' },
+  frayed: { name: 'Frayed Edges', desc: 'Severed targets take +25% damage from this weapon.' },
+  tautline: { name: 'Taut Line', desc: 'Suspended targets take +40% damage from this weapon.' },
+  spindle: { name: 'Spindle', desc: 'Kills on severed or unraveled enemies burst into a Strand explosion.' },
+  silkreload: { name: 'Silk Reload', desc: 'Kills on suspended enemies refill a quarter of the magazine.' },
   chainreaction: { name: 'Chain Reaction', desc: 'Every kill sets off an elemental explosion.' },
   demolitionist: { name: 'Demolitionist', desc: 'Kills take an extra 2.5s off your grenade cooldown.' },
   snapshot: { name: 'Snapshot Sights', desc: 'Aim down sights twice as fast.' },
@@ -191,15 +222,15 @@ export const EXOTIC_PERKS = {
   penance: { name: 'Penance', desc: 'A target held in Judgment for 2.5s is struck by a burst of arc damage.' },
 };
 // Elemental perks roll only on weapons of their element (H3).
-export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void', tremors: 'kinetic', repulsor: 'void', jolting: 'arc', chillclip: 'stasis', headstone: 'stasis', hatchling: 'strand', slice: 'strand' };
+export const PERK_ELEMENT = { incandescent: 'solar', voltshot: 'arc', destabilizing: 'void', tremors: 'kinetic', repulsor: 'void', jolting: 'arc', chillclip: 'stasis', headstone: 'stasis', hatchling: 'strand', slice: 'strand', permafrost: 'stasis', winterbite: 'stasis', frostburst: 'stasis', crystalline: 'stasis', coldreload: 'stasis', glacialguard: 'stasis', coldfront: 'stasis', brittle: 'stasis', unravelrounds: 'strand', tangle: 'strand', weaver: 'strand', severing: 'strand', frayed: 'strand', tautline: 'strand', spindle: 'strand', silkreload: 'strand' };
 /** H23: every Stasis or Strand named weapon's Effect pool holds at least one of its element's perks (frames.js perkPoolFor). */
 export const DARK_SIGNATURE_PERKS = ['chillclip', 'headstone', 'hatchling', 'slice'];
 // Loot 2.0 (U10): three perk columns, Destiny 2 style. A perk goes by its payoff (docs/DECISIONS.md 2026-10-17).
 // Steady Hands and Snapshot Sights no longer roll (no column fits them); old weapons keep them.
 export const PERK_COLUMNS = {
-  mag: ['harvest', 'deepreserve', 'thrift', 'extmag', 'alloymag', 'highcal', 'overflow', 'outlaw', 'feeding', 'reconstruction', 'rapidhit', 'subsistence', 'envious', 'hotswap', 'scavenger'],
-  damage: ['relentless', 'crescendo', 'executioner', 'rampage', 'killclip', 'frenzy', 'surrounded', 'opening', 'precise', 'adrenaline', 'oneforall', 'baitswitch'],
-  effect: ['eager', 'bloodletter', 'sweep', 'firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting', 'chillclip', 'headstone', 'hatchling', 'slice'],
+  mag: ['harvest', 'deepreserve', 'thrift', 'extmag', 'alloymag', 'highcal', 'overflow', 'outlaw', 'feeding', 'reconstruction', 'rapidhit', 'subsistence', 'envious', 'hotswap', 'scavenger', 'ammoreturn', 'hotstart', 'healer', 'shieldrounds', 'coldreload', 'silkreload'],
+  damage: ['relentless', 'crescendo', 'executioner', 'rampage', 'killclip', 'frenzy', 'surrounded', 'opening', 'precise', 'adrenaline', 'oneforall', 'baitswitch', 'lastround', 'ambush', 'closer', 'longshot', 'focusfire', 'finishing', 'hipfire', 'anchored', 'echochamber', 'permafrost', 'frayed', 'tautline'],
+  effect: ['eager', 'bloodletter', 'sweep', 'firefly', 'incandescent', 'voltshot', 'destabilizing', 'chainreaction', 'leech', 'demolitionist', 'killingwind', 'tremors', 'repulsor', 'jolting', 'chillclip', 'headstone', 'hatchling', 'slice', 'tenderize', 'winterbite', 'frostburst', 'crystalline', 'glacialguard', 'coldfront', 'brittle', 'unravelrounds', 'tangle', 'weaver', 'severing', 'spindle'],
 };
 export const PERK_COLUMN_NAMES = { mag: 'Magazine or Reload', damage: 'Damage', effect: 'Effect' };
 /** The column a perk belongs to, or null (Steady Hands, Snapshot Sights). */
@@ -221,6 +252,7 @@ export const PERK_SLOTS = {
   outlaw: ['primary', 'special'], firefly: ['primary', 'special'], surrounded: ['primary', 'special'], opening: ['primary', 'special'],
   feeding: ['primary', 'special'], destabilizing: ['primary', 'special'], killingwind: ['primary', 'special'],
   rapidhit: ['primary', 'special'], subsistence: ['primary', 'special'], tremors: ['primary', 'special'], jolting: ['primary', 'special'],
+  ammoreturn: ['primary', 'special'], hipfire: ['primary', 'special'], healer: ['primary', 'special'], focusfire: ['primary', 'special'], longshot: ['primary', 'special'], closer: ['primary', 'special'], tenderize: ['primary', 'special'], tangle: ['primary', 'special'], winterbite: ['primary', 'special'], coldfront: ['primary', 'special'],
 };
 // Exotics: perks (first one is the signature), stat mods (numbers multiply the roll,
 // mode/burst/pellets/charge replace the archetype), and a unique look for the model.

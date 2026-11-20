@@ -18,6 +18,7 @@ import { fxTracer, requestLife, DOWN_TIME, sendHit, sendFx, allPlayers } from '.
 import { deathOutcome, blightChance, BLIGHT } from './exotic-rules.js';
 import { imperialMethods } from './dungeon-perks.js';
 import { exoArmorMethods } from './exotic-armor-u31.js';
+import { weaponPerkMethods } from './weapon-perks-u31.js';
 import { blightBombFx } from './mechanics.js';
 import { castFx } from './abilities.js';
 import { installDarkness } from './darkness.js';
@@ -706,6 +707,7 @@ export class Player {
       this.status.apply('hardlight', { scope: w.idx, set: true });
     }
     sfx.reloadDone(w.A.id);
+    this.perkReloaded(w); // U31: Hot Start
   }
 
   instantReload(w) {
@@ -987,18 +989,19 @@ export class Player {
   applyHit(w, e, dmg, crit, point, o = {}) {
     if (e.isGuardian) return this.pvpHit(w, e, crit, point, o); // U25: a Guardian takes the weapon's PvP numbers, nothing else (no perks, Light or tier)
     if (crit && w.has('fullstop') && !(e.shield > 0)) dmg *= ARSENAL.fullStop; // Forerunner: Full Stop
-    const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit) * outgoing(this, e); // U24: Horde boons
+    const m = o.isSuper ? 1 : this.weaponDmgMult(w, crit) * outgoing(this, e) * this.perkMult(w, e, crit); // U24: Horde boons; U31: target-aware perks
     const element = o.element ?? wEl(w);
     const prowl = !o.isSuper && this.asp.has('prowl') && !this.prowlUsed && (this.status.has('invisible') || this.prowlShot); // On the Prowl
     if (prowl) this.prowlUsed = true;
     this.prowlShot = false;
     const jolt = !o.isSuper && w.has('jolting') && this.joltingHit(w, e) ? LOOT_PERKS.joltT : 0; // Jolting Feedback
-    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...(o.isSuper ? null : this.darkDeal(w, e, crit)), ...o.deal });
+    const res = dealDamage(e, dmg * m, { crit, precMult: o.precMult ?? w.A.prec, element, weapon: o.isSuper ? null : w, pos: point, source: o.isSuper ? 'super' : 'weapon', shieldBreaker: !o.isSuper && w.has('shieldbreaker'), weaken: prowl ? 4 : 0, jolt, ...(o.isSuper ? null : this.perkDeal(w, e, crit)), ...(o.isSuper ? null : this.darkDeal(w, e, crit)), ...o.deal });
     if (o.isSuper) return res;
     afterHit(this, e, dmg * m, crit, point); // U24: Frostbite, Arc Conductor, Ricochet
     w.hitCount++;
     this.darkWeaponHit(); // U22: Thread of Generation
     this.lootPerksOnHit(w, e, crit);
+    this.perkHit(w, e, crit); // U31 perks
     this.imperialHit(w, e, crit, dmg * m, point); // U23: Psionic Echo, Royal Mandate
     if (this.status.has('voltshot', w.idx)) {
       // Voltshot: the charged hit jolts nearby enemies
@@ -1683,6 +1686,7 @@ export class Player {
     const w = o.weapon;
     if (!w) return;
     if (w.has('blightharvest')) this.blightRoll(e, !!o.crit, 0, w.s.dmg * (w.A.pellets || 1) * 0.9); // Blight Edge
+    this.perkKill(w, e, !!o.crit); // U31 perks
     this.darkWeaponKill(w, e, !!o.crit); // H23: Headstone, Hatchling, Darkness fragments
     if (w.has('rampage')) this.status.apply('rampage', { add: 1, set: true });
     if (w.has('killclip')) w.killclipWindow = 3;
@@ -2332,6 +2336,7 @@ export class Player {
   updateExoticArmor(dt) {
     const x = this.exo;
     this.exoTick(dt); // U31
+    this.perkTick(dt);
     if ((x.has('starfire') || this.osmioCharge()) && this.gBank < 1) { // H26: Osmiomancy Gloves bank a second Coldsnap the same way
       // the stored second charge recharges once the first one is full
       if (this.cd.grenade <= 0) { this.gBankT += dt; if (this.gBankT >= this.cdMax.grenade) { this.gBank = 1; this.gBankT = 0; } }
@@ -3706,7 +3711,7 @@ installDarkness(Player); // U22: Stasis and Strand behavior (darkness.js)
 installPrismatic(Player); // U27: Transcendence and the Prismatic subclass (prismatic.js)
 
 // U23: the dungeon's exclusive perks, its exotic and the Imperial set bonus (js/dungeon-perks.js)
-Object.assign(Player.prototype, imperialMethods, exoArmorMethods); // U31: exotic armor hooks (exotic-armor-u31.js)
+Object.assign(Player.prototype, imperialMethods, exoArmorMethods, weaponPerkMethods); // U31: exotic armor hooks (exotic-armor-u31.js)
 
 /** U24: while a fall's body is still dropping, the camera keeps watching it; otherwise it looks at the orbit target. */
 function fellBodyTarget(D, P, fallback) {

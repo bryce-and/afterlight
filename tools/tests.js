@@ -54,6 +54,7 @@ import * as BN from '../js/boons.js';
 import * as SI from '../js/sights.js';
 import * as BRUN from '../js/boon-run.js';
 import * as EXO31H from '../js/exotic-armor-u31.js';
+import * as WP31 from '../js/weapon-perks-u31.js';
 import * as DCAM from '../js/deathcam.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
@@ -4763,6 +4764,29 @@ test('U31 exotic armor: every new piece has a perk, a look, an effect hook, and 
   for (const m of ['exoKill', 'exoHit', 'exoIncoming', 'exoUse', 'exoTick', 'exoGrenade', 'exoOutgoing']) eq(typeof E.exoArmorMethods[m], 'function', m);
   ok(C.HALLOWFIRE.regen >= 2.5 && C.QUIET.regen >= 2.5 && C.HEART.regen >= 2.5 && C.NEZAREC.regen >= 3 && C.STARFIRE.refund >= 0.5 && C.AHAMKARA.refund >= 0.15 && C.RASPBERRY.refund >= 0.6 && C.CONTRAVERSE.refund >= 0.6, 'the percentage exotics are stronger');
   eq(BRUN.shots(4, 'special').total, 4, 'Multishot leaves special weapons alone');
+});
+test('U31 weapons and perks: thirty new perks sit in columns, element perks only roll on their element, 24 new legendaries, target-aware perks multiply', () => {
+  const NEW = ['lastround','ambush','closer','longshot','focusfire','finishing','hipfire','anchored','echochamber','hotstart','ammoreturn','healer','shieldrounds','tenderize','permafrost','winterbite','frostburst','crystalline','coldreload','glacialguard','coldfront','brittle','unravelrounds','tangle','weaver','severing','frayed','tautline','spindle','silkreload'];
+  eq(NEW.length, 30);
+  for (const p of NEW) { ok(PERKS[p] && PERKS[p].desc && PERKS[p].name, `${p} is defined`); ok(perkColumn(p), `${p} is in a column`); }
+  for (const p of NEW.filter((x) => PERK_ELEMENT[x])) ok(['stasis', 'strand'].includes(PERK_ELEMENT[p]), `${p} is Stasis or Strand`);
+  const n31 = LEGENDARY_WEAPONS.filter((l) => l.orig && ['Hoarfrost Verdict','Glacier Psalm','Rimebound','Whiteout Protocol','Frostline','Cold Reckoning','Permafrost Sermon','Shiver Crown','Dead of Winter','Avalanche Drum',"Weaver's Oath",'Silk and Sorrow','Needlepoint','Loomkeeper','Threadbare Mercy','Snarewire','Gossamer Tithe','Tautline','Unspooler','Ember Cantor','Stormwright','Hollow Chorus','Quiet Thunder','Rustbelt Saint'].includes(l.name));
+  eq(n31.length, 24);
+  eq(n31.filter((l) => l.element === 'stasis').length, 10); eq(n31.filter((l) => l.element === 'strand').length, 9);
+  for (const l of n31.filter((x) => x.element === 'stasis' || x.element === 'strand')) {
+    const pool = perkPoolFor(l); const mine = [...pool.mag, ...pool.damage, ...pool.effect].filter((p) => PERK_ELEMENT[p] === l.element);
+    ok(mine.length >= 1, `${l.name} rolls a ${l.element} perk`);
+    for (const p of [...pool.mag, ...pool.damage, ...pool.effect]) ok(!PERK_ELEMENT[p] || PERK_ELEMENT[p] === l.element || PERK_ELEMENT[p] === undefined, `${l.name} has only its own element's perks`);
+  }
+  const has = (...ids) => ({ idx: 0, ammo: 0, has: (p) => ids.includes(p) });
+  const me = { pos: { x: 0, z: 0 }, adsT: 1, perkStill: 0, ...WP31.weaponPerkMethods };
+  const foe = (st) => ({ pos: { x: 3, z: 0 }, hp: 100, maxHp: 100, status: { has: (k) => st.includes(k) } });
+  eq(me.perkMult(has('lastround'), foe([]), false), 1.5, 'Final Round on the last bullet');
+  eq(me.perkMult(has('permafrost'), foe(['slow']), false), 1.2, 'Permafrost on a slowed enemy');
+  eq(me.perkMult(has('permafrost'), foe([]), false), 1, 'Permafrost needs a chilled enemy');
+  eq(me.perkMult(has('tautline'), foe(['suspend']), false), 1.4, 'Taut Line on a suspended enemy');
+  eq(me.perkMult(has('hipfire'), foe([]), false), 1, 'Hip Fire Grip does nothing while aiming');
+  const f = foe([]); f.hp = 20; eq(me.perkMult(has('finishing'), f, false), 1.4, 'Finisher on a weak enemy');
 });
 test('U31 Phoenix Rite grants a grace period, Needlestorm is wide', () => {
   ok(BRUN.PHOENIX_GRACE >= 2, 'Phoenix Rite protects you for a moment after the save');
