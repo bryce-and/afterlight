@@ -32,7 +32,7 @@ import { weaponHandling, recoilProfileFor, recoilKick, recoilQueue, recoilStep, 
 import { brickScale } from './tiers.js';
 import { DEV } from './devcommands.js';
 import { CLASS_FX_LIFE, SUPER_TUNE, SUPER_TIME, SUPER_PASSIVE, SUPER_HANDSON, superKillGain, SUPER_POWER, SONG, PRIMARY_BOOST, spreadFor, chainTargets, STORMTRANCE_CHAIN, GOLDEN_GUN_SPLASH, SUPER_DYNAMO, IONIC, NIGHTHAWK, LIARS, RAIDEN, STARFIRE, restHeight, ARC_SOUL, KILL_CD_REFUND, GOLDEN_GUN, NOVA_FIELD, QUIET, URSA, HALLOWFIRE, GRAVITON, AHAMKARA, RASPBERRY, ORPHEUS, SENTINEL_GUARD, DIRE, SUNBRACERS, STORMDANCER, SUPER_ARMOR, BURST_SUPERS, SLAM_SUPERS, SUPER_HOVER, SENTINEL_BARRIER, barrierStops, falloffMult } from './combat.js';
-import { applyBoonStats, reloadMult, moveMult, outgoing, afterHit, onKillBoons, incoming, phoenixSave, onGrenade } from './boon-run.js';
+import { applyBoonStats, reloadMult, moveMult, outgoing, afterHit, onKillBoons, incoming, phoenixSave, onGrenade, shots } from './boon-run.js';
 const TARGET_MOD = ['targetp', 'targets', 'targeth'], LOADER_MOD = ['loaderp', 'loaders', 'loaderh'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _fwd = new THREE.Vector3(), _UP = new THREE.Vector3(0, 1, 0);
@@ -871,13 +871,14 @@ export class Player {
     } else if (A.glaive?.bolt) {
       this.glaiveBolt(w, applySpread(fwd.clone(), spread), eye, el);
     } else {
-      const pellets = A.pellets || 1;
+      const base = A.pellets || 1, multi = shots(base), pellets = multi.total; // U30 Multishot: bullets past the base deal half damage with a little spread
       const assist = w.has('quarrel') || w.has('concurrence'); // tracking bolts
       for (let i = 0; i < pellets; i++) {
-        let dir = applySpread(fwd.clone(), spread);
+        const extraShot = i >= base;
+        let dir = applySpread(fwd.clone(), extraShot ? spread + 0.012 : spread);
         if (assist) dir = this.assistDir(dir);
         const o = A.laser ? { tracerWidth: 0.11, tracerColor: el.hex, tracerLife: 0.14, core: 0xfff2d0 } : A.id === 'linear' ? { tracerWidth: 0.07, tracerColor: el.hex } : w.mementoShot ? { tracerWidth: 0.045, tracerColor: 0xffffff } : assist ? { tracerWidth: 0.03, tracerColor: el.hex } : {};
-        const end = this.hitscan(eye, dir, w, s.dmg, muzzle, o);
+        const end = this.hitscan(eye, dir, w, extraShot ? s.dmg * multi.dmg : s.dmg, muzzle, o);
         if (w.has('xeno') && !o.hit && end.distanceTo(eye) < 149) this.scorch(end, s.dmg * this.weaponDmgMult(w, false)); // the round bursts on the ground or a wall too
         if (w.has('intent') && w.energy >= 100) { w.energy = 0; this.plantTurret(end); } // Edge of Intent: Restorative Turret
         if (w.has('action') && w.energy >= 100) { w.energy = 0; this.plantRemoteShield(end); } // Edge of Action: Remote Shield

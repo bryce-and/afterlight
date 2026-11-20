@@ -6,7 +6,7 @@ import { makeWeapon as makeItemWeapon, makeExotic } from './loot.js';
 import { lightning, sparks } from './effects.js';
 import { ELEMENTS, EXOTIC_RANDOM_WEAPONS, ARCHETYPES } from './data.js';
 import {
-  newBoonRun, resetBoonRun, boonTotals, damageMult, damageTakenMult, reloadTimeMult, magMult, shieldMult, speedMult, jumpMult, extraDrops,
+  newBoonRun, resetBoonRun, boonTotals, damageMult, damageTakenMult, reloadTimeMult, magMult, shieldMult, speedMult, jumpMult, extraDrops, shotCount, MULTISHOT_EXTRA_DMG,
   chargeMult, specialDropMult, frostSlow, BOON_CONST, BOONS, BOON_BY_ID, applyOption, rollOffer,
 } from './boons.js';
 import { dealDamage, enemiesNear, explode } from './game.js';
@@ -189,6 +189,8 @@ export function onGrenade(P, pt) {
 // ---- damage taken ----
 /** Iron Skin: returns the reduced amount. */
 export const incoming = (amount) => (on() ? amount * damageTakenMult(bt(), G.player?.shield > 0) : amount);
+/** Multishot: { total, extra, dmg } for a gun that fires `base` bullets (no boon: { total: base, extra: 0 }). */
+export const shots = (base) => (on() ? { ...shotCount(bt(), base), dmg: MULTISHOT_EXTRA_DMG } : { total: base, extra: 0, dmg: 1 });
 /** Beacon: extra boon orbs this round. */
 export const beaconDrops = () => (on() ? extraDrops(bt()) : 0);
 /** Phoenix Rite: true when a killing blow was absorbed (the Guardian is left at 1 health). Saves refill each wave. */

@@ -50,6 +50,7 @@ export const BOONS = [
   { id: 'overcharge', name: 'Overcharge', desc: 'Kills add 3% to your super', fx: { killSuper: 3 } },
   { id: 'cooldown_rebate', name: 'Cooldown Rebate', desc: 'Kills cut grenade, melee and class cooldowns by a further 4%', fx: { killCd: 0.04 } },
   { id: 'siphon', name: 'Siphon', desc: 'Kills restore 6% of your maximum shield', fx: { killShield: 0.06 } },
+  { id: 'multishot', name: 'Multishot', desc: 'Guns fire 50% more bullets per shot (at least +1). Extra bullets deal half damage', fx: { multishot: 1 } },
   { id: 'beacon', name: 'Beacon', desc: '+1 boon orb every round (up to +3)', fx: { dropExtra: 1 } },
   { id: 'adrenaline_rush', name: 'Adrenaline Rush', desc: 'Kills give +20% move speed for 3 s', fx: { rushSpeed: 0.20 } },
 ];
@@ -113,6 +114,13 @@ export const magMult = (t) => 1 + g(t, 'mag');
 export const shieldMult = (t) => 1 + g(t, 'shieldMax');
 export const speedMult = (t) => 1 + g(t, 'speed');
 export const jumpMult = (t) => 1 + g(t, 'jump');
+/** Multishot: bullets per trigger pull for a gun that fires `base`. Each stack adds half the base (at least 1); 4 stacks at most. `extra` are the bullets past the base, which deal MULTISHOT_EXTRA_DMG of a normal bullet. */
+export const MULTISHOT_EXTRA_DMG = 0.5, MULTISHOT_MAX_STACKS = 4;
+export function shotCount(t, base = 1) {
+  const n = Math.min(MULTISHOT_MAX_STACKS, Math.round(g(t, 'multishot')));
+  const extra = n > 0 ? n * Math.max(1, Math.ceil(base * 0.5)) : 0;
+  return { total: base + extra, extra };
+}
 /** Extra boon orbs a round from Beacon (+1 a stack, never more than +3). */
 export const extraDrops = (t) => Math.min(3, Math.round(g(t, 'dropExtra')));
 export const specialDropMult = (t) => 1 + g(t, 'specialDrop');

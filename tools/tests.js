@@ -4315,9 +4315,9 @@ const near = (a, b, tol = 1e-9, msg = '') => { if (Math.abs(a - b) > tol) throw 
 const seeded = (seed) => { let a = seed; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
 const WPOOL = [{ slot: 'kinetic', name: 'Legend A', exotic: false }, { slot: 'energy', name: 'Legend B', exotic: false }, { slot: 'heavy', name: 'Exo C', exotic: true }];
 
-test('U24 boons: 35 data rows (U30: ten more), unique ids, each with an effect', () => {
-  eq(BN.BOONS.length, 35);
-  eq(new Set(BN.BOONS.map((b) => b.id)).size, 35, 'unique ids');
+test('U24 boons: 36 data rows (U30: eleven more), unique ids, each with an effect', () => {
+  eq(BN.BOONS.length, 36);
+  eq(new Set(BN.BOONS.map((b) => b.id)).size, 36, 'unique ids');
   for (const b of BN.BOONS) { ok(b.name && b.desc, b.id); ok(Object.keys(b.fx).length > 0, `${b.id} has fx`); }
 });
 
@@ -4390,6 +4390,14 @@ test('U24 boons: a weapon swap fills the slot, applyOption works, reset clears t
 
 test('U30 boon drops: clearing a wave grants no boon any more', () => {
   eq([1, 2, 3, 4, 7, 10, 28, 29, 30].map((w) => BN.boonDue(w, 30)), [false, false, false, false, false, false, false, false, false]);
+});
+
+test('U30 Multishot: +50% bullets per stack (at least +1), capped, and none without the boon', () => {
+  eq(BN.shotCount({}, 1), { total: 1, extra: 0 });
+  const run = BN.newBoonRun(); BN.addBoon(run, 'multishot'); let t = BN.boonTotals(run);
+  eq(BN.shotCount(t, 1), { total: 2, extra: 1 }, 'a one-bullet gun gets +1'); eq(BN.shotCount(t, 10), { total: 15, extra: 5 }, 'a shotgun gets +5'); eq(BN.shotCount(t, 7), { total: 11, extra: 4 }, 'fusion rounds up');
+  for (let i = 0; i < 9; i++) BN.addBoon(run, 'multishot');
+  eq(BN.shotCount(BN.boonTotals(run), 1), { total: 5, extra: 4 }, 'four stacks at most');
 });
 
 test('U30 boon drops: a round budget is 2 to 5, a plan drops exactly that many, elites lean first, offers are seeded', () => {
