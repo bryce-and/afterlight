@@ -4800,6 +4800,16 @@ test('U31 /give boons: names, counts, and the elemental rounds boons', () => {
   for (const id of ['cryo_rounds', 'burning_rounds', 'toxic_rounds', 'static_rounds', 'devouring_rounds', 'threadneedle_rounds', 'blast_rounds']) ok(BN.BOON_BY_ID[id], id);
   const t = BN.boonTotals({ boons: { cryo_rounds: 2, burning_rounds: 1 } }); eq([t.cryo, t.burnDot], [2, 0.2]);
 });
+test('U31 loot reshuffle: every perk lands in several pools, families lean toward their perks, pools stay stable', () => {
+  const all = [...LEGENDARY_WEAPONS.map((l) => ({ ...l, rarity: 'legendary' })), ...NAMED_WEAPONS];
+  const cnt = {};
+  for (const w of all) { const p = perkPoolFor(w); for (const c of ['mag', 'damage', 'effect']) { eq(p[c].length, 3, `${w.name} ${c}`); eq(new Set(p[c]).size, 3, `${w.name} ${c} has no repeats`); for (const k of p[c]) cnt[k] = (cnt[k] || 0) + 1; } }
+  for (const k of Object.values(PERK_COLUMNS).flat()) ok((cnt[k] || 0) >= 2, `${k} sits in ${cnt[k] || 0} pools`);
+  const spread = Object.values(cnt); ok(Math.max(...spread) / Math.min(...spread) <= 40, `pool usage spread ${Math.min(...spread)} to ${Math.max(...spread)}`);
+  const share = (arch, perk) => { const ws = all.filter((w) => w.arch === arch); return ws.filter((w) => Object.values(perkPoolFor(w)).flat().includes(perk)).length / ws.length; };
+  ok(share('shotgun', 'closer') > share('auto', 'closer') && share('sniper', 'longshot') > share('auto', 'longshot'), `shotguns lean Closer (${share('shotgun', 'closer').toFixed(2)} vs ${share('auto', 'closer').toFixed(2)}) and snipers lean Long Shot (${share('sniper', 'longshot').toFixed(2)} vs ${share('auto', 'longshot').toFixed(2)})`);
+  eq(perkPoolFor(all[3]), perkPoolFor(all[3]), 'stable');
+});
 test('U31 Phoenix Rite grants a grace period, Needlestorm is wide', () => {
   ok(BRUN.PHOENIX_GRACE >= 2, 'Phoenix Rite protects you for a moment after the save');
   ok(C.SUPER_TUNE.needlestorm.r >= 11, 'Needlestorm radius');

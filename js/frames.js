@@ -373,26 +373,75 @@ export function eligiblePerks(col, arch, element, frame = null) {
 
 export const POOL_PER_COLUMN = 3;
 /**
- * A named weapon's 9-perk pool: 3 per column, the same for every drop of that weapon. An entry's own
- * `pool` ({ mag, damage, effect }) wins; otherwise the pool is picked from the eligible perks, seeded by the name.
+ * U31 loot reshuffle. A named weapon's 9-perk pool: 3 per column, the same for every drop of that weapon, now planned for the whole
+ * loot table at once. Weapons are walked in a fixed order and each perk pick is weighted two ways: by the weapon family's fit (PERK_FIT:
+ * a shotgun likes Closer, a sniper Long Shot) and by how rarely the perk has been placed so far, so every perk ends up on many weapons
+ * instead of a few lucky ones. An entry's own `pool` ({ mag, damage, effect }) wins. Owned weapons keep the perks they rolled.
  */
-export function perkPoolFor(named) {
-  if (named.pool) return named.pool;
-  let h = 2166136261;
-  for (const ch of named.name) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
-  const rnd = () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+export const POOL_SEED = 'u31';
+/** Perks each family leans toward (3x as likely to be picked as a neutral perk). */
+export const PERK_FIT = {
+  auto: ['rampage', 'focusfire', 'rapidhit', 'subsistence', 'adrenaline', 'extmag', 'killclip'],
+  hand: ['precise', 'opening', 'finishing', 'ammoreturn', 'firefly', 'killclip', 'lastround', 'outlaw'],
+  pulse: ['precise', 'rapidhit', 'firefly', 'killclip', 'ambush', 'outlaw', 'voltshot'],
+  scout: ['precise', 'longshot', 'ammoreturn', 'outlaw', 'opening', 'anchored', 'rapidhit'],
+  smg: ['closer', 'hipfire', 'surrounded', 'rapidhit', 'frenzy', 'feeding', 'extmag'],
+  shotgun: ['closer', 'surrounded', 'hipfire', 'opening', 'lastround', 'killclip', 'incandescent'],
+  sniper: ['longshot', 'precise', 'opening', 'finishing', 'ambush', 'anchored', 'firefly'],
+  fusion: ['closer', 'killclip', 'rampage', 'hotstart', 'lastround', 'voltshot', 'surrounded'],
+  linear: ['longshot', 'precise', 'ambush', 'finishing', 'anchored', 'opening', 'hotstart'],
+  rocket: ['chainreaction', 'demolitionist', 'surrounded', 'scavenger', 'overflow', 'lastround', 'tremors'],
+  glauncher: ['chainreaction', 'demolitionist', 'surrounded', 'scavenger', 'overflow', 'lastround', 'tremors'],
+  mg: ['extmag', 'rampage', 'focusfire', 'frenzy', 'anchored', 'adrenaline', 'surrounded'],
+  sidearm: ['closer', 'ammoreturn', 'killclip', 'opening', 'rapidhit', 'outlaw', 'hipfire'],
+  glaive: ['shieldrounds', 'healer', 'leech', 'surrounded', 'killclip', 'scavenger', 'repulsor'],
+  trace: ['focusfire', 'frenzy', 'extmag', 'anchored', 'adrenaline', 'rapidhit', 'surrounded'],
+};
+const FIT_WEIGHT = 3, ELEMENT_WEIGHT = 2.5, FRESH_SCALE = 5; // a perk already placed FRESH_SCALE times is half as likely again
+const hashStr = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h; };
+const seededRnd = (seed) => { let h = seed >>> 0; return () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+/** One weapon's pool, given the running tally of how often each perk has been placed. Pure. */
+function planPool(named, used) {
+  const rnd = seededRnd(hashStr(`${POOL_SEED}:${named.name}`));
+  const fit = new Set(PERK_FIT[named.arch] || []);
   const out = {};
   for (const col of Object.keys(PERK_COLUMNS)) {
     const list = eligiblePerks(col, named.arch, named.element, named.frame);
-    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
-    out[col] = list.slice(0, POOL_PER_COLUMN);
+    const pick = [];
+    const left = [...list];
+    while (pick.length < POOL_PER_COLUMN && left.length) {
+      const w = left.map((p) => (fit.has(p) ? FIT_WEIGHT : 1) * (PERK_ELEMENT[p] ? ELEMENT_WEIGHT : 1) / (1 + (used[p] || 0) / FRESH_SCALE));
+      let r = rnd() * w.reduce((a, b) => a + b, 0), i = 0;
+      while (i < left.length - 1 && (r -= w[i]) > 0) i++;
+      pick.push(left.splice(i, 1)[0]);
+    }
+    out[col] = pick;
     // H23: Stasis and Strand weapons always carry one of their element's Darkness perks in the Effect column
     if (col === 'effect' && !out[col].some((p) => DARK_SIGNATURE_PERKS.includes(p))) {
       const sig = list.find((p) => DARK_SIGNATURE_PERKS.includes(p));
       if (sig) out[col][out[col].length - 1] = sig;
     }
+    for (const p of out[col]) used[p] = (used[p] || 0) + 1;
   }
   return out;
+}
+let poolCache = null;
+/** Plans every named weapon's pool once (legendaries first, then the lower rarities), in a fixed order. */
+function planAllPools() {
+  poolCache = new Map();
+  const used = {};
+  const all = [...LEGENDARY_WEAPONS.map((l) => ({ ...l, rarity: 'legendary' })), ...NAMED_WEAPONS];
+  for (const n of all) {
+    const key = `${n.arch}:${n.name}`;
+    if (!poolCache.has(key) && !n.pool) poolCache.set(key, planPool(n, used));
+  }
+}
+export function perkPoolFor(named) {
+  if (named.pool) return named.pool;
+  if (!poolCache) planAllPools();
+  const key = `${named.arch}:${named.name}`;
+  if (!poolCache.has(key)) poolCache.set(key, planPool(named, {})); // a weapon outside the tables (tests, spawned items): its own seeded pool
+  return poolCache.get(key);
 }
 
 /** The perks a drop rolls from its pool: uncommon one Magazine or Reload perk, rare adds a Damage or Effect perk, legendary all three. */
