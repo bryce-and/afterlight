@@ -43,6 +43,7 @@ import { renderRollTracker } from './rolltracker.js';
 import { controlsList, keyName, syncLive, liveKeybinds } from './keybinds.js';
 import { openControls } from './keybinds-ui.js';
 import { isMobile } from './mobile.js';
+import { dropshipsOn, setDropshipsOn } from './dropships.js';
 import { settingsHtml as touchSettingsHtml, bindSettings as bindTouchSettings } from './touch-controls.js';
 import { openTerms, termsAccepted } from './terms.js';
 import { exoticList, exoticDef, exoticUnlocked, exoticLockText, exoticRecord, clock } from './exotic-rules.js';
@@ -1946,6 +1947,7 @@ export function showPause() {
         <label>Mouse sensitivity <span id="v-sens">${s.sens.toFixed(2)}</span><input type="range" id="s-sens" min="0.2" max="3" step="0.05" value="${s.sens}"></label>
         <label>Field of view <span id="v-fov">${s.fov}</span><input type="range" id="s-fov" min="65" max="105" step="1" value="${s.fov}"></label>
         <label class="toggle-row">Full Auto <span class="hint">Hold the trigger on semi-auto weapons (fires at the weapon's own rate)</span><input type="checkbox" id="s-auto" ${s.fullAuto ? 'checked' : ''}></label>
+        <label class="toggle-row">Dropship entrances <span class="hint">Reinforcements arrive by ship or gate instead of appearing. Turn off on a slow machine</span><input type="checkbox" id="s-drops" ${dropshipsOn() ? 'checked' : ''}></label>
         <label>HUD scale <span id="v-hud">${Math.round((s.hudScale ?? 1) * 100)}%</span><input type="range" id="s-hud" min="${HUD_SCALE.min}" max="${HUD_SCALE.max}" step="${HUD_SCALE.step}" value="${s.hudScale ?? 1}"></label>
         <label>Music <span id="v-mus">${Math.round((s.musicVolume ?? 0.5) * 100)}%</span><input type="range" id="s-mus" min="0" max="1" step="0.05" value="${s.musicVolume ?? 0.5}"></label>
         <label>Effects <span id="v-fx">${Math.round((s.effectsVolume ?? 1) * 100)}%</span><input type="range" id="s-fx" min="0" max="1" step="0.05" value="${s.effectsVolume ?? 1}"></label>
@@ -1964,6 +1966,7 @@ export function showPause() {
   $('#s-sens').addEventListener('input', (e) => { s.sens = +e.target.value; $('#v-sens').textContent = s.sens.toFixed(2); P.sens = 0.0022 * s.sens; writeSave(G.save); });
   $('#s-fov').addEventListener('input', (e) => { s.fov = +e.target.value; $('#v-fov').textContent = s.fov; P.baseFov = s.fov; writeSave(G.save); });
   $('#s-auto').addEventListener('change', (e) => { s.fullAuto = e.target.checked; writeSave(G.save); });
+  $('#s-drops').addEventListener('change', (e) => setDropshipsOn(e.target.checked));
   $('#s-hud').addEventListener('input', (e) => { s.hudScale = +e.target.value; $('#v-hud').textContent = `${Math.round(s.hudScale * 100)}%`; applyHudScale(); writeSave(G.save); });
   $('#s-mus').addEventListener('input', (e) => { s.musicVolume = +e.target.value; $('#v-mus').textContent = `${Math.round(s.musicVolume * 100)}%`; setMusicVolume(s.musicVolume); writeSave(G.save); });
   $('#s-fx').addEventListener('input', (e) => { s.effectsVolume = +e.target.value; $('#v-fx').textContent = `${Math.round(s.effectsVolume * 100)}%`; setEffectsVolume(s.effectsVolume); writeSave(G.save); });

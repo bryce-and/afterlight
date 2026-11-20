@@ -21,6 +21,7 @@ import { playMusic, setSection, getSection, musicSectionFor, stinger } from './m
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
+import { launchDrops, updateDropships, resetDropships } from './dropships.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
 import { HEART, ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, CACHE_LIGHT, ENGRAM_LIGHT, engramLight } from './combat.js';
 import { TIERS, rollTier, fireteamScale, killValue, meterKill, AMMO_METER } from './tiers.js';
@@ -88,7 +89,7 @@ export function startMission(li, mi, tier = selectedTier(G.save), blitz = null) 
   G.hitDirty = true;
   G.scene.add(G.camera);
   initEffects(G.scene);
-  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
+  resetDropships(); G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const pp = combatLight();
   const enemyLight = tierEnemyLight(power, T, pp);
   const L = lightMults(lightGap(pp, enemyLight));
@@ -159,13 +160,14 @@ export function cleanupMission() {
   if (G.mission?.pvp) cleanupCrucible(); // U25
   if (G.mission?.patrol) leavePatrol();
   if (G.mission?.tower) { showRangeHud(false); G.mpMenu = false; document.getElementById('hud')?.classList.remove('tower-social'); }
+  resetDropships();
   if (G.scene) freeScene(G.scene); // H28: the previous level (and the weapon models on the camera) stayed on the GPU after every mission
   if (G.camera) for (const ch of [...G.camera.children]) G.camera.remove(ch);
   clearEffects();
   G.scene = null; G.level = null; G.player = null; G.mission = null;
   G.colliders = []; G.staticMeshes = []; G.hitTargets = []; G.nav = null;
   resetDark(); // U22: crystals and tangles
-  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
+  resetDropships(); G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
 }
 
 export function missionFailed() {
@@ -305,18 +307,22 @@ export function spawnUnit(z, type, pos, o = {}) {
     zone: z, hpMult: M.hpMult * (type === 'boss' ? (1 + M.g * 0.08) * FT.boss * (M.scale?.bossHp ?? 1) / (M.scale?.hp ?? 1) : FT.hp) * (o.hpFrac ?? 1), dmgMult: M.dmgMult * (type === 'boss' ? 1 : FT.dmg),
     element: o.element, name: o.name, model: o.model, faction: o.faction,
     tier: o.tier || (def?.support || def?.life ? 'minor' : rollTier(cls, M.g, Math.random(), M.tier)),
-    noDrops: o.noDrops, revived: o.revived, owner: o.owner, life: o.life, totemKind: o.totemKind, isClone: o.isClone,
+    noDrops: o.noDrops, revived: o.revived, owner: o.owner, life: o.life, totemKind: o.totemKind, isClone: o.isClone, defer: o.defer,
   });
-  G.enemies.push(e);
   z.enemies.push(e);
+  if (o.defer) return e; // U32: joins G.enemies and the network when its dropship lands it (js/dropships.js launchDrops)
+  G.enemies.push(e);
   registerEnemy(e);
   G.hitDirty = true;
   return e;
 }
 
+const spawnSuicideType = (t) => classOf(t) === 'suicide' || UNITS[t]?.base === 'suicide'; // U32: suicide units keep the instant spawn
+
 function spawnWave(z, idx) {
   const M = G.mission, P = G.player;
   const away = Math.atan2(P.pos.x - z.center.x, P.pos.z - z.center.z) + Math.PI;
+  const arriving = []; // U32: units that arrive by dropship or gate (js/dropships.js)
   let packAt = null; // v3.0.3: Shanks arrive together at one spot instead of scattered along the spawn arc
   for (const sp of z.waves[idx]) {
     let pos;
@@ -328,8 +334,11 @@ function spawnWave(z, idx) {
       pos = sp.type === 'boss' ? z.center.clone() : findSpawn(z.center, away, idx === 0 ? 1.4 : 2.6, 7, 19);
       spawnSuicide = false;
     }
-    spawnUnit(z, sp.type, pos, { element: sp.element, name: sp.name, model: sp.model, faction: sp.faction });
+    const defer = sp.type !== 'boss' && !spawnSuicideType(sp.type);
+    const e = spawnUnit(z, sp.type, pos, { element: sp.element, name: sp.name, model: sp.model, faction: sp.faction, defer });
+    if (defer) arriving.push(e);
   }
+  launchDrops(arriving, (anchor) => findSpawn(anchor, 0, Math.PI, 1.4, 4.8));
   G.hitDirty = true;
   if (idx > 0) {
     const f = z.waves[idx].find((s) => s.faction)?.faction;
@@ -365,6 +374,7 @@ export function updateGame(dt) {
   for (let i = G.enemies.length - 1; i >= 0; i--) {
     if (!G.enemies[i].update(dt)) G.enemies.splice(i, 1);
   }
+  updateDropships(dt);
   updateNavDebug(dt);
   updateEnemyShots(dt);
   updateEnemyGrenades(dt);
@@ -1356,6 +1366,7 @@ function loadArena(i, first = false) {
   const a = M.arenas[i % M.arenas.length];
   const loc = LOCATIONS[a.li], def = loc.missions[a.mi];
   if (!first) {
+    resetDropships();
     for (const e of G.enemies) e.remove();
     if (G.camera) G.scene.remove(G.camera);
     clearEffects();
@@ -1369,7 +1380,7 @@ function loadArena(i, first = false) {
   G.hitDirty = true;
   G.scene.add(G.camera);
   initEffects(G.scene);
-  G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
+  resetDropships(); G.enemies = []; G.projectiles = []; G.enemyShots = []; G.enemyGrenades = []; G.pickups = []; G.tickers = [];
   const arena = level.zones[level.zones.length - 1];
   if (M.act.roguelike) sealArena(level, arena); // U24: the boss room is shut for the whole run in it
   const prev = level.zones.length > 1 ? level.zones[level.zones.length - 2].center : level.spawn;

@@ -6,6 +6,7 @@ import { decodeAppearance } from './style.js';
 import { UNITS, FACTIONS } from './factions.js';
 import { Enemy, fireEnemyShot, spawnEnemyGrenade } from './enemies.js';
 import { TIERS } from './tiers.js';
+import { showRemoteShip } from './dropships.js';
 import { withinNotice } from './ai.js';
 import { wrapAngle } from './util.js';
 import { tracer, explosionFx, sparks, firePool } from './effects.js';
@@ -268,6 +269,9 @@ export function announceKill(e, o) {
   if (!net.isHost || !e.netId) return;
   broadcast({ t: 'kill', id: e.netId, by: o.by || net.myId, c: o.crit ? 1 : 0, bd: o.bd || 0 });
 }
+
+/** U32: the host's dropship, so every player sees it arrive (units still join through `sp` when they land). */
+export function announceDrop(d) { if (net.isHost) broadcast({ t: 'ds', ...d }); }
 
 export function announceSay(w, x) { if (net.isHost) broadcast({ t: 'say', w, x }); }
 export function announceBanner(ti, su, du, so) { if (net.isHost) broadcast({ t: 'bn', ti, su, du, so }); }
@@ -581,6 +585,7 @@ net.on('fx', (m, from) => {
 });
 
 // member <- host
+net.on('ds', (m) => { if (inMission()) showRemoteShip(m); }); // U32
 net.on('sp', (m) => { if (inMission() && !netEnemies.has(m.id)) proxy(m.id, m.ty, m.x, m.z, m); });
 net.on('s', (m) => {
   if (!inMission()) return;

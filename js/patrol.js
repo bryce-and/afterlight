@@ -12,6 +12,7 @@ import { Player } from './player.js';
 import { initEffects } from './effects.js';
 import { playMusic, stinger } from './music.js';
 import { sfx } from './audio.js';
+import { launchDrops } from './dropships.js';
 import { cleanupMission, spawnUnit, findSpawn, banner, gainXp, dropEngram, livesFor } from './game.js';
 import { playerPower, writeSave } from './save.js';
 import { PATROL_TUNE, BEACON_TEXT, EVENT_SPECS, FACTION_KITS, kitUnit } from './patrol-data.js';
@@ -485,11 +486,12 @@ function startEventAssault(Pt, E) {
 }
 
 function spawnEventPush(E, i) {
-  const push = E.spec.pushes[i];
+  const push = E.spec.pushes[i], arriving = []; // U32: event pushes arrive by dropship or gate; camps and beacons stay put
   for (const [type, n] of push) for (let k = 0; k < n; k++) {
     const pos = findSpawn(E.zone.center, rand(0, Math.PI * 2), Math.PI, E.def.r * 0.4, E.def.r * 0.95);
-    spawnUnit(E.zone, kitUnit(E.spec.units, type), pos, { faction: E.spec.faction ?? undefined, name: E.spec.names?.[type] });
+    arriving.push(spawnUnit(E.zone, kitUnit(E.spec.units, type), pos, { faction: E.spec.faction ?? undefined, name: E.spec.names?.[type], defer: true }));
   }
+  launchDrops(arriving, (anchor) => findSpawn(anchor, 0, Math.PI, 1.4, 4.8));
   G.hitDirty = true;
 }
 

@@ -23,6 +23,7 @@ import * as ST from '../js/style.js';
 import { sfx, SHOT_RECIPES, ELEMENT_TINT, ABILITY_RECIPES, FACTION_SOUND, spatial } from '../js/audio.js';
 import { musicSectionFor } from '../js/music.js';
 import { G } from '../js/state.js';
+import * as DS from '../js/dropship-plan.js';
 import * as KB from '../js/keybinds.js';
 import * as TM from '../js/terms.js';
 import { orientedCollider, footprintHit, pointInColliders, pushOutCircle, moveBody, rayGround, groundAt, floorBelow } from '../js/colliders.js';
@@ -4881,6 +4882,50 @@ test('H30d dismantleMany: pays glimmer for every dismantlable id, skips equipped
   const r = S.dismantleMany(s, [a.id, b.id, c.id, eqd.id, 'nope']);
   eq(r.count, 2); eq(r.skipped, 3); ok(r.glimmer > 0 && s.glimmer === r.glimmer, 'glimmer paid once');
   ok(!s.inventory.includes(a) && !s.inventory.includes(b) && s.inventory.includes(c) && s.inventory.includes(eqd), 'only a and b are gone');
+});
+
+// ---- U32 Dropships (pure plan: js/dropship-plan.js) ----
+test('U32 arrival: Cabal, Fallen, Hive and Scorn come by ship; Vex and Taken teleport; unknown factions get none', () => {
+  eq(DS.arrivalOf('legion'), 'cabal'); eq(DS.arrivalOf('scrappers'), 'fallen'); eq(DS.arrivalOf('hollow'), 'hive'); eq(DS.arrivalOf('scorn'), 'scorn');
+  eq(DS.arrivalOf('vex'), 'teleport'); eq(DS.arrivalOf('taken'), 'teleport'); eq(DS.arrivalOf('nope'), null);
+  ok(DS.isShip('cabal') && !DS.isShip('teleport') && !DS.isShip(null), 'isShip');
+});
+test('U32 groupDrops: 4 per ship by faction, never more than 3 ships, teleporters stay singles', () => {
+  const mk = (f, n) => Array.from({ length: n }, () => ({ faction: f }));
+  let g = DS.groupDrops(mk('legion', 9));
+  eq(g.length, 3); eq(g.map((x) => x.items.length).join(), '4,4,1');
+  g = DS.groupDrops([...mk('legion', 4), ...mk('hollow', 4), ...mk('scorn', 4), ...mk('scrappers', 4)]);
+  eq(g.length, 4); // four factions cannot share a hull: one ship each is the floor
+  eq(g.reduce((s, x) => s + x.items.length, 0), 16);
+  g = DS.groupDrops([...mk('vex', 3), ...mk('legion', 2)]);
+  eq(g.length, 2); eq(g.find((x) => x.kind === 'teleport').items.length, 3);
+  eq(DS.groupDrops(mk('nope', 3)).length, 0);
+});
+test('U32 skyClear: a roof anywhere in the column or its edge points blocks the drop', () => {
+  ok(DS.skyClear(() => false, 0, 0, 0), 'open sky');
+  ok(!DS.skyClear((x, y) => y >= 11 && y <= 13, 0, 0, 0), 'a roof overhead');
+  ok(!DS.skyClear((x) => x > 2.5, 0, 0, 0), 'a wall overhang at the edge');
+  ok(DS.skyClear((x, y) => y > 30, 0, 0, 0), 'a roof above the ship height is fine');
+});
+test('U32 shipTimeline and shipPos: arrives, hovers while units leave in order, leaves, is gone', () => {
+  const tl = DS.shipTimeline(4);
+  ok(tl.release.every((r, i) => r >= tl.arrive && (i === 0 || r > tl.release[i - 1])), 'releases after arrival, in order');
+  ok(tl.leaveStart > tl.release[3] && tl.end > tl.leaveStart, 'leaves after the last unit');
+  const from = { x: -100, y: 40, z: 0 }, hov = { x: 0, y: 12, z: 0 }, to = { x: 50, y: 70, z: 60 };
+  eq(DS.shipPos(0, tl, from, hov, to).phase, 'in'); eq(DS.shipPos(0, tl, from, hov, to).x, -100);
+  const h = DS.shipPos(tl.release[2], tl, from, hov, to); eq(h.phase, 'hover'); eq(h.x, 0); eq(h.y, 12);
+  eq(DS.shipPos(tl.leaveStart + 1, tl, from, hov, to).phase, 'out');
+  const gone = DS.shipPos(tl.end + 1, tl, from, hov, to); eq(gone.phase, 'gone'); eq(gone.y, 70);
+  ok(DS.shipPos(tl.arrive * 0.5, tl, from, hov, to).x > -50, 'decelerating: past halfway in half the time');
+});
+test('U32 fallTime: a 9.6 m drop takes about a second', () => {
+  const t = DS.fallTime(9.6); ok(t > 0.8 && t < 1.1, `${t}`); eq(DS.fallTime(0), 0);
+});
+test('U32 setting: on by default, off only for an explicit 0, a broken store means on', () => {
+  ok(DS.dropshipsEnabled(null), 'no store');
+  ok(DS.dropshipsEnabled({ getItem: () => null }), 'unset');
+  ok(!DS.dropshipsEnabled({ getItem: (k) => (k === DS.DROPSHIP_KEY ? '0' : null) }), 'off');
+  ok(DS.dropshipsEnabled({ getItem: () => { throw new Error('blocked'); } }), 'throws');
 });
 
 for (const t of tests) {

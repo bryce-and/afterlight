@@ -259,8 +259,8 @@ export class Enemy {
     this.model.group.position.copy(this.pos);
     this.model.group.rotation.order = 'YXZ'; // pitch (stagger, death) tilts about the enemy's own right axis
     G.scene.add(this.model.group);
-    ringFx(this.pos, 2 * this.scale, this.shotColor, 0.6);
-    sparks(_v.copy(this.pos).setY(1), this.shotColor, 8, 5, 0.1, 0.5);
+    if (o.defer) this.model.group.visible = false; // U32: a dropship unit stays hidden until it leaves the hatch (js/dropships.js)
+    else { ringFx(this.pos, 2 * this.scale, this.shotColor, 0.6); sparks(_v.copy(this.pos).setY(1), this.shotColor, 8, 5, 0.1, 0.5); }
     skillInit(this, o);
   }
 
