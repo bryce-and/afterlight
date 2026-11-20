@@ -43,14 +43,14 @@ import { dungeonTargets, dungeonSplash } from './dungeon-mech.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
 import { linesFor, objectiveFor, UNLOCKS } from './story.js';
-import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, announceBoonStart, announceBoonEnd, sendBoonPick, reviveAllDown, announceBanner } from './coop.js';
+import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, sendBoonPick, reviveAllDown, announceBanner } from './coop.js';
 import { updatePatrol, leavePatrol } from './patrol.js';
 import { keyName } from './keybinds.js';
 import { freeScene } from './gpu-free.js';
 import { updateCrucible, cleanupCrucible, pvpDealDamage, pvpDamagePlayer, pvpExplodeHit } from './crucible.js';
 import { dropMult } from './boon-run.js';
 import { startBoonRun, endBoonRun, takeOption, weaponPool, itemForOption, newWave } from './boon-run.js';
-import { BOON_BY_ID, HORDE_SCALE, ENDLESS_SCALE, waveScale, boonDue, pickState, rollOffer, BOON_PICK_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
+import { BOON_BY_ID, HORDE_SCALE, ENDLESS_SCALE, waveScale, newDropPlan, shouldDropBoon, DROP_ELITE_WEIGHT, offerSeed, rollOrbOffer, ORB_IDLE_SECONDS, enemySpotOk, playerSpotOk, pickFairSpot, nearestDist, ringCandidates, SPAWN_RULES } from './boons.js';
 import { openBoonMenu, closeBoonMenu } from './rewards-ui.js';
 
 const _c = new THREE.Vector3();
@@ -965,7 +965,8 @@ export function killEnemy(e, o = {}) {
   e.killCrit = !!o.crit; e.killBy = o.by; // U18: the Incendior's tanks burst only on a precision kill
   e.onDeath();
   const M = G.mission;
-  announceKill(e, o);
+  const bd = boonDropFor(e); // U30: a roguelike kill may leave a boon orb; the host (or solo) decides and tells the fireteam
+  announceKill(e, { ...o, bd });
   if (o.self) { sfx.enemyDie(e.pos, e.faction); return; } // a suicide unit's own blast: no kill credit, XP or drops
   const mine = !o.by || o.by === net.myId;
   if (mine) {
@@ -977,6 +978,7 @@ export function killEnemy(e, o = {}) {
   sfx.kill();
   sfx.enemyDie(e.pos, e.faction);
   if (!e.noDrops) rollDrops(e);
+  if (bd) spawnBoonOrb(e.pos, bd);
   if (e.isBoss) {
     G.player.shake = 0.5;
     explosionFx(e.center(new THREE.Vector3()), 6, M.loc.colors.eye);
@@ -1421,6 +1423,7 @@ function startWave() {
     newWave(); // Phoenix Rite saves refill
   }
   z.waves = activityWave(n);
+  if (M.act.roguelike) M.dropPlan = newDropPlan(z.waves.reduce((a, w) => a + w.length, 0)); // U30: 2 to 5 boon orbs this round
   z.waveIdx = 0;
   z.enemies = [];
   spawnWave(z, 0);
@@ -1433,6 +1436,7 @@ function startWave() {
 function updateActivity(dt) {
   const M = G.mission, P = G.player, act = M.act;
   updateActChest(dt);
+  updateBoonOrbs(dt);
   if (M.phase === 'done') {
     M.doneT -= dt;
     if (M.doneT <= 0) finishMission();
@@ -1461,12 +1465,6 @@ function updateActivity(dt) {
     M.objective = `Wave ${M.wave}  ·  ${alive} hostile${alive === 1 ? '' : 's'}`;
     M.waypoint = alive > 0 && alive <= 3 && z.waveIdx >= z.waves.length && nearest ? nearest.pos : null;
     if (step.cleared) activityWaveCleared();
-  } else if (M.phase === 'boon') {
-    M.boonT += dt;
-    const members = boonMembers(), st = pickState(members, M.boonPicked, M.boonT);
-    M.objective = `Choose a boon  ·  ${Math.ceil(st.remaining)}s`;
-    M.waypoint = null;
-    if (st.done) { announceBoonEnd(); closeBoonMenu(); Object.assign(M, M.afterBoon); }
   } else if (M.phase === 'move') {
     M.moveT -= dt;
     M.objective = `New arena in ${Math.ceil(Math.max(0, M.moveT))}s`;
@@ -1501,36 +1499,80 @@ function activityWaveCleared() {
   const next = boss ? { phase: 'move', moveT: 12 } : { phase: 'inter', interT: n % act.chestEvery === 0 ? 10 : 5 };
   if (act.roguelike) {
     reviveAllDown(); // U24: the dead come back inside the boss room when the wave is cleared (co-op; a solo death already ended the run)
-    if (boonDue(n, act.waves)) { beginBoonPick(n, next); return; }
   }
   Object.assign(M, next);
 }
 
-// ---- U24 Roguelike Horde: the boon pick (the host holds the next wave until every member has picked, or 10 s pass) ----
-function beginBoonPick(n, next) {
+// ---- U30 Boon drops: kills leave boon orbs on the ground (2 to 5 a round); walking up and pressing E opens the pick ----
+/** Solo or host: does this kill drop an orb? Returns the orb's id (1, 2, ...) or 0. Members never decide; they follow the host's `bd`. */
+function boonDropFor(e) {
   const M = G.mission;
-  M.phase = 'boon'; M.boonT = 0; M.afterBoon = next; M.boonPicked = new Set();
-  announceBoonStart(n);
-  showBoonMenu(n);
+  if (!M?.act?.roguelike || !M.dropPlan || M.remote || e.noDrops) return 0;
+  const w = e.isBoss ? DROP_ELITE_WEIGHT * 2 : e.tier && e.tier !== 'minor' ? DROP_ELITE_WEIGHT : 1;
+  return shouldDropBoon(M.dropPlan, w) ? M.wave * 100 + M.dropPlan.seq : 0;
 }
-const boonMembers = () => (G.mission.coop ? allPlayers().map((p) => p.id ?? net.myId) : [net.myId ?? 'me']);
-/** Everyone (host and members): roll my own offer and take my pick. */
-export async function showBoonMenu(n) {
+const orbGeo = new THREE.OctahedronGeometry(0.34, 0);
+/** Everyone: a boon orb at pos for this player alone (personal, like kill loot). `id` seeds its offer. */
+export function spawnBoonOrb(at, id) {
+  const M = G.mission;
+  if (!M?.act?.roguelike) return;
+  M.orbs ||= [];
+  if (M.orbs.some((o) => o.id === id)) return;
+  const col = 0xc79bff, g = new THREE.Group();
+  const core = new THREE.Mesh(orbGeo, mat(col, { emissive: col, emissiveIntensity: 1.8 }));
+  core.position.y = 0.9;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 24, 8, 1, true), basicMat(col, true));
+  beam.position.y = 12; beam.material = beam.material.clone(); beam.material.opacity = 0.2;
+  g.add(core, beam);
+  const pos = at.clone(); pos.y = groundAt(pos.x, pos.z);
+  g.position.copy(pos);
+  G.scene.add(g);
+  M.orbs.push({ id, group: g, core, pos, wave: M.wave });
+  ui.feed('A boon orb dropped. Find it and open it.', '#c79bff');
+}
+export function clearBoonOrbs(M = G.mission) { for (const o of M?.orbs || []) G.scene.remove(o.group); if (M) M.orbs = []; }
+
+function updateBoonOrbs(dt) {
+  const M = G.mission, P = G.player;
+  if (!M.orbs?.length) return;
+  let near = null;
+  for (const o of M.orbs) {
+    o.core.rotation.y += dt * 1.6;
+    o.core.position.y = 0.9 + Math.sin(G.time * 2 + o.id) * 0.12;
+    if (!P.dead && !M.boonMenuOpen && !P.stasis && P.pos.distanceTo(o.pos) < 3 && (!near || P.pos.distanceTo(o.pos) < P.pos.distanceTo(near.pos))) near = o;
+  }
+  if (M.boonMenuOpen) return;
+  if (near) { ui.prompt(`[${keyName('interact')}]  Open Boon`); M.orbPrompt = true; if (G.input.pressed.KeyE) openBoonOrb(near); }
+  else if (M.orbPrompt) { M.orbPrompt = false; ui.prompt(null); }
+}
+
+/** Open an orb: roll its seeded offer and show the pick. Solo freezes the game; co-op puts the opener in stasis (see Player.takeDamage and pickTarget). */
+export async function openBoonOrb(orb) {
   const M = G.mission, P = G.player;
   if (!M.boonRun || M.boonMenuOpen) return;
   M.boonMenuOpen = true;
+  const coop = !!M.coop;
   const power = M.def.power, pool = weaponPool(power);
-  const offer = rollOffer(Math.random, pool.map(({ slot, name, exotic }) => ({ slot, name, exotic })));
+  const idx = Math.max(0, allPlayers().indexOf(P));
+  const offer = rollOrbOffer(offerSeed(M.wave, orb.id, idx), pool.map(({ slot, name, exotic }) => ({ slot, name, exotic })));
   const items = offer.map((o) => (o.kind === 'weapon' ? itemForOption(o, power, pool) : null));
   const current = Object.fromEntries(P.weapons.map((w) => [w.item.slot, w.item.name]));
-  const i = await openBoonMenu({ wave: n, offer, held: M.boonRun.boons, items, seconds: BOON_PICK_SECONDS, current });
+  ui.prompt(null);
+  const pausedHere = !coop && G.state === 'playing';
+  if (pausedHere) G.state = 'paused'; // solo: the world freezes while you choose
+  if (coop) P.stasis = true; // co-op: the world keeps running, so you cannot be hurt or targeted while you choose
+  const i = await openBoonMenu({ wave: M.wave, offer, held: M.boonRun.boons, items, seconds: coop ? ORB_IDLE_SECONDS : 0, current });
+  if (pausedHere && G.state === 'paused') G.state = 'playing';
+  P.stasis = false;
   M.boonMenuOpen = false;
-  if (G.mission !== M) return; // the run ended while the menu was open
-  const o = offer[i] ?? offer[0];
-  takeOption(P, o, items[offer.indexOf(o)]);
+  if (G.mission !== M || i < 0) return; // the run ended, or Esc / the idle timeout: the orb stays where it is
+  const k = M.orbs.indexOf(orb);
+  if (k >= 0) { M.orbs.splice(k, 1); G.scene.remove(orb.group); }
+  const o = offer[i];
+  takeOption(P, o, items[i]);
   if (o.kind === 'weapon') ui.renderWeaponRows(); // H38: the bottom-right weapon list shows the new gun
   ui.feed(o.kind === 'boon' ? `Boon: ${BOON_BY_ID[o.id].name} x${M.boonRun.boons[o.id]}` : `Weapon: ${o.name} (${o.slot})`, '#c79bff');
-  if (net.isHost) M.boonPicked?.add(net.myId); else sendBoonPick();
+  sendBoonPick(orb.id, i);
 }
 
 /** Everyone: move to arena i (any unopened cache is opened for you first). */

@@ -5,7 +5,8 @@ import { mulberry32 } from './util.js';
 
 export const BOON_EVERY = 1;        // a boon choice after every wave (waves 1, 2, 3, ...)
 export const BOON_OFFER_SIZE = 3;   // options per member
-export const BOON_PICK_SECONDS = 10; // the first option is taken on timeout
+export const BOON_PICK_SECONDS = 10; // (pre-U30 wave pick timer; pickState still uses it)
+export const ORB_IDLE_SECONDS = 12;  // U30 co-op: an open orb menu closes (the orb stays) after this long, so a stalled opener is not stuck in stasis
 export const WEAPON_OFFER_CHANCE = 0.25; // chance each option is a weapon swap instead of a buff (H39: back to 0.25 after H37 raised it)
 export const EXOTIC_SHARE = 0.4;         // chance a weapon option is an exotic (H37: was 0.1)
 
@@ -157,8 +158,35 @@ export function applyOption(run, option) {
   else throw new Error(`applyOption: unknown option kind ${option.kind}`);
   return option;
 }
-/** True when the wave just cleared earns a boon choice (wave 1, then every BOON_EVERY waves: now every wave, but not after the last wave). */
-export const boonDue = (wave, totalWaves) => wave > 0 && (wave - 1) % BOON_EVERY === 0 && wave < totalWaves;
+/** Kept for old callers: U30 removed the wave-clear boon, so no wave ever earns a pick by clearing. Boons come from drops (below). */
+export const boonDue = () => false;
+
+// ---------- U30 boon drops: orbs left by kills (Risk of Rain style) ----------
+export const DROPS_MIN = 2, DROPS_MAX = 5;
+export const DROP_ELITE_WEIGHT = 2.5; // an elite, major or boss kill is this much likelier to drop the orb than a grunt
+/** How many orbs one round drops: DROPS_MIN to DROPS_MAX, leaning higher when the round has more enemies. `rnd` 0..1. */
+export function rollDropBudget(enemyCount, rnd = Math.random) {
+  const lean = Math.min(1, Math.max(0, (enemyCount - 12) / 60)); // 0 for a small round, 1 for a big one
+  const roll = Math.min(1, rnd() * 0.75 + lean * 0.25 + 0.0001);
+  return Math.min(DROPS_MAX, DROPS_MIN + Math.floor(roll * (DROPS_MAX - DROPS_MIN + 1)));
+}
+/** A round's drop plan: `left` orbs still to drop over `remaining` expected kills. */
+export const newDropPlan = (enemyCount, rnd = Math.random) => ({ left: rollDropBudget(enemyCount, rnd), remaining: Math.max(1, enemyCount), seq: 0 });
+/**
+ * Called once per kill by whoever decides (solo, or the host). Returns true if this kill drops an orb. Spreads the budget over the
+ * round's kills, leans toward elites, and always drops once the kills left only just cover the orbs left (so a round never ends short).
+ */
+export function shouldDropBoon(plan, weight = 1, rnd = Math.random) {
+  if (!plan || plan.left <= 0) { if (plan) plan.remaining = Math.max(0, plan.remaining - 1); return false; }
+  const p = plan.remaining <= plan.left ? 1 : Math.min(1, (plan.left / plan.remaining) * weight);
+  plan.remaining = Math.max(0, plan.remaining - 1);
+  if (rnd() < p) { plan.left--; plan.seq++; return true; }
+  return false;
+}
+/** The offer for one orb is seeded from the drop id and the player's slot, so a reopened or reconnected orb shows the same three choices. */
+export const offerSeed = (wave, dropId, playerIdx) => ((wave * 7919 + dropId * 104729 + playerIdx * 1299709 + 0x9e3779b9) >>> 0);
+/** Same as rollOffer but from the drop's seed. */
+export const rollOrbOffer = (seed, weaponPool = []) => rollOffer(mulberry32(seed), weaponPool);
 
 /**
  * The host's wave-break timer for the pick. `picked`: Set of member ids who have picked. Counts down once per update.

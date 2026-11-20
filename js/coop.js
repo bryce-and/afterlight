@@ -11,7 +11,7 @@ import { wrapAngle } from './util.js';
 import { tracer, explosionFx, sparks, firePool } from './effects.js';
 import { replayFx } from './abilities.js';
 import { classKit, ARCHETYPES } from './data.js';
-import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startBlitzStep, claimPendingCache, startActivity, showBoonMenu, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
+import { openZoneDoors, objSnapshot, syncObjMarkers, startMission, startBlitzStep, claimPendingCache, startActivity, spawnBoonOrb, newSeed, moveArena, placeActChest, missionFailed, abandonMission, damagePlayer, dealDamage, spawnPlayerProjectile, rollDrops, spawnChest, getEnemyByNetId, gainXp, reviveForCompletion } from './game.js';
 import { XP } from './progression.js';
 import { barrierStops } from './combat.js';
 import { playerPower, playerLevel } from './save.js';
@@ -30,7 +30,6 @@ import { startExotic, exoticWipe, onSnapshot, onRemoteShot, onChest, onReset, on
 import { startCrucible } from './crucible.js';
 import { crNetTick, crMemberLeft } from './crucible-net.js';
 import { buildRoster } from './pvp.js';
-import { closeBoonMenu } from './rewards-ui.js';
 import * as ui from './ui.js';
 import { keyName } from './keybinds.js';
 import { coopFlag } from './prismatic-rules.js';
@@ -70,7 +69,7 @@ export function pickTarget(e) {
   let best = null, bd = Infinity;
   const R = G.mission?.notice; // U17g: patrol zones set a notice range; nobody further away is seen
   for (const p of allPlayers()) {
-    if (!p || p.dead) continue;
+    if (!p || p.dead || p.stasis) continue; // U30: a Guardian choosing a boon cannot be targeted
     const d = (p.pos.x - e.pos.x) ** 2 + (p.pos.z - e.pos.z) ** 2;
     const provoked = G.time < (e.provokedT ?? 0) && e.provokedBy === (p === G.player ? 'local' : p.id); // U17g: whoever hurt it is seen from any range
     if (!provoked && !withinNotice(d, R)) continue;
@@ -156,10 +155,17 @@ export function onLevelSwap() {
   lastHits.clear();
 }
 export function announceArena(i) { if (net.isHost) broadcast({ t: 'arena', i }); }
-// U24 Roguelike Horde: the boon pick. The host starts it and holds the next wave; each member rolls and picks their own boon locally.
-export function announceBoonStart(n) { if (net.isHost) broadcast({ t: 'bnst', n }); }
-export function announceBoonEnd() { if (net.isHost) broadcast({ t: 'bnend' }); }
-export function sendBoonPick() { if (net.active && !net.isHost) send({ t: 'bnok' }); }
+// U30 boon drops: orbs are personal and local (the host's kill message carries the orb id); a pick is reported so the host can tally it.
+export function sendBoonPick(id, choice) {
+  if (!net.active) return;
+  if (net.isHost) tallyBoonPick(net.myId, id, choice); else send({ t: 'bnok', id, ch: choice });
+}
+function tallyBoonPick(who, id, choice) {
+  const M = G.mission;
+  if (!M) return;
+  M.boonTally ||= {};
+  (M.boonTally[who] ||= []).push({ id, ch: choice });
+}
 /** Host: a Horde wave was cleared, so every downed fireteam member comes back inside the boss room. */
 export function reviveAllDown() {
   if (!net.isHost) return;
@@ -260,7 +266,7 @@ export function registerEnemy(e) {
 
 export function announceKill(e, o) {
   if (!net.isHost || !e.netId) return;
-  broadcast({ t: 'kill', id: e.netId, by: o.by || net.myId, c: o.crit ? 1 : 0 });
+  broadcast({ t: 'kill', id: e.netId, by: o.by || net.myId, c: o.crit ? 1 : 0, bd: o.bd || 0 });
 }
 
 export function announceSay(w, x) { if (net.isHost) broadcast({ t: 'say', w, x }); }
@@ -305,7 +311,7 @@ function myState() {
   const wi = P.weapon.item;
   return {
     id: net.myId, n: G.save.settings.name, c: G.save.classId, sc: P.cls.subclassId, lk: P.lookCode,
-    x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0, tr: coopFlag(P.cls, P.prism), // U27: 2 = Transcendent
+    x: r2(P.pos.x), y: r2(P.pos.y), z: r2(P.pos.z), yw: r2(P.yaw), pt: r2(P.pitch), d: P.dead ? 1 : 0, sb: P.stasis ? 1 : 0, h: r2(P.health / P.maxHealth), iv: P.status.has('invisible') ? 1 : 0, tr: coopFlag(P.cls, P.prism), // U27: 2 = Transcendent
    
     // animation: sprinting, airborne, firing, and the gun in hand
     s: P.sprinting ? 1 : 0, a: P.onGround ? 0 : 1, f: G.time - P.lastFire < 0.15 ? 1 : 0, pu: P.punchT > 0 ? r2(1 - P.punchT / P.punchMax) : 0, sp: P.tpsProp || '', gd: P.superActive?.guard ? 1 : 0, gv: P.shieldHex || 0, po: P.superPose || '', hv: P.superHover ? 1 : 0, gh: P.guardHits, mt: P.mount ? 1 : 0, mh: P.mount ? r2(P.mount.heading) : 0, gm: P.ghostOut || P.mount ? 1 : 0, rg: P.ragdoll ? 1 : 0, w: (P.superActive && !P.keepsGuns) || P.holdingAxe || P.holdingLance || P.ghostOut || P.mount ? '' : `${wi.arch}|${wi.rarity}|${wi.element}|${wi.rarity === 'exotic' ? wi.name : ''}`,
@@ -367,7 +373,7 @@ function ensureRemote(st) {
     r = { id: st.id, remote: true, pos: new THREE.Vector3(st.x, st.y, st.z), target: new THREE.Vector3(st.x, st.y, st.z), eye: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: st.yw, dead: false, inMission: false, avatar: null, plate: null };
     remotes.set(st.id, r);
   }
-  r.name = st.n; r.h = st.h; r.dead = !!st.d; r.inv = !!st.iv; r.state = st;
+  r.name = st.n; r.h = st.h; r.dead = !!st.d; r.inv = !!st.iv; r.stasis = !!st.sb; r.state = st;
   if (!r.inMission) { r.pos.set(st.x, st.y, st.z); r.inMission = true; }
   if (r.cls !== st.c || r.sc !== st.sc || r.lk !== st.lk) { removeAvatar(r); r.cls = st.c; r.sc = st.sc; r.lk = st.lk; }
   r.target.set(st.x, st.y, st.z);
@@ -618,6 +624,7 @@ net.on('kill', (m) => {
   e.onDeath();
   sfx.kill();
   rollDrops(e); // every player rolls their own loot
+  if (m.bd) spawnBoonOrb(e.pos, m.bd); // U30: and their own boon orb
   if (!e.noDrops) gainXp(Math.round((XP.kill[e.cls] ?? 0) * (TIERS[e.tier]?.xp ?? 1))); // the whole fireteam shares kill XP
   if (m.by === net.myId) {
     G.mission.kills++;
@@ -656,9 +663,7 @@ net.on('xwipe', () => { if (inMission()) onWipe(); });
 net.on('xfail', () => { if (inMission()) failOutOfTime(); });
 
 // activities
-net.on('bnst', (m) => { if (inMission() && G.mission.act?.roguelike) showBoonMenu(m.n); });
-net.on('bnend', () => { if (inMission()) closeBoonMenu(); });
-net.on('bnok', (m, from) => { if (inMission() && net.isHost) G.mission.boonPicked?.add(from); });
+net.on('bnok', (m, from) => { if (inMission() && net.isHost) tallyBoonPick(from, m.id, m.ch); });
 net.on('arena', (m) => { if (inMission() && G.mission.act) moveArena(m.i); });
 net.on('ptr', (m) => { if (inMission() && G.mission.patrol) receivePatrolReward(new THREE.Vector3(m.x, m.y, m.z), m.n, m.xp); });
 net.on('ach', (m) => { if (inMission() && G.mission.act) placeActChest(new THREE.Vector3(m.x, 0, m.z), m.n, !!m.f); });

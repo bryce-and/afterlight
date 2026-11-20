@@ -4388,8 +4388,25 @@ test('U24 boons: a weapon swap fills the slot, applyOption works, reset clears t
   let threw = false; try { BN.applyOption(run, { kind: 'x' }); } catch { threw = true; } ok(threw);
 });
 
-test('U24 boons: a boon is due after every wave, but not after the last', () => {
-  eq([1, 2, 3, 4, 7, 10, 28, 29, 30].map((w) => BN.boonDue(w, 30)), [true, true, true, true, true, true, true, true, false]);
+test('U30 boon drops: clearing a wave grants no boon any more', () => {
+  eq([1, 2, 3, 4, 7, 10, 28, 29, 30].map((w) => BN.boonDue(w, 30)), [false, false, false, false, false, false, false, false, false]);
+});
+
+test('U30 boon drops: a round budget is 2 to 5, a plan drops exactly that many, elites lean first, offers are seeded', () => {
+  const r = mulberry32(7);
+  for (const count of [3, 8, 14, 40, 90]) for (let i = 0; i < 200; i++) { const n = BN.rollDropBudget(count, r); ok(n >= 2 && n <= 5, `budget ${n} for ${count} enemies`); }
+  const seen = new Set(); for (let i = 0; i < 400; i++) seen.add(BN.rollDropBudget(40, r)); eq([...seen].sort(), [2, 3, 4, 5], 'every size from 2 to 5 occurs');
+  for (const count of [2, 5, 20, 60]) for (let t = 0; t < 100; t++) {
+    const plan = BN.newDropPlan(count, r), want = plan.left; let got = 0; const ids = [];
+    for (let k = 0; k < count; k++) if (BN.shouldDropBoon(plan, k % 4 === 0 ? BN.DROP_ELITE_WEIGHT : 1, r)) { got++; ids.push(plan.seq); }
+    eq(got, Math.min(want, count), `a round of ${count} kills drops its ${want} orbs`); eq(ids, ids.map((_, i) => i + 1), 'orb ids count up from 1');
+    ok(!BN.shouldDropBoon(plan, 1, r) || plan.left >= 0, 'never past the budget');
+  }
+  ok(!BN.shouldDropBoon(null), 'no plan, no drop');
+  const sd = BN.offerSeed(5, 502, 1);
+  eq(BN.rollOrbOffer(sd), BN.rollOrbOffer(sd), 'the same orb and player show the same three choices');
+  ok(JSON.stringify(BN.rollOrbOffer(BN.offerSeed(5, 502, 1))) !== JSON.stringify(BN.rollOrbOffer(BN.offerSeed(5, 502, 2))) || JSON.stringify(BN.rollOrbOffer(BN.offerSeed(5, 503, 1))) !== JSON.stringify(BN.rollOrbOffer(BN.offerSeed(5, 502, 1))), 'other players or orbs differ');
+  eq(BN.rollOrbOffer(sd).length, BN.BOON_OFFER_SIZE);
 });
 
 test('U24 horde scaling: wave 1 is 1x; values rise per wave, stay capped and bosses outgrow the rest', () => {
@@ -4443,7 +4460,7 @@ test('U24 roguelike endless: the curve never levels off past wave 30 (only the e
   eq(c.count, BN.ENDLESS_SCALE.countMax, 'count capped'); eq(BN.waveScale(1, BN.ENDLESS_SCALE), { count: 1, hp: 1, dmg: 1, bossHp: 1 });
   ok(BN.waveScale(30, BN.ENDLESS_SCALE).hp > BN.waveScale(30).hp, 'steeper than Horde');
   const acts = DATA.ACTIVITIES; ok(acts.find((x) => x.id === 'endless_rogue')?.roguelike, 'the mode exists'); ok(acts.find((x) => x.id === 'horde_rogue').roguelike && acts.find((x) => x.id === 'horde_rogue').waves === 30, 'Roguelike Horde exists'); ok(!acts.find((x) => x.id === 'horde').roguelike, 'classic Horde is unchanged'); ok(!acts.find((x) => x.id === 'endless').roguelike, 'plain Endless is unchanged');
-  eq([31, 34, 1000].map((w) => BN.boonDue(w, Infinity)), [true, true, true]);
+  eq([31, 34, 1000].map((w) => BN.boonDue(w, Infinity)), [false, false, false]);
 });
 
 test('U26 mobile: detect honours ?mobile, ?mobile=0 and the touch default', () => {

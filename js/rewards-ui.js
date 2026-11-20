@@ -203,10 +203,10 @@ export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10,
     };
     el.innerHTML = `
       <div class="rw-wrap">
-        <div class="rw-eyebrow">Wave ${wave} cleared</div>
+        <div class="rw-eyebrow">Wave ${wave}  ·  Boon orb</div>
         <h1 class="rw-title">Choose a boon</h1>
-        <p class="rw-sub">Boons last until this run ends. <span id="bn-left"></span></p>
-        <div class="bn-bar"><i id="bn-fill"></i></div>
+        <p class="rw-sub">Boons last until this run ends. Esc closes it and the orb stays. <span id="bn-left"></span></p>
+        <div class="bn-bar"${seconds > 0 ? '' : ' style="display:none"'}><i id="bn-fill"></i></div>
         <div class="rw-grid bn-grid">${offer.map(card).join('')}</div>
       </div>`;
     document.body.appendChild(el);
@@ -245,13 +245,14 @@ export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10,
       lockPointer();
       resolve(i);
     };
-    const tick = setInterval(() => {
+    // U30: no timer when the game is frozen (solo); in co-op the menu closes after `seconds` and the orb stays (-1)
+    const tick = seconds > 0 ? setInterval(() => {
       const left = Math.max(0, seconds - (performance.now() - t0) / 1000);
       const f = el.querySelector('#bn-fill'), l = el.querySelector('#bn-left');
       if (f) f.style.width = `${(left / seconds) * 100}%`;
-      if (l) l.textContent = `Auto-picks the first in ${Math.ceil(left)} s`;
-      if (left <= 0) finish(0);
-    }, 100);
+      if (l) l.textContent = `Closes in ${Math.ceil(left)} s`;
+      if (left <= 0) finish(-1);
+    }, 100) : 0;
     // a weapon swap asks first (the card opens a confirm line; the same card again takes it, any other card cancels it)
     let asked = -1;
     const choose = (i) => {
@@ -262,7 +263,10 @@ export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10,
       }
       sfx.engram(3); finish(i);
     };
-    const onKey = (e) => { const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code); if (i >= 0 && i < offer.length) { e.preventDefault(); e.stopPropagation(); choose(i); } };
+    const onKey = (e) => {
+      if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(-1); return; }
+      const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code); if (i >= 0 && i < offer.length) { e.preventDefault(); e.stopPropagation(); choose(i); }
+    };
     addEventListener('keydown', onKey, true);
     el.querySelectorAll('.bn-card').forEach((c) => {
       const go = () => choose(+c.dataset.i);
@@ -272,5 +276,5 @@ export function openBoonMenu({ wave, offer, held = {}, items = [], seconds = 10,
     el._forceFinish = finish;
   });
 }
-/** The host ended the pick: take the first option for a Guardian who has not chosen (a closed menu resolves with 0). */
-export function closeBoonMenu() { menuEl?._forceFinish?.(0); }
+/** Close an open boon menu without a pick (resolves -1; the orb stays). */
+export function closeBoonMenu() { menuEl?._forceFinish?.(-1); }

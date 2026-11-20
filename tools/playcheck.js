@@ -148,14 +148,19 @@ export async function hordecheck(waves = 6, { light = 250, allBoons = false, act
         if (r && (e.pos.x < r.minX - 0.5 || e.pos.x > r.maxX + 0.5 || e.pos.z < r.minZ - 0.5 || e.pos.z > r.maxZ + 0.5)) outside++;
       }
     };
-    while (M.wave < waves + 1 && f < 60 * 60 * 25 && G.state === 'playing') {
+    const orbsSeen = new Set(); let perWave = {};
+    while (M.wave < waves + 1 && f < 60 * 60 * 25 && (G.state === 'playing' || M.boonMenuOpen)) {
       if (M.wave !== lastWave) { // a wave began
         if (lastWave) rep.push(`wave ${lastWave}: ${((f - waveStart) / 60).toFixed(0)} s`);
         lastWave = M.wave; waveStart = f;
         if (M.wave > waves) break;
       }
       const boonEl = document.querySelector('.rw-ov.boon');
-      if (boonEl) { boonEl.querySelector('.bn-card')?.click(); await new Promise((r) => setTimeout(r, 0)); }
+      if (boonEl) { boonEl.querySelector('.bn-card')?.click(); await new Promise((r) => setTimeout(r, 0)); continue; }
+      for (const o of M.orbs || []) if (!orbsSeen.has(o.id)) { orbsSeen.add(o.id); perWave[o.wave] = (perWave[o.wave] || 0) + 1; }
+      if (M.orbs?.length && !M.boonMenuOpen && M.phase !== 'move') { // U30: the bot walks to the nearest orb and presses E (picks the first option)
+        const o = M.orbs[0]; P.pos.set(o.pos.x, o.pos.y + 0.1, o.pos.z + 1); inp.pressed.KeyE = true; step(); f++; inp.pressed.KeyE = false; await new Promise((r) => setTimeout(r, 0)); continue;
+      }
       if (M.phase === 'move' || M.phase === 'inter' || M.phase === 'boon') { for (let i = 0; i < 5; i++) step(); f += 5; inp.mouse.left = false; continue; }
       if (!target?.alive) target = G.enemies.filter((e) => e.alive).sort((a, b) => a.pos.distanceToSquared(P.pos) - b.pos.distanceToSquared(P.pos))[0] || null;
       if (target) {
@@ -179,6 +184,7 @@ export async function hordecheck(waves = 6, { light = 250, allBoons = false, act
       if (M.phase === 'combat' && f - waveStart > 60 * 240) { rep.push(`wave ${M.wave}: TIME CAP, left: ${G.enemies.filter((e) => e.alive).slice(0, 4).map((e) => `${e.typeId || e.type || 'enemy'} ${e.pos.distanceTo(P.pos).toFixed(0)} m ${(e.pos.y - P.pos.y).toFixed(0)} up hp ${Math.round(e.hp)}`).join(', ')}`); for (const e of [...G.enemies]) if (e.alive) g.dealDamage(e, 1e7, { raw: true }); waveStart = f; }
     }
     inp.mouse.left = false;
+    rep.push(`boon orbs dropped per wave: ${Object.entries(perWave).map(([w, n]) => `${w}:${n}`).join(' ') || 'none'}; total ${orbsSeen.size}; boons taken ${M.boonRun.picks}; left on ground ${M.orbs?.length || 0}`);
     const boons = Object.entries(M.boonRun.boons).map(([k, n]) => `${k}${n > 1 ? ' x' + n : ''}`).join(', ') || 'none';
     const wep = Object.entries(M.boonRun.weapons).map(([k, v]) => `${k}: ${v.name}`).join(', ') || 'none';
     const bad = outside || unfair || rep.some((x) => x.includes('TIME CAP')) || (M.wave > 5 && !M.boonRun.picks);

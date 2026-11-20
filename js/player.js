@@ -2084,7 +2084,7 @@ export class Player {
 
   takeDamage(amount, from) {
     const M = G.mission;
-    if (this.dead || M.phase === 'done' || M.phase === 'loot' || M.chest?.final) return; // the activity is complete: no more damage
+    if (this.dead || this.stasis || M.phase === 'done' || M.phase === 'loot' || M.chest?.final) return; // the activity is complete: no more damage; U30: stasis while a boon menu is open in co-op
     if (DEV.invulnerable) return; // dev console: /gamerule Invulnerable
     if (this.exo.has('quietone')) this.status.apply('quietone', { t: QUIET.t, set: true }); // Mask of the Quiet One
     if (this.superActive?.guard) {
