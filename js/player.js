@@ -3285,7 +3285,7 @@ export class Player {
     if (S.type === 'well') {
       // plant the sword: a blast, then the well
       const p = this.pos.clone().setY(Math.max(0.6, this.pos.y + 0.6));
-      explode(p, SUPER_TUNE.well.r, superDmg(SUPER_TUNE.well.blast), 'solar', { source: 'super' });
+      explode(p, SUPER_TUNE.well.r, superDmg(SUPER_TUNE.well.blast), 'solar', { source: 'super', kind: 'superSoft' });
       castFx('well', { p: this.pos.clone(), r: SUPER_TUNE.well.r, life: SUPER_TUNE.well.life });
       this.throwFist(0.4, true);
     }

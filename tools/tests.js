@@ -4110,7 +4110,7 @@ test('U25 pvp: a throwing knife precision hit still one-shots, a body hit does n
   ok(!PV.abilityDamage('ability', 300, { kind: 'knife', crit: false }).oneHit && PV.abilityDamage('ability', 300, { kind: 'knife' }).dmg < PV.pvpPool(0), 'body does not');
 });
 test('U25 pvp: ability and super damage are capped and floored per source', () => {
-  for (const src of ['ability', 'melee', 'super', 'explosion']) {
+  for (const src of ['ability', 'melee', 'explosion']) { // U31: supers have their own rule (superDamage)
     const T = PV.PVP_ABILITY[src];
     eq(PV.abilityDamage(src, 1e6).dmg, T.max); eq(PV.abilityDamage(src, 0).dmg, T.min);
   }
@@ -4818,6 +4818,19 @@ test('U31 Golden Gun uses the hand cannon recoil profile', () => {
 test('U31 Phoenix Rite grants a grace period, Needlestorm is wide', () => {
   ok(BRUN.PHOENIX_GRACE >= 2, 'Phoenix Rite protects you for a moment after the save');
   ok(C.SUPER_TUNE.needlestorm.r >= 11, 'Needlestorm radius');
+});
+
+test('U31: Crucible supers one-shot in the core, ticks stay small, Well is soft', () => {
+  const core = PV.superDamage(420, 1);
+  eq(core.oneHit, true); ok(core.dmg >= PV.PVP_MAX_POOL, 'a hammer in the core beats the largest pool');
+  const edge = PV.superDamage(3000, 0.5);
+  eq(edge.oneHit, false); ok(edge.dmg > PV.PVP_REF_POOL, 'the blast edge still kills a mid build');
+  const tick = PV.superDamage(60, 1);
+  eq(tick.oneHit, false); ok(tick.dmg <= PV.PVP_SUPER.tick.max, 'a chaos reach tick stays a tick');
+  const direct = PV.abilityDamage('super', 1500);
+  eq(direct.oneHit, true);
+  ok(PV.abilityDamage('explosion', 500).dmg < PV.PVP_MAX_POOL, 'plain explosions are unchanged');
+  ok(PV.abilityDamage('super', 500, { kind: 'goldenGun' }).dmg === 140, 'Golden Gun keeps its own row');
 });
 
 for (const t of tests) {

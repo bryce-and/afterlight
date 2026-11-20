@@ -18,7 +18,7 @@ import { classKit } from './data.js';
 import { decodeAppearance } from './style.js';
 import {
   CONTROL, CRATES, CRUCIBLE_MODES, CRUCIBLE_REWARD, DUEL, GUARDIAN_AI, PVP_WEAPONS, modeOf, buildRoster, roundOnClock, pvpHurts, killPoints, zoneStep, zonesHeld, controlResult,
-  startLoad, gamerTags, heavyCrateAmount, specialCrateAmount, abilityDamage, weaponDamage, killDamage,
+  startLoad, gamerTags, heavyCrateAmount, specialCrateAmount, abilityDamage, superDamage, weaponDamage, killDamage,
 } from './pvp.js';
 import { BANNERFALL } from './level-bannerfall.js';
 import { Guardian } from './guardian-ai.js';
@@ -524,7 +524,10 @@ export function pvpExplodeHit(e, dmg, f, at, o = {}) {
   let base;
   const w = o.weapon;
   if (w?.A && PVP_WEAPONS[w.A.id]) base = weaponDamage(w.A.id, { dist: 0 }).dmg; // a rocket or a grenade launcher: its PvP direct number as the blast
-  else base = abilityDamage('explosion', dmg).dmg;
+  else if (o.source === 'super' && o.kind !== 'superSoft') { // U31: a super's blast one-shots its core
+    const r = superDamage(dmg, f);
+    return pvpDealDamage(e, r.dmg, { pvpFinal: true, pvpOneHit: r.oneHit, source: 'super', pos: at, attacker: o.attacker });
+  } else base = abilityDamage('explosion', dmg).dmg;
   return pvpDealDamage(e, base * f, { pvpFinal: true, source: 'explosion', pos: at, attacker: o.attacker });
 }
 

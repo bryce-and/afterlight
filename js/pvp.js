@@ -135,7 +135,20 @@ export const PVP_ABILITY = {
   goldenGun: { dmg: 140, oneHitCrit: true },
   rocket: { dmg: 120 },
 };
+/**
+ * U31: Crucible supers. A burst hit (PvE number at or above `killAt`: a hammer, a slam, a thrown blade volley, a Storm's Edge, Needlestorm...)
+ * one-shots a Guardian caught in the core of the blast (`core` of its radius, `f` is the 1 to 0.5 distance falloff) and leaves the outer edge at
+ * `edge` of a full pool. A sustained super (chaos reach, Arc Staff, Stormtrance, Arc Staff) ticks below `killAt` and keeps its scaled per-tick number.
+ * Support supers (Well of Radiance) pass kind 'superSoft' and stay on the explosion numbers.
+ */
+export const PVP_SUPER = { killAt: 250, core: 0.75, edge: 0.85, tick: { scale: 0.12, min: 15, max: 60 } };
+export function superDamage(raw, f = 1) {
+  if (raw >= PVP_SUPER.killAt) return { dmg: f >= PVP_SUPER.core ? PVP_MAX_POOL : Math.ceil(PVP_MAX_POOL * PVP_SUPER.edge), oneHit: f >= PVP_SUPER.core };
+  const T = PVP_SUPER.tick;
+  return { dmg: Math.min(T.max, Math.max(T.min, raw * T.scale)) * f, oneHit: false };
+}
 export function abilityDamage(source, raw, o = {}) {
+  if (source === 'super' && !(o.kind && PVP_ABILITY[o.kind])) return superDamage(raw, 1);
   const T = (o.kind && PVP_ABILITY[o.kind]) || PVP_ABILITY[source] || PVP_ABILITY.ability;
   if (T.oneHitCrit && o.crit) return { dmg: PVP_MAX_POOL, oneHit: true };
   if (T.dmg != null) return { dmg: T.dmg, oneHit: false };
