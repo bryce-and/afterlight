@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { dealDamage, explode, enemiesNear } from './game.js';
 import { raiseCrystal } from './darkness.js';
+import { roundsDeal, roundsTick } from './boon-run.js';
 
 export const PK31 = {
   lastround: 1.5, ambush: 1.3, closer: { r: 10, m: 1.25 }, longshot: { r: 30, m: 1.25 }, focus: { step: 0.04, max: 5, window: 2 },
@@ -48,6 +49,8 @@ export const weaponPerkMethods = {
     if (w.has('winterbite') && n % PK31.winterbite.every === 0) o.freeze = this.freezeMult();
     if (w.has('brittle') && crit && e.status.has('slow')) { o.slowAdd = PK31.brittle; o.freezeMult = this.freezeMult(); }
     if (w.has('tenderize') && n % PK31.tenderize.every === 0) o.weaken = PK31.tenderize.t;
+    const r = roundsDeal(w, e, crit); // U31 boons: Cryo, Burning, Toxic, Static, Devouring and Threadneedle Rounds
+    if (r) { if (r.slowAdd && o.slowAdd) r.slowAdd += o.slowAdd; Object.assign(o, r, r.slowAdd ? { slowAdd: r.slowAdd } : null); }
     return Object.keys(o).length ? o : null;
   },
 
@@ -83,5 +86,7 @@ export const weaponPerkMethods = {
   perkReloaded(w) { if (w.has('hotstart')) w.hotT = G.time + PK31.hotstart.t; },
 
   /** Per frame: how long the Guardian has stood still (Anchored). */
-  perkTick(dt) { this.perkStill = Math.hypot(this.vel.x, this.vel.z) < 0.3 && this.onGround ? (this.perkStill || 0) + dt : 0; },
+  perkTick(dt) {
+    roundsTick(); // U31: Burning and Toxic Rounds damage over time
+    this.perkStill = Math.hypot(this.vel.x, this.vel.z) < 0.3 && this.onGround ? (this.perkStill || 0) + dt : 0; },
 };

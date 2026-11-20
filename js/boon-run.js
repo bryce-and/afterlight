@@ -7,14 +7,14 @@ import { lightning, sparks } from './effects.js';
 import { ELEMENTS, EXOTIC_RANDOM_WEAPONS, ARCHETYPES } from './data.js';
 import {
   newBoonRun, resetBoonRun, boonTotals, damageMult, damageTakenMult, reloadTimeMult, magMult, shieldMult, speedMult, jumpMult, extraDrops, shotCount, MULTISHOT_EXTRA_DMG,
-  chargeMult, specialDropMult, frostSlow, BOON_CONST, BOONS, BOON_BY_ID, applyOption, rollOffer,
+  chargeMult, specialDropMult, frostSlow, BOON_CONST, BOONS, BOON_BY_ID, applyOption, rollOffer, addBoon,
 } from './boons.js';
 import { dealDamage, enemiesNear, explode } from './game.js';
 
 /** H35: the slots every Roguelike run starts with. The weapon in each slot is a random legendary (any archetype of that slot), whatever the player owns. */
 export const HORDE_KIT = [{ slot: 'primary' }, { slot: 'special' }, { slot: 'heavy' }];
 
-export const hordeRun = () => (G.mission?.act?.roguelike ? G.mission.boonRun || null : null);
+export const hordeRun = () => G.mission?.boonRun || null; // U31: /give can start a boon run in any mission (it ends with the mission)
 let cache = { run: null, picks: -1, t: {} };
 /** The summed boon effects for the running Horde, {} outside one. Cached until a pick changes the run. */
 export function bt() {
@@ -134,6 +134,7 @@ export function afterHit(P, e, dmg, crit, point) {
       dealDamage(o, dmg * 0.5, { element: 'arc', source: 'perk', pos: _c.clone() });
     }
   }
+  roundsAfter(P, e, dmg, point);
   if (t.ricochet) {
     const n = Math.min(4, Math.round(t.ricochet));
     for (const o of enemiesNear(e.pos, BOON_CONST.ricochetRange, n, e)) {
@@ -168,6 +169,62 @@ export function onKillBoons(P, e, o) {
     const w = P.weapons.find((x) => x.item.slot === 'heavy');
     if (w && w.reserve !== Infinity) w.reserve = Math.min(w.maxReserve, w.reserve + Math.max(1, Math.round(w.brick * 0.5 * t.grenadeHeavy)));
   }
+}
+// ---- U31: elemental rounds (Cryo, Burning, Toxic, Static, Devouring, Threadneedle, Blast) ----
+/** Extra dealDamage options for a weapon hit from the rounds boons (merged in weapon-perks-u31.js perkDeal). */
+export function roundsDeal(w, e, crit) {
+  if (!on() || !e || e.isGuardian) return null;
+  const t = bt(), o = {}, n = (w.rdHits = (w.rdHits || 0) + 1);
+  if (t.cryo) { o.slowAdd = Math.round(t.cryo); o.freezeMult = 1; }
+  if (t.staticJolt) o.jolt = 4;
+  if (t.voidWeaken && n % 3 === 0) o.weaken = 3;
+  if (t.unravelCrit && crit) o.unravel = 3;
+  if (t.burnDot) o.burn = 3;
+  if (t.toxic) o.poison = 5;
+  return Object.keys(o).length ? o : null;
+}
+/** Damage over time (Burning, Toxic) and the Blast Rounds counter. Called from afterHit with the hit's final damage. */
+function roundsAfter(P, e, dmg, point) {
+  const t = bt(), S = G.mission.boonState;
+  const dots = (S.dots ||= new Map());
+  const add = (kind, perSec, secs, element) => {
+    const d = dots.get(e) || {}; const cur = d[kind];
+    // burning refreshes (it keeps its strongest hit); poison stacks up to five hits
+    if (kind === 'toxic') d[kind] = { perSec: Math.min(5, (cur?.n || 0) + 1) * perSec, n: Math.min(5, (cur?.n || 0) + 1), until: G.time + secs, next: cur?.next ?? G.time + 0.5, element };
+    else d[kind] = { perSec: Math.max(cur?.perSec || 0, perSec), until: G.time + secs, next: cur?.next ?? G.time + 0.5, element };
+    dots.set(e, d);
+  };
+  if (t.burnDot) add('burn', dmg * Math.min(1, t.burnDot), 3, 'solar');
+  if (t.toxic) add('toxic', dmg * t.toxic, 5, 'void');
+  if (t.blastRounds) {
+    S.blastN = (S.blastN || 0) + 1;
+    if (S.blastN % 6 === 0) explode(point.clone ? point.clone() : e.center(new THREE.Vector3()), 3, dmg * 0.5 * Math.min(4, t.blastRounds), 'solar', { source: 'perk', small: true, jolted: true });
+  }
+}
+/** Per frame: apply the DOT ticks. */
+export function roundsTick() {
+  if (!on()) return;
+  const S = G.mission.boonState, dots = S?.dots;
+  if (!dots?.size) return;
+  for (const [e, d] of dots) {
+    if (!e.alive) { dots.delete(e); continue; }
+    for (const kind of ['burn', 'toxic']) {
+      const x = d[kind]; if (!x) continue;
+      if (G.time >= x.until) { delete d[kind]; continue; }
+      if (G.time >= x.next) { x.next = G.time + 0.5; dealDamage(e, x.perSec * 0.5, { element: x.element, source: 'perk', pos: e.center(_c).clone(), jolted: true, burn: kind === 'burn' ? 0.6 : 0, poison: kind === 'toxic' ? 0.6 : 0 }); }
+    }
+    if (!d.burn && !d.toxic) dots.delete(e);
+  }
+}
+/** U31 /give: add n stacks of a boon to the current mission's run (starting one if the mission has none). */
+export function devGiveBoon(P, id, n = 1) {
+  const M = G.mission;
+  if (!M) throw new Error('Start a mission first: boons last for the mission or level you are in.');
+  if (!M.boonRun) { M.boonRun = newBoonRun(); M.boonState = { momentum: [], rushUntil: 0, saves: 0, savesUsed: 0, lastWave: 0 }; cache = { run: null, picks: -1, t: {} }; }
+  let stacks = 0;
+  for (let i = 0; i < n; i++) stacks = addBoon(M.boonRun, id);
+  refreshBoons(P);
+  return stacks;
 }
 /** Scorched Earth: a grenade's burst leaves burning ground. */
 export function onGrenade(P, pt) {

@@ -52,9 +52,31 @@ export const BOONS = [
   { id: 'siphon', name: 'Siphon', desc: 'Kills restore 6% of your maximum shield', fx: { killShield: 0.06 } },
   { id: 'multishot', name: 'Multishot', desc: 'Primary weapons fire 50% more bullets per shot (at least +1). Extra bullets deal half damage', fx: { multishot: 1 } },
   { id: 'beacon', name: 'Beacon', desc: '+1 boon orb every round (up to +3)', fx: { dropExtra: 1 } },
+  // U31: elemental rounds (read in boon-run.js roundsDeal, afterHit and roundsTick)
+  { id: 'cryo_rounds', name: 'Cryo Rounds', desc: 'Hits build slow on enemies; four stacks freeze them', fx: { cryo: 1 } },
+  { id: 'burning_rounds', name: 'Burning Rounds', desc: 'Hits set enemies burning for 3 s (20% of the hit per second)', fx: { burnDot: 0.20 } },
+  { id: 'toxic_rounds', name: 'Toxic Rounds', desc: 'Hits poison enemies for 5 s (12% of the hit per second, stacking)', fx: { toxic: 0.12 } },
+  { id: 'static_rounds', name: 'Static Rounds', desc: 'Hits jolt enemies: the next hit on a jolted enemy arcs lightning to its neighbors', fx: { staticJolt: 1 } },
+  { id: 'devouring_rounds', name: 'Devouring Rounds', desc: 'Every 3rd hit weakens the target: it takes 30% more damage for 3 s', fx: { voidWeaken: 1 } },
+  { id: 'threadneedle_rounds', name: 'Threadneedle Rounds', desc: 'Precision hits unravel the target', fx: { unravelCrit: 1 } },
+  { id: 'blast_rounds', name: 'Blast Rounds', desc: 'Every 6th hit detonates for 50% of its damage in 3 m', fx: { blastRounds: 1 } },
   { id: 'adrenaline_rush', name: 'Adrenaline Rush', desc: 'Kills give +20% move speed for 3 s', fx: { rushSpeed: 0.20 } },
 ];
 export const BOON_BY_ID = Object.fromEntries(BOONS.map((b) => [b.id, b]));
+const norm = (t) => String(t).toLowerCase().replace(/[^a-z0-9]/g, '');
+/** U31 /give: a boon by id or name. Exact first, then a unique prefix, then a unique substring. Returns { boon } or { error } (error is null when nothing matched). */
+export function findBoon(text) {
+  const q = norm(text);
+  if (!q) return { error: null };
+  const exact = BOONS.find((b) => norm(b.id) === q || norm(b.name) === q);
+  if (exact) return { boon: exact };
+  for (const test of [(n) => n.startsWith(q), (n) => n.includes(q)]) {
+    const hits = BOONS.filter((b) => test(norm(b.id)) || test(norm(b.name)));
+    if (hits.length === 1) return { boon: hits[0] };
+    if (hits.length > 1) return { error: `Which boon? ${hits.slice(0, 6).map((b) => b.id).join(', ')}${hits.length > 6 ? ', ...' : ''}` };
+  }
+  return { error: null };
+}
 
 /** Fixed numbers the effect code reads (not per stack). Kept here so tuning never touches game code. */
 export const BOON_CONST = {

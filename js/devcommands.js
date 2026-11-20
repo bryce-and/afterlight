@@ -7,6 +7,7 @@ import { makeWeapon, makeExotic, makeArmor } from './loot.js';
 import { LEVEL_CAP, xpForLevel } from './progression.js';
 import { playerPower, playerLevel, writeSave, UNLOCK } from './save.js';
 import { armorBand } from './campaign.js';
+import { BOONS, findBoon } from './boons.js';
 
 /** Session-only rules. Never saved, so a reload clears them. */
 export const DEV = { invulnerable: false, mayhem: false, infiniteammo: false, navdebug: false, destinationunlock: false };
@@ -69,10 +70,19 @@ const ruleKey = (t) => Object.keys(RULE_NAMES).find((k) => k === t.toLowerCase()
  */
 export const COMMANDS = {
   give: {
-    usage: '/give <weapon or armor name>',
-    options: () => [...new Set(giveCatalog().map((c) => c.name))],
+    usage: '/give <weapon, armor or boon name> [count]   (a boon lasts for the current mission: /give multishot 20)',
+    options: () => [...new Set([...giveCatalog().map((c) => c.name), ...BOONS.map((b) => b.id)])],
     run(args, ctx) {
-      const r = findGive(args);
+      // U31: /give <boon> [count] adds boon stacks to the mission you are in
+      const cm = args.trim().match(/^(.*?)(?:\s+(\d+))?$/), bName = cm[1], count = cm[2] ? Math.min(99, Math.max(1, parseInt(cm[2], 10))) : 1;
+      const b = findBoon(bName);
+      const g = findGive(args);
+      if (b.boon && (!g.entry || bName.trim().toLowerCase() === b.boon.id || bName.trim().toLowerCase() === b.boon.name.toLowerCase())) {
+        if (!ctx.giveBoon) return { ok: false, msg: 'Boons are not available here.' };
+        try { const total = ctx.giveBoon(b.boon.id, count); return { ok: true, msg: `Gave ${count} x ${b.boon.name} (now x${total}) for this mission.` }; } catch (err) { return { ok: false, msg: err.message }; }
+      }
+      if (b.error && !g.entry) return { ok: false, msg: b.error };
+      const r = g;
       if (r.error) return { ok: false, msg: r.error };
       const item = buildGiven(r.entry, Math.max(1, playerPower(ctx.save)), ctx.save.classId, armorBand(ctx.save));
       ctx.grant(item);

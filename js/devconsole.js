@@ -1,5 +1,6 @@
 // Secret dev console. Tap / three times to open it, Esc to close it.
 // Not mentioned in the Update Log or Roadmap on purpose. Commands live in devcommands.js.
+import { devGiveBoon } from './boon-run.js';
 import { G, unlockPointer } from './state.js';
 import { addItem, writeSave } from './save.js';
 import { runCommand, completions } from './devcommands.js';
@@ -61,7 +62,7 @@ function open() {
       if (!line) return;
       history.push(line); hi = history.length;
       let r;
-      try { r = runCommand(line, { save: G.save, grant }); } catch (err) { console.error(err); r = { ok: false, msg: `Error: ${err.message}` }; }
+      try { r = runCommand(line, { save: G.save, grant, giveBoon: (id, n) => devGiveBoon(G.player, id, n) }); } catch (err) { console.error(err); r = { ok: false, msg: `Error: ${err.message}` }; }
       say(r.msg, r.ok ? 'ok' : 'err');
       input.value = '';
     } else if (e.key === 'ArrowUp' && history.length) {
