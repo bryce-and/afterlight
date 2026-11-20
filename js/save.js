@@ -560,6 +560,20 @@ export function dismantleItem(s, id) {
   return v;
 }
 
+/** H30d: dismantles every id in `ids` that can be (carried, not equipped, not locked) for glimmer, with one save. Returns { count, glimmer, skipped }. */
+export function dismantleMany(s, ids) {
+  let count = 0, glimmer = 0, skipped = 0;
+  for (const id of ids) {
+    const it = s.inventory.find((i) => i.id === id);
+    if (!it || isEquipped(s, it) || it.locked) { skipped++; continue; }
+    s.inventory = s.inventory.filter((i) => i !== it);
+    glimmer += dismantleValue(it); count++;
+  }
+  s.glimmer += glimmer;
+  if (count) writeSave(s);
+  return { count, glimmer, skipped };
+}
+
 /** H30c: dismantles an item waiting at the Postmaster for glimmer. A locked item is refused (returns -1); an unknown id throws. Returns the glimmer gained. */
 export function dismantlePostmasterItem(s, id) {
   const it = (s.postmaster || []).find((i) => i.id === id);

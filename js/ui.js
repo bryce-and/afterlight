@@ -10,7 +10,7 @@ import { getLoadout, setLoadout, wornAppearance, applyShader, switchCharacter, c
 import { GRENADES, CLASS_ABILITIES, ASPECTS, FRAGMENTS, ASPECT_SLOTS, FRAGMENT_CAP, JUMPS, grenadesFor, grenadesForSub, meleesFor, meleeDef, abilityElement, aspectElement, classAbilitiesFor, aspectsFor, fragmentsFor, aspectLevel, fragmentLevel, fragmentSlots, buildUnlocksAt, supersFor, superDef, superLevel, jumpsFor } from './subclass.js';
 import { abilityIcon, emptySlotIcon } from './ability-icons.js';
 import { spiritEntries } from './exotic-class-items.js';
-import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock, setOverload } from './save.js';
+import { activeKit, playerPower, getEquipped, getItem, equipItem, dismantleItem, dismantleMany, infuseInfo, infuseItem, isEquipped, isUnlocked, createSave, writeSave, resetSave, VAULT_CAP, toVault, fromVault, playerLevel, isSubclassUnlocked, rewardState, claimLevelReward, takeLegacyNotice, takeCampaignNotice, toggleLock, setOverload } from './save.js';
 import { CAMPAIGN_TIERS, tierOf, tierPower, tierEnemyLight, tierClears, selectedTier, unlockedTiers, overloadUnlocked, overloadOn, OVERLOAD_NAME, ULTIMATE_HINT, PRISMATIC_LOCKED_HINT } from './campaign.js';
 import { skipAvailableFor } from './rewards.js';
 import { runUnlocks, openPendingMenus, openSkipConfirm, openRewardMenu } from './rewards-ui.js';
@@ -743,6 +743,7 @@ export function itemCard(it, { equipped = false, selected = false, compact = fal
 // ---------------------------------------------------------------------------
 // Character screen (Destiny-style): model in the middle, weapons left, armour right
 // ---------------------------------------------------------------------------
+let marked = new Set(); // H30d: item ids marked with Shift+F; holding F then dismantles all of them
 let flySlot = null, hoverId = null, dismantle = null, vaultOpen = false, modsScreen = null;
 
 const LOCK_ICON = '<svg class="t-lock" viewBox="0 0 16 16" aria-label="Locked"><path d="M5 7V5a3 3 0 0 1 6 0v2h1.2v7H3.8V7zm1.6 0h2.8V5a1.4 1.4 0 0 0-2.8 0z"/></svg>';
@@ -753,7 +754,7 @@ function tileHTML(it, equipped = false) {
   const art = weapon ? `<img src="${weaponIcon(it)}" alt="" draggable="false">` : armorIcon(it);
   const other = !weapon && it.classId && it.classId !== G.save.classId;
   const low = !canUseRarity(it.rarity, playerLevel(G.save)); // Loot 2.0: above the player's level
-  return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}${other ? ' other-class' : ''}${low ? ' lvl-low' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
+  return `<button class="tile r-${it.rarity}${equipped ? ' equipped' : ''}${marked.has(it.id) ? ' marked' : ''}${other ? ' other-class' : ''}${low ? ' lvl-low' : ''}" data-id="${it.id}" style="--rc:${rar.color}" aria-label="${esc(it.name)}">
     ${art}${other ? `<span class="t-cls">${CLASSES[it.classId].name}</span>` : ''}${low ? `<span class="t-lvl">Lv ${RARITY_GATE[it.rarity]}</span>` : ''}
     ${weapon ? `${elementIcon(it.element, 'el-ico t-el')}<span class="t-ammo ammo-ico" style="--ac:${AMMO[it.slot].color}"></span>` : ''}
     <span class="t-power">${it.power}</span>${it.isNew ? '<i class="t-new"></i>' : ''}${it.locked ? LOCK_ICON : ''}
@@ -858,7 +859,7 @@ function renderCharScreen(main) {
           ${['common', 'uncommon', 'rare'].map((r) => `<button class="cs-auto-t ${s.settings.autoDismantle?.[r] ? 'on' : ''}" data-r="${r}" style="--rc:${RARITIES[rarityIndex(r)].color}">${{ common: 'White', uncommon: 'Green', rare: 'Blue' }[r]}</button>`).join('')}</span>
         ${overloadUnlocked(s) ? `<button class="cs-overload ${overloadOn(s) ? 'on' : ''}" id="cs-overload" role="switch" aria-checked="${overloadOn(s)}" title="${OVERLOAD_NAME}: equip any number of exotic weapons and armor"><i></i><span>${OVERLOAD_NAME}</span><b>${overloadOn(s) ? 'ON' : 'OFF'}</b></button>` : ''}
         ${G.invOpen ? '' : '<button class="btn danger cs-reset" id="cs-reset">Reset Character</button>'}
-        <span class="hint">Click a slot to swap  ·  Hover for details  ·  Right-click a weapon to inspect  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+Click to infuse</span>
+        <span class="hint">Click a slot to swap  ·  Hover for details  ·  Right-click a weapon to inspect  ·  Hold <kbd>F</kbd> to dismantle  ·  <kbd>Shift</kbd>+<kbd>F</kbd> to mark items, then hold <kbd>F</kbd> to dismantle every marked one  ·  <kbd>Shift</kbd>+Click to infuse</span>
       </div>
       <button class="cs-mods-arrow" id="cs-mods-btn" title="${playerLevel(s) < MODS_LEVEL ? `Armor stats (mods unlock at level ${MODS_LEVEL})` : 'Armor stats and mods'}"><span>${playerLevel(s) < MODS_LEVEL ? 'Stats' : 'Mods'}</span><i>❯</i></button>
       <div class="cs-fly hidden" id="cs-fly"></div>
@@ -1159,8 +1160,48 @@ function hideTip() {
   $('#cs-tip')?.classList.add('hidden');
 }
 
+/** H30d: Shift+F on the hovered item marks it for mass dismantle (again to unmark). Equipped and locked items cannot be marked. */
+function toggleMark() {
+  const it = hoverId && getItem(G.save, hoverId);
+  if (!it) return;
+  if (isEquipped(G.save, it) || it.locked) { sfx.denied(); feedOrbit(it.locked ? `${it.name} is locked.` : 'Equipped items cannot be marked.'); return; }
+  if (marked.has(it.id)) marked.delete(it.id); else marked.add(it.id);
+  sfx.ui();
+  document.querySelectorAll(`.tile[data-id="${it.id}"]`).forEach((t) => t.classList.toggle('marked', marked.has(it.id)));
+  feedOrbit(`${marked.size} marked  ·  hold F to dismantle ${marked.size === 1 ? 'it' : 'them'}`);
+}
+/** Marks that no longer point at a carried, unlocked, unequipped item are dropped. */
+function liveMarks() {
+  for (const id of [...marked]) { const it = getItem(G.save, id); if (!it || isEquipped(G.save, it) || it.locked) marked.delete(id); }
+  return [...marked];
+}
+function startMassDismantle() {
+  const ids = liveMarks();
+  if (!ids.length) return false;
+  const t0 = performance.now(), DUR = 1200;
+  let bar = document.getElementById('cs-mass');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'cs-mass'; bar.className = 'cs-mass'; $('.cs')?.appendChild(bar); }
+  bar.innerHTML = `<span>Dismantling ${ids.length} marked item${ids.length === 1 ? '' : 's'}...</span><em></em>`;
+  const tick = () => {
+    const k = (performance.now() - t0) / DUR;
+    const em = bar.querySelector('em'); if (em) em.style.width = `${Math.min(100, k * 100)}%`;
+    if (k >= 1) {
+      dismantle = null; bar.remove();
+      const r = dismantleMany(G.save, ids);
+      marked.clear(); hideTip(); sfx.ui(); renderOrbit();
+      feedOrbit(`Dismantled ${r.count} item${r.count === 1 ? '' : 's'}  +⬡${r.glimmer}`);
+      return;
+    }
+    dismantle = requestAnimationFrame(tick);
+  };
+  dismantle = requestAnimationFrame(tick);
+  return true;
+}
+
 function startDismantle() {
-  if (dismantle || !hoverId) return;
+  if (dismantle) return;
+  if (marked.size && startMassDismantle()) return; // H30d: with items marked, F dismantles the marked ones
+  if (!hoverId) return;
   const it = getItem(G.save, hoverId);
   if (!it || isEquipped(G.save, it)) { sfx.denied(); return; }
   if (it.locked) { sfx.denied(); feedOrbit(`${it.name} is locked. Middle-click it to unlock.`); return; }
@@ -1187,6 +1228,7 @@ function startDismantle() {
 function cancelDismantle() {
   if (dismantle) cancelAnimationFrame(dismantle);
   dismantle = null;
+  document.getElementById('cs-mass')?.remove();
   const bar = $('#cs-tip .tt-hold em');
   if (bar) bar.style.width = '0%';
 }
@@ -1386,7 +1428,7 @@ function closeModify() {
 // Hold F to dismantle, Esc to close flyouts (only on the Character screen)
 addEventListener('keydown', (e) => {
   if (!G.invOpen && (G.state !== 'orbit' || orbitTab !== 'character') || lootScreenOpen()) return;
-  if (e.code === 'KeyF' && !e.repeat) startDismantle();
+  if (e.code === 'KeyF' && !e.repeat) { if (e.shiftKey) toggleMark(); else startDismantle(); }
   if (e.code === 'Escape' && !G.invOpen) { // in a mission, main.js sends Esc to charEscape()
     if ($('#sp-full') && !$('#sp-full').classList.contains('hidden')) { closeModify(); return; } // Modify screen first, then the rest
     closeFly(); closeVault(); $('#cs-panel')?.classList.add('hidden');

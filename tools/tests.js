@@ -4873,6 +4873,16 @@ test('H30c Postmaster dismantle: pays glimmer, removes the item, refuses locked 
   let threw = false; try { S.dismantlePostmasterItem(s, 'nope'); } catch { threw = true; } ok(threw, 'unknown id throws');
 });
 
+test('H30d dismantleMany: pays glimmer for every dismantlable id, skips equipped, locked and unknown', () => {
+  const s = S.createSave('vanguard'); s.glimmer = 0;
+  const a = rollItem(10, 3), b = rollItem(10, 3), c = rollItem(10, 3); c.locked = true;
+  s.inventory.push(a, b, c);
+  const eqd = s.inventory.find((i) => S.isEquipped(s, i));
+  const r = S.dismantleMany(s, [a.id, b.id, c.id, eqd.id, 'nope']);
+  eq(r.count, 2); eq(r.skipped, 3); ok(r.glimmer > 0 && s.glimmer === r.glimmer, 'glimmer paid once');
+  ok(!s.inventory.includes(a) && !s.inventory.includes(b) && s.inventory.includes(c) && s.inventory.includes(eqd), 'only a and b are gone');
+});
+
 for (const t of tests) {
   const row = document.createElement('div');
   try { await t.fn(); pass++; row.className = 'pass'; row.textContent = `PASS  ${t.name}`; }
