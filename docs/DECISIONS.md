@@ -104,3 +104,4 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-20 | U31: Arbalest moves to the special slot with `mods` damage 0.62. | Claude (U31) |
 | 2026-11-20 | U31: Fusion rifles use normal sights; linear fusion zoom is 1.5 with less shake. | Claude (U31) |
 | 2026-11-20 | U31: Phoenix Rite gets a grace period. The root cause is not confirmed. | Claude (U31) |
+| 2026-11-20 | H30b: The weapon swap is a 4th guaranteed card on boon orbs. Boss orb ids end in 99. Scaled boon values were chosen by feel, not tuned with play data. Co-op and stasis with boss orbs are untested. | Claude (H30b) |
