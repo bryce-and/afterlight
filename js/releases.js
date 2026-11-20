@@ -5,6 +5,18 @@
 
 export const RELEASES = [
   {
+    version: '5.6.1', name: 'Hotfix', date: '2026-11-20', accent: '#ff8a7a', glyph: '✚',
+    summary: 'Every boon orb now has a weapon swap, boss kills leave a gold orb of exotic boons, and boons start smaller and add up as you stack them.',
+    notes: [
+      'Boon orbs offer 3 boons plus one weapon swap, so every orb has a swap',
+      'Single-use boons (Static, Devouring, Threadneedle Rounds) leave the pool once taken; Multishot caps at 4 stacks and Beacon at 3',
+      'Boss orbs: killing a boss always leaves a gold boss orb offering 3 exotic boons and an exotic weapon swap. Phoenix Rite is now exotic. Five new exotic boons: Heart of the Storm, Undying Will, Eternity Engine, Worldbreaker, Aegis of Ages (stacks to 3)',
+      'Boons start smaller and add up as you stack them: Overcharge is 1% super per kill per stack, charge boons are 60% faster per stack, and most percentages are about 60% of their old values',
+      'Fixed: unopened orbs follow you into the next arena (a boss kill used to leave them behind), and orbs can no longer land outside the sealed room',
+      'Dev console: /effect <boon> [x] now handles boons; /give is weapons and armor only',
+    ],
+  },
+  {
     version: '5.6', name: 'Exotic Arsenal', date: '2026-11-20', accent: '#ffd24a', glyph: '✦',
     summary: 'Fifteen new exotic armor pieces, red dot sights, 24 new weapons and 30 new perks, a full loot reshuffle, one-shot supers in the Crucible and boon drops that scale with the wave.',
     notes: [
