@@ -246,13 +246,17 @@ The module map is in the README. These notes cover systems added during the over
 - Installed web app: `viewport-fit=cover`, Apple web app meta, landscape manifest, Add to Home Screen hint, screen wake lock, pause on app switch, service worker cache v2 (`sw.js`).
 - Phone pixel ratio is capped at 2.0, with cheaper shadows.
 
-## Dropships (v5.7, U32, `js/dropship-plan.js`, `js/dropship-models.js`, `js/dropships.js`)
+## Dropships (v5.7, U32; indoor arrivals v5.9, U34, `js/dropship-plan.js`, `js/dropship-models.js`, `js/dropships.js`)
 - `js/dropship-plan.js` is pure logic with no game imports: the `ARRIVAL` table (Cabal, Fallen and Hive arrive by ship; Vex, Taken and Scorn teleport in), `groupDrops`, `skyClear` (the open-sky collider column test), `shipTimeline`, `shipPos`, `segDist` (distance between two flight segments), `pickRoute` (picks in and out headings clear of other ships' flight lines, so ships never fly into each other), and the setting (localStorage key `afterlight.dropships`).
 - `js/dropship-models.js` builds the three ship models (Cabal, Fallen, Hive; `buildShip`) and the teleport gates (`buildGate`) for the Vex, the Taken and the Scorn (a purple and blue mist, no ship). It has no game imports.
 - `js/dropships.js` runs the arrivals: `launchDrops`, `updateDropships`, `resetDropships`, `showRemoteShip`.
 - Hooks: `spawnUnit` takes a `defer` option in `game.js`; `spawnWave` and the patrol `spawnEventPush` call `launchDrops`. Enemy `defer` skips the spawn FX and hides the model until landing.
 - Co-op: message `ds` (`k` kind, `n` count, `f` from, `h` hover, `o` out, `y` heading), sent by `announceDrop` in `coop.js`.
 - Visual check: `tools/dropshot.html` and `tools/dropshot.js` line up the ships and gates.
+- Indoor arrivals (U34): `indoorKindOf` gives each faction its indoor kind (Cabal by drop pod, Fallen through a ceiling vent, Hive out of a floor crack). `indoorTimeline` runs the 1.5 s warning and the 2.5 s cap (`INDOOR_T`). `headroom`, `bodyClear` and `pickArrivalPoint` keep units out of walls and fall back to the old spawn. Levels may list `arrivalPoints` (optional). `fallMax` is 4 m. Sky-blocked teleport gates still fall back to the old spawn; bosses are unchanged.
+- `js/dropship-models.js` `buildIndoorProp` builds the pod, vent and crack props. `js/dropships.js` `launchIndoor`, `stepIndoor` and `indoorStats` run them.
+- Sound (`js/audio.js`): `shipIn`, `shipHover`, `shipOut` and `dropLand` for dropships; `gateCharge` and `gateOpen` for teleport gates; `arrivalWarn` and `arrivalOut` for indoor arrivals.
+- Co-op: remote players see units land but not the pod, vent or crack props. Ship sound plays for them; co-op was not checked for the indoor sounds.
 - Save: none. Setting only.
 
 ## Cutscenes, voice, ambiance and the Sound tab (v5.8, U33, `js/cutscene.js`, `js/cutscene-sets.js`, `js/cutscene-scenes.js`, `js/voice.js`, `js/voice-data.js`, `js/ambiance.js`)

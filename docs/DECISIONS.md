@@ -112,3 +112,8 @@ Decisions through 2026-11-09 are in `archive/DECISIONS_TO_2026-11-09.md`; grep i
 | 2026-11-21 | U32: the open-sky check is a collider column test: the centre column from 3 m up to 18 m, plus four points 3 m out at hover height 9 m and up. If the check fails, the unit gets the old instant spawn. | Claude (U32) |
 | 2026-11-21 | U32: ships per wave are capped at 3 per faction pool (four factions can need four). The setting "Dropship entrances" is stored in localStorage key `afterlight.dropships`, on by default. | Claude (U32) |
 | 2026-11-21 | H31: ship models follow the reference art (Skiff, Tombship, Harvester). Scorn teleport in through a purple and blue mist, no ship. Ships must never fly into each other. Design: hover spots DROP.hoverSep 30 m apart and 20 m (DROP.shipClear) from every other ship's flight line; pickRoute chooses in/out headings clear of other lines; extra ships fly 8 m higher each; no room means the old instant spawn; dev helper dropshipPositions(). | Bryce (H31) |
+| 2026-11-21 | U34: indoor kind per faction. Cabal arrive by drop pod, Fallen through a ceiling vent, Hive out of a floor crack. Vex, Taken and Scorn keep their gates; bosses are unchanged. | Claude (U34) |
+| 2026-11-21 | U34: indoor arrivals telegraph for 1.5 s, and the last unit of a wave is always out within 2.5 s. | Claude (U34) |
+| 2026-11-21 | U34: fallMax is 4 m. | Claude (U34) |
+| 2026-11-21 | U34: sky-blocked teleport gates (Vex, Taken, Scorn) still fall back to the old spawn. | Claude (U34) |
+| 2026-11-21 | U34: level `arrivalPoints` is optional. | Claude (U34) |

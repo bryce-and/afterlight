@@ -5,6 +5,19 @@
 
 export const RELEASES = [
   {
+    version: '5.9', name: 'Indoor Arrivals', date: '2026-11-21', accent: '#4ad0ff', glyph: '⇩',
+    summary: 'Where there is no open sky, enemies now arrive indoors: Cabal by drop pod, Fallen through a ceiling vent and Hive out of a floor crack.',
+    notes: [
+      'Indoors, Cabal drop in by pod, Fallen come down through a ceiling vent and Hive burst out of a crack in the floor. Outdoor arrivals are unchanged',
+      'Each indoor arrival gives a 1.5 second warning, and the last unit of a wave is always out within 2.5 seconds',
+      'Vex, Taken and Scorn still teleport in through their gates, and bosses arrive as before',
+      'Enemies are never placed inside walls. If a spot is blocked, the unit arrives the old way',
+      'The Dropship entrances setting also turns indoor arrivals on or off',
+      'Ships, teleport gates and indoor arrivals have their own sound effects: engines, hover and landing, the gate charge, and the warning before an arrival',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="iaBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0e18"/><stop offset="1" stop-color="#262c3a"/></linearGradient><radialGradient id="iaGl" cx="0.5" cy="0" r="1"><stop offset="0" stop-color="#4ad0ff" stop-opacity="0.55"/><stop offset="1" stop-color="#4ad0ff" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#iaBg)"/><polygon points="0,0 320,0 250,62 70,62" fill="#171b27"/><polygon points="70,62 250,62 250,150 70,150" fill="#1d2230"/><polygon points="0,180 70,150 250,150 320,180" fill="#2c3345"/><rect x="132" y="8" width="56" height="10" fill="#3c4048"/><rect x="136" y="10" width="48" height="2" fill="#4ad0ff"/><polygon points="136,18 184,18 210,150 110,150" fill="url(#iaGl)"/><g fill="#8a4a2a"><ellipse cx="58" cy="96" rx="12" ry="19"/></g><polygon points="52,112 64,112 58,128" fill="#3a2a22"/><ellipse cx="58" cy="76" rx="6" ry="5" fill="#ff6a3a"/><path d="M58 58 L58 78" stroke="#ff6a3a" stroke-width="3" opacity="0.6"/><g stroke="#7dff5a" stroke-width="2" fill="none" opacity="0.9"><path d="M262 168 L274 158 L270 150 L284 142"/><path d="M274 158 L292 160"/><path d="M270 150 L258 144"/></g><ellipse cx="274" cy="160" rx="22" ry="5" fill="#7dff5a" opacity="0.25"/><g fill="#101420"><rect x="150" y="104" width="10" height="26"/><rect x="164" y="104" width="10" height="26"/><rect x="152" y="92" width="20" height="14" rx="4"/></g></svg>',
+  },
+  {
     version: '5.8.4', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
     summary: 'Hand cannons, shotguns, sidearms and the Forerunner now carry a real optic on the gun that matches their rolled sight, and the optic is the point of aim.',
     notes: [
@@ -1282,10 +1295,4 @@ export const titleRelease = () => RELEASES.find((r) => r.version.split('.').leng
 
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
-export const ROADMAP = [
-  {
-    name: 'Indoor Arrivals', status: 'Future Transmission', accent: '#ff7a4a', glyph: '⇩',
-    teaser: 'Soon, enemies will arrive from above in indoor arenas too, not just out in the open.',
-    themes: ['Dropships', 'Indoor arenas'],
-  },
-];
+export const ROADMAP = [];
