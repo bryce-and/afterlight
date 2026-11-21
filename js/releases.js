@@ -5,10 +5,23 @@
 
 export const RELEASES = [
   {
+    version: '5.8.1', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
+    summary: 'Cutscenes play every time you reach their story moment, a new Skip cutscenes setting turns them off, late voice lines now play, and the music is a little darker.',
+    notes: [
+      'Cutscenes play every time you reach their story moment, not just once. A retry after dying does not replay the opening or Mara\'s throne room',
+      'New "Skip cutscenes" checkbox on the pause menu\'s Game tab turns them all off',
+      'In a fireteam, cutscenes play for everyone. Only the leader decides: the leader\'s Skip cutscenes setting applies to the whole fireteam, and only the leader can skip a scene with Space. The Tower debriefs stay as normal Tower visits in a fireteam',
+      'Fixed: pressing Space to skip the opening cutscene started it over',
+      'A voice line that was still loading when its subtitle appeared, such as the Ghost\'s first line after the opening cutscene, now plays as soon as it is ready instead of staying silent',
+      'The Guardian no longer stands inside the holo table in the Vanguard room',
+      'Music is a little darker and sparser: the Cosmodrome, Mars and every other score use lower, slower melodies and softer piano',
+    ],
+  },
+  {
     version: '5.8', name: 'Transmissions', date: '2026-11-21', accent: '#f2e6a8', glyph: '♪',
     summary: 'Story moments play out as cutscenes, every NPC line is voiced, the music is rebuilt and each destination has its own ambiance.',
     notes: [
-      'Seven cutscenes, each played once per Guardian: the Ghost reviving you at a Cosmodrome wreck, the jumpship arriving at the Tower, the Vanguard room and the Glimmer, Crota\'s death, the Tower debriefs for the Cosmodrome, Mars and the Dreaming City, Mara Sov\'s throne room before The Spine of Keres, and Calus coming apart after the Leviathan',
+      'Seven cutscenes, each played at its story moment: the Ghost reviving you at a Cosmodrome wreck, the jumpship arriving at the Tower, the Vanguard room and the Glimmer, Crota\'s death, the Tower debriefs for the Cosmodrome, Mars and the Dreaming City, Mara Sov\'s throne room before The Spine of Keres, and Calus coming apart after the Leviathan',
       'Skip any cutscene with Space, Enter, Esc or a click. Cutscenes are skipped when you play in a fireteam',
       'Every NPC line is voiced. Transmissions sound like comms, the Ghost sounds like a Ghost, and Cayde, Rasputin, Kadi, Riven, Zavala and Calus each have their own voice',
       'Some patrol conversations and Ghost prompts in the Tower do not have voices yet. Their subtitles still show',

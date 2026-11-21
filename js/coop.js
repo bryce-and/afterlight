@@ -92,6 +92,7 @@ export function onMissionStart() {
 
 export function launchFireteam(li, mi) {
   const tier = selectedTier(G.save); // U20a: the fireteam plays the leader's campaign pick
+  if (net.isHost) broadcast({ t: 'cs', op: 'setting', v: !!G.save.settings.skipCutscenes }); // U33: the leader's Skip cutscenes setting rules the fireteam
   if (net.isHost) broadcast({ t: 'start', li, mi, lp: playerPower(G.save), tier }); // U19: members play at no less than the leader's Light
   startMission(li, mi, tier);
 }

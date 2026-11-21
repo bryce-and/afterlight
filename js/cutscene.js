@@ -1,10 +1,11 @@
 // U33 Transmissions: the cutscene engine and the scenes. A scene is a list of steps (js/cutscene-scenes.js); each step can switch the set (the
 // stage), run a camera move, speak a voiced line (with its subtitle) and run a small function. The engine builds the sets from primitives on
 // its own THREE.Scene, renders it in place of the game while G.state is 'cutscene', and hands control back when the scene ends or is skipped.
-// Scenes are skipped in a fireteam (the world cannot freeze for one player) or with the Skip cutscenes setting, and play every time the story point comes up.
+// Scenes play every time the story point comes up. In a fireteam the leader (host) decides: the leader's Skip cutscenes setting and the leader's
+// Space press apply to everyone, and members cannot skip. The host tells members to play or end a scene with { t: 'cs' } messages.
 import * as THREE from 'three';
 import { G } from './state.js';
-import { net } from './net.js';
+import { net, send } from './net.js';
 import { playMusic } from './music.js';
 import { initAudio } from './audio.js';
 import { setVoiceMode, getVoiceMode, voiceReady, playVoice, stopVoice } from './voice.js';
@@ -43,16 +44,20 @@ const guess = (text) => 1.4 + text.length * 0.055;
 /**
  * Play a scene. `done` runs when it ends or is skipped. Returns false (and never calls `done`) when it cannot play, so the caller carries on itself.
  */
-export function playCutscene(id, done = () => {}) {
+export function playCutscene(id, done = () => {}, o = {}) {
   const def = SCENES[id] && (typeof SCENES[id] === 'function' ? SCENES[id]() : SCENES[id]);
-  if (!def || cur || net.active || !G.save || noScenes() || G.save.settings?.skipCutscenes) return false; // the Skip cutscenes setting // test tools set the flag so a headless run never waits on a scene
+  if (!def || cur || !G.save || noScenes()) return false; // test tools set the flag so a headless run never waits on a scene
+  const skip = net.isClient ? net.csSkip : !!G.save.settings?.skipCutscenes; // a member follows the leader's setting
+  if (skip && !o.remote) return false;
+  if (net.isClient && !o.remote && performance.now() - (net.csEnd || 0) < 2500) return false; // the leader just skipped it
   initAudio(); // the voices and score need the audio context even when the scene is started from a console or a menu without a click
   ensureOverlay();
   const c = cur = {
-    id, def, done, prev: G.state, prevVoice: getVoiceMode(), t: 0, i: -1, ready: false, steps: [], total: 0, sets: {}, set: null, flash: 0, skipped: false,
+    id, def, done, announced: !!o.announce, prev: G.state, prevVoice: getVoiceMode(), t: 0, i: -1, ready: false, steps: [], total: 0, sets: {}, set: null, flash: 0, skipped: false,
     cam: new THREE.PerspectiveCamera(def.fov || 48, innerWidth / innerHeight, 0.05, 900),
   };
   G.state = 'cutscene';
+  if (net.isHost && o.announce) send({ t: 'cs', op: 'play', id }); // members play the same scene
   document.body.classList.add('cutscene-on');
   setVoiceMode('person');
   $o('.cs-fade').style.opacity = 1;
@@ -78,7 +83,7 @@ export function playCutscene(id, done = () => {}) {
 }
 
 export function skipCutscene() {
-  if (!cur || cur.t < 0.8) return;
+  if (!cur || cur.t < 0.8 || net.isClient) return; // only the leader (or a solo player) skips
   cur.skipped = true;
   finish();
 }
@@ -92,6 +97,7 @@ function finish() {
     s.scene.traverse((o) => { o.geometry?.dispose?.(); const m = o.material; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => { x.map?.dispose?.(); x.dispose?.(); }); });
   }
   document.body.classList.remove('cutscene-on');
+  if (net.isHost && net.active) send({ t: 'cs', op: 'end' });
   setVoiceMode(c.prevVoice);
   G.state = c.prev;
   try { c.def.onEnd?.(c.skipped); } catch (e) { console.error(e); }
@@ -153,6 +159,7 @@ export function frameCutscene(dt, renderer) {
   c.flash = Math.max(0, c.flash - dt * 0.9);
   $o('.cs-flash').style.opacity = c.flash;
   $o('.cs-skip').style.opacity = c.t > 0.8 ? 0.7 : 0;
+  $o('.cs-skip').textContent = net.isClient ? 'The leader can skip' : 'Space to skip';
   renderer.render(c.set.scene, c.cam);
   return true;
 }
@@ -165,3 +172,10 @@ export const DEBRIEFS = { earth: 'debrief_earth', mars: 'debrief_mars', dc: 'deb
 
 /** Jump forward to a time in the running scene (a debug aid for checking shots). */
 export function seekCutscene(t) { if (cur?.ready && t > cur.t) cur.t = t; }
+
+// the leader's messages: its Skip setting, a scene to play, and the end of a scene (it skipped, or the scene ended)
+net.on('cs', (m) => {
+  if (m.op === 'setting') net.csSkip = !!m.v;
+  else if (m.op === 'play') playCutscene(m.id, () => {}, { remote: true });
+  else if (m.op === 'end') { net.csEnd = performance.now(); if (cur) { cur.skipped = true; finish(); } }
+});

@@ -16,7 +16,8 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
-- **v5.8 "Transmissions" (U33)**: story moments play as seven cutscenes, each once per Guardian and skippable. Every NPC line is voiced (a few patrol conversations and Ghost prompts are still subtitle-only), the music is rebuilt and quieter while exploring, each destination has its own ambiance, and the pause menu Sound tab has separate volume sliders
+- **v5.8.1 "Hotfix" (H40)**: cutscenes play every time you reach their story moment, a new "Skip cutscenes" checkbox on the pause menu's Game tab turns them off, late voice lines play as soon as they load, the Guardian no longer stands inside the Vanguard holo table, and the music is a little darker and sparser.
+- **v5.8 "Transmissions" (U33)**: story moments play as seven cutscenes, each played at its story moment and skippable. Every NPC line is voiced (a few patrol conversations and Ghost prompts are still subtitle-only), the music is rebuilt and quieter while exploring, each destination has its own ambiance, and the pause menu Sound tab has separate volume sliders
 - **v5.7 "Dropships" (U32)**: enemy reinforcements arrive by faction dropship (Cabal, Fallen, Hive) or step out of a teleport gate (Vex, Taken; Scorn step out of a purple and blue mist), outdoors only. A "Dropship entrances" setting turns it off on slow machines
 - **v5.6 "Exotic Arsenal" (U31)**: 15 new exotic armor pieces, the % recharge exotics hit harder, Red Dot, Holo Ring and Micro Reflex sights on shotguns, sidearms and hand cannons, 24 new legendaries and 30 new perks, Crucible burst supers one-shot in their blast core, and boon drops that rise with the wave.
 - **v5.5 "Boon Drops" (U30)**: Roguelike kills leave boon orbs you open with E to pick one of three boons (solo pauses, co-op gives each player their own orbs), and eleven new boons bring the total to 36.

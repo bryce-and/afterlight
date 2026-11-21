@@ -81,7 +81,8 @@ function snapSun(L, pos) {
 let retrying = false; // a retry after a death does not replay the opening or the throne room
 /** Plays a scene, then starts the mission. Returns true when the scene took over. */
 function playCutsceneOnce(id, li, mi, tier) {
-  return !retrying && playCutscene(id, () => startMission(li, mi, tier));
+  // when the scene ends (or is skipped) the mission starts for real: `retrying` keeps it from playing the scene again
+  return !retrying && playCutscene(id, () => { retrying = true; try { startMission(li, mi, tier); } finally { retrying = false; } });
 }
 export function startMission(li, mi, tier = selectedTier(G.save), blitz = null) {
   const loc = LOCATIONS[li], def = loc.missions[mi], g = li * 3 + mi;
@@ -532,7 +533,7 @@ function zoneCleared(z) {
     const after = () => { ui.centerMessage('Boss Defeated', 'Claim your reward', 3); say('bd'); sfx.missionComplete(); stinger('complete'); };
     // U33: Crota's fall and Calus coming apart play as cutscenes (once, solo)
     const bm = M.def?.boss?.model, scene = M.li >= 0 && !M.blitz ? { crota: 'crota', emperorCalus: 'calus' }[bm] : null;
-    if (scene && playCutscene(scene, after)) { /* after() runs when the scene ends */ } else after();
+    if (scene && playCutscene(scene, after, { announce: true })) { /* after() runs when the scene ends */ } else after();
   } else {
     banner('Area Secured', '', 2, 'areaClear');
     say(`c${z.idx}`);
