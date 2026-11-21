@@ -5,6 +5,14 @@
 
 export const RELEASES = [
   {
+    version: '5.8.2', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
+    summary: 'When a character speaks several lines in a row in a cutscene, the camera now changes instead of repeating the same move.',
+    notes: [
+      'When a character speaks several lines in a row, the camera changes: a short cut to the Guardian listening, then back to the speaker in a tighter shot, then a side angle',
+      'Applies to the Vanguard debriefs, the Glimmer scene and Mara\'s throne room',
+    ],
+  },
+  {
     version: '5.8.1', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
     summary: 'Cutscenes play every time you reach their story moment, a new Skip cutscenes setting turns them off, late voice lines now play, and the music is a little darker.',
     notes: [
