@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Afterlight indoor arrival contact sheet</title>
+<style>body{margin:0;background:#111;color:#ddd;font:14px sans-serif}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px}.g div{position:relative}.g img{width:100%;display:block}.g span{position:absolute;left:6px;top:4px;background:#000a;padding:2px 6px}h2{margin:6px 8px}</style>
+</head>
+<body>
+<!-- Dev-only (U34): renders each indoor arrival frame by frame into a contact sheet, for headless screenshots.
+     ?loc=earth&mi=1&zone=1&fa=scrappers,hollow&light=1&times=0,0.4,... Loads the real game in an iframe. -->
+<pre id="result">running</pre>
+<div id="sheet"></div>
+<iframe id="f" src="../index.html" style="position:fixed;left:0;top:0;width:960px;height:540px;border:0;visibility:hidden"></iframe>
+<script>globalThis.AFTERLIGHT_NO_CUTSCENES = true;</script>
+<script>
+const q = new URLSearchParams(location.search);
+const f = document.getElementById('f');
+f.addEventListener('load', async () => {
+  const out = document.getElementById('result');
+  try {
+    await new Promise((r) => setTimeout(r, 1500));
+    const cfg = { loc: q.get('loc') || 'earth', mi: +(q.get('mi') || 0), zone: +(q.get('zone') || 0), fa: (q.get('fa') || 'scrappers,hollow').split(','), light: q.get('light') === '1',
+      times: (q.get('times') || '0.2,0.6,1.0,1.3,1.5,1.7,2.0,2.5').split(',').map(Number), dist: +(q.get('dist') || 13), pitch: +(q.get('pitch') || 0.32) };
+    const res = await f.contentWindow.eval(`(async () => {
+      const cfg = ${JSON.stringify(cfg)};
+      const map = JSON.parse(document.querySelector('script[type="importmap"]').textContent).imports;
+      const imp = (n) => import(new URL(map['./js/' + n + '.js'], document.baseURI).href);
+      const THREE = await import('three');
+      const [{ G }, S, g, PG, Ph, D, DS] = await Promise.all([imp('state'), imp('save'), imp('game'), imp('progression'), imp('physics'), imp('data'), imp('dropships')]);
+      G.save = S.createSave('vanguard'); G.save.progression.xp = PG.xpForLevel(30);
+      const li = D.LOCATIONS.findIndex((l) => l.id === cfg.loc);
+      g.startMission(li, cfg.mi, 'base');
+      const P = G.player, z = G.mission.zones[cfg.zone], c = z.center; P.takeDamage = () => {};
+      const step = (n) => { for (let i = 0; i < n; i++) { G.scene.updateMatrixWorld(); g.updateGame(1 / 60); } };
+      const shots = [];
+      for (const fa of cfg.fa) {
+        for (const e of [...G.enemies]) e.remove?.();
+        const back = G.level.spawn.clone().sub(c).setY(0).normalize();
+        P.pos.copy(c).addScaledVector(back, cfg.dist); P.pos.y = Ph.groundAt(P.pos.x, P.pos.z);
+        const fw = c.clone().sub(P.pos).setY(0).normalize(); P.yaw = Math.atan2(-fw.x, -fw.z); P.pitch = cfg.pitch;
+        if (cfg.light) { const L = new THREE.PointLight(0xffffff, 260, 40, 1.8); L.position.set(c.x, P.pos.y + 6, c.z + fw.z * -2); G.scene.add(L); const A = new THREE.AmbientLight(0xffffff, 0.7); G.scene.add(A); G.__l = [L, A]; }
+        const side = new THREE.Vector3(-fw.z, 0, fw.x), arr = [];
+        [-2.2, 2.2].forEach((o) => { const p = c.clone().addScaledVector(side, o); p.y = Ph.groundAt(p.x, p.z); arr.push(g.spawnUnit(z, 'grunt', p, { faction: fa, defer: true })); });
+        DS.indoorStats.played = 0; DS.indoorStats.fallback = 0;
+        DS.launchDrops(arr, (a) => g.findSpawn(a, 0, Math.PI, 1.4, 4.8));
+        const info = fa + ': ' + JSON.stringify(DS.indoorStats) + ' drops ' + DS.dropshipCount();
+        let t = 0;
+        const frames = [];
+        for (const tt of cfg.times) { step(Math.round((tt - t) * 60)); t = tt; G.renderer.render(G.scene, G.camera); frames.push([tt, G.renderer.domElement.toDataURL('image/jpeg', 0.85)]); }
+        shots.push({ fa, info, frames });
+        step(240);
+        if (G.__l) { for (const o of G.__l) G.scene.remove(o); G.__l = null; }
+      }
+      return shots;
+    })()`);
+    const sheet = document.getElementById('sheet');
+    for (const s of res) {
+      const h = document.createElement('h2'); h.textContent = `${cfg.loc} ${cfg.mi} zone ${cfg.zone}: ${s.info}`; sheet.append(h);
+      const grid = document.createElement('div'); grid.className = 'g';
+      for (const [t, url] of s.frames) { const d = document.createElement('div'); d.innerHTML = `<img src="${url}"><span>${s.fa} t=${t}s</span>`; grid.append(d); }
+      sheet.append(grid);
+    }
+    out.style.display = 'none';
+  } catch (e) { out.textContent = 'HARNESS ERROR ' + e.message; }
+  document.body.dataset.done = '1';
+});
+</script>
+</body>
+</html>

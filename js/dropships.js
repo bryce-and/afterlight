@@ -63,7 +63,7 @@ function roofRay(x, y, z) {
   _ray.set(_o.set(x, y + 0.5, z), _up); _ray.far = ROOF_RANGE;
   for (const h of _ray.intersectObjects(G.scene.children, true)) {
     const o = h.object, m = o.material;
-    if (!o.isMesh || !o.visible || (m && !Array.isArray(m) && (m.transparent && m.opacity < 0.9 || m.depthWrite === false))) continue; // effects, glows and glass do not count
+    if (!o.isMesh || !o.visible || (m && !Array.isArray(m) && (m.depthWrite === false || m.opacity < 0.15))) continue; // effects and glows do not count; glass does (a ship must not fly through a dome)
     let skip = false;
     for (let a = o; a && !skip; a = a.parent) skip = roofSkip?.has(a);
     if (!skip) return h.distance - 0.5;
@@ -78,6 +78,7 @@ function roofRay(x, y, z) {
  */
 export function launchDrops(enemies, place) {
   const eligible = [], plain = [], indoor = [];
+  G.scene?.updateMatrixWorld(); // the roof raycasts need current world matrices (a wave can launch before the first frame of a level is drawn)
   roofSkip = new Set([...G.enemies.map((e) => e.model?.group), ...enemies.map((e) => e.model?.group), ...drops.map((d) => d.mesh), ...drops.flatMap((d) => d.units.map((u) => u.prop || u.gate))].filter(Boolean));
   for (const e of enemies) (dropshipsOn() && !e.isBoss && arrivalOf(e.faction) && e.alive ? eligible : plain).push(e);
   for (const grp of groupDrops(eligible.map((e) => ({ faction: e.faction, e })))) {
