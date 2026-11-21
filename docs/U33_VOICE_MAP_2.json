@@ -1,0 +1,314 @@
+{
+ "255": {
+  "speaker": "GHOST",
+  "text": "And the Spider?",
+  "where": [
+   "patrol talk petra_tangled"
+  ],
+  "key": "ghost"
+ },
+ "256": {
+  "speaker": "GHOST",
+  "text": "Is the Queen worried?",
+  "where": [
+   "patrol talk petra_dc"
+  ],
+  "key": "ghost"
+ },
+ "257": {
+  "speaker": "GHOST",
+  "text": "She makes me nervous.",
+  "where": [
+   "patrol talk eris_moon"
+  ],
+  "key": "ghost"
+ },
+ "258": {
+  "speaker": "GHOST",
+  "text": "Some of those people are still around.",
+  "where": [
+   "patrol talk ana_mars"
+  ],
+  "key": "ghost"
+ },
+ "259": {
+  "speaker": "GHOST",
+  "text": "And the rest of the arcology?",
+  "where": [
+   "patrol talk sloane_titan"
+  ],
+  "key": "ghost"
+ },
+ "260": {
+  "speaker": "GHOST",
+  "text": "You have been out here alone?",
+  "where": [
+   "patrol talk asher_io"
+  ],
+  "key": "ghost"
+ },
+ "261": {
+  "speaker": "GHOST",
+  "text": "He forgets a lot.",
+  "where": [
+   "patrol talk cayde_earth"
+  ],
+  "key": "ghost"
+ },
+ "262": {
+  "speaker": "GHOST",
+  "text": "Report to the Vanguard in the Tower. The Vanguard is waiting.",
+  "where": [
+   "Tower arrival prompt (earth)"
+  ],
+  "key": "ghost"
+ },
+ "263": {
+  "speaker": "GHOST",
+  "text": "Speak to Ikora Rey in the Tower. The Vanguard is waiting.",
+  "where": [
+   "Tower arrival prompt (moon)"
+  ],
+  "key": "ghost"
+ },
+ "264": {
+  "speaker": "GHOST",
+  "text": "Speak to Zavala and Ikora in the Tower. The Vanguard is waiting.",
+  "where": [
+   "Tower arrival prompt (mars)"
+  ],
+  "key": "ghost"
+ },
+ "265": {
+  "speaker": "GHOST",
+  "text": "Speak to Zavala in the Tower. The Vanguard is waiting.",
+  "where": [
+   "Tower arrival prompt (io)"
+  ],
+  "key": "ghost"
+ },
+ "266": {
+  "speaker": "GHOST",
+  "text": "Speak to Cayde-6 in the Tower. The Vanguard is waiting.",
+  "where": [
+   "Tower arrival prompt (titan)"
+  ],
+  "key": "ghost"
+ },
+ "267": {
+  "speaker": "GHOST",
+  "text": "Speak to Ikora Rey in the Tower. The Vanguard is waiting.",
+  "where": [
+   "Tower arrival prompt (tangled)"
+  ],
+  "key": "ghost"
+ },
+ "268": {
+  "speaker": "GHOST",
+  "text": "Report to the Vanguard before the Leviathan. The Vanguard is waiting.",
+  "where": [
+   "Tower arrival prompt (dc)"
+  ],
+  "key": "ghost"
+ },
+ "269": {
+  "speaker": "GHOST",
+  "text": "It's time to go.",
+  "where": [
+   "Tower: after the last report of a stop"
+  ],
+  "key": "ghost"
+ },
+ "270": {
+  "speaker": "PETRA VENJ",
+  "text": "Guardian. Keep your weapon low in the Landing. The Spider's crew are touchy, and I need them in a good mood.",
+  "where": [
+   "patrol talk petra_tangled"
+  ],
+  "key": "petra"
+ },
+ "271": {
+  "speaker": "PETRA VENJ",
+  "text": "The Queen keeps accounts on this Shore, and I am the one who collects. The Barons who ran with Uldren are not the only ones who owe her.",
+  "where": [
+   "patrol talk petra_tangled"
+  ],
+  "key": "petra"
+ },
+ "272": {
+  "speaker": "PETRA VENJ",
+  "text": "The Spider sells everyone everything, us included. Take this for your trouble. When I need a gun on the Shore, I will send for you.",
+  "where": [
+   "patrol talk petra_tangled"
+  ],
+  "key": "petra"
+ },
+ "273": {
+  "speaker": "PETRA VENJ",
+  "text": "Guardian. The Strand is quiet, for now. The Mists have thinned, and what comes through them is not ours.",
+  "where": [
+   "patrol talk petra_dc"
+  ],
+  "key": "petra"
+ },
+ "274": {
+  "speaker": "PETRA VENJ",
+  "text": "Look up. The veil is torn, and the Taken walk the gardens as if they had always lived there. The Scorn are scavenging the ruins at Aphelion's Rest.",
+  "where": [
+   "patrol talk petra_dc"
+  ],
+  "key": "petra"
+ },
+ "275": {
+  "speaker": "PETRA VENJ",
+  "text": "The Queen is never worried. She is prepared. Hold the Blind Well, clear what you can, and tell her what you saw.",
+  "where": [
+   "patrol talk petra_dc"
+  ],
+  "key": "petra"
+ },
+ "276": {
+  "speaker": "THE SPIDER",
+  "text": "Ah, the Guardian. Come in, come in. Mind the guards, they bite.",
+  "where": [
+   "patrol talk spider_lair"
+  ],
+  "key": "spider"
+ },
+ "277": {
+  "speaker": "THE SPIDER",
+  "text": "Everything that crosses the Shore passes through my hands sooner or later. Ether, salvage, secrets. Even you, it seems.",
+  "where": [
+   "patrol talk spider_lair"
+  ],
+  "key": "spider"
+ },
+ "278": {
+  "speaker": "THE SPIDER",
+  "text": "Bring me something worth my while one day, and we shall talk business. Until then, enjoy my hospitality.",
+  "where": [
+   "patrol talk spider_lair"
+  ],
+  "key": "spider"
+ },
+ "279": {
+  "speaker": "ERIS MORN",
+  "text": "You walk like someone who has not been here long. Good. The ones who know the Moon walk quietly.",
+  "where": [
+   "patrol talk eris_moon"
+  ],
+  "key": "eris"
+ },
+ "280": {
+  "speaker": "ERIS MORN",
+  "text": "The Hive still sing in the dark below the Hellmouth. I listen, so that you do not have to.",
+  "where": [
+   "patrol talk eris_moon"
+  ],
+  "key": "eris"
+ },
+ "281": {
+  "speaker": "ERIS MORN",
+  "text": "It is a sensible reaction. Take this. It is what the dark gave me to share.",
+  "where": [
+   "patrol talk eris_moon"
+  ],
+  "key": "eris"
+ },
+ "282": {
+  "speaker": "ANA BRAY",
+  "text": "Careful where you point that. The Red Legion left more than wreckage out here, and the sand hides all of it.",
+  "where": [
+   "patrol talk ana_mars"
+  ],
+  "key": "ana"
+ },
+ "283": {
+  "speaker": "ANA BRAY",
+  "text": "I come out to the Buried City to remember what we built before the Collapse. The towers outlasted the people who raised them.",
+  "where": [
+   "patrol talk ana_mars"
+  ],
+  "key": "ana"
+ },
+ "284": {
+  "speaker": "ANA BRAY",
+  "text": "Some of us. Here, a little something for the road, Guardian.",
+  "where": [
+   "patrol talk ana_mars"
+  ],
+  "key": "ana"
+ },
+ "285": {
+  "speaker": "SLOANE",
+  "text": "You are the Guardian I asked for? Good. I do not have time for a speech, so here is the short version.",
+  "where": [
+   "patrol talk sloane_titan"
+  ],
+  "key": "sloane"
+ },
+ "286": {
+  "speaker": "SLOANE",
+  "text": "The rigs keep the lights on in the dome. The Hive moved into the Solarium and one of the tower wings, and they are still moving in.",
+  "where": [
+   "patrol talk sloane_titan"
+  ],
+  "key": "sloane"
+ },
+ "287": {
+  "speaker": "SLOANE",
+  "text": "Empty, and growing wild. Walk it carefully, Guardian. Take this, and clear me a path.",
+  "where": [
+   "patrol talk sloane_titan"
+  ],
+  "key": "sloane"
+ },
+ "288": {
+  "speaker": "ASHER MIR",
+  "text": "Assistant! You found the lab. Mind the wires, the Taken are fond of chewing them.",
+  "where": [
+   "patrol talk asher_io"
+  ],
+  "key": "asher"
+ },
+ "289": {
+  "speaker": "ASHER MIR",
+  "text": "This is Terrabase Charon. The Traveler touched Io here, last of all, and the Light left marks on everything. The Vex noticed. The Red Legion noticed. Nobody asked me.",
+  "where": [
+   "patrol talk asher_io"
+  ],
+  "key": "asher"
+ },
+ "290": {
+  "speaker": "ASHER MIR",
+  "text": "Never alone. I have my notes, and the Pyramidion humming at me all night. Take these, assistant, and go and listen to it for me.",
+  "where": [
+   "patrol talk asher_io"
+  ],
+  "key": "asher"
+ },
+ "291": {
+  "speaker": "CAYDE-6",
+  "text": "There you are! Do not look at me. Look at the car. The very rusty car. Good.",
+  "where": [
+   "patrol talk cayde_earth"
+  ],
+  "key": "cayde"
+ },
+ "292": {
+  "speaker": "CAYDE-6",
+  "text": "Back when the Cosmodrome was a parking lot, I hid something here. A snack, or a weapon. Honestly, I forget which.",
+  "where": [
+   "patrol talk cayde_earth"
+  ],
+  "key": "cayde"
+ },
+ "293": {
+  "speaker": "CAYDE-6",
+  "text": "Rude. Take this for the trouble, and if anyone asks, we never met. Rule two!",
+  "where": [
+   "patrol talk cayde_earth"
+  ],
+  "key": "cayde"
+ }
+}

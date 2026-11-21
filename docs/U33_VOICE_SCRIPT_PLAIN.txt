@@ -1,0 +1,393 @@
+=== GHOST (82 lines) ===
+
+Come on. Come on. Where are you?
+
+There. The signal is faint, but it is there.
+
+Found you. You have been out here a very long time.
+
+I do not know if this will work. I just know I am not leaving you.
+
+Wake up, Guardian. Wake up.
+
+There it is. The Last City. And the Traveler, right where we left it.
+
+Take your time. Look around. Everything is going to feel new.
+
+The Vanguard are waiting. Come on.
+
+Look at this Glimmer from the Devils' Lair. The data signature is Cabal.
+
+She knows more than she is saying.
+
+Sparks. Wires. There is nothing inside.
+
+I'm your Ghost. I know this must be confusing - but trust me, we need to move.
+
+This is the Cosmodrome. There's Fallen everywhere, stay low.
+
+The House of Devils! Watch out!
+
+Uh oh... this isn't good.
+
+That was enough action for today. Let's go home.
+
+Rasputin's old array. This will help boost our communications with other planets.
+
+Three relay consoles. Get me close and I can get them online.
+
+It's a servitor! And a big one too. It must be jamming the array. We need to take it down!
+
+The Glimmer they're dropping, it has a data signature. I'm looking into this now.
+
+It's Cabal in origin. I don't know what's going on, but I don't like it.
+
+This is their Kell! It's time for him to fall.
+
+Great job Guardian. Cabal and Fallen working together cannot be good news. We need to tell the Vanguard.
+
+A Ghost shell. it's... broken. We need to pick it up.
+
+These Hive are not normal. They have royal crests in their Chitin.
+
+Rite totems. They are feeding Omnigul. Break them.
+
+It's Omnigul. She must fall Guardian!
+
+They know we are coming. We killed their commander. I don't think they're happy about that.
+
+That's a big sword. Don't let him get close!
+
+I think he said "my father will hear of this". I don't know who his father is, but that cannot be good.
+
+We need to translate what he said. Stand by that terminal while I figure out what's going on.
+
+The Red Legion are sieging one of Rasputin's bunkers. He asked us to wipe them out.
+
+Valus Ta'aurc. Maybe he's connected to the Fallen we faced.
+
+Two consoles control the inner doors. Defend me while I get them open!
+
+Bracus Zahn, the Arms Dealer! Show him your power, Guardian!
+
+Siege emitters. If those fire, Rasputin's bunker is compromised.
+
+Ghaul. The Primus of the Red Legion.
+
+Hopefully that's the last of our Cabal troubles.
+
+Drill supports. Take them out and the whole thing comes down.
+
+Psion Flayers! Three of them. You got this Guardian!
+
+That's the end of the Red Legion. Let's follow up with Asher Mir.
+
+The Taken? No! That can't be...
+
+That's a big captain. Watch out!
+
+The Pyramidion. The Vex have a strong presence here.
+
+Their Mind controls the local forces on Io. We need to find it.
+
+That data carries valuable information. We need to take it to the City.
+
+It's the Vex mind! Take it out!
+
+Great work. We're a good team me and you!
+
+Hold the gate. The survivors are coming through.
+
+Kathok. Swordbearer. His blade is faster than it looks.
+
+The Hive aren't destroying these labs like the others... but why?
+
+Brood sacs. Three of them. They're growing an army!
+
+That has to be the Brood Mother. Take her down!
+
+The Hive here are being strengthened by a ritual. Let's stop it.
+
+The ritual is being Amplified by these totems. Break them all!
+
+This death-song sings of one name: Savathun. We need to silence her.
+
+Great work. I'm sure Zavala will be happy.
+
+I need to locate this Baron. Defend me while I track down his signal.
+
+Araskes. The Trickster. That's him!
+
+Chains bind the ritual. Cut all three.
+
+There he is, the Mindbender. Take him down!
+
+A salvage beacon. Hold it while the camp gathers.
+
+Ether totems. Break them and the Scorn stop rising.
+
+There's so many of them, be careful Guardian!
+
+The Divalian Mists... the stories are true. You really can't see much here.
+
+Was that one of the Queen's people? It looks like an Awoken.
+
+I don't know what will be waiting for us up there... keep an eye out.
+
+I knew this was a test. She wants us to prove ourselves.
+
+Blight growths. It seems to be an energy source for something.
+
+That's a real Ahamkara! We need to kill it, it's too dangerous to be left alive!
+
+A throne that cannot be defeated. The Emperor?
+
+I have a bad feeling about this.
+
+Break those seals, it'll seal the doors behind us.
+
+Rip through them Guardian!
+
+Wires? Servos? He wasn't real... just a robot?
+
+Let's get out of here.
+
+You can count on us commander!
+
+Enough waiting. It's time to find this Emperor.
+
+You can count on us, commander.
+
+He is not.
+
+He has never once looked important.
+
+It's time to go.
+
+
+=== ZAVALA (18 lines) ===
+
+Cabal Glimmer, in Fallen hands.
+
+Unknown Guardian, this is Zavala. Your Ghost sent a distress signal. Get to the wall and we will transmat you out.
+
+The Primus of the Red Legion is here on Mars. His name is Ghaul, take him out.
+
+Titan was my home. The Hive are tearing through our Rigs.
+
+Thank you. Titan will not fall.
+
+The labs are clear. You prevented another war today. Thank you.
+
+Titan is under siege. My home. I need you there.
+
+A Guardian, walking out of the Cosmodrome. It has been ages. We are happy you found your way home.
+
+This is the Last City. It holds, but we need help securing our place in the solar system.
+
+Ghaul is dead. The Red Legion has lost its head, but it isn't gone yet.
+
+Rest now, but Io awaits. The rest of the Red Legion is gathering there now, although we don't know by whose authority.
+
+Titan. My home. The Hive have climbed out of the methane, and the arcology is the next to fall.
+
+I cannot leave the City. You can. Go, and tell them the Vanguard has not forgotten Titan.
+
+Guardian, you've stabilized the system. But you're not done yet.
+
+This God-Emperor waits at the end of this. He must fall.
+
+The City is safe tonight because of Guardians like you.
+
+Keep your Light bright, Guardian.
+
+Stay vigilant. The Darkness does not rest.
+
+
+=== IKORA REY (18 lines) ===
+
+Let me see that.
+
+The Red Legion are not a raiding party. It's a full blown invasion of Mars.
+
+This command post is key to their weapons distribution. We need to take it out.
+
+Red Legion survivors fled to Io. But whose command do they listen to now?
+
+Do not answer this invitation. We have to get the whole picture.
+
+Your Ghost told us the glimmer found in the Devil's Lair had a Cabal data signature. Peculiar.
+
+Somebody is paying them. I would like to know who is paying the Fallen, and why.
+
+Eris Morn is a powerful ally. Thank you for securing the Hellmouth, it's where she lost her Fireteam.
+
+Today we remember the Guardians that fell on the moon. You did well avenging them, Guardian.
+
+Back in the Cosmodrome, Rasputin warned about the Cabal on Mars. When you're ready, go investigate the distress call.
+
+This Emperor seems to be watching you closely.
+
+Remember what you're fighting for. The Light, the hope of humanity. Don't answer this invitation unless it is with a fight.
+
+A second invitation. The Awoken Queen does nothing without a reason, and she does nothing for free.
+
+The Dreaming City has been closed for a very long time. If they open it to you, you should proceed carefully.
+
+Whatever this Emperor has to offer or say, don't trust him.
+
+Hone your abilities. You must stay sharp.
+
+Knowledge is a weapon. Use it.
+
+I hope your mind is as sharp as your light is.
+
+
+=== CAYDE-6 (14 lines) ===
+
+Cabal money in Fallen pockets. That is never good news.
+
+I brushed up on my Russian and it sounds like we need to see what the Cabal are up to on Mars. See you there kid.
+
+We need to break the House of Devils' hold on the Cosmodrome. Their Kell falls today. You got this.
+
+The Red Legion is losing this war on Mars. We go for their leader next.
+
+The Awoken Queen requested you? They typically aren't the friendliest people.
+
+Fresh Guardian! Let me guess: the Ghost does all the talking. They always do.
+
+Rule one: never trust anyone who says "trust me." Except me. I am extremely trustworthy.
+
+The Spider says the Fallen Barons are strangling his trade on the Reef. Barons! Loud, greedy, and very very dangerous.
+
+I would go myself, but somebody has to stay here and look important. Hit them hard, Guardian.
+
+Big ship, fancy throne, a God Emperor. Classic. Shoot first, questions later.
+
+Come back in one piece. I have a bet on you.
+
+Got any spare glimmer? Asking for a friend. The friend is me.
+
+I would tell you a joke, but not with Ikora present.
+
+Nice gear. Really nice gear...
+
+
+=== CROTA (1 lines) ===
+
+My father will hear of this.
+
+
+=== PETRA VENJ (8 lines) ===
+
+My Queen. The Guardian you asked for.
+
+Guardian, my name is Petra. My Queen has tasked me with taking down Reksis Vahn, the Mindbender. Help me track him down.
+
+The Queen watches. She is pleased.
+
+Fikrul is the leader of them all. If he falls, his army goes with him.
+
+I owe you, Guardian. Thank you for assisting the Awoken of the Reef. The Queen requests your presence.
+
+Here we are, home. To reach the Queen we must fight through the Taken.
+
+Three beacons light the way. Wake each, then hold the line!
+
+The Mists are held. The Queen is on the Spine, we must go there at once.
+
+
+=== MARA SOV (6 lines) ===
+
+So this is the one the Light chose. Welcome to the Dreaming City, Guardian.
+
+The Taken have broken through the Mists. Oryx's children nest where they should never be.
+
+Climb the Spine of Keres and prove yourself. Then we will speak of the Emperor.
+
+Climb the Spine, Guardian. Meet me at the top.
+
+An Emperor awaits you. He's a formidable foe. Or ally perhaps?
+
+Thank you for playing my little game. The answers you need lie in the wish-magic of an Ahamkara.
+
+
+=== EMPEROR CALUS (5 lines) ===
+
+Impressive. But do not mourn the shell.
+
+Welcome, Guardian. I am Calus. I have been waiting for you.
+
+The gardens are lovely this time of year. Pity about the beasts running amuck.
+
+Join me Guardian. The end awaits us all!
+
+Well played, my Shadow. Seek me further. You've proven yourself worthy.
+
+
+=== ERIS MORN (8 lines) ===
+
+A great darkness is stirring on the moon. A Guardian recently went dark closeby. Investigate it.
+
+Eriana. She fought well. Bring her Ghost back to me.
+
+Thank you Guardian. We honor the lost today through combat.
+
+The Chamber of Night. This is where my fireteam fell.
+
+The wailing of a Deathsinger. Silencing her will break their ranks.
+
+This ritual nears its end. But there's a greater evil than Omnigul.
+
+The Hellmouth. Descend and bring light to the darkness.
+
+Guardian, I request your presence on the moon. Come to me and we will speak.
+
+
+=== RASPUTIN (3 lines) ===
+
+Обнаружен Страж. Предупреждение: флот Кабал стягивается к Марсу.
+
+Наконец-то ты прибыл. Красный Легион должен быть остановлен.
+
+Внимание! На поверхности Марса зафиксирована активность 9-го класса. Сигнал бедствия 322. Призываем на помощь Стражей со всей Солнечной системы.
+
+
+=== THE SPIDER (3 lines) ===
+
+A little favor, Guardian. A Baron called Araskes has been bleeding my market. Mind the mines.
+
+Lovely. One down. Two to go.
+
+Fallen Barons are strangling my trade on the Reef. Do a Spider a favor, Guardian.
+
+
+=== RIVEN (3 lines) ===
+
+Welcome, little light. I have many voices. Which one do you want?
+
+Knowledge perhaps?
+
+A throne that cannot be defeated. This wish was granted... you'll find out how.
+
+
+=== ASHER MIR (2 lines) ===
+
+Assistant! This is where the Traveler last touched. Do not let them taint the data I need.
+
+The Rupture holds. Thank you, my assistant.
+
+
+=== PSION HERALD (1 lines) ===
+
+The Emperor in Exile salutes the one who ended Ghaul. Come and worship the God-Emperor and you will be at his right hand.
+
+
+=== KADI 55-30 (3 lines) ===
+
+Mail for you? Always!
+
+Plenty more next time!
+
+Hello Guardian! Missing your engrams?

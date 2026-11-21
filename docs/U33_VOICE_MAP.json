@@ -1,0 +1,1227 @@
+{
+ "001": {
+  "speaker": "GHOST",
+  "text": "Come on. Come on. Where are you?",
+  "where": [
+   "CS1 Cosmodrome revive"
+  ]
+ },
+ "002": {
+  "speaker": "GHOST",
+  "text": "There. The signal is faint, but it is there.",
+  "where": [
+   "CS1 Cosmodrome revive"
+  ]
+ },
+ "003": {
+  "speaker": "GHOST",
+  "text": "Found you. You have been out here a very long time.",
+  "where": [
+   "CS1 Cosmodrome revive"
+  ]
+ },
+ "004": {
+  "speaker": "GHOST",
+  "text": "I do not know if this will work. I just know I am not leaving you.",
+  "where": [
+   "CS1 Cosmodrome revive"
+  ]
+ },
+ "005": {
+  "speaker": "GHOST",
+  "text": "Wake up, Guardian. Wake up.",
+  "where": [
+   "CS1 Cosmodrome revive"
+  ]
+ },
+ "006": {
+  "speaker": "GHOST",
+  "text": "There it is. The Last City. And the Traveler, right where we left it.",
+  "where": [
+   "CS2 Tower arrival"
+  ]
+ },
+ "007": {
+  "speaker": "GHOST",
+  "text": "Take your time. Look around. Everything is going to feel new.",
+  "where": [
+   "CS2 Tower arrival"
+  ]
+ },
+ "008": {
+  "speaker": "GHOST",
+  "text": "The Vanguard are waiting. Come on.",
+  "where": [
+   "CS2 Tower arrival"
+  ]
+ },
+ "009": {
+  "speaker": "GHOST",
+  "text": "Look at this Glimmer from the Devils' Lair. The data signature is Cabal.",
+  "where": [
+   "CS3 Glimmer shown to the Vanguard"
+  ]
+ },
+ "010": {
+  "speaker": "GHOST",
+  "text": "She knows more than she is saying.",
+  "where": [
+   "CS6 Throne room"
+  ]
+ },
+ "011": {
+  "speaker": "GHOST",
+  "text": "Sparks. Wires. There is nothing inside.",
+  "where": [
+   "CS7 Calus unmasked"
+  ]
+ },
+ "012": {
+  "speaker": "ZAVALA",
+  "text": "Cabal Glimmer, in Fallen hands.",
+  "where": [
+   "CS3 Glimmer shown to the Vanguard"
+  ]
+ },
+ "013": {
+  "speaker": "IKORA REY",
+  "text": "Let me see that.",
+  "where": [
+   "CS3 Glimmer shown to the Vanguard"
+  ]
+ },
+ "014": {
+  "speaker": "CAYDE-6",
+  "text": "Cabal money in Fallen pockets. That is never good news.",
+  "where": [
+   "CS3 Glimmer shown to the Vanguard"
+  ]
+ },
+ "015": {
+  "speaker": "CROTA",
+  "text": "My father will hear of this.",
+  "where": [
+   "CS4 Crota dies"
+  ]
+ },
+ "016": {
+  "speaker": "PETRA VENJ",
+  "text": "My Queen. The Guardian you asked for.",
+  "where": [
+   "CS6 Throne room"
+  ]
+ },
+ "017": {
+  "speaker": "MARA SOV",
+  "text": "So this is the one the Light chose. Welcome to the Dreaming City, Guardian.",
+  "where": [
+   "CS6 Throne room"
+  ]
+ },
+ "018": {
+  "speaker": "MARA SOV",
+  "text": "The Taken have broken through the Mists. Oryx's children nest where they should never be.",
+  "where": [
+   "CS6 Throne room"
+  ]
+ },
+ "019": {
+  "speaker": "MARA SOV",
+  "text": "Climb the Spine of Keres and prove yourself. Then we will speak of the Emperor.",
+  "where": [
+   "CS6 Throne room"
+  ]
+ },
+ "020": {
+  "speaker": "EMPEROR CALUS",
+  "text": "Impressive. But do not mourn the shell.",
+  "where": [
+   "CS7 Calus unmasked"
+  ]
+ },
+ "100": {
+  "speaker": "GHOST",
+  "text": "I'm your Ghost. I know this must be confusing - but trust me, we need to move.",
+  "where": [
+   "Mission e1 A Guardian Rises / Mission start"
+  ]
+ },
+ "101": {
+  "speaker": "GHOST",
+  "text": "This is the Cosmodrome. There's Fallen everywhere, stay low.",
+  "where": [
+   "Mission e1 A Guardian Rises / Mission start"
+  ]
+ },
+ "102": {
+  "speaker": "GHOST",
+  "text": "The House of Devils! Watch out!",
+  "where": [
+   "Mission e1 A Guardian Rises / Zone 1 begins"
+  ]
+ },
+ "103": {
+  "speaker": "GHOST",
+  "text": "Uh oh... this isn't good.",
+  "where": [
+   "Mission e1 A Guardian Rises / Boss zone activates"
+  ]
+ },
+ "104": {
+  "speaker": "GHOST",
+  "text": "That was enough action for today. Let's go home.",
+  "where": [
+   "Mission e1 A Guardian Rises / Mission end (cache opened)"
+  ]
+ },
+ "105": {
+  "speaker": "GHOST",
+  "text": "Rasputin's old array. This will help boost our communications with other planets.",
+  "where": [
+   "Mission e2 The Last Array / Mission start"
+  ]
+ },
+ "106": {
+  "speaker": "GHOST",
+  "text": "Three relay consoles. Get me close and I can get them online.",
+  "where": [
+   "Mission e2 The Last Array / Zone 2 begins"
+  ]
+ },
+ "107": {
+  "speaker": "GHOST",
+  "text": "It's a servitor! And a big one too. It must be jamming the array. We need to take it down!",
+  "where": [
+   "Mission e2 The Last Array / Boss zone activates"
+  ]
+ },
+ "108": {
+  "speaker": "GHOST",
+  "text": "The Glimmer they're dropping, it has a data signature. I'm looking into this now.",
+  "where": [
+   "Mission e3 The Devils' Lair / Zone 2 begins"
+  ]
+ },
+ "109": {
+  "speaker": "GHOST",
+  "text": "It's Cabal in origin. I don't know what's going on, but I don't like it.",
+  "where": [
+   "Mission e3 The Devils' Lair / Zone 2 cleared"
+  ]
+ },
+ "110": {
+  "speaker": "GHOST",
+  "text": "This is their Kell! It's time for him to fall.",
+  "where": [
+   "Mission e3 The Devils' Lair / Boss zone activates"
+  ]
+ },
+ "111": {
+  "speaker": "GHOST",
+  "text": "Great job Guardian. Cabal and Fallen working together cannot be good news. We need to tell the Vanguard.",
+  "where": [
+   "Mission e3 The Devils' Lair / Mission end (cache opened)"
+  ]
+ },
+ "112": {
+  "speaker": "GHOST",
+  "text": "A Ghost shell. it's... broken. We need to pick it up.",
+  "where": [
+   "Mission m1 The Dark Beyond / Zone 2 begins"
+  ]
+ },
+ "113": {
+  "speaker": "GHOST",
+  "text": "These Hive are not normal. They have royal crests in their Chitin.",
+  "where": [
+   "Mission m1 The Dark Beyond / Boss zone activates"
+  ]
+ },
+ "114": {
+  "speaker": "GHOST",
+  "text": "Rite totems. They are feeding Omnigul. Break them.",
+  "where": [
+   "Mission m2 Chamber of Night / Zone 2 begins"
+  ]
+ },
+ "115": {
+  "speaker": "GHOST",
+  "text": "It's Omnigul. She must fall Guardian!",
+  "where": [
+   "Mission m2 Chamber of Night / Boss zone activates"
+  ]
+ },
+ "116": {
+  "speaker": "GHOST",
+  "text": "They know we are coming. We killed their commander. I don't think they're happy about that.",
+  "where": [
+   "Mission m3 Crota's End / Zone 2 begins"
+  ]
+ },
+ "117": {
+  "speaker": "GHOST",
+  "text": "That's a big sword. Don't let him get close!",
+  "where": [
+   "Mission m3 Crota's End / Boss zone activates"
+  ]
+ },
+ "118": {
+  "speaker": "GHOST",
+  "text": "I think he said \"my father will hear of this\". I don't know who his father is, but that cannot be good.",
+  "where": [
+   "Mission m3 Crota's End / Mission end (cache opened)"
+  ]
+ },
+ "119": {
+  "speaker": "GHOST",
+  "text": "We need to translate what he said. Stand by that terminal while I figure out what's going on.",
+  "where": [
+   "Mission r1 The Buried City / Zone 2 begins"
+  ]
+ },
+ "120": {
+  "speaker": "GHOST",
+  "text": "The Red Legion are sieging one of Rasputin's bunkers. He asked us to wipe them out.",
+  "where": [
+   "Mission r1 The Buried City / Zone 2 cleared"
+  ]
+ },
+ "121": {
+  "speaker": "GHOST",
+  "text": "Valus Ta'aurc. Maybe he's connected to the Fallen we faced.",
+  "where": [
+   "Mission r1 The Buried City / Boss zone activates"
+  ]
+ },
+ "122": {
+  "speaker": "GHOST",
+  "text": "Two consoles control the inner doors. Defend me while I get them open!",
+  "where": [
+   "Mission r2 Dust Palace / Zone 3 begins"
+  ]
+ },
+ "123": {
+  "speaker": "GHOST",
+  "text": "Bracus Zahn, the Arms Dealer! Show him your power, Guardian!",
+  "where": [
+   "Mission r2 Dust Palace / Boss zone activates"
+  ]
+ },
+ "124": {
+  "speaker": "GHOST",
+  "text": "Siege emitters. If those fire, Rasputin's bunker is compromised.",
+  "where": [
+   "Mission r3 The Red War / Zone 2 begins"
+  ]
+ },
+ "125": {
+  "speaker": "GHOST",
+  "text": "Ghaul. The Primus of the Red Legion.",
+  "where": [
+   "Mission r3 The Red War / Boss zone activates"
+  ]
+ },
+ "126": {
+  "speaker": "GHOST",
+  "text": "Hopefully that's the last of our Cabal troubles.",
+  "where": [
+   "Mission r3 The Red War / Mission end (cache opened)"
+  ]
+ },
+ "127": {
+  "speaker": "GHOST",
+  "text": "Drill supports. Take them out and the whole thing comes down.",
+  "where": [
+   "Mission io2 Echo Mesa / Zone 2 begins"
+  ]
+ },
+ "128": {
+  "speaker": "GHOST",
+  "text": "Psion Flayers! Three of them. You got this Guardian!",
+  "where": [
+   "Mission io2 Echo Mesa / Boss zone activates"
+  ]
+ },
+ "129": {
+  "speaker": "GHOST",
+  "text": "That's the end of the Red Legion. Let's follow up with Asher Mir.",
+  "where": [
+   "Mission io2 Echo Mesa / Mission end (cache opened)"
+  ]
+ },
+ "130": {
+  "speaker": "GHOST",
+  "text": "The Taken? No! That can't be...",
+  "where": [
+   "Mission io1 Sacred Ground / Zone 2 begins"
+  ]
+ },
+ "131": {
+  "speaker": "GHOST",
+  "text": "That's a big captain. Watch out!",
+  "where": [
+   "Mission io1 Sacred Ground / Boss zone activates"
+  ]
+ },
+ "132": {
+  "speaker": "GHOST",
+  "text": "The Pyramidion. The Vex have a strong presence here.",
+  "where": [
+   "Mission io3 The Pyramidion / Mission start"
+  ]
+ },
+ "133": {
+  "speaker": "GHOST",
+  "text": "Their Mind controls the local forces on Io. We need to find it.",
+  "where": [
+   "Mission io3 The Pyramidion / Mission start"
+  ]
+ },
+ "134": {
+  "speaker": "GHOST",
+  "text": "That data carries valuable information. We need to take it to the City.",
+  "where": [
+   "Mission io3 The Pyramidion / Zone 2 begins"
+  ]
+ },
+ "135": {
+  "speaker": "GHOST",
+  "text": "It's the Vex mind! Take it out!",
+  "where": [
+   "Mission io3 The Pyramidion / Boss zone activates"
+  ]
+ },
+ "136": {
+  "speaker": "GHOST",
+  "text": "Great work. We're a good team me and you!",
+  "where": [
+   "Mission io3 The Pyramidion / Mission end (cache opened)"
+  ]
+ },
+ "137": {
+  "speaker": "GHOST",
+  "text": "Hold the gate. The survivors are coming through.",
+  "where": [
+   "Mission t1 Hope / Zone 2 begins"
+  ]
+ },
+ "138": {
+  "speaker": "GHOST",
+  "text": "Kathok. Swordbearer. His blade is faster than it looks.",
+  "where": [
+   "Mission t1 Hope / Boss zone activates"
+  ]
+ },
+ "139": {
+  "speaker": "GHOST",
+  "text": "The Hive aren't destroying these labs like the others... but why?",
+  "where": [
+   "Mission t2 The Sunken Labs / Mission start"
+  ]
+ },
+ "140": {
+  "speaker": "GHOST",
+  "text": "Brood sacs. Three of them. They're growing an army!",
+  "where": [
+   "Mission t2 The Sunken Labs / Zone 2 begins"
+  ]
+ },
+ "141": {
+  "speaker": "GHOST",
+  "text": "That has to be the Brood Mother. Take her down!",
+  "where": [
+   "Mission t2 The Sunken Labs / Boss zone activates"
+  ]
+ },
+ "142": {
+  "speaker": "GHOST",
+  "text": "The Hive here are being strengthened by a ritual. Let's stop it.",
+  "where": [
+   "Mission t3 Savathûn's Song / Mission start"
+  ]
+ },
+ "143": {
+  "speaker": "GHOST",
+  "text": "The ritual is being Amplified by these totems. Break them all!",
+  "where": [
+   "Mission t3 Savathûn's Song / Zone 3 begins"
+  ]
+ },
+ "144": {
+  "speaker": "GHOST",
+  "text": "This death-song sings of one name: Savathun. We need to silence her.",
+  "where": [
+   "Mission t3 Savathûn's Song / Boss zone activates"
+  ]
+ },
+ "145": {
+  "speaker": "GHOST",
+  "text": "Great work. I'm sure Zavala will be happy.",
+  "where": [
+   "Mission t3 Savathûn's Song / Mission end (cache opened)"
+  ]
+ },
+ "146": {
+  "speaker": "GHOST",
+  "text": "I need to locate this Baron. Defend me while I track down his signal.",
+  "where": [
+   "Mission ts1 The Trickster / Zone 2 begins"
+  ]
+ },
+ "147": {
+  "speaker": "GHOST",
+  "text": "Araskes. The Trickster. That's him!",
+  "where": [
+   "Mission ts1 The Trickster / Boss zone activates"
+  ]
+ },
+ "148": {
+  "speaker": "GHOST",
+  "text": "Chains bind the ritual. Cut all three.",
+  "where": [
+   "Mission ts2 The Mindbender / Zone 2 begins"
+  ]
+ },
+ "149": {
+  "speaker": "GHOST",
+  "text": "There he is, the Mindbender. Take him down!",
+  "where": [
+   "Mission ts2 The Mindbender / Boss zone activates"
+  ]
+ },
+ "150": {
+  "speaker": "GHOST",
+  "text": "A salvage beacon. Hold it while the camp gathers.",
+  "where": [
+   "Mission ts3 Scorned / Zone 2 begins"
+  ]
+ },
+ "151": {
+  "speaker": "GHOST",
+  "text": "Ether totems. Break them and the Scorn stop rising.",
+  "where": [
+   "Mission ts3 Scorned / Zone 3 begins"
+  ]
+ },
+ "152": {
+  "speaker": "GHOST",
+  "text": "There's so many of them, be careful Guardian!",
+  "where": [
+   "Mission ts3 Scorned / Boss zone activates"
+  ]
+ },
+ "153": {
+  "speaker": "GHOST",
+  "text": "The Divalian Mists... the stories are true. You really can't see much here.",
+  "where": [
+   "Mission dc1 The Divalian Mists / Zone 1 begins"
+  ]
+ },
+ "154": {
+  "speaker": "GHOST",
+  "text": "Was that one of the Queen's people? It looks like an Awoken.",
+  "where": [
+   "Mission dc1 The Divalian Mists / Boss zone activates"
+  ]
+ },
+ "155": {
+  "speaker": "GHOST",
+  "text": "I don't know what will be waiting for us up there... keep an eye out.",
+  "where": [
+   "Mission dc2 The Spine of Keres / Zone 2 begins"
+  ]
+ },
+ "156": {
+  "speaker": "GHOST",
+  "text": "I knew this was a test. She wants us to prove ourselves.",
+  "where": [
+   "Mission dc2 The Spine of Keres / Boss zone activates"
+  ]
+ },
+ "157": {
+  "speaker": "GHOST",
+  "text": "Blight growths. It seems to be an energy source for something.",
+  "where": [
+   "Mission dc3 The Wishing Chamber / Zone 3 begins"
+  ]
+ },
+ "158": {
+  "speaker": "GHOST",
+  "text": "That's a real Ahamkara! We need to kill it, it's too dangerous to be left alive!",
+  "where": [
+   "Mission dc3 The Wishing Chamber / Boss zone activates"
+  ]
+ },
+ "159": {
+  "speaker": "GHOST",
+  "text": "A throne that cannot be defeated. The Emperor?",
+  "where": [
+   "Mission dc3 The Wishing Chamber / Mission end (cache opened)"
+  ]
+ },
+ "160": {
+  "speaker": "GHOST",
+  "text": "I have a bad feeling about this.",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Mission start"
+  ]
+ },
+ "161": {
+  "speaker": "GHOST",
+  "text": "Break those seals, it'll seal the doors behind us.",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Zone 3 begins"
+  ]
+ },
+ "162": {
+  "speaker": "GHOST",
+  "text": "Rip through them Guardian!",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Zone 4 begins"
+  ]
+ },
+ "163": {
+  "speaker": "GHOST",
+  "text": "Wires? Servos? He wasn't real... just a robot?",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Boss defeated"
+  ]
+ },
+ "164": {
+  "speaker": "GHOST",
+  "text": "Let's get out of here.",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Mission end (cache opened)"
+  ]
+ },
+ "165": {
+  "speaker": "GHOST",
+  "text": "You can count on us commander!",
+  "where": [
+   "After io (act transition)"
+  ]
+ },
+ "166": {
+  "speaker": "GHOST",
+  "text": "Enough waiting. It's time to find this Emperor.",
+  "where": [
+   "After dc (act transition)"
+  ]
+ },
+ "167": {
+  "speaker": "GHOST",
+  "text": "You can count on us, commander.",
+  "where": [
+   "Tower after earth / talk to Zavala"
+  ]
+ },
+ "168": {
+  "speaker": "GHOST",
+  "text": "He is not.",
+  "where": [
+   "Tower after earth / talk to Cayde-6"
+  ]
+ },
+ "169": {
+  "speaker": "GHOST",
+  "text": "He has never once looked important.",
+  "where": [
+   "Tower after titan / talk to Cayde-6"
+  ]
+ },
+ "170": {
+  "speaker": "GHOST",
+  "text": "It's time to go.",
+  "where": [
+   "Tower, all visits done"
+  ]
+ },
+ "171": {
+  "speaker": "ZAVALA",
+  "text": "Unknown Guardian, this is Zavala. Your Ghost sent a distress signal. Get to the wall and we will transmat you out.",
+  "where": [
+   "Mission e1 A Guardian Rises / Zone 1 cleared"
+  ]
+ },
+ "172": {
+  "speaker": "ZAVALA",
+  "text": "The Primus of the Red Legion is here on Mars. His name is Ghaul, take him out.",
+  "where": [
+   "Mission r3 The Red War / Mission start"
+  ]
+ },
+ "173": {
+  "speaker": "ZAVALA",
+  "text": "Titan was my home. The Hive are tearing through our Rigs.",
+  "where": [
+   "Mission t1 Hope / Mission start"
+  ]
+ },
+ "174": {
+  "speaker": "ZAVALA",
+  "text": "Thank you. Titan will not fall.",
+  "where": [
+   "Mission t1 Hope / Mission end (cache opened)"
+  ]
+ },
+ "175": {
+  "speaker": "ZAVALA",
+  "text": "The labs are clear. You prevented another war today. Thank you.",
+  "where": [
+   "Mission t2 The Sunken Labs / Mission end (cache opened)"
+  ]
+ },
+ "176": {
+  "speaker": "ZAVALA",
+  "text": "Titan is under siege. My home. I need you there.",
+  "where": [
+   "After io (act transition)"
+  ]
+ },
+ "177": {
+  "speaker": "ZAVALA",
+  "text": "A Guardian, walking out of the Cosmodrome. It has been ages. We are happy you found your way home.",
+  "where": [
+   "Tower after earth / talk to Zavala"
+  ]
+ },
+ "178": {
+  "speaker": "ZAVALA",
+  "text": "This is the Last City. It holds, but we need help securing our place in the solar system.",
+  "where": [
+   "Tower after earth / talk to Zavala"
+  ]
+ },
+ "179": {
+  "speaker": "ZAVALA",
+  "text": "Ghaul is dead. The Red Legion has lost its head, but it isn't gone yet.",
+  "where": [
+   "Tower after mars / talk to Zavala"
+  ]
+ },
+ "180": {
+  "speaker": "ZAVALA",
+  "text": "Rest now, but Io awaits. The rest of the Red Legion is gathering there now, although we don't know by whose authority.",
+  "where": [
+   "Tower after mars / talk to Zavala"
+  ]
+ },
+ "181": {
+  "speaker": "ZAVALA",
+  "text": "Titan. My home. The Hive have climbed out of the methane, and the arcology is the next to fall.",
+  "where": [
+   "Tower after io / talk to Zavala"
+  ]
+ },
+ "182": {
+  "speaker": "ZAVALA",
+  "text": "I cannot leave the City. You can. Go, and tell them the Vanguard has not forgotten Titan.",
+  "where": [
+   "Tower after io / talk to Zavala"
+  ]
+ },
+ "183": {
+  "speaker": "ZAVALA",
+  "text": "Guardian, you've stabilized the system. But you're not done yet.",
+  "where": [
+   "Tower after dc / talk to Zavala"
+  ]
+ },
+ "184": {
+  "speaker": "ZAVALA",
+  "text": "This God-Emperor waits at the end of this. He must fall.",
+  "where": [
+   "Tower after dc / talk to Zavala"
+  ]
+ },
+ "185": {
+  "speaker": "ZAVALA",
+  "text": "The City is safe tonight because of Guardians like you.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "186": {
+  "speaker": "ZAVALA",
+  "text": "Keep your Light bright, Guardian.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "187": {
+  "speaker": "ZAVALA",
+  "text": "Stay vigilant. The Darkness does not rest.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "188": {
+  "speaker": "IKORA REY",
+  "text": "The Red Legion are not a raiding party. It's a full blown invasion of Mars.",
+  "where": [
+   "Mission r1 The Buried City / Mission end (cache opened)"
+  ]
+ },
+ "189": {
+  "speaker": "IKORA REY",
+  "text": "This command post is key to their weapons distribution. We need to take it out.",
+  "where": [
+   "Mission r2 Dust Palace / Mission start"
+  ]
+ },
+ "190": {
+  "speaker": "IKORA REY",
+  "text": "Red Legion survivors fled to Io. But whose command do they listen to now?",
+  "where": [
+   "Mission io2 Echo Mesa / Mission start"
+  ]
+ },
+ "191": {
+  "speaker": "IKORA REY",
+  "text": "Do not answer this invitation. We have to get the whole picture.",
+  "where": [
+   "After mars (act transition)"
+  ]
+ },
+ "192": {
+  "speaker": "IKORA REY",
+  "text": "Your Ghost told us the glimmer found in the Devil's Lair had a Cabal data signature. Peculiar.",
+  "where": [
+   "Tower after earth / talk to Ikora Rey"
+  ]
+ },
+ "193": {
+  "speaker": "IKORA REY",
+  "text": "Somebody is paying them. I would like to know who is paying the Fallen, and why.",
+  "where": [
+   "Tower after earth / talk to Ikora Rey"
+  ]
+ },
+ "194": {
+  "speaker": "IKORA REY",
+  "text": "Eris Morn is a powerful ally. Thank you for securing the Hellmouth, it's where she lost her Fireteam.",
+  "where": [
+   "Tower after moon / talk to Ikora Rey"
+  ]
+ },
+ "195": {
+  "speaker": "IKORA REY",
+  "text": "Today we remember the Guardians that fell on the moon. You did well avenging them, Guardian.",
+  "where": [
+   "Tower after moon / talk to Ikora Rey"
+  ]
+ },
+ "196": {
+  "speaker": "IKORA REY",
+  "text": "Back in the Cosmodrome, Rasputin warned about the Cabal on Mars. When you're ready, go investigate the distress call.",
+  "where": [
+   "Tower after moon / talk to Ikora Rey"
+  ]
+ },
+ "197": {
+  "speaker": "IKORA REY",
+  "text": "This Emperor seems to be watching you closely.",
+  "where": [
+   "Tower after mars / talk to Ikora Rey"
+  ]
+ },
+ "198": {
+  "speaker": "IKORA REY",
+  "text": "Remember what you're fighting for. The Light, the hope of humanity. Don't answer this invitation unless it is with a fight.",
+  "where": [
+   "Tower after mars / talk to Ikora Rey"
+  ]
+ },
+ "199": {
+  "speaker": "IKORA REY",
+  "text": "A second invitation. The Awoken Queen does nothing without a reason, and she does nothing for free.",
+  "where": [
+   "Tower after tangled / talk to Ikora Rey"
+  ]
+ },
+ "200": {
+  "speaker": "IKORA REY",
+  "text": "The Dreaming City has been closed for a very long time. If they open it to you, you should proceed carefully.",
+  "where": [
+   "Tower after tangled / talk to Ikora Rey"
+  ]
+ },
+ "201": {
+  "speaker": "IKORA REY",
+  "text": "Whatever this Emperor has to offer or say, don't trust him.",
+  "where": [
+   "Tower after dc / talk to Ikora Rey"
+  ]
+ },
+ "202": {
+  "speaker": "IKORA REY",
+  "text": "Hone your abilities. You must stay sharp.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "203": {
+  "speaker": "IKORA REY",
+  "text": "Knowledge is a weapon. Use it.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "204": {
+  "speaker": "IKORA REY",
+  "text": "I hope your mind is as sharp as your light is.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "205": {
+  "speaker": "CAYDE-6",
+  "text": "I brushed up on my Russian and it sounds like we need to see what the Cabal are up to on Mars. See you there kid.",
+  "where": [
+   "Mission e2 The Last Array / Mission end (cache opened)"
+  ]
+ },
+ "206": {
+  "speaker": "CAYDE-6",
+  "text": "We need to break the House of Devils' hold on the Cosmodrome. Their Kell falls today. You got this.",
+  "where": [
+   "Mission e3 The Devils' Lair / Mission start"
+  ]
+ },
+ "207": {
+  "speaker": "CAYDE-6",
+  "text": "The Red Legion is losing this war on Mars. We go for their leader next.",
+  "where": [
+   "Mission r2 Dust Palace / Mission end (cache opened)"
+  ]
+ },
+ "208": {
+  "speaker": "CAYDE-6",
+  "text": "The Awoken Queen requested you? They typically aren't the friendliest people.",
+  "where": [
+   "After tangled (act transition)"
+  ]
+ },
+ "209": {
+  "speaker": "CAYDE-6",
+  "text": "Fresh Guardian! Let me guess: the Ghost does all the talking. They always do.",
+  "where": [
+   "Tower after earth / talk to Cayde-6"
+  ]
+ },
+ "210": {
+  "speaker": "CAYDE-6",
+  "text": "Rule one: never trust anyone who says \"trust me.\" Except me. I am extremely trustworthy.",
+  "where": [
+   "Tower after earth / talk to Cayde-6"
+  ]
+ },
+ "211": {
+  "speaker": "CAYDE-6",
+  "text": "The Spider says the Fallen Barons are strangling his trade on the Reef. Barons! Loud, greedy, and very very dangerous.",
+  "where": [
+   "Tower after titan / talk to Cayde-6"
+  ]
+ },
+ "212": {
+  "speaker": "CAYDE-6",
+  "text": "I would go myself, but somebody has to stay here and look important. Hit them hard, Guardian.",
+  "where": [
+   "Tower after titan / talk to Cayde-6"
+  ]
+ },
+ "213": {
+  "speaker": "CAYDE-6",
+  "text": "Big ship, fancy throne, a God Emperor. Classic. Shoot first, questions later.",
+  "where": [
+   "Tower after dc / talk to Cayde-6"
+  ]
+ },
+ "214": {
+  "speaker": "CAYDE-6",
+  "text": "Come back in one piece. I have a bet on you.",
+  "where": [
+   "Tower after dc / talk to Cayde-6"
+  ]
+ },
+ "215": {
+  "speaker": "CAYDE-6",
+  "text": "Got any spare glimmer? Asking for a friend. The friend is me.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "216": {
+  "speaker": "CAYDE-6",
+  "text": "I would tell you a joke, but not with Ikora present.",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "217": {
+  "speaker": "CAYDE-6",
+  "text": "Nice gear. Really nice gear...",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "218": {
+  "speaker": "PETRA VENJ",
+  "text": "Guardian, my name is Petra. My Queen has tasked me with taking down Reksis Vahn, the Mindbender. Help me track him down.",
+  "where": [
+   "Mission ts2 The Mindbender / Mission start"
+  ]
+ },
+ "219": {
+  "speaker": "PETRA VENJ",
+  "text": "The Queen watches. She is pleased.",
+  "where": [
+   "Mission ts2 The Mindbender / Mission end (cache opened)"
+  ]
+ },
+ "220": {
+  "speaker": "PETRA VENJ",
+  "text": "Fikrul is the leader of them all. If he falls, his army goes with him.",
+  "where": [
+   "Mission ts3 Scorned / Mission start"
+  ]
+ },
+ "221": {
+  "speaker": "PETRA VENJ",
+  "text": "I owe you, Guardian. Thank you for assisting the Awoken of the Reef. The Queen requests your presence.",
+  "where": [
+   "Mission ts3 Scorned / Mission end (cache opened)"
+  ]
+ },
+ "222": {
+  "speaker": "PETRA VENJ",
+  "text": "Here we are, home. To reach the Queen we must fight through the Taken.",
+  "where": [
+   "Mission dc1 The Divalian Mists / Mission start"
+  ]
+ },
+ "223": {
+  "speaker": "PETRA VENJ",
+  "text": "Three beacons light the way. Wake each, then hold the line!",
+  "where": [
+   "Mission dc1 The Divalian Mists / Zone 2 begins"
+  ]
+ },
+ "224": {
+  "speaker": "PETRA VENJ",
+  "text": "The Mists are held. The Queen is on the Spine, we must go there at once.",
+  "where": [
+   "Mission dc1 The Divalian Mists / Mission end (cache opened)"
+  ]
+ },
+ "225": {
+  "speaker": "MARA SOV",
+  "text": "Climb the Spine, Guardian. Meet me at the top.",
+  "where": [
+   "Mission dc2 The Spine of Keres / Mission start"
+  ]
+ },
+ "226": {
+  "speaker": "MARA SOV",
+  "text": "An Emperor awaits you. He's a formidable foe. Or ally perhaps?",
+  "where": [
+   "Mission dc2 The Spine of Keres / Zone 2 cleared"
+  ]
+ },
+ "227": {
+  "speaker": "MARA SOV",
+  "text": "Thank you for playing my little game. The answers you need lie in the wish-magic of an Ahamkara.",
+  "where": [
+   "Mission dc2 The Spine of Keres / Mission end (cache opened)"
+  ]
+ },
+ "228": {
+  "speaker": "EMPEROR CALUS",
+  "text": "Welcome, Guardian. I am Calus. I have been waiting for you.",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Mission start"
+  ]
+ },
+ "229": {
+  "speaker": "EMPEROR CALUS",
+  "text": "The gardens are lovely this time of year. Pity about the beasts running amuck.",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Zone 2 begins"
+  ]
+ },
+ "230": {
+  "speaker": "EMPEROR CALUS",
+  "text": "Join me Guardian. The end awaits us all!",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Boss zone activates"
+  ]
+ },
+ "231": {
+  "speaker": "EMPEROR CALUS",
+  "text": "Well played, my Shadow. Seek me further. You've proven yourself worthy.",
+  "where": [
+   "Mission lev1 The Emperor's Throne / Mission end (cache opened)"
+  ]
+ },
+ "232": {
+  "speaker": "ERIS MORN",
+  "text": "A great darkness is stirring on the moon. A Guardian recently went dark closeby. Investigate it.",
+  "where": [
+   "Mission m1 The Dark Beyond / Mission start"
+  ]
+ },
+ "233": {
+  "speaker": "ERIS MORN",
+  "text": "Eriana. She fought well. Bring her Ghost back to me.",
+  "where": [
+   "Mission m1 The Dark Beyond / Zone 2 cleared"
+  ]
+ },
+ "234": {
+  "speaker": "ERIS MORN",
+  "text": "Thank you Guardian. We honor the lost today through combat.",
+  "where": [
+   "Mission m1 The Dark Beyond / Mission end (cache opened)"
+  ]
+ },
+ "235": {
+  "speaker": "ERIS MORN",
+  "text": "The Chamber of Night. This is where my fireteam fell.",
+  "where": [
+   "Mission m2 Chamber of Night / Mission start"
+  ]
+ },
+ "236": {
+  "speaker": "ERIS MORN",
+  "text": "The wailing of a Deathsinger. Silencing her will break their ranks.",
+  "where": [
+   "Mission m2 Chamber of Night / Zone 2 cleared"
+  ]
+ },
+ "237": {
+  "speaker": "ERIS MORN",
+  "text": "This ritual nears its end. But there's a greater evil than Omnigul.",
+  "where": [
+   "Mission m2 Chamber of Night / Mission end (cache opened)"
+  ]
+ },
+ "238": {
+  "speaker": "ERIS MORN",
+  "text": "The Hellmouth. Descend and bring light to the darkness.",
+  "where": [
+   "Mission m3 Crota's End / Mission start"
+  ]
+ },
+ "239": {
+  "speaker": "ERIS MORN",
+  "text": "Guardian, I request your presence on the moon. Come to me and we will speak.",
+  "where": [
+   "After earth (act transition)"
+  ]
+ },
+ "240": {
+  "speaker": "RASPUTIN",
+  "text": "Обнаружен Страж. Предупреждение: флот Кабал стягивается к Марсу.",
+  "where": [
+   "Mission e2 The Last Array / Zone 2 cleared"
+  ]
+ },
+ "241": {
+  "speaker": "RASPUTIN",
+  "text": "Наконец-то ты прибыл. Красный Легион должен быть остановлен.",
+  "where": [
+   "Mission r1 The Buried City / Mission start"
+  ]
+ },
+ "242": {
+  "speaker": "RASPUTIN",
+  "text": "Внимание! На поверхности Марса зафиксирована активность 9-го класса. Сигнал бедствия 322. Призываем на помощь Стражей со всей Солнечной системы.",
+  "where": [
+   "After moon (act transition)"
+  ]
+ },
+ "243": {
+  "speaker": "THE SPIDER",
+  "text": "A little favor, Guardian. A Baron called Araskes has been bleeding my market. Mind the mines.",
+  "where": [
+   "Mission ts1 The Trickster / Mission start"
+  ]
+ },
+ "244": {
+  "speaker": "THE SPIDER",
+  "text": "Lovely. One down. Two to go.",
+  "where": [
+   "Mission ts1 The Trickster / Mission end (cache opened)"
+  ]
+ },
+ "245": {
+  "speaker": "THE SPIDER",
+  "text": "Fallen Barons are strangling my trade on the Reef. Do a Spider a favor, Guardian.",
+  "where": [
+   "After titan (act transition)"
+  ]
+ },
+ "246": {
+  "speaker": "RIVEN",
+  "text": "Welcome, little light. I have many voices. Which one do you want?",
+  "where": [
+   "Mission dc3 The Wishing Chamber / Mission start"
+  ]
+ },
+ "247": {
+  "speaker": "RIVEN",
+  "text": "Knowledge perhaps?",
+  "where": [
+   "Mission dc3 The Wishing Chamber / Zone 2 begins"
+  ]
+ },
+ "248": {
+  "speaker": "RIVEN",
+  "text": "A throne that cannot be defeated. This wish was granted... you'll find out how.",
+  "where": [
+   "Mission dc3 The Wishing Chamber / Mission end (cache opened)"
+  ]
+ },
+ "249": {
+  "speaker": "ASHER MIR",
+  "text": "Assistant! This is where the Traveler last touched. Do not let them taint the data I need.",
+  "where": [
+   "Mission io1 Sacred Ground / Mission start"
+  ]
+ },
+ "250": {
+  "speaker": "ASHER MIR",
+  "text": "The Rupture holds. Thank you, my assistant.",
+  "where": [
+   "Mission io1 Sacred Ground / Mission end (cache opened)"
+  ]
+ },
+ "251": {
+  "speaker": "PSION HERALD",
+  "text": "The Emperor in Exile salutes the one who ended Ghaul. Come and worship the God-Emperor and you will be at his right hand.",
+  "where": [
+   "After mars (act transition)"
+  ]
+ },
+ "252": {
+  "speaker": "KADI 55-30",
+  "text": "Mail for you? Always!",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "253": {
+  "speaker": "KADI 55-30",
+  "text": "Plenty more next time!",
+  "where": [
+   "Tower idle chatter"
+  ]
+ },
+ "254": {
+  "speaker": "KADI 55-30",
+  "text": "Hello Guardian! Missing your engrams?",
+  "where": [
+   "Tower postmaster / talk to KADI 55-30"
+  ]
+ }
+}

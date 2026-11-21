@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.8 "Transmissions" (U33)**: story moments play as seven cutscenes, each once per Guardian and skippable. Every NPC line is voiced (a few patrol conversations and Ghost prompts are still subtitle-only), the music is rebuilt and quieter while exploring, each destination has its own ambiance, and the pause menu Sound tab has separate volume sliders
 - **v5.7 "Dropships" (U32)**: enemy reinforcements arrive by faction dropship (Cabal, Fallen, Hive) or step out of a teleport gate (Vex, Taken; Scorn step out of a purple and blue mist), outdoors only. A "Dropship entrances" setting turns it off on slow machines
 - **v5.6 "Exotic Arsenal" (U31)**: 15 new exotic armor pieces, the % recharge exotics hit harder, Red Dot, Holo Ring and Micro Reflex sights on shotguns, sidearms and hand cannons, 24 new legendaries and 30 new perks, Crucible burst supers one-shot in their blast core, and boon drops that rise with the wave.
 - **v5.5 "Boon Drops" (U30)**: Roguelike kills leave boon orbs you open with E to pick one of three boons (solo pauses, co-op gives each player their own orbs), and eleven new boons bring the total to 36.
@@ -129,6 +130,9 @@ WASD move, Shift sprint (Icarus Dash in the air), Space jump (press or hold in a
 | `js/ability-icons.js` | Generated icons for abilities, aspects and fragments |
 | `js/combat.js` | Combat tuning and rules: super gain, spread, stagger, chain targets, weapon tier scaling |
 | `js/releases.js` | Title-screen Update Log and Roadmap content |
+| `js/cutscene.js` / `js/cutscene-sets.js` / `js/cutscene-scenes.js` | Cutscene engine, sets and the seven scripted scenes |
+| `js/voice.js` / `js/voice-data.js` | NPC voice playback and the voiced line data (audio in `assets/voice`) |
+| `js/ambiance.js` | Per-destination ambient beds |
 | `js/pvp.js` | Crucible PvP rules (health, one-hit and ammo rules, map ammo crates), behind the `pvp` flag |
 | `js/crucible-net.js` | Networked Crucible: lobby, host-synced score, zones, crates, clock, shooter-resolved hits |
 | `js/crucible-loot.js` | Crucible loot pool: seven legendary weapons and Crucible armor |

@@ -254,3 +254,11 @@ The module map is in the README. These notes cover systems added during the over
 - Co-op: message `ds` (`k` kind, `n` count, `f` from, `h` hover, `o` out, `y` heading), sent by `announceDrop` in `coop.js`.
 - Visual check: `tools/dropshot.html` and `tools/dropshot.js` line up the ships and gates.
 - Save: none. Setting only.
+
+## Cutscenes, voice, ambiance and the Sound tab (v5.8, U33, `js/cutscene.js`, `js/cutscene-sets.js`, `js/cutscene-scenes.js`, `js/voice.js`, `js/voice-data.js`, `js/ambiance.js`)
+- `js/cutscene.js` is the engine. `js/cutscene-sets.js` holds the sets and `js/cutscene-scenes.js` the seven scenes. Each scene plays once per Guardian, tracked in `G.save.cutscenes`. Skippable with Space, Enter, Esc or click; skipped in fireteams.
+- `js/voice.js` plays NPC lines from `js/voice-data.js` (175 lines, audio in `assets/voice`). Per-speaker filters are baked by `tools/bake_voices.py`: Ghost, Kadi, Rasputin and Cayde (robotic), Riven (ethereal), Psion Herald (chorus), Zavala and Calus (pitched down), and a comms filter for transmissions. Gap: 31 patrol-conversation lines and 8 Ghost Tower prompts have no audio (ids 255 to 293, `docs/U33_VOICE_SCRIPT_3.md`); subtitles still show.
+- `js/music.js` was rewritten in phases: it rests in silence while exploring and always plays in danger. The Audio section above describes the earlier music.
+- `js/ambiance.js` holds the ambient bed for each destination, including the Tower and Orbit.
+- Settings: the pause menu Sound tab has separate Master Volume, Music, Ambiance, NPC Voice and Effects sliders.
+- Save: additive `G.save.cutscenes` only, no save version bump.
