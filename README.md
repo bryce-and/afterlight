@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.8.3 "Hotfix" (H42)**: sound effects and music no longer drop out in big fights. The audio recovers if the browser suspends it, sound effects have per-type and total limits so a huge fight cannot overload it, and the music schedules further ahead so a long frame no longer leaves a gap.
 - **v5.8.2 "Hotfix" (H41)**: when a character speaks several lines in a row in a cutscene, the camera changes instead of repeating the same move: a short cut to the Guardian listening, then the speaker in a tighter shot, then a side angle.
 - **v5.8.1 "Hotfix" (H40)**: cutscenes play every time you reach their story moment, a new "Skip cutscenes" checkbox on the pause menu's Game tab turns them off, late voice lines play as soon as they load, the Guardian no longer stands inside the Vanguard holo table, and the music is a little darker and sparser.
 - **v5.8 "Transmissions" (U33)**: story moments play as seven cutscenes, each played at its story moment and skippable. Every NPC line is voiced (a few patrol conversations and Ghost prompts are still subtitle-only), the music is rebuilt and quieter while exploring, each destination has its own ambiance, and the pause menu Sound tab has separate volume sliders

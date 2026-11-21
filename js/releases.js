@@ -5,6 +5,15 @@
 
 export const RELEASES = [
   {
+    version: '5.8.3', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
+    summary: 'Fixes sound effects and music dropping out in big fights: the audio recovers if the browser suspends it, and sound effects are capped so a huge fight cannot overload it.',
+    notes: [
+      'The audio engine recovers on its own if the browser suspends it, so sound effects and music no longer go silent in big fights',
+      'Sound effects have lower limits per type plus a total limit; in the busiest moments a few shots may be skipped instead of everything glitching',
+      'Music schedules further ahead, so a long frame no longer leaves a gap, and a failed music step can no longer stop the score',
+    ],
+  },
+  {
     version: '5.8.2', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
     summary: 'When a character speaks several lines in a row in a cutscene, the camera now changes instead of repeating the same move.',
     notes: [
