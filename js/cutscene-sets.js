@@ -253,7 +253,12 @@ export const SETS = {
     const out = new THREE.Vector3(0.85, 1.95, 3.9).add(new THREE.Vector3(-0.05, -0.05, -0.5));
     const sideOf = (x) => (x > 0.5 ? -0.9 : 0.9);
     const npcCam = (x, y) => (k) => [sideOf(x), 1.7, 2.9 - k * 0.5, x, y, -0.8];
+    // tighter shots on the speaker's face (close) and from the other side, lower (side)
+    const closeCam = (x, hy) => (k) => [x * 0.8 + sideOf(x) * 0.55, hy + 0.05, 1.5 - k * 0.3, x, hy, -0.8];
+    const sideCam = (x, hy) => (k) => [x - sideOf(x) * 2.2 + k * 0.3, hy - 0.2, 1.7, x, hy, -0.8];
     const cams = {
+      zavala_close: closeCam(-2.6, 2.1), zavala_side: sideCam(-2.6, 2.1), ikora_close: closeCam(0, 2.0), ikora_side: sideCam(0, 2.0), cayde_close: closeCam(2.6, 1.9), cayde_side: sideCam(2.6, 1.9),
+      ghost_close: (k) => [0.4, 1.95, 2.6 - k * 0.2, 0.85, 1.95, 3.9], ghost_side: (k) => [2.0, 2.1, 2.8, 0.85, 1.95, 3.9],
       zavala: npcCam(-2.6, 1.75), ikora: npcCam(0, 1.6), cayde: npcCam(2.6, 1.45),
       ghost: (k) => [-0.3 + k * 0.2, 2.0, 1.8, 0.85, 1.95, 3.9],
       guardian: (k) => [-0.7, 1.7, 2.2 + k * 0.2, 0, 1.6, 4.3],
@@ -304,6 +309,9 @@ export const SETS = {
       mara: (k) => [lerp(-0.7, -0.35, k), lerp(2.7, 2.5, k), lerp(-14.5, -15.5, k), 0, 2.6, -21.5],
       maraWide: (k) => [lerp(1.8, -1.0, k), 2.2, -9.5, 0, 2.2, -22],
       ghost: (k) => [-0.2, 2.0, -5 + k * 0.2, 1.0, 1.95, -3.4],
+      guardian: (k) => [-0.8, 1.75, -5.2 + k * 0.2, 0.2, 1.65, -3],
+      mara_close: (k) => [lerp(-0.2, 0.2, k), 2.75, lerp(-17.2, -18.2, k), 0, 2.7, -21.5],
+      mara_side: (k) => [lerp(3.2, 2.6, k), 2.4, -16.5, 0, 2.55, -21.5],
     };
     return {
       scene, cams, defaultCam: [0, 1.9, 7, 0, 2.4, -22], pet, mara, gd, gh,

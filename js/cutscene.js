@@ -125,7 +125,7 @@ function enter(c, st) {
 const ease = (k) => k * k * (3 - 2 * k);
 function camera(c, st, k) {
   let v = st.cam;
-  if (typeof v === 'string') v = c.set.cams[v];
+  if (typeof v === 'string') v = c.set.cams[v] ?? c.set.cams[v.split('_')[0]]; // a missing variant falls back to the base shot
   if (typeof v === 'function') v = v(k, c.set);
   if (v && v.a) { const e = ease(k); v = v.a.map((x, j) => x + (v.b[j] - x) * e); }
   if (!v) v = c.set.defaultCam || [0, 1.6, 6, 0, 1.4, 0];

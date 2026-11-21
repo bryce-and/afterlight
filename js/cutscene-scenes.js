@@ -19,7 +19,25 @@ const arrival = () => [
 ];
 
 const talk = (stop, npc) => (TOWER_TALKS[stop]?.[npc] || []).map(([who, text]) => ({ line: L(who, text), cam: who === 'ghost' ? 'ghost' : who }));
-const room = (steps) => [{ set: 'room', name: 'wide', dur: 2.2, cam: 'wide' }, ...steps];
+/**
+ * Several lines in a row from one speaker get different shots: the second cuts to the Guardian listening for a beat, then comes back tighter;
+ * the third is a side angle, and so on. Cameras named `<name>_close` and `<name>_side` in a set are used when it has them.
+ */
+function varyShots(steps) {
+  const out = [];
+  let prev = null, run = 0;
+  for (const st of steps) {
+    if (!st.line) { out.push(st); prev = null; run = 0; continue; }
+    const who = st.line[0];
+    run = who === prev ? run + 1 : 0;
+    prev = who;
+    if (run === 0 || typeof st.cam !== 'string') { out.push(st); continue; }
+    if (run === 1) out.push({ dur: 1.0, cam: 'guardian' }, { ...st, cam: `${st.cam}_close` });
+    else out.push({ ...st, cam: `${st.cam}${run % 2 ? '_close' : '_side'}` });
+  }
+  return out;
+}
+const room = (steps) => [{ set: 'room', name: 'wide', dur: 2.2, cam: 'wide' }, ...varyShots(steps)];
 
 /** A debrief for one Tower stop: everyone at the stop speaks their lines in order. */
 function debrief(stopId, lead = []) {
@@ -69,10 +87,12 @@ export const SCENES = {
     steps: [
       { set: 'throne', name: 'approach', dur: 4.5, cam: 'approach' },
       { line: L('petra', 'My Queen. The Guardian you asked for.'), cam: 'petra' },
-      { line: L('mara', 'So this is the one the Light chose. Welcome to the Dreaming City, Guardian.'), cam: 'mara' },
-      { line: L('mara', "The Taken have broken through the Mists. Oryx's children nest where they should never be."), cam: 'maraWide' },
-      { line: L('mara', 'Climb the Spine of Keres and prove yourself. Then we will speak of the Emperor.'), cam: 'mara' },
-      { line: L('ghost', 'She knows more than she is saying.'), cam: 'ghost' },
+      ...varyShots([
+        { line: L('mara', 'So this is the one the Light chose. Welcome to the Dreaming City, Guardian.'), cam: 'mara' },
+        { line: L('mara', "The Taken have broken through the Mists. Oryx's children nest where they should never be."), cam: 'mara' },
+        { line: L('mara', 'Climb the Spine of Keres and prove yourself. Then we will speak of the Emperor.'), cam: 'mara' },
+        { line: L('ghost', 'She knows more than she is saying.'), cam: 'ghost' },
+      ]),
     ],
   }),
 
