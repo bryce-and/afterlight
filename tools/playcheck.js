@@ -95,6 +95,7 @@ export async function playcheck(li, mi, { tier = 'base', loadout = 'meta', exoti
       prev = c.clone();
     }
     head.push(`total ${total.toFixed(0)} s, ${M.kills} kills, ${deaths} bot deaths (the bot stands in the open and uses no abilities; compare runs, not absolutes)`);
+    try { const ds = await mod('dropships'); if (ds.indoorStats) head.push(`U34 indoor arrivals: ${ds.indoorStats.played} played, ${ds.indoorStats.fallback} fell back to the old spawn`); } catch { /* module missing: nothing to report */ }
     return `${head.join('\n  ')}\n  ${rep.join('\n  ')}${errs.length ? `\n  ERRORS ${[...new Set(errs)].join('; ')}` : '\n  no errors'}`;
   } catch (e) {
     return `RUN ERROR ${e.message} | ${String(e.stack).split('\n').slice(1, 3).join(' | ')}${errs.length ? `\n  ERRORS ${errs.join('; ')}` : ''}`;

@@ -1,13 +1,14 @@
 // U32 "Dropships": enemies arrive by faction ship (Cabal, Fallen, Hive, Scorn) or step out of a gate (Vex, Taken) instead of appearing from nothing.
 // Units are created hidden and outside G.enemies (spawnUnit `defer`), so they cannot be hit, targeted or act. They join the fight when they land.
 // Pure planning (grouping, timeline, flight, sky check) lives in dropship-plan.js.
+// U34 "Indoor Arrivals": where there is no open sky, Cabal drop in by pod, Fallen through a ceiling vent and Hive out of a floor crack (launchIndoor / stepIndoor).
 import * as THREE from 'three';
-import { buildShip, buildGate, disposeGate, HALF } from './dropship-models.js';
+import { buildShip, buildGate, disposeGate, buildIndoorProp, HALF } from './dropship-models.js';
 import { G } from './state.js';
 import { groundAt, pointInColliders } from './physics.js';
 import { ringFx, sparks } from './effects.js';
 import { registerEnemy, announceDrop } from './coop.js';
-import { DROP, arrivalOf, groupDrops, skyClear, pickRoute, segDist, shipTimeline, shipPos, fallTime, dropshipsEnabled, DROPSHIP_KEY } from './dropship-plan.js';
+import { DROP, INDOOR_T, arrivalOf, groupDrops, skyClear, pickRoute, segDist, shipTimeline, shipPos, fallTime, dropshipsEnabled, DROPSHIP_KEY, indoorKindOf, indoorTimeline, headroom, bodyClear, pickArrivalPoint } from './dropship-plan.js';
 
 const drops = [];
 const _v = new THREE.Vector3();
@@ -32,7 +33,7 @@ function discardUnit(u) { if (!u.done) { u.done = true; if (u.e.model?.group.par
 
 function removeDrop(d) {
   if (d.mesh) { G.scene.remove(d.mesh); }
-  for (const u of d.units) { if (u.gate) { G.scene.remove(u.gate); disposeGate(u.gate); } discardUnit(u); }
+  for (const u of d.units) { if (u.gate) { G.scene.remove(u.gate); disposeGate(u.gate); } if (u.prop) G.scene.remove(u.prop); discardUnit(u); }
 }
 
 /** Drop everything that is still in flight (mission end, level swap). Unlanded units are discarded with their models. */
@@ -50,7 +51,7 @@ const blocked = (x, y, z) => !!pointInColliders(_v.set(x, y, z), 0.4);
  * `place(anchor)` returns a nearby ground spot for a unit riding with the first of its drop.
  */
 export function launchDrops(enemies, place) {
-  const eligible = [], plain = [];
+  const eligible = [], plain = [], indoor = [];
   for (const e of enemies) (dropshipsOn() && !e.isBoss && arrivalOf(e.faction) && e.alive ? eligible : plain).push(e);
   for (const grp of groupDrops(eligible.map((e) => ({ faction: e.faction, e })))) {
     const es = grp.items.map((i) => i.e);
@@ -83,7 +84,7 @@ export function launchDrops(enemies, place) {
       anchor.copy(found);
     }
     es[0].pos.copy(anchor); es[0].pos.y = groundAt(anchor.x, anchor.z); anchor.y = es[0].pos.y;
-    if (!skyClear(blocked, anchor.x, anchor.y, anchor.z)) { plain.push(...es); continue; }
+    if (!skyClear(blocked, anchor.x, anchor.y, anchor.z)) { indoor.push(...es); continue; } // no open sky here: U34 indoor arrival (falls back to the old spawn per unit)
     for (let i = 1; i < es.length; i++) { // ride together: the rest of the load lands around the first
       const p = place?.(anchor);
       if (p) { es[i].pos.copy(p); es[i].pos.y = groundAt(p.x, p.z); }
@@ -103,7 +104,99 @@ export function launchDrops(enemies, place) {
     announceDrop({ k: grp.kind, n: es.length, f: [r1(from.x), r1(from.y), r1(from.z)], h: [r1(hover.x), r1(hover.y), r1(hover.z)], o: [r1(to.x), r1(to.y), r1(to.z)], y: r1(base) });
     drops.push({ kind: grp.kind, t: 0, tl, from, hover, to, mesh, dust: 0, yaw: base, units: es.map((e, i) => ({ e, rel: tl.release[i], vy: 0, y: 0, state: 'wait', done: false })) });
   }
+  for (const e of launchIndoor(indoor)) plain.push(e);
   for (const e of plain) land(e, true);
+}
+
+// ---------------------------------------------------------------- U34 indoor arrivals
+const INDOOR_COL = { pod: 0xff6a3a, vent: 0x4ad0ff, crack: 0x7dff5a };
+const solidAt = (x, y, z) => !!pointInColliders(_v.set(x, y, z), 0.2);
+
+/**
+ * Plays an indoor arrival for each unit that can take one: Cabal by pod, Fallen by vent, Hive by crack. A unit lands on an authored point
+ * (`G.level.arrivalPoints`) when one is near, else on its own spawn spot. Returns the units that could not (no body room, no headroom,
+ * a faction with no indoor arrival) so the caller lands them the old way.
+ */
+function launchIndoor(es) {
+  const left = [];
+  if (!es.length) return left;
+  const tl = indoorTimeline(es.length), used = [], units = [];
+  const free = (p) => bodyClear(solidAt, p.x, groundAt(p.x, p.z), p.z);
+  for (const e of es) {
+    const kind = indoorKindOf(e.faction);
+    if (!kind || !e.alive) { left.push(e); continue; }
+    const pt = pickArrivalPoint(G.level?.arrivalPoints, e.pos, free, used);
+    const x = pt ? pt.x : e.pos.x, z = pt ? pt.z : e.pos.z, floor = groundAt(x, z);
+    if (!pt && !bodyClear(solidAt, x, floor, z)) { left.push(e); continue; } // spawn spot inside geometry: never place a unit in a wall
+    const h = headroom(solidAt, x, floor, z, INDOOR_T.fallMax + 2.4);
+    if (kind !== 'crack' && h < INDOOR_T.minHeadroom) { left.push(e); continue; }
+    used.push({ x, z });
+    e.pos.set(x, floor, z);
+    const prop = buildIndoorProp(kind);
+    prop.position.set(x, floor, z);
+    const sc = Math.max(0.8, e.scale || 1);
+    prop.scale.setScalar(kind === 'vent' ? 1 : sc);
+    G.scene.add(prop);
+    e.dropping = true;
+    const i = units.length;
+    units.push({ e, kind, prop, floor, h, hu: Math.min(h - 1.8, INDOOR_T.fallMax), land: tl.land[i], sc, state: 'wait', done: false, fx: 0 });
+  }
+  indoorStats.played += units.length; indoorStats.fallback += left.length;
+  if (units.length) drops.push({ kind: 'indoor', t: 0, end: tl.end, units });
+  return left;
+}
+
+function stepIndoor(d, dt) {
+  d.t += dt;
+  let live = d.t < d.end;
+  for (const u of d.units) {
+    const e = u.e, p = u.prop, t = d.t, col = INDOOR_COL[u.kind];
+    if (u.state === 'gone') continue;
+    if (!e.alive && !u.done) { discardUnit(u); u.state = 'out'; u.outAt = t; } // killed or cleaned up before landing: the prop just closes
+    if (u.state === 'wait') { // the telegraph: glow, shake, seep
+      const k = Math.min(1, t / u.land);
+      for (const m of p.userData.glow) m.visible = Math.sin(t * 22) > -0.6;
+      u.fx -= dt;
+      if (u.fx <= 0) { u.fx = 0.5; _v.set(e.pos.x, u.floor + 0.1, e.pos.z); ringFx(_v, 1.6 + 1.2 * k, col, 0.6); sparks(_v, col, 4, 3, 0.08, 0.5); }
+      if (u.kind === 'pod') {
+        const top = u.floor + Math.max(0, Math.min(u.h - 2.3, INDOOR_T.fallMax)), fallT = 0.45, f = Math.max(0, (t - (u.land - fallT)) / fallT);
+        p.position.y = top + (u.floor - top) * f * f; // hangs at the ceiling, then drops in the last 0.45 s
+        p.position.x = e.pos.x + (f <= 0 ? Math.sin(t * 40) * 0.03 : 0);
+      } else if (u.kind === 'vent') {
+        const fallT = fallTime(u.hu), t0 = u.land - fallT;
+        if (t < t0) { p.position.set(e.pos.x + Math.sin(t * 38) * 0.04, u.floor + u.h - 0.1, e.pos.z); } // rattles in its frame
+        else { // the grate drops and the unit follows it down
+          const s = t - t0;
+          p.position.y = Math.max(u.floor + 0.05, u.floor + u.h - 0.1 - 0.5 * DROP.gravity * s * s); p.rotation.z = Math.min(s * 3, 1.2) ;
+          const uy = Math.max(u.floor, u.floor + u.hu - 0.5 * DROP.gravity * s * s);
+          if (!e.model.group.visible) { e.model.group.visible = true; e.model.group.scale.setScalar(e.scale); }
+          e.model.group.position.set(e.pos.x, uy, e.pos.z);
+        }
+      } else { // crack: the fissure opens, then the unit rises out of it
+        p.scale.setScalar(u.sc * (0.2 + 0.8 * k));
+        const riseT = 0.6, r = Math.max(0, (t - (u.land - riseT)) / riseT);
+        if (r > 0) {
+          if (!e.model.group.visible) { e.model.group.visible = true; e.model.group.scale.setScalar(e.scale); }
+          e.model.group.position.set(e.pos.x, u.floor - 2.4 * e.scale * (1 - r * r), e.pos.z);
+        }
+      }
+      if (t >= u.land) { // out and into the fight
+        u.state = 'out'; u.outAt = t; u.done = true;
+        for (const m of p.userData.glow) m.visible = true;
+        _v.set(e.pos.x, u.floor + 0.2, e.pos.z);
+        ringFx(_v, 2.8 * e.scale, col, 0.6); sparks(_v, col, 10, 6, 0.1, 0.5); sparks(_v.setY(u.floor + 0.3), 0xd0c8b0, 6, 4, 0.12, 0.5);
+        p.position.y = u.kind === 'vent' ? u.floor + 0.05 : p.position.y;
+        land(e);
+      }
+    } else if (u.state === 'out') { // the prop closes: shrinks away over 0.6 s
+      const f = Math.min(1, (t - u.outAt) / 0.6);
+      if (u.kind !== 'vent') p.scale.setScalar(Math.max(0.01, u.sc * (1 - f)));
+      p.visible = f < 1;
+      if (f >= 1) { G.scene.remove(p); u.state = 'gone'; }
+    }
+    if (u.state !== 'gone') live = true;
+  }
+  return live;
 }
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -187,12 +280,14 @@ function stepGates(d, dt) {
 export function updateDropships(dt) {
   for (let i = drops.length - 1; i >= 0; i--) {
     const d = drops[i];
-    const keep = d.kind === 'teleport' ? stepGates(d, dt) : stepShip(d, dt);
+    const keep = d.kind === 'teleport' ? stepGates(d, dt) : d.kind === 'indoor' ? stepIndoor(d, dt) : stepShip(d, dt);
     if (!keep) { removeDrop(d); drops.splice(i, 1); }
   }
 }
 
 export const dropshipCount = () => drops.length;
+/** Dev and play-check: how many units took an indoor arrival, and how many fell back to the old spawn, since the page loaded. */
+export const indoorStats = { played: 0, fallback: 0 };
 
 /** Dev and tests: where each ship in the air is right now. */
 export const dropshipPositions = () => drops.filter((d) => d.mesh && d.mesh.visible).map((d) => d.mesh.position.clone());

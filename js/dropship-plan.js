@@ -111,6 +111,54 @@ export function shipPos(t, tl, from, hover, to) {
   return { x: to.x, y: to.y, z: to.z, phase: 'gone' };
 }
 
+// ---------------------------------------------------------------- U34 "Indoor Arrivals"
+/** Where there is no open sky, Cabal, Fallen and Hive units arrive by pod, vent or wall crack. Vex, Taken and Scorn keep their gates. */
+export const INDOOR = Object.freeze({ legion: 'pod', scrappers: 'vent', hollow: 'crack' });
+export const indoorKindOf = (faction) => INDOOR[faction] || null;
+export const INDOOR_T = Object.freeze({
+  telegraph: 1.5,  // s from the first cue to the first unit stepping out
+  gap: 0.22,       // s between the units of one wave
+  maxTotal: 2.5,   // s: the last unit is always out by now, however big the wave
+  snapRange: 14,   // m: an authored arrival point this close to the unit's spawn spot is used
+  usedGap: 1.5,    // m: two units never share one arrival point
+  minHeadroom: 2.4,// m of free air a pod or vent needs above the spot
+  fallMax: 4,      // m: a unit never falls further than this on its way in
+  bodyR: 0.7,      // m: clear space the unit's body needs round the spot
+});
+
+/** When each unit of an indoor wave lands (s from the first cue). The last one is never later than `maxTotal`. */
+export function indoorTimeline(n) {
+  const gap = n > 1 ? Math.min(INDOOR_T.gap, (INDOOR_T.maxTotal - INDOOR_T.telegraph) / (n - 1)) : 0;
+  const land = Array.from({ length: n }, (_, i) => INDOOR_T.telegraph + i * gap);
+  return { land, end: (land[n - 1] ?? INDOOR_T.telegraph) + 0.7 };
+}
+
+/** Free air above (x, y, z) in metres, up to `max`: the height of the ceiling over the spot. `blocked(x, y, z)` says whether a point is solid. */
+export function headroom(blocked, x, y, z, max = DROP.clearHeight) {
+  for (let dy = 0.5; dy <= max; dy += 0.5) if (blocked(x, y + dy, z)) return dy - 0.5;
+  return max;
+}
+
+/** Is the body space at (x, y, z) free of geometry? Checks the centre and four points `r` out, at knee, chest and head height. */
+export function bodyClear(blocked, x, y, z, r = INDOOR_T.bodyR) {
+  for (const dy of [0.4, 1.0, 1.7]) for (const [ox, oz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (blocked(x + ox, y + dy, z + oz)) return false;
+  return true;
+}
+
+/**
+ * The nearest authored arrival point (`level.arrivalPoints`, [{ x, z }]) within `range` of `pos` that `valid` accepts and that no earlier unit has taken.
+ * Returns the point or null (the caller then uses the unit's own spawn spot).
+ */
+export function pickArrivalPoint(points, pos, valid, used = [], range = INDOOR_T.snapRange) {
+  let best = null, bd = range;
+  for (const p of points || []) {
+    const d = Math.hypot(p.x - pos.x, p.z - pos.z);
+    if (d > bd || used.some((u) => Math.hypot(u.x - p.x, u.z - p.z) < INDOOR_T.usedGap) || !valid(p)) continue;
+    best = p; bd = d;
+  }
+  return best;
+}
+
 /** The saved choice: on unless the player turned it off. `store` is anything with getItem (localStorage); a missing or throwing store means on. */
 export const DROPSHIP_KEY = 'afterlight.dropships';
 export function dropshipsEnabled(store) {

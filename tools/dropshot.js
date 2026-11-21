@@ -36,6 +36,9 @@ export async function lineup({ size = [420, 300] } = {}) {
       shoot(`${f} gate`, 11, 1.5, 0.5, 2); scene.remove(g);
     } catch (e) { errors.push(`${f}: ${e.message}`); }
   }
+  for (const k of ['pod', 'vent', 'crack']) { // U34 indoor arrival props
+    try { const pr = M.buildIndoorProp(k); pr.position.y = k === 'vent' ? -9 : -12; scene.add(pr); shoot(`${k} prop`, 6, 3, 0.7, pr.position.y + 1); scene.remove(pr); } catch (e) { errors.push(`${k}: ${e.message}`); }
+  }
   r.setSize(old.x, old.y, false);
   if (errors.length) wrap.prepend(Object.assign(document.createElement('div'), { textContent: 'ERRORS: ' + errors.join(' | '), style: 'grid-column:1/-1;color:#f66;font-size:16px' }));
   document.body.append(wrap);

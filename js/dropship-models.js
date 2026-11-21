@@ -129,3 +129,35 @@ export function buildGate(faction) {
 }
 export function disposeGate(g) { g.userData.mat?.dispose(); g.userData.ringMat?.dispose(); }
 
+
+// ---------------------------------------------------------------- U34 indoor arrival props (pod, vent grate, wall crack)
+/**
+ * The prop for one indoor arrival, origin at the floor spot. `pod`: a Cabal drop pod (rust hull, orange engine glow, nose down).
+ * `vent`: a Fallen ceiling grate with a blue rim (the caller lifts it to the ceiling). `crack`: a Hive fissure in the floor with a green seep.
+ * Materials are shared, so the caller never disposes them. userData: { glow: [meshes to pulse] }.
+ */
+export function buildIndoorProp(kind) {
+  const g = new THREE.Group();
+  const glows = [];
+  if (kind === 'pod') {
+    const hull = lit(0x8a4a2a, 0.7, 0.4), dark = lit(0x3a2a22, 0.8, 0.3);
+    part(g, SPH, hull, [0.7, 1.0, 0.7], [0, 1.0, 0]);
+    part(g, CONE, dark, [0.55, 0.9, 0.55], [0, 0.1, 0], [Math.PI, 0, 0]);
+    for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3; part(g, BOX, dark, [0.08, 0.7, 0.5], [Math.sin(a) * 0.7, 1.0, Math.cos(a) * 0.7], [0, a, 0]); }
+    glows.push(part(g, SPH, glow(0xff6a3a), [0.4, 0.3, 0.4], [0, 1.9, 0])); // engine flare on top: it came down tail first
+  } else if (kind === 'vent') {
+    const metal = lit(0x3c4048, 0.6, 0.6);
+    part(g, BOX, metal, [1.7, 0.1, 1.7], [0, 0, 0]);
+    for (let i = -2; i <= 2; i++) part(g, BOX, lit(0x22262c, 0.7, 0.5), [0.08, 0.14, 1.6], [i * 0.32, 0.02, 0]);
+    glows.push(part(g, BOX, glow(0x4ad0ff, 0.8), [1.8, 0.05, 0.08], [0, -0.04, 0.88]), part(g, BOX, glow(0x4ad0ff, 0.8), [1.8, 0.05, 0.08], [0, -0.04, -0.88]));
+  } else { // crack
+    part(g, CYL, lit(0x14210f, 0.9, 0.1), [1.3, 0.02, 1.3], [0, 0.015, 0]);
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3 + (i % 2) * 0.2, len = 1.3 + (i % 3) * 0.4;
+      glows.push(part(g, BOX, glow(0x7dff5a, 0.85), [0.1, 0.03, len], [Math.sin(a) * len * 0.5, 0.04, Math.cos(a) * len * 0.5], [0, a, 0]));
+    }
+    glows.push(part(g, SPH, glow(0x5fd048, 0.5), [0.7, 0.08, 0.7], [0, 0.05, 0]));
+  }
+  g.userData = { kind, glow: glows };
+  return g;
+}

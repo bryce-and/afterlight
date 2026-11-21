@@ -4955,6 +4955,40 @@ test('U32 setting: on by default, off only for an explicit 0, a broken store mea
   ok(DS.dropshipsEnabled({ getItem: () => { throw new Error('blocked'); } }), 'throws');
 });
 
+// ---- U34 Indoor Arrivals (pure plan: js/dropship-plan.js) ----
+test('U34 indoor kinds: Cabal pod, Fallen vent, Hive crack; the gate factions and unknowns get none', () => {
+  eq(DS.indoorKindOf('legion'), 'pod'); eq(DS.indoorKindOf('scrappers'), 'vent'); eq(DS.indoorKindOf('hollow'), 'crack');
+  for (const f of ['vex', 'taken', 'scorn', 'nope']) eq(DS.indoorKindOf(f), null, f);
+});
+test('U34 indoorTimeline: first unit after the telegraph, last never later than the cap, in order', () => {
+  for (const n of [1, 2, 4, 8, 12]) {
+    const tl = DS.indoorTimeline(n);
+    eq(tl.land.length, n); eq(tl.land[0], DS.INDOOR_T.telegraph);
+    ok(tl.land.every((v, i) => i === 0 || v >= tl.land[i - 1]), `ordered for ${n}`);
+    ok(tl.land[n - 1] <= DS.INDOOR_T.maxTotal + 1e-9, `cap for ${n}: ${tl.land[n - 1]}`);
+    ok(tl.end > tl.land[n - 1], 'prop closes after the last unit');
+  }
+  ok(Math.abs(DS.indoorTimeline(3).land[1] - DS.indoorTimeline(3).land[0] - DS.INDOOR_T.gap) < 1e-9, 'small waves use the normal gap');
+  eq(DS.indoorTimeline(0).land.length, 0);
+});
+test('U34 headroom and bodyClear: the ceiling height over a spot, and room for a body', () => {
+  eq(DS.headroom(() => false, 0, 0, 0, 10), 10);
+  eq(DS.headroom((x, y) => y >= 4, 0, 0, 0, 10), 3.5);
+  eq(DS.headroom((x, y) => y >= 0.5, 0, 0, 0, 10), 0);
+  ok(DS.bodyClear(() => false, 0, 0, 0), 'open floor');
+  ok(!DS.bodyClear((x, y) => x > 0.5 && y > 0.3 && y < 2, 0, 0, 0), 'a wall beside the spot');
+  ok(!DS.bodyClear((x, y, z) => x === 0 && z === 0 && y > 1.5, 0, 0, 0), 'solid at head height');
+});
+test('U34 pickArrivalPoint: nearest valid unused point in range, else null', () => {
+  const pts = [{ x: 3, z: 0 }, { x: 8, z: 0 }, { x: 40, z: 0 }];
+  const always = () => true, pos = { x: 0, z: 0 };
+  eq(DS.pickArrivalPoint(pts, pos, always), pts[0]);
+  eq(DS.pickArrivalPoint(pts, pos, always, [{ x: 3.4, z: 0 }]), pts[1], 'skips a taken point');
+  eq(DS.pickArrivalPoint(pts, pos, (p) => p.x > 5), pts[1], 'skips an invalid point');
+  eq(DS.pickArrivalPoint(pts, pos, always, [], 2), null, 'out of range');
+  eq(DS.pickArrivalPoint(undefined, pos, always), null); eq(DS.pickArrivalPoint([], pos, always), null);
+});
+
 // ---- U33 Transmissions: ambiance, voices, music phases ----
 test('U33 ambiance: every destination, the Tower and Orbit have a bed with valid one-shots', () => {
   for (const id of [...LOCATIONS.map((l) => l.id), 'tower', 'orbit']) {
