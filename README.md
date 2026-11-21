@@ -16,6 +16,7 @@ Push this folder to a repo, then in the repo go to **Settings > Pages**, set the
 
 ## What's in it
 
+- **v5.9.1 "Hotfix" (H44)**: dropships and indoor arrivals no longer clip through ceilings, and rooms with a solid or glass roof overhead use indoor arrivals instead of a ship. Cabal arrive on the floor indoors; only the Fallen (ceiling vent) and the Hive (floor crack) have special indoor arrivals.
 - **v5.9 "Indoor Arrivals" (U34)**: where there is no open sky, enemies arrive indoors: Cabal by drop pod, Fallen through a ceiling vent and Hive out of a floor crack, with a 1.5 second warning. Ships and teleport gates now have sound effects.
 - **v5.8.4 "Hotfix" (H43)**: hand cannons, shotguns, sidearms and the Forerunner show a real optic on the gun (Red Dot, Holographic Ring or Micro Reflex) that matches the rolled sight, and the optic is the point of aim. The old floating dot sights are gone.
 - **v5.8.3 "Hotfix" (H42)**: sound effects and music no longer drop out in big fights. The audio recovers if the browser suspends it, sound effects have per-type and total limits so a huge fight cannot overload it, and the music schedules further ahead so a long frame no longer leaves a gap.

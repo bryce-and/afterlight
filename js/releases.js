@@ -5,6 +5,16 @@
 
 export const RELEASES = [
   {
+    version: '5.9.1', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
+    summary: 'Dropships and indoor arrivals no longer clip through ceilings, and rooms with a roof overhead now use indoor arrivals instead of a ship.',
+    notes: [
+      'Dropships and indoor arrivals no longer clip through ceilings',
+      'Rooms with a solid or glass roof overhead use indoor arrivals instead of a ship, including rooms where the ceiling is only visual',
+      'Cabal arrive the old way indoors: they appear on the floor with the grow-in',
+      'Only the Fallen (through a ceiling vent) and the Hive (out of a floor crack, Ogres included) have special indoor arrivals. This corrects v5.9, which listed Cabal drop pods',
+    ],
+  },
+  {
     version: '5.9', name: 'Indoor Arrivals', date: '2026-11-21', accent: '#4ad0ff', glyph: '⇩',
     summary: 'Where there is no open sky, enemies now arrive indoors: Cabal by drop pod, Fallen through a ceiling vent and Hive out of a floor crack.',
     notes: [
