@@ -1,3 +1,4 @@
+import { frameCutscene } from './cutscene.js';
 import * as THREE from 'three';
 import './devconsole.js';
 import { G, lockPointer } from './state.js';
@@ -154,6 +155,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   try {
+    if (frameCutscene(dt, renderer)) { /* U33: a cutscene is on screen */ } else {
     if (G.state === 'playing') {
       // co-op menu open: the world keeps running but this player's input is ignored
       if (G.mpMenu) { inp.keys = {}; inp.pressed = {}; inp.mouse.left = inp.mouse.right = false; inp.mouse.dx = inp.mouse.dy = 0; }
@@ -162,6 +164,7 @@ function frame(now) {
     }
     if (G.scene && !G.invOpen && ['playing', 'paused', 'complete', 'failed'].includes(G.state)) renderer.render(G.scene, G.camera);
     else { G.menu.update(dt); renderer.render(G.menu.scene, G.menu.camera); }
+    }
   } catch (err) {
     console.error(err);
     G.lastError = err;

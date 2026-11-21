@@ -62,6 +62,10 @@ import * as DCAM from '../js/deathcam.js';
 import { TOWER_SPOTS, TOWER_FUTURE_POSTS } from '../js/tower-data.js';
 import { PATROL_DATA, PATROL_TUNE, EVENT_SPECS, BEACON_TEXT, SPARROW, FACTION_KITS, TITAN, TITAN_DECKS, TITAN_RAMP, IO, TANGLED, TANGLED_ISLANDS, TANGLED_RAMPS, DREAMING, DREAMING_ISLANDS, DREAMING_RAMPS, kitUnit } from '../js/patrol-data.js';
 
+import * as AMB from '../js/ambiance.js';
+import * as VC from '../js/voice.js';
+import { VOICE_LINES } from '../js/voice-data.js';
+import { musicPhaseStep } from '../js/music.js';
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 function eq(a, b, msg = '') { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`${msg} expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
@@ -4592,6 +4596,9 @@ test('U27 save v14 to v15: every Guardian gets an equipped class item at their L
 
 // ---------- U27 Prismatic (B2) ----------
 import * as PR from '../js/prismatic-rules.js';
+import * as CS from '../js/cutscene-scenes.js';
+import { SETS as CS_SETS } from '../js/cutscene-sets.js';
+import { DEBRIEFS as CS_DEBRIEFS } from '../js/cutscene.js';
 import * as XC from '../js/exotic-class-items.js';
 import { PRISMATIC, PRISMATIC_GRENADES } from '../js/data.js';
 
@@ -4945,6 +4952,76 @@ test('U32 setting: on by default, off only for an explicit 0, a broken store mea
   ok(DS.dropshipsEnabled({ getItem: () => null }), 'unset');
   ok(!DS.dropshipsEnabled({ getItem: (k) => (k === DS.DROPSHIP_KEY ? '0' : null) }), 'off');
   ok(DS.dropshipsEnabled({ getItem: () => { throw new Error('blocked'); } }), 'throws');
+});
+
+// ---- U33 Transmissions: ambiance, voices, music phases ----
+test('U33 ambiance: every destination, the Tower and Orbit have a bed with valid one-shots', () => {
+  for (const id of [...LOCATIONS.map((l) => l.id), 'tower', 'orbit']) {
+    const d = AMB.ambianceFor(id); ok(d, `${id} bed`);
+    ok(d.drone && d.drone.freqs.length >= 1 && d.drone.gain > 0, `${id} drone`);
+    for (const sh of d.shots) { ok(AMB.SHOT_KINDS.includes(sh.kind), `${id} shot ${sh.kind}`); ok(sh.every[0] > 0 && sh.every[1] > sh.every[0], `${id} shot timing`); ok(sh.gain > 0 && sh.gain < 0.3, `${id} shot gain`); }
+    if (d.wind) ok(d.wind.lo < d.wind.hi && d.wind.gain > 0, `${id} wind`);
+  }
+  eq(AMB.ambianceFor('nowhere'), null);
+});
+test('U33 ambiance: Mars is a dusty desert (wind, grit, a low drone, a thud now and then)', () => {
+  const m = AMB.AMBIANCE.mars; ok(m.wind.gain >= 0.3 && m.hiss.gain >= 0.02, 'dusty'); ok(m.shots.some((s) => s.kind === 'thud'), 'thud');
+});
+test('U33 voice data: unique ids, known speakers, no empty text', () => {
+  const ids = new Set();
+  for (const [id, who, text] of VOICE_LINES) { ok(!ids.has(id), `dup ${id}`); ids.add(id); ok(ST_.SPEAKERS[who], `${id} speaker ${who}`); ok(text.length > 3, `${id} text`); }
+  ok(VOICE_LINES.length >= 170, `${VOICE_LINES.length} lines`);
+});
+test('U33 voice: every story line (missions, act transitions, Tower talks, idle chatter, Kadi) has a voice file', () => {
+  const miss = [];
+  const need = (who, text, where) => { if (!VC.voiceFor(who, text)) miss.push(`${where} ${who}: ${text}`); };
+  for (const [mid, m] of Object.entries(ST_.MISSIONS)) for (const l of m.lines) need(l.who, l.text, mid);
+  for (const [lid, ls] of Object.entries(ST_.UNLOCKS)) for (const [w, t] of ls) need(w, t, `unlock ${lid}`);
+  for (const [sid, byNpc] of Object.entries(ST_.TOWER_TALKS)) for (const [n, ls] of Object.entries(byNpc)) for (const [w, t] of ls) need(w, t, `tower ${sid}/${n}`);
+  for (const [n, ls] of Object.entries(ST_.TOWER_IDLE)) for (const t of ls) need(n, t, `idle ${n}`);
+  for (const [w, t] of ST_.KADI_LINES) need(w, t, 'kadi');
+  eq(miss, []);
+});
+test('U33 voice: the comms file is used over a transmission, the plain file in person, and never for Ghost', () => {
+  const z = VOICE_LINES.find((r) => r[1] === 'zavala'), g = VOICE_LINES.find((r) => r[1] === 'ghost');
+  eq(VC.voiceUrl('zavala', z[2], 'comms'), `assets/voice/comms/${z[0]}.mp3`);
+  eq(VC.voiceUrl('zavala', z[2], 'person'), `assets/voice/${z[0]}.mp3`);
+  eq(VC.voiceUrl('ghost', g[2], 'comms'), `assets/voice/${g[0]}.mp3`);
+  eq(VC.voiceUrl('zavala', 'a line that does not exist'), null);
+  eq(VC.voiceKey("It's  a TEST!"), 'it s a test');
+});
+test('U33 voice: every voice file exists (plain and comms)', async () => {
+  const bad = [];
+  for (const [id, , , comms] of VOICE_LINES) {
+    for (const u of [`../assets/voice/${id}.mp3`, ...(comms ? [`../assets/voice/comms/${id}.mp3`] : [])]) {
+      const r = await fetch(u, { method: 'HEAD' }); if (!r.ok) bad.push(u);
+    }
+  }
+  eq(bad, []);
+});
+test('U33 music phases: a score plays for a while, rests for a while, then plays again', () => {
+  let ph = { on: false, until: 0 };
+  const on = [26, 44], gap = [30, 80];
+  ph = musicPhaseStep(ph, 1, on, gap, 0); eq(ph.on, true); eq(ph.until, 1 + 26);
+  eq(musicPhaseStep(ph, 10, on, gap, 0.5), ph); // not over yet: unchanged
+  const rest = musicPhaseStep(ph, 40, on, gap, 1); eq(rest.on, false); eq(rest.until, 40 + 80);
+  eq(musicPhaseStep(rest, 200, on, gap, 0).on, true);
+});
+
+test('U33 cutscenes: every scene line has a voice, every set exists, every debrief stop has a scene', () => {
+  const bad = [];
+  for (const id of Object.keys(CS.SCENES)) {
+    const def = CS.SCENES[id]();
+    if (!def.steps[0].set) bad.push(`${id}: first step has no set`);
+    for (const st of def.steps) { if (st.set && !CS_SETS[st.set]) bad.push(`${id}: unknown set ${st.set}`); if (!st.line && !st.dur) bad.push(`${id}: a step has neither line nor dur`); }
+    for (const [w, t] of CS.sceneLines(id)) if (!VC.voiceFor(w, t)) bad.push(`${id} ${w}: ${t}`);
+  }
+  for (const sc of Object.values(CS_DEBRIEFS)) if (!CS.SCENES[sc]) bad.push(`missing debrief ${sc}`);
+  eq(bad, []);
+});
+test('U33 cutscenes: the Glimmer scene keeps Ikora\'s "who is paying" line and the Ghost\'s Glimmer line', () => {
+  const l = CS.sceneLines('debrief_earth').map((x) => x[1]).join('|');
+  ok(l.includes('Somebody is paying them') && l.includes('data signature is Cabal') && l.includes('Cabal money in Fallen pockets'));
 });
 
 for (const t of tests) {

@@ -5,6 +5,21 @@
 
 export const RELEASES = [
   {
+    version: '5.8', name: 'Transmissions', date: '2026-11-21', accent: '#f2e6a8', glyph: '♪',
+    summary: 'Story moments play out as cutscenes, every NPC line is voiced, the music is rebuilt and each destination has its own ambiance.',
+    notes: [
+      'Seven cutscenes, each played once per Guardian: the Ghost reviving you at a Cosmodrome wreck, the jumpship arriving at the Tower, the Vanguard room and the Glimmer, Crota\'s death, the Tower debriefs for the Cosmodrome, Mars and the Dreaming City, Mara Sov\'s throne room before The Spine of Keres, and Calus coming apart after the Leviathan',
+      'Skip any cutscene with Space, Enter, Esc or a click. Cutscenes are skipped when you play in a fireteam',
+      'Every NPC line is voiced. Transmissions sound like comms, the Ghost sounds like a Ghost, and Cayde, Rasputin, Kadi, Riven, Zavala and Calus each have their own voice',
+      'Some patrol conversations and Ghost prompts in the Tower do not have voices yet. Their subtitles still show',
+      'Music is rebuilt, slower and more cinematic. It rests in silence while you explore and always plays in danger. The Cosmodrome is darker',
+      'Each destination has its own ambient sound, such as dusty wind on Mars. The Tower and Orbit have theirs too',
+      'The pause menu Sound tab has separate sliders for Master Volume, Music, Ambiance, NPC Voice and Effects',
+      'Story typos fixed: "House of Devils\' hold", "whose command", "Io awaits" and "whose authority"',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="trBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a6490"/><stop offset="0.65" stop-color="#f2b676"/><stop offset="1" stop-color="#b8926a"/></linearGradient><radialGradient id="trGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff1c8" stop-opacity="0.8"/><stop offset="1" stop-color="#fff1c8" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#trBg)"/><circle cx="70" cy="60" r="95" fill="url(#trGlow)"/><circle cx="62" cy="62" r="62" fill="#b9c6d8"/><path d="M118 40a62 62 0 0 1-30 78a74 74 0 0 0 30-78z" fill="#fff1c8" opacity="0.85"/><path d="M200 180V96h80v84z" fill="#6f7378"/><path d="M212 96v84M224 96v84M236 96v84M248 96v84M260 96v84" stroke="#565a60" stroke-width="2"/><path d="M236 96V54h12v42z" fill="#8a8e93"/><path d="M196 50h96l-4 6h-70l-30 4z" fill="#70757b"/><path d="M246 50l-6-30 8 28zM262 50l6-30-14 28z" fill="#4a4e54"/><path d="M0 150q80-24 160-4t160-10v44H0z" fill="#e9d6b4" opacity="0.55"/><path d="M0 164q100-18 200-2t120-6v24H0z" fill="#f4e6c8" opacity="0.6"/><g fill="#2c2f35"><path d="M120 96l22-4-10 6z"/></g></svg>',
+  },
+  {
     version: '5.7.1', name: 'Hotfix', date: '2026-11-21', accent: '#ff8a7a', glyph: '✚',
     summary: 'Dropship models now follow the Destiny Fallen Skiff, Hive Tombship and Cabal Harvester, ships keep apart in the air, and the Scorn teleport in through a mist.',
     notes: [

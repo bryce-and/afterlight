@@ -4,8 +4,8 @@
 // distance falloff from the camera, a voice cap per group, and a music duck for big moments.
 import { G } from './state.js';
 
-let ctx = null, master = null, noiseBuf = null, room = null, musicOut = null;
-let volume = 0.6, effects = 1;
+let ctx = null, master = null, noiseBuf = null, room = null, musicOut = null, ambOut = null, voiceOut = null;
+let volume = 0.6, effects = 1, ambiance = 1, voiceVol = 1; // U33: separate Ambiance and NPC Voice sliders (Sound tab)
 const buses = {};
 const last = {};
 const active = {};
@@ -30,6 +30,9 @@ export function initAudio() {
   // music goes straight to the output (not through the effects volume) via a ducking gain
   musicOut = ctx.createGain();
   musicOut.connect(ctx.destination);
+  // U33: planet ambiance and NPC voices each get their own gain (own slider), through the master volume but not the Effects slider
+  ambOut = ctx.createGain(); ambOut.gain.value = ambiance; ambOut.connect(master);
+  voiceOut = ctx.createGain(); voiceOut.gain.value = voiceVol; voiceOut.connect(master);
   // short room reverb shared by every sound
   room = ctx.createConvolver();
   const rl = Math.floor(ctx.sampleRate * 1.3), ir = ctx.createBuffer(2, rl, ctx.sampleRate);
@@ -50,6 +53,15 @@ export function initAudio() {
 export const audioCtx = () => ctx;
 /** Where the music score connects (a ducking gain in front of the output). */
 export const musicDest = () => musicOut;
+
+/** Where the planet ambiance connects (own Ambiance slider). */
+export const ambianceDest = () => ambOut;
+/** Where NPC voices connect (own NPC Voice slider). */
+export const voiceDest = () => voiceOut;
+/** Ambiance slider: scales the planet ambiance beds. */
+export function setAmbianceVolume(v) { ambiance = v; if (ambOut) ambOut.gain.value = v; }
+/** NPC Voice slider: scales every NPC voice line. */
+export function setVoiceVolume(v) { voiceVol = v; if (voiceOut) voiceOut.gain.value = v; }
 
 export function setVolume(v) {
   volume = v;

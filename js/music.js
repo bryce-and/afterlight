@@ -4,6 +4,7 @@
 // heaviest), phrases that vary every 8 bars, and short stingers. All sound is synthesized (no files).
 import { audioCtx, musicDest } from './audio.js';
 import { mulberry32, hashStr } from './util.js';
+import { startAmbiance, stopAmbiance } from './ambiance.js'; // U33: a planet bed under the score
 
 const MINOR = [0, 2, 3, 5, 7, 8, 10];
 const PHRYGIAN = [0, 1, 3, 5, 7, 8, 10];
@@ -11,22 +12,40 @@ const DORIAN = [0, 2, 3, 5, 7, 9, 10];
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 
 // root = MIDI note of the key; prog = scale degrees (0-based) per bar
+// U33: slower and more cinematic. `on`/`gap` are how many seconds the score plays and then rests while exploring (it always plays in danger).
 const THEMES = {
-  tower: { root: 53, scale: MAJOR, tempo: 72, prog: [0, 3, 4, 0], pad: 'strings', lead: 'bell', drums: null, choir: 0.7 }, // U16: the Tower, warm and open
-  orbit: { root: 51, scale: MAJOR, tempo: 64, prog: [0, 5, 3, 4], pad: 'strings', lead: 'bell', drums: null, choir: 0.5 },
-  earth: { root: 50, scale: MINOR, tempo: 84, prog: [0, 5, 2, 6], pad: 'strings', lead: 'bell', drums: 'taiko', choir: 0.8 },
-  moon: { root: 49, scale: PHRYGIAN, tempo: 70, prog: [0, 1, 0, 4], pad: 'drone', lead: 'glass', drums: 'deep', choir: 1 },
-  mars: { root: 52, scale: MINOR, tempo: 96, prog: [0, 3, 5, 4], pad: 'strings', lead: 'brass', drums: 'war', choir: 0.5 },
-  titan: { root: 45, scale: DORIAN, tempo: 78, prog: [0, 6, 3, 0], pad: 'drone', lead: 'pluck', drums: 'pulse', choir: 0.6 },
-  tangled: { root: 55, scale: MINOR, tempo: 100, prog: [0, 6, 5, 4], pad: 'strings', lead: 'pluck', drums: 'drive', choir: 0.4 },
-  io: { root: 47, scale: DORIAN, tempo: 76, prog: [0, 3, 6, 4], pad: 'drone', lead: 'glass', drums: 'deep', choir: 0.9 },
-  dc: { root: 57, scale: DORIAN, tempo: 70, prog: [0, 4, 5, 3], pad: 'strings', lead: 'bell', drums: 'deep', choir: 1 },
-  leviathan: { root: 48, scale: PHRYGIAN, tempo: 92, prog: [0, 1, 4, 0], pad: 'strings', lead: 'brass', drums: 'war', choir: 0.7 },
+  tower: { root: 53, scale: MAJOR, tempo: 60, prog: [0, 3, 4, 0], pad: 'strings', lead: 'piano', drums: null, choir: 0.6, on: [26, 44], gap: [26, 60] }, // the Tower: warm, open, hopeful
+  orbit: { root: 51, scale: MAJOR, tempo: 54, prog: [0, 5, 3, 4], pad: 'strings', lead: 'piano', drums: null, choir: 0.5, on: [24, 40], gap: [30, 70] },
+  earth: { root: 50, scale: MINOR, tempo: 54, prog: [0, 3, 0, 4], pad: 'drone', lead: 'piano', drums: 'taiko', choir: 0.9, on: [28, 46], gap: [32, 80] }, // Cosmodrome: lonely, somber (i, iv, i, v: no rising major chords)
+  moon: { root: 49, scale: PHRYGIAN, tempo: 52, prog: [0, 1, 0, 4], pad: 'drone', lead: 'glass', drums: 'deep', choir: 1, on: [24, 40], gap: [36, 90] }, // Hellmouth: dread
+  mars: { root: 52, scale: MINOR, tempo: 64, prog: [0, 3, 5, 4], pad: 'strings', lead: 'brass', drums: 'war', choir: 0.5, on: [28, 46], gap: [30, 76] }, // dust and war
+  titan: { root: 45, scale: DORIAN, tempo: 56, prog: [0, 6, 3, 0], pad: 'drone', lead: 'piano', drums: 'pulse', choir: 0.6, on: [26, 44], gap: [34, 80] },
+  tangled: { root: 55, scale: MINOR, tempo: 68, prog: [0, 6, 5, 4], pad: 'strings', lead: 'piano', drums: 'drive', choir: 0.4, on: [26, 42], gap: [28, 70] },
+  io: { root: 47, scale: DORIAN, tempo: 54, prog: [0, 3, 6, 4], pad: 'drone', lead: 'glass', drums: 'deep', choir: 0.9, on: [24, 40], gap: [36, 90] },
+  dc: { root: 57, scale: DORIAN, tempo: 56, prog: [0, 4, 5, 3], pad: 'strings', lead: 'bell', drums: 'deep', choir: 1, on: [28, 48], gap: [30, 70] }, // violet mist: ethereal
+  leviathan: { root: 48, scale: PHRYGIAN, tempo: 62, prog: [0, 1, 4, 0], pad: 'strings', lead: 'brass', drums: 'war', choir: 0.7, on: [28, 46], gap: [30, 70] }, // grand, ominous
 };
+/** Danger speeds the score up: combat 1.4x, a boss 1.55x. */
+const TEMPO_MUL = { explore: 1, tense: 1.1, combat: 1.4, boss: 1.55 };
 
 let bus = null, verb = null, layers = null, timer = null;
 let theme = null, themeId = null, section = 'explore', step = 0, nextT = 0, motif = [], lastChange = 0;
 let volume = 0.5, want = { tense: 0, combat: 0, boss: 0 };
+let phase = { on: false, until: 0 }; // U33: while exploring the score plays for a while, then rests; danger always plays
+const rnd = (a, b) => a + Math.random() * (b - a);
+const tempo = () => theme.tempo * (TEMPO_MUL[section] || 1);
+/** True when the score should sound at time t. Pure but for `phase`; exported for tests through musicPhaseStep. */
+function phaseOn(t) {
+  if (section !== 'explore') { phase.on = true; phase.until = t + 14; return true; } // linger 14 s after danger ends
+  if (t >= phase.until) { phase.on = !phase.on; const r = phase.on ? theme.on : theme.gap; phase.until = t + rnd(r[0], r[1]); }
+  return phase.on;
+}
+/** Pure phase stepper for tests: given the current phase, the time and the theme's ranges, returns the next phase. */
+export function musicPhaseStep(ph, t, on, gap, r = Math.random()) {
+  if (t < ph.until) return ph;
+  const next = !ph.on, range = next ? on : gap;
+  return { on: next, until: t + range[0] + r * (range[1] - range[0]) };
+}
 
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -108,6 +127,18 @@ function lead(ctx, t, n, kind, layer = 'base', level = 0.06) {
     const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(2600, t); f.frequency.exponentialRampToValueAtTime(400, t + 0.5);
     const end = env(ctx, g, t, 0.004, level * 1.2, 0, 0.7);
     osc(ctx, 'triangle', midi(n + 12), t, end).connect(f); osc(ctx, 'square', midi(n), t, end).connect(f);
+    f.connect(g);
+  } else if (kind === 'piano') { // U33: a soft piano, a pure tone with a little hammer and a long tail
+    const end = env(ctx, g, t, 0.006, level * 1.3, 0.05, 3.6);
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(2000, t); f.frequency.exponentialRampToValueAtTime(500, t + 1.6);
+    osc(ctx, 'sine', midi(n), t, end).connect(f);
+    const h2 = ctx.createGain(); h2.gain.value = 0.12; osc(ctx, 'triangle', midi(n + 12), t, end).connect(h2).connect(f);
+    const h3 = ctx.createGain(); h3.gain.value = 0.18; osc(ctx, 'sine', midi(n), t, end, 3).connect(h3).connect(f);
+    f.connect(g);
+  } else if (kind === 'horn') { // U33: a low horn that swells in slowly (Halo and Destiny style)
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(240, t); f.frequency.linearRampToValueAtTime(1100, t + 1.6); f.frequency.exponentialRampToValueAtTime(380, t + 3.6);
+    const end = env(ctx, g, t, 1.5, level, 1.0, 2.2);
+    for (const dt of [-7, 7]) osc(ctx, 'sawtooth', midi(n), t, end, dt).connect(f);
     f.connect(g);
   } else { // brass
     const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(300, t); f.frequency.linearRampToValueAtTime(1800, t + 0.12); f.frequency.exponentialRampToValueAtTime(700, t + 0.8);
@@ -192,8 +223,8 @@ function chordNotes(deg) {
 function makeMotif(id, variant = 0) {
   // a seeded, stepwise 8-note phrase: original per destination (variant 0 is the signature theme)
   const rng = mulberry32(hashStr(variant ? `motif-${id}-${variant}` : `motif-${id}`));
-  let d = 4; const m = [];
-  for (let i = 0; i < 8; i++) { d += Math.round((rng() - 0.5) * 3.2); d = Math.max(0, Math.min(9, d)); m.push(rng() < 0.18 ? null : d); }
+  let d = 2; const m = []; // U33: lower and slower: a short falling-and-rising line in the bottom of the scale, with rests
+  for (let i = 0; i < 8; i++) { d += Math.round((rng() - 0.55) * 2.6); d = Math.max(0, Math.min(6, d)); m.push(rng() < 0.32 ? null : d); }
   return m;
 }
 
@@ -207,10 +238,11 @@ export function musicSectionFor(prev, nearest, bossDist) {
   return 'explore';
 }
 
-const AMBIENT_LEAD = { bell: 'bell', glass: 'glass', pluck: 'bell', brass: 'bell' };
+const AMBIENT_LEAD = { bell: 'bell', glass: 'glass', pluck: 'piano', brass: 'horn', piano: 'piano' };
 
 function scheduleStep(ctx, s, t) {
-  const spb = 60 / theme.tempo, stepLen = spb / 4, bar = Math.floor(s / 16), pos = s % 16;
+  if (!phaseOn(t)) return; // a rest in the score
+  const spb = 60 / tempo(), stepLen = spb / 4, bar = Math.floor(s / 16), pos = s % 16;
   const barLen = stepLen * 16, phrase = Math.floor(bar / 8);
   const boss = section === 'boss', combat = section === 'combat' || boss, tense = section !== 'explore';
   if (pos === 0 && bar % 8 === 0 && bar > 0) motif = makeMotif(themeId, phrase % 4); // a new phrase every 8 bars
@@ -226,13 +258,16 @@ function scheduleStep(ctx, s, t) {
     strings(ctx, t, [chord[0], chord[2]], barLen, 'base', combat ? 0.03 : 0.018, combat ? 1800 : 900);
     if (theme.choir) choir(ctx, t, chord, barLen, 0.012 * theme.choir * (boss ? 1.6 : 1), 'base');
     bass(ctx, t, chord[0] - 12, barLen * 0.9);
+    // cinematic marks: a deep boom opens each eight-bar phrase and a slow horn swells in halfway through
+    if (!combat && bar % 8 === 0) boom(ctx, t, 'base', 0.14);
+    if (!combat && bar % 8 === 4 && theme.lead !== 'bell') lead(ctx, t, chord[0] - 12, 'horn', 'base', 0.05);
   }
   const melodyBar = combat ? true : tense ? bar % 2 === 1 : bar % 4 === 3;
-  if (melodyBar && pos % (combat ? 2 : 4) === 0) {
+  if (melodyBar && pos % (combat ? 2 : tense ? 4 : 8) === 0) {
     const d = motif[(pos / 2 + bar * 3) % motif.length];
     if (d !== null) {
       const sc = theme.scale, n = theme.root + sc[d % 7] + 12 * Math.floor(d / 7);
-      lead(ctx, t, n, combat ? theme.lead : AMBIENT_LEAD[theme.lead] || 'bell', 'base', boss ? 0.05 : combat ? 0.045 : 0.035);
+      lead(ctx, t, n, combat ? (['piano', 'bell'].includes(theme.lead) ? 'brass' : theme.lead) : AMBIENT_LEAD[theme.lead] || 'bell', 'base', boss ? 0.05 : combat ? 0.045 : 0.035);
     }
   }
 
@@ -277,7 +312,7 @@ function tick() {
   if (nextT < ctx.currentTime) nextT = ctx.currentTime + 0.05; // fell behind (tab was hidden)
   while (nextT < ctx.currentTime + 0.25) {
     scheduleStep(ctx, step, nextT);
-    nextT += 60 / theme.tempo / 4;
+    nextT += 60 / tempo() / 4;
     step++;
   }
 }
@@ -292,13 +327,15 @@ export function setMusicVolume(v) {
 }
 
 /** Start (or switch to) a destination's theme: 'orbit' | location id. */
-export function playMusic(id) {
+export function playMusic(id, o = {}) {
   const ctx = ensureGraph();
   if (!ctx || themeId === id) return;
+  startAmbiance(id);
   const t = THEMES[id] || THEMES.earth;
   const fadeIn = () => {
     theme = t; themeId = id; motif = makeMotif(id); step = 0; nextT = ctx.currentTime + 0.1;
     setSection('explore', true);
+    phase = o.now ? { on: true, until: ctx.currentTime + rnd(theme.on[0], theme.on[1]) } : { on: false, until: ctx.currentTime + rnd(3, 9) }; // U33: a breath of silence first (cutscenes start with the score)
     bus.gain.cancelScheduledValues(ctx.currentTime);
     bus.gain.setTargetAtTime(volume * 0.6, ctx.currentTime, 0.8);
     if (!timer) timer = setInterval(tick, 50);
@@ -312,6 +349,7 @@ export function stopMusic() {
   if (!ctx || !bus) return;
   bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.5);
   themeId = null;
+  stopAmbiance();
   setTimeout(() => { if (!themeId) { theme = null; clearInterval(timer); timer = null; } }, 2500);
 }
 

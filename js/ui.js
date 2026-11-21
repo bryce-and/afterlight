@@ -25,15 +25,22 @@ import { SIGHTS } from './sights.js';
 import { CRUCIBLE_MODES, CONTROL, DUEL, SPAWN_AMMO, launchCheck } from './pvp.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets, combatLight } from './game.js';
 import { dmgDrift, HUD_SCALE, ABILITY_CD } from './combat.js';
-import { initAudio, setVolume, setEffectsVolume, sfx } from './audio.js';
+import { initAudio, setVolume, setEffectsVolume, setAmbianceVolume, setVoiceVolume, sfx } from './audio.js';
 import { playMusic, setMusicVolume } from './music.js';
+import { playVoice, preloadVoice, stopVoice } from './voice.js'; // U33: NPC voices play with their subtitle
 import { esc, clamp } from './util.js';
 import { net, createFireteam, joinFireteam, leaveFireteam, setSelection, setReady, setTeam, readyState, MAX_FIRETEAM, MAX_CRUCIBLE } from './net.js';
 import { profile, launchFireteam, launchActivity, launchPatrol, launchExotic, launchTower, launchDungeon, launchBlitz, launchCrucible } from './coop.js';
-import { dueStop, towerLockReason, questList, abandonQuest } from './quests.js';
+import { dueStop, towerLockReason, questList, abandonQuest, talkTo } from './quests.js';
+import { playCutscene, DEBRIEFS } from './cutscene.js';
 import { startTower } from './tower.js';
 /** H25: the Tower, solo or (leader only) with the whole fireteam. */
-function goTower() { initAudio(); lockPointer(); if (net.active) launchTower(); else startTower(); }
+function goTower() {
+  initAudio();
+  const due = !net.active && dueStop(G.save), scene = due && DEBRIEFS[due.id];
+  if (scene && playCutscene(scene, () => { for (const n of due.npcs) talkTo(G.save, n); writeSave(G.save); showOrbit(); })) return; // U33: the Vanguard debrief is a cutscene
+  lockPointer(); if (net.active) launchTower(); else startTower();
+}
 import { TOWER_LOC } from './level-tower.js';
 import { startPatrol } from './patrol.js';
 import { startExotic } from './exotic-missions.js';
@@ -232,6 +239,8 @@ export function showOrbit(tab) {
   setVolume(G.save.settings.volume);
   setMusicVolume(G.save.settings.musicVolume ?? 0.5);
   setEffectsVolume(G.save.settings.effectsVolume ?? 1);
+  setAmbianceVolume(G.save.settings.ambianceVolume ?? 1);
+  setVoiceVolume(G.save.settings.voiceVolume ?? 1);
   playMusic('orbit');
   if (selLoc === null) {
     let last = 0;
@@ -1642,8 +1651,9 @@ const subQ = [];
 let subT = 0;
 export function say(who, text, dur = lineDuration(text)) {
   subQ.push({ who, text, dur });
+  preloadVoice(who, text); // U33: ready by the time its turn comes
 }
-export function clearSubtitles() { subQ.length = 0; subT = 0; const el = $('#subtitle'); if (el) el.classList.add('hidden'); }
+export function clearSubtitles() { subQ.length = 0; subT = 0; stopVoice(); const el = $('#subtitle'); if (el) el.classList.add('hidden'); }
 function updateSubtitle(dt) {
   const el = $('#subtitle');
   if (!el) return;
@@ -1655,6 +1665,8 @@ function updateSubtitle(dt) {
     el.querySelector('.st-text').textContent = l.text;
     el.classList.remove('hidden');
     subT = l.dur;
+    const vd = playVoice(l.who, l.text); // U33: speak it; the subtitle stays up until the voice is done
+    if (vd) subT = Math.max(subT, vd + 0.4);
   }
 }
 
@@ -1943,15 +1955,23 @@ export function showPause() {
       <div class="eyebrow">${esc(G.mission.def.name)}</div>
       <h1 class="screen-title">${coop ? 'Menu' : 'Paused'}</h1>
       ${coop ? '<p class="desc">Your fireteam keeps playing while this menu is open.</p>' : ''}
-      <div class="settings">
+      <nav class="tabs pause-tabs">
+        <button class="tab on" data-ptab="game">Game</button>
+        <button class="tab" data-ptab="sound">Sound</button>
+      </nav>
+      <div class="settings" id="ptab-game">
         <label>Mouse sensitivity <span id="v-sens">${s.sens.toFixed(2)}</span><input type="range" id="s-sens" min="0.2" max="3" step="0.05" value="${s.sens}"></label>
         <label>Field of view <span id="v-fov">${s.fov}</span><input type="range" id="s-fov" min="65" max="105" step="1" value="${s.fov}"></label>
         <label class="toggle-row">Full Auto <span class="hint">Hold the trigger on semi-auto weapons (fires at the weapon's own rate)</span><input type="checkbox" id="s-auto" ${s.fullAuto ? 'checked' : ''}></label>
         <label class="toggle-row">Dropship entrances <span class="hint">Reinforcements arrive by ship or gate instead of appearing. Turn off on a slow machine</span><input type="checkbox" id="s-drops" ${dropshipsOn() ? 'checked' : ''}></label>
         <label>HUD scale <span id="v-hud">${Math.round((s.hudScale ?? 1) * 100)}%</span><input type="range" id="s-hud" min="${HUD_SCALE.min}" max="${HUD_SCALE.max}" step="${HUD_SCALE.step}" value="${s.hudScale ?? 1}"></label>
-        <label>Music <span id="v-mus">${Math.round((s.musicVolume ?? 0.5) * 100)}%</span><input type="range" id="s-mus" min="0" max="1" step="0.05" value="${s.musicVolume ?? 0.5}"></label>
-        <label>Effects <span id="v-fx">${Math.round((s.effectsVolume ?? 1) * 100)}%</span><input type="range" id="s-fx" min="0" max="1" step="0.05" value="${s.effectsVolume ?? 1}"></label>
+      </div>
+      <div class="settings hidden" id="ptab-sound">
         <label>Volume <span id="v-vol">${Math.round(s.volume * 100)}%</span><input type="range" id="s-vol" min="0" max="1" step="0.05" value="${s.volume}"></label>
+        <label>Music <span id="v-mus">${Math.round((s.musicVolume ?? 0.5) * 100)}%</span><input type="range" id="s-mus" min="0" max="1" step="0.05" value="${s.musicVolume ?? 0.5}"></label>
+        <label>Ambiance <span id="v-amb">${Math.round((s.ambianceVolume ?? 1) * 100)}%</span><input type="range" id="s-amb" min="0" max="1" step="0.05" value="${s.ambianceVolume ?? 1}"></label>
+        <label>Effects <span id="v-fx">${Math.round((s.effectsVolume ?? 1) * 100)}%</span><input type="range" id="s-fx" min="0" max="1" step="0.05" value="${s.effectsVolume ?? 1}"></label>
+        <label>NPC Voice <span id="v-voice">${Math.round((s.voiceVolume ?? 1) * 100)}%</span><input type="range" id="s-voice" min="0" max="1" step="0.05" value="${s.voiceVolume ?? 1}"></label>
       </div>
       ${touchSettingsHtml()}
       <div class="row-btns">
@@ -1970,6 +1990,9 @@ export function showPause() {
   $('#s-hud').addEventListener('input', (e) => { s.hudScale = +e.target.value; $('#v-hud').textContent = `${Math.round(s.hudScale * 100)}%`; applyHudScale(); writeSave(G.save); });
   $('#s-mus').addEventListener('input', (e) => { s.musicVolume = +e.target.value; $('#v-mus').textContent = `${Math.round(s.musicVolume * 100)}%`; setMusicVolume(s.musicVolume); writeSave(G.save); });
   $('#s-fx').addEventListener('input', (e) => { s.effectsVolume = +e.target.value; $('#v-fx').textContent = `${Math.round(s.effectsVolume * 100)}%`; setEffectsVolume(s.effectsVolume); writeSave(G.save); });
+  $('#s-amb').addEventListener('input', (e) => { s.ambianceVolume = +e.target.value; $('#v-amb').textContent = `${Math.round(s.ambianceVolume * 100)}%`; setAmbianceVolume(s.ambianceVolume); writeSave(G.save); });
+  $('#s-voice').addEventListener('input', (e) => { s.voiceVolume = +e.target.value; $('#v-voice').textContent = `${Math.round(s.voiceVolume * 100)}%`; setVoiceVolume(s.voiceVolume); writeSave(G.save); });
+  $$('.pause-tabs .tab').forEach((b) => b.addEventListener('click', () => { sfx.ui(); $$('.pause-tabs .tab').forEach((x) => x.classList.toggle('on', x === b)); $('#ptab-game').classList.toggle('hidden', b.dataset.ptab !== 'game'); $('#ptab-sound').classList.toggle('hidden', b.dataset.ptab !== 'sound'); }));
   $('#s-vol').addEventListener('input', (e) => { s.volume = +e.target.value; $('#v-vol').textContent = `${Math.round(s.volume * 100)}%`; setVolume(s.volume); writeSave(G.save); });
   bindTouchSettings(el, backToPause);
   $('#p-resume').addEventListener('click', resumeGame);

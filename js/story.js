@@ -20,6 +20,7 @@ export const SPEAKERS = {
   riven:   { name: 'Riven',    color: '#ff9a3c' },
   calus:   { name: 'Emperor Calus', color: '#ffd24d' },
   psion:   { name: 'Psion Herald', color: '#ffd24d' },
+  crota:   { name: 'Crota',    color: '#9dff8a' }, // U33: speaks in the Crota cutscene
 };
 
 /** Acts: one destination each, opened by the previous destination's last boss. `title` is the chapter card. */
@@ -73,7 +74,7 @@ export const MISSIONS = {
   },
   e3: {
     lines: [
-      L('start', 'cayde', 'We need to break the House of Devil\'s hold on the Cosmodrome. Their Kell falls today. You got this.'),
+      L('start', 'cayde', 'We need to break the House of Devils\' hold on the Cosmodrome. Their Kell falls today. You got this.'),
       L('z1', 'ghost', 'The Glimmer they\'re dropping, it has a data signature. I\'m looking into this now.'),
       L('c1', 'ghost', 'It\'s Cabal in origin. I don\'t know what\'s going on, but I don\'t like it.'),
       L('boss', 'ghost', 'This is their Kell! It\'s time for him to fall.'),
@@ -146,7 +147,7 @@ export const MISSIONS = {
   // ---- Act IV: Io ----
   io2: {
     lines: [
-      L('start', 'ikora', 'Red Legion survivors fled to Io. But who\'s command do they listen to now?'),
+      L('start', 'ikora', 'Red Legion survivors fled to Io. But whose command do they listen to now?'),
       L('z1', 'ghost', 'Drill supports. Take them out and the whole thing comes down.'),
       L('boss', 'ghost', 'Psion Flayers! Three of them. You got this Guardian!'),
       L('end', 'ghost', 'That\'s the end of the Red Legion. Let\'s follow up with Asher Mir.'),
@@ -381,7 +382,7 @@ export const TOWER_TALKS = {
   mars: {
     zavala: [
       ['zavala', 'Ghaul is dead. The Red Legion has lost its head, but it isn\'t gone yet.'],
-      ['zavala', 'Rest now, but IO awaits. The rest of the Red Legion is gathering there now, although we don\'t know by who\'s authority.'],
+      ['zavala', 'Rest now, but Io awaits. The rest of the Red Legion is gathering there now, although we don\'t know by whose authority.'],
     ],
     ikora: [
       ['ikora', 'This Emperor seems to be watching you closely.'],

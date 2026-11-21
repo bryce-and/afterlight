@@ -18,9 +18,11 @@ import { BLITZ_TIER, runLabel, runMission, clearStep, failRun, recordRun, blitzL
 import { tierOf, tierPower, tierEnemyLight, tierClears, recordClear, capRoll, selectedTier, armorBand, CAMPAIGN_TIERS } from './campaign.js';
 import { sfx } from './audio.js';
 import { playMusic, setSection, getSection, musicSectionFor, stinger } from './music.js';
+import { setVoiceMode, preloadVoices } from './voice.js'; // U33: NPC voices
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
+import { playCutscene, cutsceneSeen } from './cutscene.js';
 import { launchDrops, updateDropships, resetDropships } from './dropships.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
 import { HEART, ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, CACHE_LIGHT, ENGRAM_LIGHT, engramLight } from './combat.js';
@@ -43,7 +45,7 @@ import { updateDungeon, cleanupDungeon, startDungeon, dungeonImmune, dungeonInco
 import { dungeonTargets, dungeonSplash } from './dungeon-mech.js';
 import { showRangeHud } from './tower-ui.js';
 import { makeObjective, tickObjective, wantsReinforcement, objectiveText, objectiveTarget, ringPoints, OBJ } from './objectives.js';
-import { linesFor, objectiveFor, UNLOCKS } from './story.js';
+import { linesFor, objectiveFor, UNLOCKS, MISSIONS as STORY_MISSIONS } from './story.js';
 import { announceSay, onMissionStart, onAbandon, registerEnemy, announceKill, announceLoot, sendHit, fxProjectile, netTick, allPlayers, sendFx, onLevelSwap, announceArena, announceActChest, sendBoonPick, reviveAllDown, announceBanner } from './coop.js';
 import { updatePatrol, leavePatrol } from './patrol.js';
 import { keyName } from './keybinds.js';
@@ -76,8 +78,14 @@ function snapSun(L, pos) {
  * `tier`: Base, Legendary or Ultimate (U20a). Solo: the Director pick. A fireteam plays the leader's pick (sent with 'start').
  * `blitz` (U28): the Mission Blitz run this mission belongs to (blitz.js newRun/runAt): Legendary rules with no Light floor and no revives.
  */
+/** Plays a scene the first time, then starts the mission. Returns true when the scene took over. */
+function playCutsceneOnce(id, li, mi, tier) {
+  return !cutsceneSeen(id) && playCutscene(id, () => startMission(li, mi, tier));
+}
 export function startMission(li, mi, tier = selectedTier(G.save), blitz = null) {
   const loc = LOCATIONS[li], def = loc.missions[mi], g = li * 3 + mi;
+  // U33: the opening (the Ghost finds the Guardian) and Mara's throne room play once, before the mission begins
+  if (!blitz && ((li === 0 && mi === 0 && playCutsceneOnce('opening', li, mi, tier)) || (def.id === 'dc2' && playCutsceneOnce('throne', li, mi, tier)))) return;
   const T = blitz ? BLITZ_TIER : tierOf(tier), power = tierPower(def.power, T.id);
   cleanupMission();
   const level = buildLevel(loc, def);
@@ -107,6 +115,8 @@ export function startMission(li, mi, tier = selectedTier(G.save), blitz = null) 
   G.player = new Player(G.save);
   G.player.spawn(level.spawn);
   G.state = 'playing';
+  setVoiceMode('comms'); // U33: mission lines come over a transmission
+  preloadVoices((STORY_MISSIONS[def.id]?.lines || []).map((l) => [l.who, l.text]));
   playMusic(loc.id);
   stinger('start');
   ui.enterMission();
@@ -517,11 +527,11 @@ function zoneCleared(z) {
     M.chest = spawnChest(pos);
     announceLoot(pos);
     reviveForCompletion();
-    ui.centerMessage('Boss Defeated', 'Claim your reward', 3);
-    say('bd');
-    sfx.missionComplete();
-    stinger('complete');
     P.health = P.maxHealth; P.shield = P.maxShield;
+    const after = () => { ui.centerMessage('Boss Defeated', 'Claim your reward', 3); say('bd'); sfx.missionComplete(); stinger('complete'); };
+    // U33: Crota's fall and Calus coming apart play as cutscenes (once, solo)
+    const bm = M.def?.boss?.model, scene = M.li >= 0 && !M.blitz ? { crota: 'crota', emperorCalus: 'calus' }[bm] : null;
+    if (scene && !cutsceneSeen(scene) && playCutscene(scene, after)) { /* after() runs when the scene ends */ } else after();
   } else {
     banner('Area Secured', '', 2, 'areaClear');
     say(`c${z.idx}`);

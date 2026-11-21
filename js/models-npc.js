@@ -16,6 +16,7 @@ export const NPC_INFO = {
   sloane: { name: 'Sloane', title: 'Vanguard Deputy', color: '#9fc4d8' }, // U17c
   asher: { name: 'Asher Mir', title: 'Researcher', color: '#ffe08a' }, // U17e
   petra: { name: 'Petra Venj', title: "The Queen's Wrath", color: '#a8ffe0' }, // U17f
+  mara: { name: 'Mara Sov', title: 'Queen of the Awoken', color: '#f4e3a8' }, // U33: throne room cutscene
   spider: { name: 'The Spider', title: 'Baron of the Shore', color: '#d8a8ff' },
   spiderguard: { name: "Spider's Guard", title: 'Fallen', color: '#9fd8ff' },
 };
@@ -685,6 +686,63 @@ function petra() {
 }
 
 // ---------------------------------------------------------------------------
+/** U33: Mara Sov, Queen of the Awoken, after Bryce's references: pale blue skin, shaggy silver-white hair, glowing white-blue eyes, a dark leather vest with a
+ *  light seam, a huge gold-plated right pauldron with a round emblem, plum sleeves and bodice, a dark fur collar, a plum scarf with a gold triangle pendant and a
+ *  studded belt. Faces +z. */
+function mara() {
+  const skin = M(0x9db2d6), hair = M(0xf0ece6), hairSh = M(0xc9c4c4), leather = M(0x3c2c20, { roughness: 0.6 }), seam = M(0xcfc8c4), plum = M(0x7a2c8a), plumDk = M(0x4e1a5c);
+  const gold = M(0xc2a04e, { metalness: 0.7, roughness: 0.35 }), goldDk = M(0x8a7234, { metalness: 0.7, roughness: 0.4 }), fur = M(0x241e1a), scarf = M(0x74379a, { side: THREE.DoubleSide }), belt = M(0x6b6b70, { metalness: 0.5, roughness: 0.45 });
+  const f = figure({
+    hipW: 0.1, thigh: 0.13, pants: plumDk, boot: leather, chestW: 0.36, chestD: 0.21, shirt: plum,
+    armT: 0.095, sleeve: plum, glove: plumDk, hand: skin, skin,
+  });
+  const { group, body, torso, head } = f;
+  humanHead(head, skin, 0.16, 0.22);
+  // eyes glow white-blue
+  for (const sx of [-1, 1]) box(0.034, 0.024, 0.012, sx * 0.04, 0.128, 0.087, glow(0xdff4ff, 2.6), head);
+  // shaggy silver-white hair: a thick crown, long uneven locks down both sides and the back
+  box(0.2, 0.09, 0.21, 0, 0.23, -0.005, hair, head);
+  box(0.21, 0.2, 0.05, 0, 0.11, -0.1, hairSh, head);
+  for (const [x, y, z, r, h] of [[-0.105, 0.1, 0.0, 0.18, 0.24], [0.105, 0.1, 0.0, -0.18, 0.24], [-0.08, 0.16, 0.08, 0.5, 0.14], [0.08, 0.16, 0.08, -0.5, 0.14], [-0.12, 0.02, -0.03, 0.12, 0.18], [0.12, 0.0, -0.03, -0.12, 0.2]]) box(0.045, h, 0.1, x, y, z, hair, head, [0, 0, r]);
+  for (const [x, z] of [[-0.04, 0.1], [0.0, 0.11], [0.05, 0.1]]) box(0.04, 0.07, 0.03, x, 0.2, z, hair, head, [0.4, 0, (x < 0 ? 1 : -1) * 0.2]);
+  // fur collar behind the head and shoulders
+  box(0.34, 0.16, 0.12, 0, 0.62, -0.1, fur, torso);
+  for (const sx of [-1, 1]) box(0.16, 0.16, 0.2, sx * 0.18, 0.62, -0.04, fur, torso, [0, 0, sx * 0.4]);
+  // plum scarf at the neck with a gold triangle pendant
+  box(0.2, 0.08, 0.2, 0, 0.58, 0.02, scarf, torso);
+  box(0.07, 0.2, 0.04, 0.02, 0.45, 0.12, scarf, torso, [0.1, 0, 0.1]);
+  box(0.03, 0.045, 0.01, 0.0, 0.5, 0.13, gold, torso, [0, 0, Math.PI]);
+  // dark leather vest with a pale seam down each front panel
+  for (const sx of [-1, 1]) { box(0.16, 0.36, 0.24, sx * 0.1, 0.36, 0.0, leather, torso); box(0.016, 0.34, 0.012, sx * 0.025, 0.36, 0.125, seam, torso); }
+  box(0.36, 0.34, 0.06, 0, 0.36, -0.1, leather, torso);
+  // the plum bodice under it and the studded belt
+  box(0.32, 0.16, 0.22, 0, 0.1, 0, plum, torso);
+  box(0.38, 0.07, 0.24, 0, 0.04, 0, belt, torso);
+  for (const x of [-0.14, -0.07, 0, 0.07, 0.14]) box(0.018, 0.018, 0.012, x, 0.04, 0.125, goldDk, torso);
+  // the big gold-plated right pauldron with a round emblem; a smaller dark leather one on the left
+  box(0.2, 0.1, 0.26, 0.23, 0.58, 0, gold, torso, [0, 0, -0.3]);
+  box(0.16, 0.12, 0.2, 0.27, 0.5, 0, goldDk, torso, [0, 0, -0.4]);
+  cyl(0.045, 0.045, 0.02, 10, 0.27, 0.52, 0.12, gold, torso, [Math.PI / 2, 0, 0]);
+  box(0.16, 0.08, 0.22, -0.22, 0.56, 0, leather, torso, [0, 0, 0.3]);
+  // a long dark coat tail at the back
+  const tail = pivot(0, 0.0, -0.1, torso, 'cape');
+  box(0.3, 0.7, 0.03, 0, -0.35, -0.02, leather, tail, [0.06, 0, 0]);
+  // poised: hands low and clasped
+  f.armL.arm.rotation.set(0.15, 0, 0.12); f.armL.fore.rotation.set(-0.7, -0.3, 0);
+  f.armR.arm.rotation.set(0.15, 0, -0.12); f.armR.fore.rotation.set(-0.7, 0.3, 0);
+  const base = torso.position.y;
+  return {
+    group, height: 1.74, update(dt, t) {
+      const b = breathe(t, 1.0);
+      torso.position.y = base + b * 0.004;
+      torso.scale.set(1, 1 + b * 0.012, 1 + b * 0.01);
+      tail.rotation.x = Math.sin(t * 0.8) * 0.03;
+      head.rotation.y = Math.sin(t * 0.3) * 0.08;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 /** U17f: the Spider after the references: a huge, heavy-set Fallen Baron sunk into a round throne-rig of tanks and pipes on short legs; a pale blue-white crested helmet with
  *  spikes and glowing blue eyes, a grey cowl, a long dark robe draped over his front, four arms (two on the armrests, two folded over the belly). Seated; faces +z. */
 function spider() {
@@ -792,7 +850,7 @@ function spiderguard() {
   };
 }
 
-const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris, sloane, asher, petra, spider, spiderguard };
+const BUILDERS = { zavala, ikora, cayde, kadi, guardian, ana, eris, sloane, asher, petra, mara, spider, spiderguard };
 
 /** Build one Tower NPC. Returns { group, update(dt, t), height }. */
 export function buildNpc(id) {

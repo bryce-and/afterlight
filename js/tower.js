@@ -10,6 +10,7 @@ import { Player } from './player.js';
 import { Enemy } from './enemies.js';
 import { initEffects } from './effects.js';
 import { playMusic } from './music.js';
+import { setVoiceMode } from './voice.js';
 import { sfx } from './audio.js';
 import { cleanupMission } from './game.js';
 import { onMissionStart, onAbandon } from './coop.js';
@@ -53,6 +54,7 @@ export function startTower() {
   G.player.spawn(level.spawn);
   buildTowerCast();
   G.state = 'playing';
+  setVoiceMode('person'); // U33: the Vanguard stand in front of you, so no comms filter
   playMusic('tower');
   ui.enterMission();
   document.getElementById('hud').classList.add('tower-social');
@@ -64,6 +66,7 @@ export function startTower() {
 
 /** Leaves the Tower for Orbit. */
 export function leaveTower() {
+  setVoiceMode('comms'); // U33
   if (G.mission?.coop) onAbandon(); // H25: the leader takes everyone back to Orbit; a member leaves alone
   showRangeHud(false);
   ui.prompt(null);
