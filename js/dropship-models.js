@@ -6,7 +6,7 @@ import * as THREE from 'three';
 const BOX = new THREE.BoxGeometry(1, 1, 1), CYL = new THREE.CylinderGeometry(1, 1, 1, 8), CONE = new THREE.ConeGeometry(1, 1, 5), SPH = new THREE.SphereGeometry(1, 7, 5), TORUS = new THREE.TorusGeometry(1, 0.12, 5, 14);
 const CYL_OPEN = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true); // gate columns: no caps
 const mats = new Map();
-const lit = (c, rough = 0.8, metal = 0.25) => { const k = `l${c}${rough}${metal}`; if (!mats.has(k)) mats.set(k, new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal, flatShading: true })); return mats.get(k); };
+const lit = (c, rough = 0.8, metal = 0.25) => { const k = `l${c}${rough}${metal}`; if (!mats.has(k)) mats.set(k, new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal, flatShading: true, emissive: new THREE.Color(c).multiplyScalar(0.28) })); return mats.get(k); };
 const glow = (c, o = 0.95) => { const k = `g${c}${o}`; if (!mats.has(k)) mats.set(k, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false })); return mats.get(k); };
 
 /** One part: a shared geometry, scaled, placed and tilted. */
