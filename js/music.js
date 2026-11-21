@@ -309,9 +309,10 @@ function scheduleStep(ctx, s, t) {
 function tick() {
   const ctx = audioCtx();
   if (!ctx || !theme || !bus) return;
-  if (nextT < ctx.currentTime) nextT = ctx.currentTime + 0.05; // fell behind (tab was hidden)
-  while (nextT < ctx.currentTime + 0.25) {
-    scheduleStep(ctx, step, nextT);
+  if (nextT < ctx.currentTime - 0.3) nextT = ctx.currentTime + 0.05; // fell far behind (tab was hidden): resume from now instead of replaying
+  // U33: schedule about a second ahead (a long frame in a big fight used to leave a gap), and never let one failed step stop the score
+  while (nextT < ctx.currentTime + 1.0) {
+    try { scheduleStep(ctx, step, nextT); } catch (e) { if (!tick.warned) { tick.warned = true; console.warn('music step skipped:', e.message); } }
     nextT += 60 / tempo() / 4;
     step++;
   }

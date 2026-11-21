@@ -9,14 +9,23 @@ let volume = 0.6, effects = 1, ambiance = 1, voiceVol = 1; // U33: separate Ambi
 const buses = {};
 const last = {};
 const active = {};
-const VOICE_CAP = { weapons: 22, abilities: 14, enemies: 8, ui: 10 };
+const VOICE_CAP = { weapons: 16, abilities: 10, enemies: 8, ui: 8 }; // U33: lower caps and a total cap, so a huge fight cannot overload the audio thread into dropouts
+const TOTAL_CAP = 34;
+let live = 0;
 const GROUP_GAIN = { weapons: 1, abilities: 1, enemies: 0.45, ui: 1 };
 
 export function initAudio() {
-  if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+  if (ctx) { if (ctx.state !== 'running') ctx.resume?.(); return; }
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) { console.warn('WebAudio not supported; sound disabled.'); return; }
   ctx = new AC();
+  // U33: self-healing. The browser can suspend or interrupt the context (a long frame, a background tab, a device change): bring it back at once and
+  // keep checking, so sound never stays silent after a hiccup.
+  const wake = () => { if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
+  ctx.onstatechange = wake;
+  setInterval(wake, 1500);
+  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, wake, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', wake);
   master = ctx.createGain();
   master.gain.value = volume * 0.5;
   const comp = ctx.createDynamicsCompressor();
@@ -165,7 +174,10 @@ const runLayer = (L) => (L.n ? noise(L.n) : tone(L.t));
  */
 function play(group, layers, o = {}) {
   if (!ctx || !layers) return;
-  if (active[group] >= VOICE_CAP[group]) return;
+  if (active[group] >= VOICE_CAP[group] || live >= TOTAL_CAP) return;
+  try { playNow(group, layers, o); } catch (e) { if (!play.warned) { play.warned = true; console.warn('sound skipped:', e.message); } } // one bad sound must never break the frame
+}
+function playNow(group, layers, o) {
   if (o.at && typeof o.at.x !== 'number') o.at = null;
   const sp = spatial(o.at);
   if (group === 'enemies' && sp.dist > 110) return;
@@ -180,8 +192,8 @@ function play(group, layers, o = {}) {
   let end = 0;
   for (const L of layers) { runLayer(L); const p = L.n || L.t; end = Math.max(end, (p.dur || 0.1) + (p.delay || 0)); }
   cur = prev;
-  active[group]++;
-  setTimeout(() => { active[group] = Math.max(0, active[group] - 1); }, (end + 0.1) * 1000);
+  active[group]++; live++;
+  setTimeout(() => { active[group] = Math.max(0, active[group] - 1); live = Math.max(0, live - 1); }, (end + 0.1) * 1000);
 }
 
 // ---------------------------------------------------------------------------
