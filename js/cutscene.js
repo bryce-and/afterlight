@@ -1,11 +1,10 @@
 // U33 Transmissions: the cutscene engine and the scenes. A scene is a list of steps (js/cutscene-scenes.js); each step can switch the set (the
 // stage), run a camera move, speak a voiced line (with its subtitle) and run a small function. The engine builds the sets from primitives on
 // its own THREE.Scene, renders it in place of the game while G.state is 'cutscene', and hands control back when the scene ends or is skipped.
-// Scenes are skipped in a fireteam (the world cannot freeze for one player) and play once per Guardian (G.save.cutscenes).
+// Scenes are skipped in a fireteam (the world cannot freeze for one player) or with the Skip cutscenes setting, and play every time the story point comes up.
 import * as THREE from 'three';
 import { G } from './state.js';
 import { net } from './net.js';
-import { writeSave } from './save.js';
 import { playMusic } from './music.js';
 import { initAudio } from './audio.js';
 import { setVoiceMode, getVoiceMode, voiceReady, playVoice, stopVoice } from './voice.js';
@@ -21,8 +20,6 @@ let overlay = null;
 /** Test tools (which load the game in an iframe or directly) set AFTERLIGHT_NO_CUTSCENES so a headless run never waits on a scene. */
 const noScenes = () => { try { return !!(globalThis.AFTERLIGHT_NO_CUTSCENES || parent.AFTERLIGHT_NO_CUTSCENES); } catch { return false; } };
 export const cutsceneActive = () => !!cur;
-export const cutsceneSeen = (id) => !!G.save?.cutscenes?.[id];
-const markSeen = (id) => { (G.save.cutscenes ||= {})[id] = 1; writeSave(G.save); };
 
 function ensureOverlay() {
   if (overlay) return overlay;
@@ -48,8 +45,7 @@ const guess = (text) => 1.4 + text.length * 0.055;
  */
 export function playCutscene(id, done = () => {}) {
   const def = SCENES[id] && (typeof SCENES[id] === 'function' ? SCENES[id]() : SCENES[id]);
-  if (!def || cur || net.active || !G.save || noScenes()) return false; // test tools set the flag so a headless run never waits on a scene
-  markSeen(id);
+  if (!def || cur || net.active || !G.save || noScenes() || G.save.settings?.skipCutscenes) return false; // the Skip cutscenes setting // test tools set the flag so a headless run never waits on a scene
   initAudio(); // the voices and score need the audio context even when the scene is started from a console or a menu without a click
   ensureOverlay();
   const c = cur = {

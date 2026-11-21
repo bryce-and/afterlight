@@ -22,7 +22,7 @@ import { setVoiceMode, preloadVoices } from './voice.js'; // U33: NPC voices
 import * as ui from './ui.js';
 import { rand, randInt, pick, clamp, mulberry32 } from './util.js';
 import { net } from './net.js';
-import { playCutscene, cutsceneSeen } from './cutscene.js';
+import { playCutscene } from './cutscene.js';
 import { launchDrops, updateDropships, resetDropships } from './dropships.js';
 import { MODS, MODS_LEVEL, modsUnlockedAt } from './armor.js';
 import { HEART, ABILITY_POWER, weaponTierMult, staggerFor, JOLT, waveStep, ENGRAM_CHANCE, CACHE_LIGHT, ENGRAM_LIGHT, engramLight } from './combat.js';
@@ -78,13 +78,14 @@ function snapSun(L, pos) {
  * `tier`: Base, Legendary or Ultimate (U20a). Solo: the Director pick. A fireteam plays the leader's pick (sent with 'start').
  * `blitz` (U28): the Mission Blitz run this mission belongs to (blitz.js newRun/runAt): Legendary rules with no Light floor and no revives.
  */
-/** Plays a scene the first time, then starts the mission. Returns true when the scene took over. */
+let retrying = false; // a retry after a death does not replay the opening or the throne room
+/** Plays a scene, then starts the mission. Returns true when the scene took over. */
 function playCutsceneOnce(id, li, mi, tier) {
-  return !cutsceneSeen(id) && playCutscene(id, () => startMission(li, mi, tier));
+  return !retrying && playCutscene(id, () => startMission(li, mi, tier));
 }
 export function startMission(li, mi, tier = selectedTier(G.save), blitz = null) {
   const loc = LOCATIONS[li], def = loc.missions[mi], g = li * 3 + mi;
-  // U33: the opening (the Ghost finds the Guardian) and Mara's throne room play once, before the mission begins
+  // U33: the opening (the Ghost finds the Guardian) and Mara's throne room play before the mission begins, every time
   if (!blitz && ((li === 0 && mi === 0 && playCutsceneOnce('opening', li, mi, tier)) || (def.id === 'dc2' && playCutsceneOnce('throne', li, mi, tier)))) return;
   const T = blitz ? BLITZ_TIER : tierOf(tier), power = tierPower(def.power, T.id);
   cleanupMission();
@@ -143,7 +144,7 @@ export function retryMission() {
   if (M.dungeon) startDungeon(M.dungeon.id).catch((e) => { console.error(e); ui.orbitNotice(`Could not start ${M.dungeon.def.name}: ${e.message}`); });
   else if (M.exotic) startExotic(M.exotic.id).catch((e) => { console.error(e); ui.orbitNotice(`Could not start ${M.exotic.def.name}: ${e.message}`); });
   else if (M.act) startActivity(M.act.id, newSeed());
-  else startMission(M.li, M.mi, M.tier);
+  else { retrying = true; try { startMission(M.li, M.mi, M.tier); } finally { retrying = false; } }
 }
 
 /** U28: starts mission `run.step` of a Blitz run. Solo, the host and every fireteam member (from the 'start' message) all come through here. */
@@ -531,7 +532,7 @@ function zoneCleared(z) {
     const after = () => { ui.centerMessage('Boss Defeated', 'Claim your reward', 3); say('bd'); sfx.missionComplete(); stinger('complete'); };
     // U33: Crota's fall and Calus coming apart play as cutscenes (once, solo)
     const bm = M.def?.boss?.model, scene = M.li >= 0 && !M.blitz ? { crota: 'crota', emperorCalus: 'calus' }[bm] : null;
-    if (scene && !cutsceneSeen(scene) && playCutscene(scene, after)) { /* after() runs when the scene ends */ } else after();
+    if (scene && playCutscene(scene, after)) { /* after() runs when the scene ends */ } else after();
   } else {
     banner('Area Secured', '', 2, 'areaClear');
     say(`c${z.idx}`);
