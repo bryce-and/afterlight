@@ -7,7 +7,7 @@ import { G } from './state.js';
 import { groundAt, pointInColliders } from './physics.js';
 import { ringFx, sparks } from './effects.js';
 import { registerEnemy, announceDrop } from './coop.js';
-import { DROP, arrivalOf, groupDrops, skyClear, shipTimeline, shipPos, fallTime, dropshipsEnabled, DROPSHIP_KEY } from './dropship-plan.js';
+import { DROP, arrivalOf, groupDrops, skyClear, pickRoute, segDist, shipTimeline, shipPos, fallTime, dropshipsEnabled, DROPSHIP_KEY } from './dropship-plan.js';
 
 const drops = [];
 const _v = new THREE.Vector3();
@@ -69,6 +69,20 @@ export function launchDrops(enemies, place) {
       continue;
     }
     const anchor = es[0].pos.clone();
+    // U32 H31: ships never share the sky. Hover points stay DROP.hoverSep apart and every flight line keeps DROP.shipClear from the others.
+    const flying = drops.filter((d) => d.mesh);
+    const spotOk = (p) => flying.every((d) => Math.hypot(d.hover.x - p.x, d.hover.z - p.z) >= DROP.hoverSep
+      && segDist(p, p, d.from, d.hover) >= DROP.shipClear && segDist(p, p, d.hover, d.to) >= DROP.shipClear); // clear of every hull and every flight line already in the air
+    if (!spotOk(anchor)) { // look for a spot round the first pick that keeps its distance
+      let found = null;
+      for (const r of [DROP.hoverSep, DROP.hoverSep * 1.5, DROP.hoverSep * 2]) for (let k = 0; k < 6 && !found; k++) {
+        const a = Math.random() * Math.PI * 2, p = place?.(new THREE.Vector3(anchor.x + Math.sin(a) * r, 0, anchor.z + Math.cos(a) * r));
+        if (p && spotOk(p)) found = p;
+      }
+      if (!found) { plain.push(...es); continue; } // no room for another hull: the old spawn
+      anchor.copy(found);
+    }
+    es[0].pos.copy(anchor); es[0].pos.y = groundAt(anchor.x, anchor.z); anchor.y = es[0].pos.y;
     if (!skyClear(blocked, anchor.x, anchor.y, anchor.z)) { plain.push(...es); continue; }
     for (let i = 1; i < es.length; i++) { // ride together: the rest of the load lands around the first
       const p = place?.(anchor);
@@ -76,10 +90,11 @@ export function launchDrops(enemies, place) {
     }
     const hover = { x: anchor.x, y: anchor.y + DROP.hoverHeight, z: anchor.z };
     const pl = G.player.pos;
-    const base = Math.atan2(anchor.x - pl.x, anchor.z - pl.z) + (Math.random() - 0.5) * 1.6; // from beyond the enemy side, in view of the fight
-    const out = base + (Math.random() < 0.5 ? 1 : -1) * 1.9;
-    const from = { x: hover.x - Math.sin(base) * DROP.approachDist, y: hover.y + 28, z: hover.z - Math.cos(base) * DROP.approachDist };
-    const to = { x: hover.x + Math.sin(out) * DROP.approachDist * 1.1, y: hover.y + 55, z: hover.z + Math.cos(out) * DROP.approachDist * 1.1 };
+    const route = pickRoute(hover, Math.atan2(anchor.x - pl.x, anchor.z - pl.z) + (Math.random() - 0.5) * 1.2, flying.flatMap((d) => [{ a: d.from, b: d.hover }, { a: d.hover, b: d.to }])); // in from beyond the enemy side, in view of the fight
+    if (route.room < DROP.shipClear * 0.5) { plain.push(...es); continue; }
+    const base = route.inH, lift = flying.length * 8; // each extra ship also flies a little higher
+    const from = { x: route.from.x, y: hover.y + 28 + lift, z: route.from.z };
+    const to = { x: route.to.x, y: hover.y + 55 + lift, z: route.to.z };
     const mesh = buildShip(grp.kind);
     mesh.position.set(from.x, from.y, from.z);
     G.scene.add(mesh);
@@ -101,7 +116,7 @@ export function showRemoteShip(m) {
   G.scene.add(mesh);
   drops.push({ kind: m.k, t: 0, tl: shipTimeline(m.n), from: f, hover: h, to: o, mesh, dust: 0, yaw: m.y, units: [] });
 }
-const BUILD_KINDS = ['cabal', 'fallen', 'hive', 'scorn'];
+const BUILD_KINDS = ['cabal', 'fallen', 'hive'];
 
 // ---------------------------------------------------------------- per frame
 function stepShip(d, dt) {
@@ -178,3 +193,6 @@ export function updateDropships(dt) {
 }
 
 export const dropshipCount = () => drops.length;
+
+/** Dev and tests: where each ship in the air is right now. */
+export const dropshipPositions = () => drops.filter((d) => d.mesh && d.mesh.visible).map((d) => d.mesh.position.clone());

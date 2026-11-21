@@ -1,8 +1,8 @@
 // U32 "Dropships": pure logic (no THREE, no DOM) so tools/tests.js can exercise it.
 // Which faction arrives how, how units are grouped into drops, the ship's timeline and flight path, and the open-sky check.
 
-/** Arrival style by faction id. The Cabal (legion), Fallen (scrappers), Hive (hollow) and Scorn come by ship; the Vex and the Taken teleport in. */
-export const ARRIVAL = Object.freeze({ legion: 'cabal', scrappers: 'fallen', hollow: 'hive', scorn: 'scorn', vex: 'teleport', taken: 'teleport' });
+/** Arrival style by faction id. The Cabal (legion), Fallen (scrappers) and Hive (hollow) come by ship; the Vex, the Taken and the Scorn teleport in. */
+export const ARRIVAL = Object.freeze({ legion: 'cabal', scrappers: 'fallen', hollow: 'hive', scorn: 'teleport', vex: 'teleport', taken: 'teleport' });
 export const arrivalOf = (faction) => ARRIVAL[faction] || null;
 export const isShip = (kind) => !!kind && kind !== 'teleport';
 
@@ -12,6 +12,8 @@ export const DROP = Object.freeze({
   hoverHeight: 12,   // m above the drop point
   clearHeight: 18,   // m of open sky the ship needs above the drop point
   clearRadius: 3,    // sky is checked at the centre and at four points this far out
+  hoverSep: 30,      // m between the hover points of two ships (the widest hull is about 20 m)
+  shipClear: 20,     // m kept between any two ships' flight lines, in and out
   approachDist: 110, // m out where the ship comes into view
   approachTime: 2.6, // s from first sight to hover
   releaseGap: 0.28,  // s between units leaving the hatch
@@ -60,6 +62,35 @@ export function shipTimeline(n) {
   const release = Array.from({ length: n }, (_, i) => arrive + 0.3 + i * DROP.releaseGap);
   const leaveStart = (release[n - 1] ?? arrive) + DROP.leaveDelay;
   return { arrive, release, leaveStart, end: leaveStart + DROP.leaveTime };
+}
+
+const cross = (ax, az, bx, bz) => ax * bz - az * bx;
+/** Shortest distance between two segments on the ground plane; each point is {x, z}. 0 when they cross. */
+export function segDist(a, b, c, d) {
+  const o = (p, q, r) => Math.sign(cross(q.x - p.x, q.z - p.z, r.x - p.x, r.z - p.z));
+  if (o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b)) return 0;
+  const pt = (p, q, r) => { const vx = r.x - q.x, vz = r.z - q.z, l = vx * vx + vz * vz; const t = l ? Math.max(0, Math.min(1, ((p.x - q.x) * vx + (p.z - q.z) * vz) / l)) : 0; return Math.hypot(p.x - (q.x + vx * t), p.z - (q.z + vz * t)); };
+  return Math.min(pt(a, c, d), pt(b, c, d), pt(c, a, b), pt(d, a, b));
+}
+
+/**
+ * Picks the way a ship flies in and out so it never crosses another ship's line. `others`: [{ a, b }] ground-plane segments of ships already in the air.
+ * Tries headings around `base` (in) and either side (out); takes the first pair that keeps `clear` metres from every other segment, else the roomiest.
+ * Returns { inH, outH, from, to, room } (from and to are ground-plane points).
+ */
+export function pickRoute(hover, base, others, { dist = DROP.approachDist, clear = DROP.shipClear } = {}) {
+  let best = null;
+  const turns = [0]; for (let k = 1; k <= 10; k++) turns.push(k * 0.3, -k * 0.3); // every heading round the circle, nearest to `base` first
+  for (const t of turns) for (const off of [1.9, -1.9, 1.3, -1.3, 2.6, -2.6]) {
+    const inH = base + t, outH = inH + off;
+    const from = { x: hover.x - Math.sin(inH) * dist, z: hover.z - Math.cos(inH) * dist };
+    const to = { x: hover.x + Math.sin(outH) * dist * 1.1, z: hover.z + Math.cos(outH) * dist * 1.1 };
+    let room = Infinity;
+    for (const o of others) room = Math.min(room, segDist(from, hover, o.a, o.b), segDist(hover, to, o.a, o.b));
+    if (!best || room > best.room) best = { inH, outH, from, to, room };
+    if (room >= clear) return { inH, outH, from, to, room };
+  }
+  return best;
 }
 
 /** Seconds for a unit to fall `h` metres from rest. */

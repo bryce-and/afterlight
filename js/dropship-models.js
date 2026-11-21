@@ -1,5 +1,5 @@
 // U32 "Dropships": the ship and gate models (no game imports, so tools/dropshot.js can draw them on their own).
-// Four ships (Cabal, Fallen, Hive, Scorn; nose toward +Z) and the Vex and Taken teleport gates.
+// Three ships (Cabal, Fallen, Hive; nose toward +Z) and the teleport gates of the Vex, the Taken and the Scorn (a purple and blue mist).
 import * as THREE from 'three';
 
 // ---------------------------------------------------------------- shared geometry and materials
@@ -94,27 +94,9 @@ function buildHive(g, pulse) {
   for (const s of [-1, 1]) for (let i = 0; i < 4; i++) pulse.push(part(g, SPH, glow(0x9dff5a), [0.36, 0.36, 0.36], [s * 3.85, 0.6, -7 + i * 3.2])); // lamps on the stem
 }
 
-/** Scorn: a scrap gunship. Rusted patchwork hull, four down-thrusters, exhaust stacks, a hanging lamp. */
-function buildScorn(g, pulse) {
-  const rust = lit(0x6a3b24, 0.95, 0.4), plate = lit(0x8b8470, 0.9, 0.35), iron = lit(0x3a342c, 0.8, 0.5), bone = lit(0xb9b29a);
-  part(g, BOX, rust, [4.8, 2.1, 7.2], [0, 0, 0]);
-  part(g, BOX, plate, [2.6, 0.3, 3], [-1, 1.1, 1.6], [0, 0.15, 0]); part(g, BOX, plate, [2.2, 0.3, 2.4], [1.2, 1.1, -1.4], [0, -0.2, 0.05]);
-  part(g, BOX, iron, [5.2, 0.4, 1.2], [0, 0.2, 3.4]); // armored brow
-  part(g, CONE, iron, [1.8, 2.4, 1.8], [0, 0, 4.6], [HALF, Math.PI / 4, 0]);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    part(g, CYL, iron, [0.9, 1.7, 0.9], [sx * 3.1, -0.5, sz * 2.7]);
-    part(g, BOX, rust, [0.3, 0.3, 2.8], [sx * 2.7, 0.2, sz * 2.7]); // strut
-    pulse.push(part(g, CYL, glow(0xb46bff), [0.8, 0.15, 0.8], [sx * 3.1, -1.4, sz * 2.7]));
-    pulse.push(part(g, CONE, glow(0xc37aff, 0.45), [0.8, 2.6, 0.8], [sx * 3.1, -2.7, sz * 2.7], [Math.PI, 0, 0]));
-  }
-  for (const s of [-1, 1]) part(g, CYL, iron, [0.3, 2.6, 0.3], [s * 1.2, 2.2, -3], [0, 0, 0]); // exhaust stacks
-  for (const x of [-1.4, 0, 1.4]) part(g, BOX, bone, [0.12, 2.2, 0.12], [x, -2.0, -1.2]); // dangling chains
-  pulse.push(part(g, CONE, glow(0xc5ff6a, 0.55), [1.1, 2.4, 1.1], [0, -1.2, 3.2], [Math.PI, 0, 0])); // the lamp
-}
-
-const BUILDERS = { cabal: buildCabal, fallen: buildFallen, hive: buildHive, scorn: buildScorn };
+const BUILDERS = { cabal: buildCabal, fallen: buildFallen, hive: buildHive };
 /** Overall scale so a 4-unit load fits under each hull. */
-const SHIP_SCALE = { cabal: 1.1, fallen: 0.95, hive: 0.9, scorn: 1.15 };
+const SHIP_SCALE = { cabal: 1.1, fallen: 0.95, hive: 0.9 };
 
 export function buildShip(kind) {
   const g = new THREE.Group(), pulse = [];
@@ -130,6 +112,7 @@ export function buildShip(kind) {
 const GATE = {
   vex: { col: 0x7fe8ff, ring: 0xffcf6a, flash: 0xbff4ff, add: true },
   taken: { col: 0x0b0a12, ring: 0xdfe8ff, flash: 0xdfe8ff, add: false },
+  scorn: { col: 0x8a6bff, ring: 0x5a9cff, flash: 0xc9b3ff, add: true, mist: true }, // a purple and blue mist they step out of
 };
 export function buildGate(faction) {
   const L = GATE[faction] || GATE.vex;
@@ -137,9 +120,10 @@ export function buildGate(faction) {
   const mat = L.add ? new THREE.MeshBasicMaterial({ color: L.col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
     : new THREE.MeshBasicMaterial({ color: L.col, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
   const ringMat = new THREE.MeshBasicMaterial({ color: L.ring, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
-  const col = new THREE.Mesh(CYL_OPEN, mat); col.position.y = 2; col.scale.set(1, 4, 1);
-  const ring = new THREE.Mesh(TORUS, ringMat); ring.position.y = 1.1;
+  const col = new THREE.Mesh(L.mist ? SPH : CYL_OPEN, mat); col.position.y = L.mist ? 1.5 : 2; col.scale.set(...(L.mist ? [1.1, 2.0, 1.1] : [1, 4, 1]));
+  const ring = new THREE.Mesh(TORUS, ringMat); ring.position.y = L.mist ? 0.25 : 1.1;
   g.add(col, ring);
+  if (L.mist) for (const [x, y, z, r] of [[0.55, 1.0, 0.2, 0.8], [-0.5, 2.1, 0.35, 0.7], [0.1, 0.5, -0.6, 0.9]]) { const puff = new THREE.Mesh(SPH, mat); puff.position.set(x, y, z); puff.scale.setScalar(r); g.add(puff); } // soft puffs round the column
   g.userData = { col, ring, mat, ringMat, L };
   return g;
 }

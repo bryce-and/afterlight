@@ -4885,9 +4885,9 @@ test('H30d dismantleMany: pays glimmer for every dismantlable id, skips equipped
 });
 
 // ---- U32 Dropships (pure plan: js/dropship-plan.js) ----
-test('U32 arrival: Cabal, Fallen, Hive and Scorn come by ship; Vex and Taken teleport; unknown factions get none', () => {
-  eq(DS.arrivalOf('legion'), 'cabal'); eq(DS.arrivalOf('scrappers'), 'fallen'); eq(DS.arrivalOf('hollow'), 'hive'); eq(DS.arrivalOf('scorn'), 'scorn');
-  eq(DS.arrivalOf('vex'), 'teleport'); eq(DS.arrivalOf('taken'), 'teleport'); eq(DS.arrivalOf('nope'), null);
+test('U32 arrival: Cabal, Fallen and Hive come by ship; Vex, Taken and Scorn teleport; unknown factions get none', () => {
+  eq(DS.arrivalOf('legion'), 'cabal'); eq(DS.arrivalOf('scrappers'), 'fallen'); eq(DS.arrivalOf('hollow'), 'hive');
+  eq(DS.arrivalOf('scorn'), 'teleport'); eq(DS.arrivalOf('vex'), 'teleport'); eq(DS.arrivalOf('taken'), 'teleport'); eq(DS.arrivalOf('nope'), null);
   ok(DS.isShip('cabal') && !DS.isShip('teleport') && !DS.isShip(null), 'isShip');
 });
 test('U32 groupDrops: 4 per ship by faction, never more than 3 ships, teleporters stay singles', () => {
@@ -4895,7 +4895,7 @@ test('U32 groupDrops: 4 per ship by faction, never more than 3 ships, teleporter
   let g = DS.groupDrops(mk('legion', 9));
   eq(g.length, 3); eq(g.map((x) => x.items.length).join(), '4,4,1');
   g = DS.groupDrops([...mk('legion', 4), ...mk('hollow', 4), ...mk('scorn', 4), ...mk('scrappers', 4)]);
-  eq(g.length, 4); // four factions cannot share a hull: one ship each is the floor
+  eq(g.length, 4); // three ships (one per faction) plus the Scorn gate group
   eq(g.reduce((s, x) => s + x.items.length, 0), 16);
   g = DS.groupDrops([...mk('vex', 3), ...mk('legion', 2)]);
   eq(g.length, 2); eq(g.find((x) => x.kind === 'teleport').items.length, 3);
@@ -4917,6 +4917,25 @@ test('U32 shipTimeline and shipPos: arrives, hovers while units leave in order, 
   eq(DS.shipPos(tl.leaveStart + 1, tl, from, hov, to).phase, 'out');
   const gone = DS.shipPos(tl.end + 1, tl, from, hov, to); eq(gone.phase, 'gone'); eq(gone.y, 70);
   ok(DS.shipPos(tl.arrive * 0.5, tl, from, hov, to).x > -50, 'decelerating: past halfway in half the time');
+});
+test('H31 segDist: crossing lines are 0, parallel lines are their gap apart', () => {
+  const P = (x, z) => ({ x, z });
+  eq(DS.segDist(P(0, 0), P(10, 10), P(0, 10), P(10, 0)), 0);
+  eq(DS.segDist(P(0, 0), P(10, 0), P(0, 5), P(10, 5)), 5);
+  eq(DS.segDist(P(0, 0), P(10, 0), P(14, 3), P(14, 9)), 5);
+});
+test('H31 pickRoute: a second ship never flies through the first one\'s lines', () => {
+  const hoverA = { x: 0, z: 0 }, base = 0.3;
+  const a = DS.pickRoute(hoverA, base, []);
+  const others = [{ a: a.from, b: hoverA }, { a: hoverA, b: a.to }];
+  let tried = 0;
+  for (const h of [{ x: 33, z: 0 }, { x: -33, z: 5 }, { x: 0, z: 34 }, { x: 20, z: 26 }, { x: -25, z: -30 }, { x: 0, z: -40 }]) {
+    if (!others.every((o) => DS.segDist(h, h, o.a, o.b) >= DS.DROP.shipClear) || Math.hypot(h.x, h.z) < DS.DROP.hoverSep) continue; // the launcher never picks a hover this close to a line
+    tried++;
+    const r = DS.pickRoute(h, base, others);
+    ok(r.room >= DS.DROP.shipClear, `hover ${h.x},${h.z}: room ${r.room.toFixed(1)}`);
+  }
+  ok(tried >= 2, `only ${tried} valid hovers tried`);
 });
 test('U32 fallTime: a 9.6 m drop takes about a second', () => {
   const t = DS.fallTime(9.6); ok(t > 0.8 && t < 1.1, `${t}`); eq(DS.fallTime(0), 0);

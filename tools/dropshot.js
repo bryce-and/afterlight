@@ -1,6 +1,6 @@
 // Dev-only dropship line-up (U32), run in the console on the running game or through tools/dropshot.html:
 //   const { lineup } = await import('/tools/dropshot.js');  await lineup()
-// Draws each ship (Cabal, Fallen, Hive, Scorn) from three angles and the Vex and Taken gates, with the game's own renderer.
+// Draws each ship (Cabal, Fallen, Hive) from three angles and the Vex, Taken and Scorn gates, with the game's own renderer.
 export async function lineup({ size = [420, 300] } = {}) {
   const [{ G }, M, THREE] = await Promise.all([import('../js/state.js'), import('../js/dropship-models.js'), import('three')]);
   const scene = new THREE.Scene();
@@ -23,14 +23,14 @@ export async function lineup({ size = [420, 300] } = {}) {
     const cell = document.createElement('div'); cell.append(c, document.createTextNode(label)); wrap.append(cell);
   };
   const errors = [];
-  for (const kind of ['cabal', 'fallen', 'hive', 'scorn']) {
+  for (const kind of ['cabal', 'fallen', 'hive']) {
     try {
       const ship = M.buildShip(kind); scene.add(ship);
       shoot(`${kind} 3/4`, 46, 12, 0.9); shoot(`${kind} side`, 48, 2, Math.PI / 2); shoot(`${kind} from below`, 34, -12, 2.6);
       scene.remove(ship);
     } catch (e) { errors.push(`${kind}: ${e.message}`); }
   }
-  for (const f of ['vex', 'taken']) {
+  for (const f of ['vex', 'taken', 'scorn']) {
     try {
       const g = M.buildGate(f); g.scale.set(1.2, 1.3, 1.2); g.userData.ring.rotation.set(Math.PI / 2, 0, 0.4); scene.add(g);
       shoot(`${f} gate`, 11, 1.5, 0.5, 2); scene.remove(g);
