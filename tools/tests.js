@@ -3876,14 +3876,13 @@ test('U23C solo tuning: no hit over 40% of the pool, no burst over 65%; two Psio
   ok(DGR.bossHpFor(1000, { hpMult: 1 }, g) < DGR.bossHpFor(1000, { hpMult: 1 }, d.guard.team), 'solo bosses carry less health');
 });
 
-test('U23C hand cannon: kicks up and right (aggressive more, precision straight up); the iron sights are gone, a floating dot sits on the sight line', async () => {
+test('U23C hand cannon: kicks up and right (aggressive more, precision straight up); the iron sights and the old floating dot are gone (U33: the rolled sight is the only sight)', async () => {
   const ang = (f) => { const k = recoilKick(recoilProfileFor(weaponHandling({ arch: 'hand', rarity: 'legendary', frame: f })), 0.045, () => 0.5); return Math.atan2(-k.yaw, k.pitch) * 180 / Math.PI; };
   ok(ang('adaptive') >= 18 && ang('aggressive') > ang('adaptive') && Math.abs(ang('precision')) < 1e-9, `angles ${ang('adaptive').toFixed(0)}, ${ang('aggressive').toFixed(0)}, ${ang('precision').toFixed(0)}`);
   const { buildGunModel } = await import('../js/models.js');
   const g = buildGunModel({ arch: 'hand', rarity: 'legendary', frame: 'adaptive', element: 'kinetic', name: 'Test' });
   let dot = null; g.traverse((o) => { if (o.userData.sightDot) dot = o; });
-  ok(dot, 'a sight dot');
-  ok(Math.abs(dot.position.y - g.userData.sightY) < 1e-9 && Math.abs(dot.position.x) < 1e-9, 'on the sight line (screen centre at ADS)');
+  ok(!dot, 'no old floating dot on the model');
   let posts = 0; g.traverse((o) => { if (o.isMesh && o.geometry.type === 'BoxGeometry' && o.geometry.parameters.width === 0.007 && o.geometry.parameters.depth === 0.007) posts++; });
   eq(posts, 0, 'no front post');
 });
@@ -4764,8 +4763,10 @@ test('U31 exotic fixes: Dead Messenger 1 in the mag, Arbalest special, Lord of W
 });
 test('U31 sights: only hand cannons, shotguns and sidearms roll them; fusions keep iron sights; linear fusion is calmer', () => {
   const r = mulberry32(3);
-  for (const arch of ['hand', 'shotgun', 'sidearm']) { const seen = new Set(); for (let i = 0; i < 200; i++) seen.add(SI.rollSight(arch, r)); ok(seen.has('reddot') && seen.has('iron'), `${arch} rolls a red dot and iron sights`); for (const id of seen) ok(SI.SIGHTS[id], `known sight ${id}`); }
+  for (const arch of ['hand', 'shotgun', 'sidearm']) { const seen = new Set(); for (let i = 0; i < 200; i++) seen.add(SI.rollSight(arch, r)); ok(seen.has('reddot') && !seen.has('iron'), `${arch} always rolls a real sight`); for (const id of seen) ok(SI.SIGHTS[id], `known sight ${id}`); }
   for (const arch of ['fusion', 'linear', 'sniper', 'auto', 'scout', 'rocket']) eq(SI.rollSight(arch, r), 'iron', `${arch} has iron sights`);
+  for (const arch of ['hand', 'shotgun', 'sidearm']) ok(SI.sightFor({ arch, id: 'x1' }).ret, `${arch} saved with no sight gets a real one`);
+  eq(SI.sightFor({ arch: 'auto', id: 'x1' }).id, 'iron');
   ok(ARCHETYPES.linear.zoom <= 1.6 && ARCHETYPES.fusion.zoom < 3, 'fusions are not scoped');
   ok(ARCHETYPES.linear.recoil <= 0.03, 'linear fusion recoil is low');
 });

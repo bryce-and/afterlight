@@ -8,10 +8,17 @@ export const SIGHTS = {
 };
 /** Families that roll a sight, and the sights each can roll (weights repeat an id). */
 export const SIGHT_POOLS = {
-  hand: ['iron', 'reddot', 'reddot', 'holo', 'reflex'],
-  shotgun: ['iron', 'reddot', 'reddot', 'holo', 'reflex'],
-  sidearm: ['iron', 'reddot', 'reddot', 'holo', 'reflex'],
+  hand: ['reddot', 'reddot', 'holo', 'reflex'], // the old floating-dot sights are gone from these models, so every one rolls a real sight
+  shotgun: ['reddot', 'reddot', 'holo', 'reflex'],
+  sidearm: ['reddot', 'reddot', 'holo', 'reflex'],
   forerunner: ['reddot', 'holo'],
 };
-export const sightFor = (item) => SIGHTS[item?.sight] || SIGHTS.iron;
+const stable = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+/** The sight a weapon uses. A hand cannon, shotgun or sidearm saved before the old sights were removed (no `sight`) gets one of the new sights, always the same one for that weapon. Exotics with their own model keep it. */
+export function sightFor(item) {
+  if (item?.sight && SIGHTS[item.sight] && item.sight !== 'iron') return SIGHTS[item.sight];
+  const pool = SIGHT_POOLS[item?.arch];
+  if (pool && (!item.look?.model || item.arch === 'forerunner')) return SIGHTS[pool[stable(item.id || item.name) % pool.length]];
+  return SIGHTS.iron;
+}
 export const rollSight = (arch, rnd = Math.random) => { const p = SIGHT_POOLS[arch]; return p ? p[Math.floor(rnd() * p.length)] : 'iron'; };

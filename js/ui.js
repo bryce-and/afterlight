@@ -21,7 +21,7 @@ import { dismantleValue } from './loot.js';
 import { weaponIcon, weaponSilhouette, elementIcon, armorIcon, subclassIcon, factionIcon, FACTION_NAMES, setArmorIconContext } from './icons.js';
 import { SETS, SET_PIECES, SHADERS, SHADER_IDS, setCounts, shaderFor } from './style.js';
 import { frameDef, weaponHandling } from './frames.js';
-import { SIGHTS } from './sights.js';
+import { SIGHTS, sightFor } from './sights.js';
 import { CRUCIBLE_MODES, CONTROL, DUEL, SPAWN_AMMO, launchCheck } from './pvp.js';
 import { startMission, startActivity, newSeed, retryMission, abandonMission, getHitTargets, combatLight } from './game.js';
 import { dmgDrift, HUD_SCALE, ABILITY_CD } from './combat.js';
@@ -1095,7 +1095,7 @@ export function tipHTML(it, side) { // U27: the Postmaster (tower-ui.js) shows t
     body += row('Range', st.range, B.range * 1.6, `${st.range}m`, cs && cs.range);
     body += '</div>';
     if (fr) body += `<div class="tt-frame"><span>Archetype</span><b>${fr.name}</b><em>${fr.desc}</em></div>`;
-    if (it.sight && SIGHTS[it.sight]) body += `<div class="tt-frame"><span>Sight</span><b>${SIGHTS[it.sight].name}</b><em>${SIGHTS[it.sight].desc}</em></div>`; // U31
+    const sg = sightFor(it); if (sg.ret) body += `<div class="tt-frame"><span>Sight</span><b>${sg.name}</b><em>${sg.desc}</em></div>`; // U31
     const perks = [];
     for (const xp of it.exoticPerks || (it.exotic ? [it.exotic] : [])) {
       const d = EXOTIC_PERKS[xp] || PERKS[xp];
@@ -1583,7 +1583,7 @@ export function updateHUD(dt) {
   const px = (spread / Math.tan((cam.fov * Math.PI) / 360)) * (innerHeight / 2);
   setStyle(hud.cross, 'chg', '--gap', `${Math.round(5 + px)}px`);
   setClass(hud.cross, 'chads', 'ads', P.adsT > 0.5 && !S && !w.A.glaive);
-  { const sr = $('#sightret'); const k = w.sight && P.adsT > 0.5 && !S && !w.A.glaive ? w.sight : ''; if (sr && sr.dataset.k !== k) { sr.dataset.k = k; sr.className = k ? `ret-${k}` : 'hidden'; } } // U31: red dot, holo ring or reflex while aimed
+  { const sr = $('#sightret'); const k = ''; if (sr && sr.dataset.k !== k) { sr.dataset.k = k; sr.className = k ? `ret-${k}` : 'hidden'; } } // U31: red dot, holo ring or reflex while aimed
   // Glaive shield energy under the crosshair
   hud.gbar ??= $('#glaive-bar');
   const gl = !S && !!w.A.glaive;

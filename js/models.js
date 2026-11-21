@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ELEMENTS, EXOTIC_WEAPONS } from './data.js';
 import { FRAMES } from './frames.js';
+import { sightFor } from './sights.js';
 import { hashStr } from './util.js';
 import { mat } from './world.js';
 import { IMPERIAL_LOOK } from './dungeon-loot.js';
@@ -167,6 +168,14 @@ function scope(k, m, S, fRear, fFront, y0, r = 0.03, color = RED, simple = false
   k.add(new THREE.CircleGeometry(0.0012, 10), retMat(color), 0, S, rf + 0.0005);
 }
 
+
+/** U31 sights as real optics: the weapon's rolled sight (Red Dot, Holographic Ring, Micro Reflex) is a housing mounted on the gun, its dot or ring on the sight line S, so it is the point of aim. */
+function sightMount(k, item, m, S, f, y0) {
+  const id = sightFor(item).id;
+  if (id === 'holo') return holo(k, m, S, f, y0, RED, { w: 0.05, h: 0.038 });
+  if (id === 'reflex') return holo(k, m, S, f, y0, RED, { style: 'chevron', w: 0.038, h: 0.03 });
+  return redDot(k, m, S, f, y0, 0.016, 0.04, RED);
+}
 
 // ---------------------------------------------------------------------------
 // H32: sights by frame. Every gun of one archetype frame (all Rapid-Fire autos, all Precision scouts...) wears the same sight;
@@ -384,7 +393,7 @@ function buildBaseGun(item, look) {
       P([[-0.035, -0.03], [0.02, -0.03], [-0.005, -0.135], [-0.075, -0.13], [-0.068, -0.04]], 0.038, wood);
       triggerGuard(k, dark, steel, 0.0, -0.03);
       B(0.044, 0.006, 0.13, 0, 0.016, 0.05, glow);
-      floatDot(k, S, 0.2); // U23 chunk C (Bryce): no iron sights, a glowing dot floating over the barrel on the sight line
+      sightMount(k, item, dark, S, 0.05, 0.034);
       return finish(g, { muzzleF: 0.32, muzzleY: 0.004, S, hip: [0.19, -0.2, -0.48], ads: 0.36, flash: fc });
     }
     case 'pulse': {
@@ -441,7 +450,7 @@ function buildBaseGun(item, look) {
       P([[-0.1, 0.03], [-0.38, 0.0], [-0.39, -0.1], [-0.33, -0.11], [-0.1, -0.035]], 0.045, wood);
       B(0.064, 0.01, 0.16, 0, 0.012, 0.04, glow);
       B(0.03, 0.02, 0.05, 0.035, 0.0, 0.08, mat(0x0b0c0e));
-      floatDot(k, S, 0.3, [0xffd27a, 0x7dff9a, 0xff9a6a, 0x5fd8ff][frameIdx(item) % 4]); // H32: no iron sights, a floating dot like the hand cannons
+      sightMount(k, item, dark, S, 0.0, 0.046);
       return finish(g, { muzzleF: 0.6, muzzleY: 0.022, S, hip: [0.21, -0.21, -0.5], ads: 0.32, flash: fc });
     }
     case 'sniper': {
@@ -567,7 +576,7 @@ function buildBaseGun(item, look) {
       T(0.034, 0.012, 0, -0.045, 0.1, glow, 10);
       B(0.036, 0.005, 0.12, 0, 0.04, 0.06, glow);
       T(0.011, 0.03, 0, 0.008, 0.37, steel, 6);
-      ironFit(k, item, dark, S, -0.04, 0.036, 0.3, 0.036);
+      sightMount(k, item, dark, S, 0.02, 0.04);
       return finish(g, { muzzleF: 0.38, muzzleY: 0.008, S, hip: [0.17, -0.18, -0.42], ads: 0.3, flash: fc });
     }
     case 'sidearm': {
@@ -579,7 +588,7 @@ function buildBaseGun(item, look) {
       for (let i = 0; i < 4; i++) B(0.034, 0.02, 0.006, 0, 0.012, -0.045 + i * 0.012, dark);
       B(0.032, 0.005, 0.1, 0, 0.032, 0.06, glow);
       T(0.008, 0.05, 0, 0.008, 0.172, steel, 6);
-      floatDot(k, S, 0.14, [0xffd27a, 0x7dff9a, 0x5fd8ff, 0xff9a6a][frameIdx(item) % 4]); // H32: like the hand cannons, no iron sights: a glowing dot floating on the sight line, its color set by the frame
+      sightMount(k, item, dark, S, 0.04, 0.032);
       return finish(g, { muzzleF: 0.2, muzzleY: 0.008, S, hip: [0.17, -0.18, -0.4], ads: 0.3, flash: fc });
     }
     case 'sword': {
