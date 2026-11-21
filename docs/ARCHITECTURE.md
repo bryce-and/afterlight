@@ -245,3 +245,12 @@ The module map is in the README. These notes cover systems added during the over
 - Save: one additive `settings.mobile` block. No reset.
 - Installed web app: `viewport-fit=cover`, Apple web app meta, landscape manifest, Add to Home Screen hint, screen wake lock, pause on app switch, service worker cache v2 (`sw.js`).
 - Phone pixel ratio is capped at 2.0, with cheaper shadows.
+
+## Dropships (v5.7, U32, `js/dropship-plan.js`, `js/dropship-models.js`, `js/dropships.js`)
+- `js/dropship-plan.js` is pure logic with no game imports: the arrival table (which faction arrives by ship and which by gate), `groupDrops`, `skyClear` (the open-sky collider column test), `shipTimeline`, `shipPos`, and the setting (localStorage key `afterlight.dropships`).
+- `js/dropship-models.js` builds the four ship models (Cabal, Fallen, Hive, Scorn) and the Vex and Taken gates. It has no game imports.
+- `js/dropships.js` runs the arrivals: `launchDrops`, `updateDropships`, `resetDropships`, `showRemoteShip`.
+- Hooks: `spawnUnit` takes a `defer` option in `game.js`; `spawnWave` and the patrol `spawnEventPush` call `launchDrops`. Enemy `defer` skips the spawn FX and hides the model until landing.
+- Co-op: message `ds` (`k` kind, `n` count, `f` from, `h` hover, `o` out, `y` heading), sent by `announceDrop` in `coop.js`.
+- Visual check: `tools/dropshot.html` and `tools/dropshot.js` line up the ships and gates.
+- Save: none. Setting only.

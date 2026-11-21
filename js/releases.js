@@ -5,6 +5,19 @@
 
 export const RELEASES = [
   {
+    version: '5.7', name: 'Dropships', date: '2026-11-21', accent: '#ff7a4a', glyph: '⇩',
+    summary: 'Reinforcements no longer pop into existence: enemy dropships fly in, drop their troops onto the battlefield and leave, and the Vex and Taken step out of teleport gates.',
+    notes: [
+      'Cabal, Fallen, Hive and Scorn arrive by their own dropship, each with its own look',
+      'Vex and Taken teleport in through a gate instead',
+      'Units drop to the ground and cannot be hit or act until they land. The ship flies off afterwards, in plain sight',
+      'Applies to mission waves, reinforcements, Horde, Endless and open-world public events, outdoors only. Indoor and cave arenas keep the old spawn for now',
+      'New setting: Dropship entrances (on by default; turn it off on a slow machine)',
+      'Enemies take about 4 to 5 seconds longer to join a fight, so waves feel slightly slower to start',
+    ],
+    art: '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="dsBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c0406"/><stop offset="0.6" stop-color="#2a0e10"/><stop offset="1" stop-color="#070304"/></linearGradient><radialGradient id="dsGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff6a2b" stop-opacity="0.45"/><stop offset="1" stop-color="#ff6a2b" stop-opacity="0"/></radialGradient><linearGradient id="dsHull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a221c"/><stop offset="1" stop-color="#2a0a08"/></linearGradient><radialGradient id="dsEngine" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd08a"/><stop offset="0.4" stop-color="#ff8a2b" stop-opacity="0.9"/><stop offset="1" stop-color="#ff5a1a" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(#dsBg)"/><ellipse cx="160" cy="70" rx="140" ry="62" fill="url(#dsGlow)"/><g fill="#ffb08a" opacity="0.8"><circle cx="50" cy="28" r="1.4"/><circle cx="92" cy="14" r="1.1"/><circle cx="228" cy="22" r="1.5"/><circle cx="278" cy="40" r="1.2"/><circle cx="30" cy="70" r="1"/><circle cx="296" cy="84" r="1.3"/></g><path d="M104 58 L124 48 L196 48 L216 58 L196 68 L124 68 Z" fill="url(#dsHull)" stroke="#9a3a2a" stroke-width="1"/><path d="M120 58 L200 58" stroke="#c0903e" stroke-width="2" fill="none"/><path d="M150 48 L170 48 L166 41 L154 41 Z" fill="#3a0c0a" stroke="#c0903e" stroke-width="1"/><circle cx="100" cy="53" r="11" fill="url(#dsEngine)"/><circle cx="100" cy="63" r="11" fill="url(#dsEngine)"/><path d="M152 68 L168 68 L180 104 L140 104 Z" fill="#ff8a2b" opacity="0.14"/><rect x="152" y="66" width="16" height="4" fill="#ffb347"/><g fill="#120606"><g transform="translate(150 86)"><circle cy="-5" r="1.8"/><rect x="-2" y="-3" width="4" height="7" rx="1.2"/></g><g transform="translate(160 98)"><circle cy="-5" r="1.8"/><rect x="-2" y="-3" width="4" height="7" rx="1.2"/></g><g transform="translate(170 110)"><circle cy="-5" r="1.8"/><rect x="-2" y="-3" width="4" height="7" rx="1.2"/></g></g><path d="M0 130 L60 118 L110 126 L160 112 L220 124 L270 116 L320 128 L320 180 L0 180Z" fill="#0d0606"/><ellipse cx="160" cy="113" rx="28" ry="4" fill="none" stroke="#c98a5a" stroke-opacity="0.55" stroke-width="1.5"/></svg>',
+  },
+  {
     version: '5.6.3', name: 'Hotfix', date: '2026-11-20', accent: '#ff8a7a', glyph: '✚',
     summary: 'You can now mark several items on the Character screen and dismantle them all at once for glimmer.',
     notes: [
@@ -1203,4 +1216,10 @@ export const titleRelease = () => RELEASES.find((r) => r.version.split('.').leng
 
 export const ROADMAP_STATUSES = ['In Development', 'On the Horizon', 'Future Transmission'];
 
-export const ROADMAP = [];
+export const ROADMAP = [
+  {
+    name: 'Indoor Arrivals', status: 'Future Transmission', accent: '#ff7a4a', glyph: '⇩',
+    teaser: 'Soon, enemies will arrive from above in indoor arenas too, not just out in the open.',
+    themes: ['Dropships', 'Indoor arenas'],
+  },
+];
