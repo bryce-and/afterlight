@@ -5,6 +5,17 @@
 
 export const RELEASES = [
   {
+    version: '5.8.4', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
+    summary: 'Hand cannons, shotguns, sidearms and the Forerunner now carry a real optic on the gun that matches their rolled sight, and the optic is the point of aim.',
+    notes: [
+      'Hand cannons, shotguns, sidearms and the Forerunner show a real optic on the gun: Red Dot, Holographic Ring or Micro Reflex, matching the sight the weapon rolled',
+      'The optic is the point of aim and sits at the centre of the screen. The old floating dot sights and the red overlay drawn on top of them are gone',
+      'Every weapon of those types now rolls one of the new sights, so there is no Iron Sights roll anymore',
+      'Saved weapons without a sight get one automatically, always the same one per weapon',
+      'The tooltip shows the sight for those weapons',
+    ],
+  },
+  {
     version: '5.8.3', name: 'Hotfix', date: '2026-11-21', accent: '#f2e6a8', glyph: '✚',
     summary: 'Fixes sound effects and music dropping out in big fights: the audio recovers if the browser suspends it, and sound effects are capped so a huge fight cannot overload it.',
     notes: [
