@@ -26,7 +26,7 @@ export async function lineup({ size = [420, 300] } = {}) {
   for (const kind of ['cabal', 'fallen', 'hive', 'scorn']) {
     try {
       const ship = M.buildShip(kind); scene.add(ship);
-      shoot(`${kind} 3/4`, 34, 9, 0.9); shoot(`${kind} side`, 36, 2, Math.PI / 2); shoot(`${kind} from below`, 24, -9, 2.6);
+      shoot(`${kind} 3/4`, 46, 12, 0.9); shoot(`${kind} side`, 48, 2, Math.PI / 2); shoot(`${kind} from below`, 34, -12, 2.6);
       scene.remove(ship);
     } catch (e) { errors.push(`${kind}: ${e.message}`); }
   }
