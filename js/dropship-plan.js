@@ -112,8 +112,8 @@ export function shipPos(t, tl, from, hover, to) {
 }
 
 // ---------------------------------------------------------------- U34 "Indoor Arrivals"
-/** Where there is no open sky, Cabal, Fallen and Hive units arrive by pod, vent or wall crack. Vex, Taken and Scorn keep their gates. */
-export const INDOOR = Object.freeze({ legion: 'pod', scrappers: 'vent', hollow: 'crack' });
+/** Where there is no open sky, Fallen and Hive units arrive by vent or floor crack. The Cabal, Vex, Taken and Scorn keep their old way (spawn, or gate). */
+export const INDOOR = Object.freeze({ scrappers: 'vent', hollow: 'crack' }); // H44: the Cabal (legion) keep the old spawn indoors; the pod art stays in dropship-models.js for later
 export const indoorKindOf = (faction) => INDOOR[faction] || null;
 export const INDOOR_T = Object.freeze({
   telegraph: 1.5,  // s from the first cue to the first unit stepping out
@@ -122,7 +122,7 @@ export const INDOOR_T = Object.freeze({
   snapRange: 14,   // m: an authored arrival point this close to the unit's spawn spot is used
   usedGap: 1.5,    // m: two units never share one arrival point
   minHeadroom: 2.4,// m of free air a pod or vent needs above the spot
-  fallMax: 4,      // m: a unit never falls further than this on its way in
+  fallMax: 14,     // m: a unit never falls further than this on its way in (about a second)
   bodyR: 0.7,      // m: clear space the unit's body needs round the spot
 });
 

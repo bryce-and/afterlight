@@ -4956,9 +4956,9 @@ test('U32 setting: on by default, off only for an explicit 0, a broken store mea
 });
 
 // ---- U34 Indoor Arrivals (pure plan: js/dropship-plan.js) ----
-test('U34 indoor kinds: Cabal pod, Fallen vent, Hive crack; the gate factions and unknowns get none', () => {
-  eq(DS.indoorKindOf('legion'), 'pod'); eq(DS.indoorKindOf('scrappers'), 'vent'); eq(DS.indoorKindOf('hollow'), 'crack');
-  for (const f of ['vex', 'taken', 'scorn', 'nope']) eq(DS.indoorKindOf(f), null, f);
+test('U34 indoor kinds: Fallen vent, Hive crack; the Cabal (old spawn), the gate factions and unknowns get none', () => {
+  eq(DS.indoorKindOf('scrappers'), 'vent'); eq(DS.indoorKindOf('hollow'), 'crack');
+  for (const f of ['legion', 'vex', 'taken', 'scorn', 'nope']) eq(DS.indoorKindOf(f), null, f);
 });
 test('U34 indoorTimeline: first unit after the telegraph, last never later than the cap, in order', () => {
   for (const n of [1, 2, 4, 8, 12]) {

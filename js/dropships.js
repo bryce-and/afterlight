@@ -46,6 +46,31 @@ export function resetDropships() {
 // ---------------------------------------------------------------- launching
 const blocked = (x, y, z) => !!pointInColliders(_v.set(x, y, z), 0.4);
 
+// U34 H44: ceilings are often plain visual boxes with no collider, so a ship (or a pod) would fly through them. Raycast up through the visible scene as well.
+const _ray = new THREE.Raycaster(); const _up = new THREE.Vector3(0, 1, 0), _o = new THREE.Vector3();
+const ROOF_RANGE = 100; // m: a ship's whole flight (hover 12 m, in at about 40 m, out at about 70 m and more) must be under open sky
+let roofSkip = null; // meshes that are never a roof: ships, props, enemy models (set per launch)
+const ROOF_RING = [[0, 0], ...Array.from({ length: 8 }, (_, i) => [Math.sin(i * Math.PI / 4) * 14, Math.cos(i * Math.PI / 4) * 14])]; // the hull is up to 20 m wide: a skylight over the centre is not open sky, and the approach slopes in over the roof edge
+/** Height of the lowest solid visible surface over (x, y, z) or its 14 m ring, or Infinity when the sky is open for ROOF_RANGE. */
+function roofHeight(x, y, z) {
+  let m = Infinity;
+  for (const [ox, oz] of ROOF_RING) m = Math.min(m, roofRay(x + ox, y, z + oz));
+  return m;
+}
+/** Distance up to the first solid visible surface above (x, y, z), or Infinity. */
+function roofRay(x, y, z) {
+  if (!G.scene) return Infinity;
+  _ray.set(_o.set(x, y + 0.5, z), _up); _ray.far = ROOF_RANGE;
+  for (const h of _ray.intersectObjects(G.scene.children, true)) {
+    const o = h.object, m = o.material;
+    if (!o.isMesh || !o.visible || (m && !Array.isArray(m) && (m.transparent && m.opacity < 0.9 || m.depthWrite === false))) continue; // effects, glows and glass do not count
+    let skip = false;
+    for (let a = o; a && !skip; a = a.parent) skip = roofSkip?.has(a);
+    if (!skip) return h.distance - 0.5;
+  }
+  return Infinity;
+}
+
 /**
  * Takes freshly spawned deferred enemies (spawnUnit `defer`) and plays their arrival. Anything that cannot play one (the setting is off, no open sky above
  * the spot, a boss, a faction with no arrival) lands at once with the old grow-in, so waves never stall on a missing animation.
@@ -53,6 +78,7 @@ const blocked = (x, y, z) => !!pointInColliders(_v.set(x, y, z), 0.4);
  */
 export function launchDrops(enemies, place) {
   const eligible = [], plain = [], indoor = [];
+  roofSkip = new Set([...G.enemies.map((e) => e.model?.group), ...enemies.map((e) => e.model?.group), ...drops.map((d) => d.mesh), ...drops.flatMap((d) => d.units.map((u) => u.prop || u.gate))].filter(Boolean));
   for (const e of enemies) (dropshipsOn() && !e.isBoss && arrivalOf(e.faction) && e.alive ? eligible : plain).push(e);
   for (const grp of groupDrops(eligible.map((e) => ({ faction: e.faction, e })))) {
     const es = grp.items.map((i) => i.e);
@@ -86,7 +112,7 @@ export function launchDrops(enemies, place) {
       anchor.copy(found);
     }
     es[0].pos.copy(anchor); es[0].pos.y = groundAt(anchor.x, anchor.z); anchor.y = es[0].pos.y;
-    if (!skyClear(blocked, anchor.x, anchor.y, anchor.z)) { indoor.push(...es); continue; } // no open sky here: U34 indoor arrival (falls back to the old spawn per unit)
+    if (!skyClear(blocked, anchor.x, anchor.y, anchor.z) || roofHeight(anchor.x, anchor.y, anchor.z) < ROOF_RANGE) { indoor.push(...es); continue; } // no open sky here: U34 indoor arrival (falls back to the old spawn per unit)
     for (let i = 1; i < es.length; i++) { // ride together: the rest of the load lands around the first
       const p = place?.(anchor);
       if (p) { es[i].pos.copy(p); es[i].pos.y = groundAt(p.x, p.z); }
@@ -131,7 +157,7 @@ function launchIndoor(es) {
     const pt = pickArrivalPoint(G.level?.arrivalPoints, e.pos, free, used);
     const x = pt ? pt.x : e.pos.x, z = pt ? pt.z : e.pos.z, floor = groundAt(x, z);
     if (!pt && !bodyClear(solidAt, x, floor, z)) { left.push(e); continue; } // spawn spot inside geometry: never place a unit in a wall
-    const h = headroom(solidAt, x, floor, z, INDOOR_T.fallMax + 2.4);
+    const h = Math.min(headroom(solidAt, x, floor, z, 18), roofRay(x, floor, z)); // the ceiling, solid or just visible
     if (kind !== 'crack' && h < INDOOR_T.minHeadroom) { left.push(e); continue; }
     used.push({ x, z });
     e.pos.set(x, floor, z);
@@ -163,15 +189,15 @@ function stepIndoor(d, dt) {
       u.fx -= dt;
       if (u.fx <= 0) { u.fx = 0.5; _v.set(e.pos.x, u.floor + 0.1, e.pos.z); ringFx(_v, 1.6 + 1.2 * k, col, 0.6); sparks(_v, col, 4, 3, 0.08, 0.5); }
       if (u.kind === 'pod') {
-        const top = u.floor + Math.max(0, Math.min(u.h - 2.3, INDOOR_T.fallMax)), fallT = 0.45, f = Math.max(0, (t - (u.land - fallT)) / fallT);
-        p.position.y = top + (u.floor - top) * f * f; // hangs at the ceiling, then drops in the last 0.45 s
+        const drop = Math.max(0, Math.min(u.h - 2.3, INDOOR_T.fallMax)), top = u.floor + drop, fallT = Math.max(0.45, Math.min(1.2, fallTime(drop))), f = Math.max(0, (t - (u.land - fallT)) / fallT);
+        p.position.y = top + (u.floor - top) * f * f; // hangs at the ceiling, then drops in the last second
         p.position.x = e.pos.x + (f <= 0 ? Math.sin(t * 40) * 0.03 : 0);
       } else if (u.kind === 'vent') {
         const fallT = fallTime(u.hu), t0 = u.land - fallT;
-        if (t < t0) { p.position.set(e.pos.x + Math.sin(t * 38) * 0.04, u.floor + u.h - 0.1, e.pos.z); } // rattles in its frame
+        if (t < t0) { p.position.set(e.pos.x + Math.sin(t * 38) * 0.04, u.floor + u.hu + 1.7, e.pos.z); } // rattles in its frame
         else { // the grate drops and the unit follows it down
           const s = t - t0;
-          p.position.y = Math.max(u.floor + 0.05, u.floor + u.h - 0.1 - 0.5 * DROP.gravity * s * s); p.rotation.z = Math.min(s * 3, 1.2) ;
+          p.position.y = Math.max(u.floor + 0.05, u.floor + u.hu + 1.7 - 0.5 * DROP.gravity * s * s); p.rotation.z = Math.min(s * 3, 1.2) ;
           const uy = Math.max(u.floor, u.floor + u.hu - 0.5 * DROP.gravity * s * s);
           if (!e.model.group.visible) { e.model.group.visible = true; e.model.group.scale.setScalar(e.scale); }
           e.model.group.position.set(e.pos.x, uy, e.pos.z);
