@@ -4988,6 +4988,14 @@ test('U34 pickArrivalPoint: nearest valid unused point in range, else null', () 
   eq(DS.pickArrivalPoint(pts, pos, always, [], 2), null, 'out of range');
   eq(DS.pickArrivalPoint(undefined, pos, always), null); eq(DS.pickArrivalPoint([], pos, always), null);
 });
+test('U34 sfx: every dropship and indoor-arrival sound exists and never throws (known kinds, unknown kinds, no audio context)', () => {
+  const at = { x: 0, y: 0, z: 0 };
+  for (const kind of ['cabal', 'fallen', 'hive', 'nope']) { sfx.shipIn(at, kind); sfx.shipHover(at, kind, 1.5); sfx.shipOut(at, kind); }
+  for (const f of ['vex', 'taken', 'scorn', 'nope']) { sfx.gateCharge(at, f); sfx.gateOpen(at, f); }
+  for (const k of ['pod', 'vent', 'crack']) { sfx.arrivalWarn(at, k); sfx.arrivalOut(at, k); }
+  sfx.dropLand(at);
+  ok(true);
+});
 
 // ---- U33 Transmissions: ambiance, voices, music phases ----
 test('U33 ambiance: every destination, the Tower and Orbit have a bed with valid one-shots', () => {

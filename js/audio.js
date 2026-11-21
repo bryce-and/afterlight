@@ -262,6 +262,9 @@ export const FACTION_SOUND = {
   legion: { shot: [{ t: { freq: 620, freqEnd: 240, dur: 0.14, type: 'square', gain: 0.18 } }, { n: { dur: 0.1, freq: 2200, freqEnd: 600, gain: 0.3 } }], die: [{ n: { dur: 0.4, freq: 1100, freqEnd: 150, gain: 0.45 } }, { t: { freq: 160, freqEnd: 60, dur: 0.35, type: 'sine', gain: 0.3 } }] },
 };
 
+const SHIP_SND = { cabal: { f: 70, nf: 350, wave: 'sawtooth' }, fallen: { f: 120, nf: 700, wave: 'square', vib: 18 }, hive: { f: 85, nf: 450, wave: 'sawtooth', vib: 11 } };
+const GATE_SND = { vex: { f: 500, nf: 3200, wave: 'square', vib: 0 }, taken: { f: 160, nf: 900, wave: 'sine', vib: 25 }, scorn: { f: 220, nf: 1200, wave: 'sawtooth', vib: 12 } };
+
 export const sfx = {
   /** Weapon shot. `at` places a fireteam member's shot in the world; `el` tints it by element. */
   shot(arch, at, el) {
@@ -381,6 +384,60 @@ export const sfx = {
   /** A shot on a blight: a dull pulse. Destroyed: a burst. */
   blightHit() { play('abilities', [{ t: { freq: 170, freqEnd: 120, dur: 0.1, type: 'square', gain: 0.1 } }, { n: { dur: 0.08, freq: 2400, type: 'highpass', gain: 0.1 } }], { vary: 0 }); },
   blightDown() { play('abilities', [{ n: { dur: 0.45, freq: 2200, freqEnd: 400, type: 'bandpass', gain: 0.25 } }, { t: { freq: 440, freqEnd: 880, dur: 0.3, gain: 0.08 } }], { vary: 0, send: 0.4 }); },
+  // ---- U32 dropships and U34 indoor arrivals. Ships use the abilities bus (they are far away, so no enemy distance cut); units use the enemies bus.
+  /** A ship comes into view and flies to its hover spot: an engine swell. `kind`: cabal (deep, rough), fallen (thin, whining), hive (wet, droning). */
+  shipIn(at, kind) {
+    const k = SHIP_SND[kind] || SHIP_SND.cabal;
+    play('abilities', [
+      { t: { freq: k.f, freqEnd: k.f * 1.7, dur: 2.7, type: k.wave, gain: 0.09, attack: 1.9, vib: k.vib } },
+      { n: { dur: 2.7, freq: k.nf, freqEnd: k.nf * 3, type: 'bandpass', q: 0.9, gain: 0.28, attack: 1.9 } },
+    ], { at, gain: 2.2, send: 0.35, vary: 0.04 });
+  },
+  /** The ship holds over the drop point: a steady rumble for `dur` seconds. */
+  shipHover(at, kind, dur = 1.5) {
+    const k = SHIP_SND[kind] || SHIP_SND.cabal;
+    play('abilities', [
+      { t: { freq: k.f * 1.5, dur, type: k.wave, gain: 0.07, attack: 0.25, vib: k.vib || 9 } },
+      { n: { dur, freq: k.nf * 0.8, type: 'lowpass', gain: 0.22, attack: 0.25 } },
+    ], { at, gain: 2.2, send: 0.3, vary: 0.03 });
+  },
+  /** The ship climbs away. */
+  shipOut(at, kind) {
+    const k = SHIP_SND[kind] || SHIP_SND.cabal;
+    play('abilities', [
+      { t: { freq: k.f * 2.2, freqEnd: k.f * 0.8, dur: 2.4, type: k.wave, gain: 0.08, attack: 0.2, vib: k.vib } },
+      { n: { dur: 2.4, freq: k.nf * 3, freqEnd: k.nf * 0.5, type: 'bandpass', q: 0.9, gain: 0.24, attack: 0.3 } },
+    ], { at, gain: 2.0, send: 0.35 });
+  },
+  /** A dropped unit hits the ground. */
+  dropLand(at) {
+    if (throttled('dl', 90)) return;
+    play('enemies', [{ t: { freq: 95, freqEnd: 40, dur: 0.22, type: 'sine', gain: 0.6 } }, { n: { dur: 0.16, freq: 900, freqEnd: 200, gain: 0.35 } }], { at, gain: 1.8, vary: 0.12, send: 0.25 });
+  },
+  /** A teleport gate charges (rising hum), then the unit steps out (crack and boom). */
+  gateCharge(at, faction) {
+    if (throttled('gc', 80)) return;
+    const k = GATE_SND[faction] || GATE_SND.vex;
+    play('enemies', [{ t: { freq: k.f, freqEnd: k.f * 2.4, dur: 0.9, type: k.wave, gain: 0.14, attack: 0.7, vib: k.vib } }, { n: { dur: 0.9, freq: k.nf, freqEnd: k.nf * 2.5, type: 'bandpass', q: 1.5, gain: 0.2, attack: 0.7 } }], { at, gain: 1.8, send: 0.35 });
+  },
+  gateOpen(at, faction) {
+    if (throttled('go', 70)) return;
+    const k = GATE_SND[faction] || GATE_SND.vex;
+    play('enemies', [{ n: { dur: 0.22, freq: k.nf * 2, freqEnd: k.nf * 0.4, type: 'bandpass', q: 0.8, gain: 0.5, attack: 0.002, crunch: 1 } }, { t: { freq: k.f * 0.6, freqEnd: 38, dur: 0.35, type: 'sine', gain: 0.5 } }], { at, gain: 1.8, send: 0.4 });
+  },
+  /** Indoor arrival telegraph (1.5 s): a pod's engine screams down, a vent rattles and clangs, a crack rumbles and spits. Call once per kind per wave. */
+  arrivalWarn(at, kind) {
+    if (kind === 'pod') play('abilities', [{ t: { freq: 220, freqEnd: 700, dur: 1.5, type: 'sawtooth', gain: 0.08, attack: 1.2 } }, { n: { dur: 1.5, freq: 600, freqEnd: 2600, type: 'bandpass', q: 1.2, gain: 0.25, attack: 1.2 } }], { at, gain: 2, send: 0.5 });
+    else if (kind === 'vent') play('abilities', [0, 0.18, 0.34, 0.5, 0.66, 0.8, 0.92, 1.04, 1.14, 1.24].map((d, i) => ({ n: { dur: 0.07, freq: 1700 + (i % 3) * 500, type: 'bandpass', q: 3, gain: 0.2 + i * 0.015, delay: d, attack: 0.001 } })).concat([{ t: { freq: 150, freqEnd: 110, dur: 1.4, type: 'square', gain: 0.05, attack: 0.5 } }]), { at, gain: 2, send: 0.5, vary: 0.05 });
+    else play('abilities', [{ t: { freq: 55, freqEnd: 90, dur: 1.5, type: 'sawtooth', gain: 0.12, attack: 1.0, vib: 8 } }, { n: { dur: 1.5, freq: 250, freqEnd: 900, type: 'lowpass', gain: 0.28, attack: 1.0 } }, ...[0.3, 0.7, 1.0, 1.25].map((d) => ({ n: { dur: 0.09, freq: 3000, type: 'highpass', gain: 0.14, delay: d, attack: 0.001 } }))], { at, gain: 2, send: 0.5 });
+  },
+  /** The unit is out: a pod slams, a grate clangs down, a crack bursts wet. */
+  arrivalOut(at, kind) {
+    if (throttled('ao', 60)) return;
+    if (kind === 'pod') play('enemies', [{ t: { freq: 110, freqEnd: 35, dur: 0.35, type: 'sine', gain: 0.65 } }, { n: { dur: 0.3, freq: 3500, freqEnd: 400, type: 'bandpass', q: 0.8, gain: 0.5 } }], { at, gain: 1.8, send: 0.4 });
+    else if (kind === 'vent') play('enemies', [{ n: { dur: 0.25, freq: 2400, freqEnd: 700, type: 'bandpass', q: 4, gain: 0.5, attack: 0.001 } }, { t: { freq: 780, freqEnd: 520, dur: 0.3, type: 'triangle', gain: 0.18 } }, { t: { freq: 90, freqEnd: 40, dur: 0.25, type: 'sine', gain: 0.5, delay: 0.1 } }], { at, gain: 1.8, send: 0.4 });
+    else play('enemies', [{ n: { dur: 0.3, freq: 800, freqEnd: 150, type: 'lowpass', gain: 0.55, attack: 0.002, crunch: 1 } }, { t: { freq: 150, freqEnd: 50, dur: 0.4, type: 'sawtooth', gain: 0.2, vib: 14 } }], { at, gain: 1.8, send: 0.4 });
+  },
   /** A shot on an eye that is already lit (nothing changes): a faint tick. */
   eyeAgain() { play('ui', [{ t: { freq: 1320, dur: 0.05, type: 'triangle', gain: 0.03 } }], { vary: 0 }); },
 };

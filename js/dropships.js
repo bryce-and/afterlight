@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { buildShip, buildGate, disposeGate, buildIndoorProp, HALF } from './dropship-models.js';
 import { G } from './state.js';
+import { sfx } from './audio.js';
 import { groundAt, pointInColliders } from './physics.js';
 import { ringFx, sparks } from './effects.js';
 import { registerEnemy, announceDrop } from './coop.js';
@@ -65,6 +66,7 @@ export function launchDrops(enemies, place) {
         G.scene.add(gate);
         t.units.push({ e, gate, at: DROP.tpCharge + t.units.length * DROP.tpGap, done: false, landed: false });
         e.dropping = true;
+        sfx.gateCharge(e.pos, e.faction);
       });
       if (t.units.length) drops.push(t);
       continue;
@@ -99,6 +101,7 @@ export function launchDrops(enemies, place) {
     const mesh = buildShip(grp.kind);
     mesh.position.set(from.x, from.y, from.z);
     G.scene.add(mesh);
+    sfx.shipIn(from, grp.kind);
     const tl = shipTimeline(es.length);
     es.forEach((e) => { e.dropping = true; });
     announceDrop({ k: grp.kind, n: es.length, f: [r1(from.x), r1(from.y), r1(from.z)], h: [r1(hover.x), r1(hover.y), r1(hover.z)], o: [r1(to.x), r1(to.y), r1(to.z)], y: r1(base) });
@@ -142,6 +145,7 @@ function launchIndoor(es) {
     units.push({ e, kind, prop, floor, h, hu: Math.min(h - 1.8, INDOOR_T.fallMax), land: tl.land[i], sc, state: 'wait', done: false, fx: 0 });
   }
   indoorStats.played += units.length; indoorStats.fallback += left.length;
+  for (const kind of new Set(units.map((u) => u.kind))) sfx.arrivalWarn(units.find((u) => u.kind === kind).e.pos, kind); // one telegraph sound per kind per wave
   if (units.length) drops.push({ kind: 'indoor', t: 0, end: tl.end, units });
   return left;
 }
@@ -186,6 +190,7 @@ function stepIndoor(d, dt) {
         _v.set(e.pos.x, u.floor + 0.2, e.pos.z);
         ringFx(_v, 2.8 * e.scale, col, 0.6); sparks(_v, col, 10, 6, 0.1, 0.5); sparks(_v.setY(u.floor + 0.3), 0xd0c8b0, 6, 4, 0.12, 0.5);
         p.position.y = u.kind === 'vent' ? u.floor + 0.05 : p.position.y;
+        sfx.arrivalOut(e.pos, u.kind);
         land(e);
       }
     } else if (u.state === 'out') { // the prop closes: shrinks away over 0.6 s
@@ -207,6 +212,7 @@ export function showRemoteShip(m) {
   const mesh = buildShip(m.k);
   mesh.position.set(f.x, f.y, f.z);
   G.scene.add(mesh);
+  sfx.shipIn(f, m.k);
   drops.push({ kind: m.k, t: 0, tl: shipTimeline(m.n), from: f, hover: h, to: o, mesh, dust: 0, yaw: m.y, units: [] });
 }
 const BUILD_KINDS = ['cabal', 'fallen', 'hive'];
@@ -226,6 +232,11 @@ function stepShip(d, dt) {
   const wob = 1 + Math.sin(d.t * 17) * 0.18;
   for (const m of d.mesh.userData.pulse) { m.userData.sy ??= m.scale.y; m.scale.y = m.userData.sy * wob; }
   d.mesh.visible = p.phase !== 'gone';
+  if (p.phase !== d.phase) { // U34 sound: the hover rumble and the climb-out roar play once each, at the ship
+    d.phase = p.phase;
+    if (p.phase === 'hover') sfx.shipHover(p, d.kind, d.tl.leaveStart - d.tl.arrive);
+    else if (p.phase === 'out') sfx.shipOut(p, d.kind);
+  }
   if (p.phase === 'hover') { // downwash: dust rings on the ground under the hull
     d.dust -= dt;
     if (d.dust <= 0) { d.dust = 0.45; _v.set(p.x, groundAt(p.x, p.z), p.z); ringFx(_v, 6, 0xcfc6ac, 0.7); sparks(_v.setY(_v.y + 0.3), 0xcfc6ac, 4, 4, 0.12, 0.5); }
@@ -244,6 +255,7 @@ function stepShip(d, dt) {
       const floor = e.pos.y;
       if (u.y <= floor) { // touchdown
         u.state = 'landed'; u.done = true;
+        sfx.dropLand(e.pos);
         ringFx(e.pos, 2.6 * e.scale, e.shotColor, 0.6);
         sparks(_v.copy(e.pos).setY(e.pos.y + 0.3), 0xd0c8b0, 9, 5, 0.12, 0.5);
         land(e);
@@ -266,7 +278,7 @@ function stepGates(d, dt) {
       g.scale.set(0.45 + c * 0.5, 0.2 + c * 1.1, 0.45 + c * 0.5);
       U.ring.rotation.set(HALF, 0, d.t * 9); U.ring.scale.setScalar(1.4 - c * 0.5);
       U.mat.opacity = (U.L.add ? 0.15 : 0.4) + c * 0.35;
-      if (k >= 1) { u.landed = true; u.landedAt = d.t; ringFx(e.pos, 3 * e.scale, U.L.flash, 0.5); sparks(_v.copy(e.pos).setY(e.pos.y + 1), U.L.flash, 14, 7, 0.1, 0.5); sparks(_v.setY(e.pos.y + 0.6), U.L.col, 8, 4, 0.12, 0.5); land(e); u.done = true; }
+      if (k >= 1) { u.landed = true; u.landedAt = d.t; ringFx(e.pos, 3 * e.scale, U.L.flash, 0.5); sparks(_v.copy(e.pos).setY(e.pos.y + 1), U.L.flash, 14, 7, 0.1, 0.5); sparks(_v.setY(e.pos.y + 0.6), U.L.col, 8, 4, 0.12, 0.5); land(e); u.done = true; sfx.gateOpen(e.pos, e.faction); }
     } else { // collapsing after the step-out (or after the unit died)
       const f = Math.min(1, (d.t - (u.landedAt ?? d.t)) / DROP.tpEnd);
       g.scale.set(0.95 * (1 - f) + 0.01, 1.3 * (1 + f * 0.5), 0.95 * (1 - f) + 0.01);
